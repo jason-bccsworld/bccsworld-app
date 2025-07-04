@@ -76,10 +76,10 @@ export default function DocumentValidation() {
               </div>
               
               <div>
-                <Label htmlFor="licenseNumber">License Number</Label>
+                <Label htmlFor="certificateNumber">Certificate Number</Label>
                 <div className="flex items-center space-x-2">
                   <Input 
-                    id="licenseNumber"
+                    id="certificateNumber"
                     defaultValue={licenseNumber?.extractedValue || ""}
                     className="flex-1"
                   />
@@ -104,10 +104,10 @@ export default function DocumentValidation() {
               </div>
               
               <div>
-                <Label htmlFor="dateOfBirth">Date of Birth</Label>
+                <Label htmlFor="dob">D.O.B</Label>
                 <div className="flex items-center space-x-2">
                   <Input 
-                    id="dateOfBirth"
+                    id="dob"
                     defaultValue={getFieldValue('dateOfBirth')?.extractedValue || ""}
                     className="flex-1"
                   />
