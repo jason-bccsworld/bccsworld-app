@@ -90,33 +90,44 @@ export default function DocumentValidation() {
               </div>
               
               <div>
-                <Label htmlFor="eventType">Event Type</Label>
+                <Label htmlFor="certificateType">Certificate Type</Label>
                 <div className="flex items-center space-x-2">
-                  <Select defaultValue="private-pilot-checkride">
-                    <SelectTrigger className="flex-1">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="private-pilot-checkride">Private Pilot Checkride</SelectItem>
-                      <SelectItem value="instrument-rating">Instrument Rating</SelectItem>
-                      <SelectItem value="commercial-license">Commercial License</SelectItem>
-                      <SelectItem value="flight-review">Flight Review</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Badge className="bg-emerald-100 text-emerald-800 text-xs">92%</Badge>
+                  <Input 
+                    id="certificateType"
+                    defaultValue={certificateType?.extractedValue || ""}
+                    className="flex-1"
+                  />
+                  <Badge className="bg-emerald-100 text-emerald-800 text-xs">
+                    {certificateType?.confidenceScore || 0}%
+                  </Badge>
                 </div>
               </div>
               
               <div>
-                <Label htmlFor="eventDate">Date</Label>
+                <Label htmlFor="dateOfBirth">Date of Birth</Label>
                 <div className="flex items-center space-x-2">
                   <Input 
-                    id="eventDate"
-                    type="date"
-                    defaultValue="2024-01-15"
+                    id="dateOfBirth"
+                    defaultValue={getFieldValue('dateOfBirth')?.extractedValue || ""}
                     className="flex-1"
                   />
-                  <Badge className="bg-emerald-100 text-emerald-800 text-xs">89%</Badge>
+                  <Badge className="bg-emerald-100 text-emerald-800 text-xs">
+                    {getFieldValue('dateOfBirth')?.confidenceScore || 0}%
+                  </Badge>
+                </div>
+              </div>
+              
+              <div>
+                <Label htmlFor="address">Address</Label>
+                <div className="flex items-center space-x-2">
+                  <Input 
+                    id="address"
+                    defaultValue={getFieldValue('address')?.extractedValue || ""}
+                    className="flex-1"
+                  />
+                  <Badge className="bg-emerald-100 text-emerald-800 text-xs">
+                    {getFieldValue('address')?.confidenceScore || 0}%
+                  </Badge>
                 </div>
               </div>
               
