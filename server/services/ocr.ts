@@ -40,6 +40,7 @@ export async function processDocumentOCR(filePath: string): Promise<string> {
 
     // Get file extension
     const ext = path.extname(filePath).toLowerCase();
+    console.log("Processing file with extension:", ext, "for file:", filePath);
 
     // For PDFs, we'd need to convert to images first
     // For now, handle images directly
@@ -50,7 +51,8 @@ export async function processDocumentOCR(filePath: string): Promise<string> {
       // In production, this would use a PDF-to-text extraction library
       return await processPdfText(filePath);
     } else {
-      throw new Error("Unsupported file type for OCR");
+      console.error("Unsupported file extension:", ext);
+      throw new Error(`Unsupported file type for OCR: ${ext}`);
     }
   } catch (error) {
     console.error("OCR processing error:", error);

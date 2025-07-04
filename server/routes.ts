@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import multer from "multer";
+import path from "path";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { processDocumentOCR } from "./services/ocr";
@@ -11,7 +12,15 @@ import { z } from "zod";
 
 // Configure multer for file uploads
 const upload = multer({
-  dest: "uploads/",
+  storage: multer.diskStorage({
+    destination: "uploads/",
+    filename: (req, file, cb) => {
+      // Generate unique filename with original extension
+      const ext = path.extname(file.originalname);
+      const uniqueName = Date.now() + '-' + Math.round(Math.random() * 1E9) + ext;
+      cb(null, uniqueName);
+    }
+  }),
   limits: {
     fileSize: 10 * 1024 * 1024, // 10MB limit
   },
