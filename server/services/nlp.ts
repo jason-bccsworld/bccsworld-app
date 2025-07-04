@@ -1,8 +1,23 @@
 import OpenAI from "openai";
+import * as fs from "fs";
+import * as path from "path";
+
+// Load environment variables from .env file
+const envPath = path.join(process.cwd(), '.env');
+if (fs.existsSync(envPath)) {
+  const envContent = fs.readFileSync(envPath, 'utf8');
+  const envLines = envContent.split('\n').filter(line => line.trim() && !line.startsWith('#'));
+  for (const line of envLines) {
+    const [key, ...valueParts] = line.split('=');
+    if (key && valueParts.length > 0) {
+      process.env[key.trim()] = valueParts.join('=').trim();
+    }
+  }
+}
 
 // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY_ENV_VAR || "",
+  apiKey: process.env.OPENAI_API_KEY || "",
 });
 
 export interface ExtractedField {

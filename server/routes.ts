@@ -236,6 +236,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Reprocess stuck documents
+  app.post('/api/documents/:id/reprocess', isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const document = await storage.getDocument(id);
+      
+      if (!document) {
+        return res.status(404).json({ message: 'Document not found' });
+      }
+
+      if (document.status === 'processing') {
+        // Reset status and reprocess
+        await storage.updateDocumentStatus(id, 'uploaded');
+        
+        // Trigger reprocessing
+        const filePath = path.join(process.cwd(), 'uploads', document.filename);
+        if (fs.existsSync(filePath)) {
+          processDocumentAsync(id, filePath);
+          res.json({ message: 'Document reprocessing started' });
+        } else {
+          res.status(400).json({ message: 'Original file not found' });
+        }
+      } else {
+        res.json({ message: 'Document already processed', status: document.status });
+      }
+    } catch (error) {
+      console.error('Error reprocessing document:', error);
+      res.status(500).json({ message: 'Failed to reprocess document' });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
