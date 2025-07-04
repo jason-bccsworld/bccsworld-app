@@ -3,32 +3,46 @@ import fs from "fs";
 import path from "path";
 
 async function processPdfText(pdfPath: string): Promise<string> {
-  // For demonstration purposes, we'll simulate extracting text from an FAA license PDF
-  // In production, this would use a proper PDF text extraction library
-  
-  const fileName = path.basename(pdfPath).toLowerCase();
-  
-  // Simulate extracting typical FAA license information
-  const mockFaaLicenseText = `
-    FEDERAL AVIATION ADMINISTRATION
-    PILOT CERTIFICATE
+  try {
+    // Use pdftotext command to extract text directly from PDF
+    const { exec } = require('child_process');
+    const { promisify } = require('util');
+    const execAsync = promisify(exec);
     
-    Certificate Number: P123456789
-    Name: FREDERICK SMITH
-    Address: 123 AVIATION WAY, PILOT CITY, ST 12345
+    console.log(`Extracting text from PDF: ${pdfPath}`);
     
-    RATINGS AND LIMITATIONS:
-    Private Pilot
-    Airplane Single Engine Land
+    // Extract text using pdftotext
+    const { stdout } = await execAsync(`pdftotext "${pdfPath}" -`);
     
-    DATE OF ISSUE: 01/15/2020
-    CERTIFICATE TYPE: PRIVATE PILOT
+    if (stdout && stdout.trim().length > 0) {
+      console.log('Successfully extracted text from PDF');
+      return stdout.trim();
+    }
     
-    This certificate is issued under the authority of the Federal Aviation Administration.
-    The holder of this certificate is authorized to exercise the privileges of the rating(s) shown.
-  `.trim();
-  
-  return mockFaaLicenseText;
+    // If no text extracted, it might be a scanned PDF - use Tesseract on the PDF directly
+    console.log('No text found, trying OCR on PDF pages...');
+    
+    // Fallback: Use Tesseract to OCR the PDF directly (limited but might work)
+    const worker = await createWorker('eng');
+    
+    try {
+      const { data: { text } } = await worker.recognize(pdfPath);
+      await worker.terminate();
+      
+      if (text && text.trim().length > 0) {
+        return text.trim();
+      }
+    } catch (ocrError) {
+      await worker.terminate();
+      console.log('Direct OCR failed, this appears to be a complex PDF');
+    }
+    
+    throw new Error('Unable to extract text from this PDF format');
+    
+  } catch (error) {
+    console.error('PDF processing error:', error);
+    throw new Error(`Failed to process PDF: ${error.message}`);
+  }
 }
 
 export async function processDocumentOCR(filePath: string): Promise<string> {
