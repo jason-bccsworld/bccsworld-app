@@ -5,8 +5,32 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle, Flag } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 
 export default function DocumentValidation() {
+  // Fetch latest processed document and its extracted data
+  const { data: documents } = useQuery({
+    queryKey: ["/api/documents"],
+  });
+
+  const { data: extractedData } = useQuery({
+    queryKey: ["/api/documents", documents?.[0]?.id, "extracted-data"],
+    enabled: !!documents?.[0]?.id,
+    queryFn: async () => {
+      const response = await fetch(`/api/documents/${documents[0].id}/extracted-data`);
+      if (!response.ok) throw new Error('Failed to fetch extracted data');
+      return response.json();
+    }
+  });
+
+  // Parse extracted data into fields
+  const getFieldValue = (fieldName: string) => {
+    return extractedData?.find(item => item.fieldName === fieldName);
+  };
+
+  const studentName = getFieldValue('studentName');
+  const licenseNumber = getFieldValue('licenseNumber');
+  const certificateType = getFieldValue('certificateType');
   return (
     <Card>
       <CardHeader>
@@ -42,10 +66,12 @@ export default function DocumentValidation() {
                 <div className="flex items-center space-x-2">
                   <Input 
                     id="studentName"
-                    defaultValue="Michael Rodriguez"
+                    defaultValue={studentName?.extractedValue || ""}
                     className="flex-1"
                   />
-                  <Badge className="bg-emerald-100 text-emerald-800 text-xs">95%</Badge>
+                  <Badge className="bg-emerald-100 text-emerald-800 text-xs">
+                    {studentName?.confidenceScore || 0}%
+                  </Badge>
                 </div>
               </div>
               
@@ -54,10 +80,12 @@ export default function DocumentValidation() {
                 <div className="flex items-center space-x-2">
                   <Input 
                     id="licenseNumber"
-                    defaultValue="PPL-2023-4567"
+                    defaultValue={licenseNumber?.extractedValue || ""}
                     className="flex-1"
                   />
-                  <Badge className="bg-amber-100 text-amber-800 text-xs">78%</Badge>
+                  <Badge className="bg-emerald-100 text-emerald-800 text-xs">
+                    {licenseNumber?.confidenceScore || 0}%
+                  </Badge>
                 </div>
               </div>
               
