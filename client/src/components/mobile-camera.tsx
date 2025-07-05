@@ -1,8 +1,9 @@
-import React, { useState, useRef, useCallback } from "react";
+import React, { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Camera, Upload, RotateCcw, Check, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useSafeRef } from "@/hooks/use-safe-ref";
 
 interface MobileCameraProps {
   onCapture: (file: File) => void;
@@ -13,8 +14,8 @@ export default function MobileCamera({ onCapture, onClose }: MobileCameraProps) 
   const [isCamera, setIsCamera] = useState(false);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const videoRef = useSafeRef<HTMLVideoElement>(null);
+  const canvasRef = useSafeRef<HTMLCanvasElement>(null);
   const { toast } = useToast();
 
   const startCamera = useCallback(async () => {

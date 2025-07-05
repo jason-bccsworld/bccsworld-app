@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { apiRequest } from "@/lib/queryClient";
-import TestRef from "@/components/test-ref";
+import MobileCamera from "@/components/mobile-camera";
 import MobileNav from "@/components/mobile-nav";
 import { 
   Camera, 
@@ -338,12 +338,10 @@ export default function MobileField() {
 
       {/* Camera Modal */}
       {showCamera && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-4 rounded-lg">
-            <TestRef />
-            <button onClick={() => setShowCamera(false)}>Close</button>
-          </div>
-        </div>
+        <MobileCamera
+          onCapture={handleCameraCapture}
+          onClose={() => setShowCamera(false)}
+        />
       )}
     </div>
   );
