@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { apiRequest } from "@/lib/queryClient";
-import MobileCamera from "@/components/mobile-camera";
+import TestRef from "@/components/test-ref";
 import MobileNav from "@/components/mobile-nav";
 import { 
   Camera, 
@@ -338,10 +338,12 @@ export default function MobileField() {
 
       {/* Camera Modal */}
       {showCamera && (
-        <MobileCamera
-          onCapture={handleCameraCapture}
-          onClose={() => setShowCamera(false)}
-        />
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-4 rounded-lg">
+            <TestRef />
+            <button onClick={() => setShowCamera(false)}>Close</button>
+          </div>
+        </div>
       )}
     </div>
   );
