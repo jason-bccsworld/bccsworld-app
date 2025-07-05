@@ -2,10 +2,12 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Settings, Users, Building, Plus, ChevronRight } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Settings, Users, Building, Plus, ChevronRight, Shield } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { FARComplianceValidator } from "@/components/far-compliance-validator";
 
 export default function AdminDashboard() {
   const { toast } = useToast();
@@ -101,51 +103,86 @@ export default function AdminDashboard() {
         </Card>
       </div>
 
-      {/* Organizations Management */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Organizations</CardTitle>
-          <CardDescription>Manage flight schools and training organizations</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {orgsLoading ? (
-              <div>Loading organizations...</div>
-            ) : (
-              <div className="space-y-3">
-                {/* Sample organization entries */}
-                <div className="flex items-center justify-between p-3 border rounded-lg">
-                  <div className="flex items-center space-x-3">
-                    <div>
-                      <div className="font-medium">BCCS Flight Training</div>
-                      <div className="text-sm text-slate-600">Primary organization</div>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    <Badge variant="secondary">Active</Badge>
-                    <Button variant="ghost" size="sm">
-                      <ChevronRight className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
+      {/* Admin Dashboard Tabs */}
+      <Tabs defaultValue="overview" className="space-y-4">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="organizations">Organizations</TabsTrigger>
+          <TabsTrigger value="compliance">FAR Compliance</TabsTrigger>
+        </TabsList>
 
-                <div className="flex items-center justify-between p-3 border rounded-lg bg-slate-50">
-                  <div className="flex items-center space-x-3">
-                    <div>
-                      <div className="font-medium text-slate-600">Add New Organization</div>
-                      <div className="text-sm text-slate-500">Create a new training organization</div>
+        <TabsContent value="overview" className="space-y-4">
+          {/* Organizations Management */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Organizations</CardTitle>
+              <CardDescription>Manage flight schools and training organizations</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {orgsLoading ? (
+                  <div>Loading organizations...</div>
+                ) : (
+                  <div className="space-y-3">
+                    {/* Sample organization entries */}
+                    <div className="flex items-center justify-between p-3 border rounded-lg">
+                      <div className="flex items-center space-x-3">
+                        <div>
+                          <div className="font-medium">BCCS Flight Training</div>
+                          <div className="text-sm text-slate-600">Primary organization</div>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-3">
+                        <Badge variant="secondary">Active</Badge>
+                        <Button variant="ghost" size="sm">
+                          <ChevronRight className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between p-3 border rounded-lg bg-slate-50">
+                      <div className="flex items-center space-x-3">
+                        <div>
+                          <div className="font-medium text-slate-600">Add New Organization</div>
+                          <div className="text-sm text-slate-500">Create a new training organization</div>
+                        </div>
+                      </div>
+                      <Button variant="outline" size="sm">
+                        <Plus className="w-4 h-4 mr-2" />
+                        Create
+                      </Button>
                     </div>
                   </div>
-                  <Button variant="outline" size="sm">
-                    <Plus className="w-4 h-4 mr-2" />
-                    Create
-                  </Button>
-                </div>
+                )}
               </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="organizations" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Organization Management</CardTitle>
+              <CardDescription>Detailed organization management and configuration</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center py-8">
+                <Building className="w-12 h-12 text-slate-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium mb-2">Organization Management</h3>
+                <p className="text-slate-600 mb-4">Advanced organization configuration and management tools</p>
+                <Button>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Organization
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="compliance" className="space-y-4">
+          <FARComplianceValidator />
+        </TabsContent>
+      </Tabs>
 
       {/* System Configuration */}
       <Card>

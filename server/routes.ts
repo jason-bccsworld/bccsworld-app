@@ -536,6 +536,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // FAR Compliance Validation API
+  app.get("/api/compliance/far-validation", async (req, res) => {
+    try {
+      const documents = await storage.getDocumentsByUser(req.user?.id || "");
+      const complianceChecks = await generateFARComplianceReport(documents);
+      res.json(complianceChecks);
+    } catch (error) {
+      console.error("FAR compliance validation error:", error);
+      res.status(500).json({ message: "Failed to validate FAR compliance" });
+    }
+  });
+
+  // Blockchain verification endpoint
+  app.get("/api/blockchain/verify/:documentId", async (req, res) => {
+    try {
+      const { documentId } = req.params;
+      const document = await storage.getDocument(documentId);
+      
+      if (!document) {
+        return res.status(404).json({ message: "Document not found" });
+      }
+
+      const extractedData = await storage.getExtractedDataByDocument(documentId);
+      const blockchainHash = generateBlockchainHash({
+        id: document.id,
+        documentType: document.documentType || "unknown",
+        pilotName: extractedData.find(d => d.fieldName === "pilot_name")?.extractedValue || "",
+        certificateNumber: extractedData.find(d => d.fieldName === "certificate_number")?.extractedValue || "",
+        issueDate: extractedData.find(d => d.fieldName === "issue_date")?.extractedValue || "",
+        expirationDate: extractedData.find(d => d.fieldName === "expiration_date")?.extractedValue || "",
+        organizationId: document.organizationId,
+        uploadedBy: document.uploadedBy,
+        uploadedAt: document.uploadedAt
+      });
+
+      res.json({
+        verified: true,
+        hash: blockchainHash,
+        timestamp: document.uploadedAt,
+        immutable: true,
+        fieldCount: extractedData.length,
+        documentType: document.documentType
+      });
+    } catch (error) {
+      console.error("Blockchain verification error:", error);
+      res.status(500).json({ message: "Failed to verify blockchain integrity" });
+    }
+  });
+
   // Support chat endpoint - accessible to both authenticated and anonymous users
   app.post("/api/support/chat", async (req, res) => {
     try {
@@ -586,6 +635,116 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   const httpServer = createServer(app);
   return httpServer;
+}
+
+// FAR Compliance Report Generation
+async function generateFARComplianceReport(documents: any[]) {
+  const FAR_REQUIREMENTS = [
+    {
+      section: "14 CFR 142.73(a)(1)",
+      description: "Instructor Records - Qualifications and Experience",
+      requiredFields: [
+        "instructor_name", "certificate_number", "certificate_type", "ratings_held",
+        "medical_certificate_class", "medical_expiration_date", "flight_experience_hours",
+        "ground_instruction_experience", "date_of_hire", "initial_training_completion",
+        "recurrent_training_completion"
+      ],
+      retentionPeriod: "1 year after termination",
+      category: 'instructor'
+    },
+    {
+      section: "14 CFR 142.73(a)(2)",
+      description: "Student Records - Training Progress and Completion",
+      requiredFields: [
+        "student_name", "student_certificate_number", "course_name", "course_start_date",
+        "course_completion_date", "training_hours_completed", "ground_instruction_hours",
+        "flight_training_hours", "simulator_hours", "practical_test_results",
+        "knowledge_test_results", "instructor_endorsements"
+      ],
+      retentionPeriod: "5 years",
+      category: 'student'
+    },
+    {
+      section: "14 CFR 142.73(a)(3)",
+      description: "Course Records - Curriculum and Approval",
+      requiredFields: [
+        "course_name", "course_approval_date", "faa_approval_number", "curriculum_hours",
+        "ground_training_hours", "flight_training_hours", "simulator_training_hours",
+        "practical_test_standards", "course_objectives", "completion_standards",
+        "instructor_qualifications_required"
+      ],
+      retentionPeriod: "Current plus 1 year",
+      category: 'course'
+    },
+    {
+      section: "14 CFR 142.73(a)(4)",
+      description: "Facility Records - Equipment and Maintenance",
+      requiredFields: [
+        "facility_name", "facility_address", "faa_certificate_number", "equipment_inventory",
+        "maintenance_records", "calibration_records", "safety_inspection_dates",
+        "equipment_operational_status", "facility_approval_date", "operations_specifications"
+      ],
+      retentionPeriod: "Current plus 1 year",
+      category: 'facility'
+    }
+  ];
+
+  const complianceChecks = [];
+
+  for (const requirement of FAR_REQUIREMENTS) {
+    // Get all extracted data for documents of this category
+    const categoryDocuments = documents.filter(doc => 
+      doc.documentType?.toLowerCase().includes(requirement.category) || 
+      doc.fileName?.toLowerCase().includes(requirement.category)
+    );
+
+    const allExtractedFields = new Set();
+    
+    // Collect all unique field names extracted from documents
+    for (const doc of categoryDocuments) {
+      try {
+        const extractedData = await storage.getExtractedDataByDocument(doc.id);
+        extractedData.forEach(data => {
+          if (data.fieldName) {
+            allExtractedFields.add(data.fieldName.toLowerCase());
+          }
+        });
+      } catch (error) {
+        console.error(`Error getting extracted data for document ${doc.id}:`, error);
+      }
+    }
+
+    // Check which required fields are present
+    const extractedFieldsArray = Array.from(allExtractedFields);
+    const requiredFieldsLower = requirement.requiredFields.map(f => f.toLowerCase());
+    
+    const foundFields = requiredFieldsLower.filter(field => 
+      extractedFieldsArray.some(extracted => 
+        extracted.includes(field.replace(/_/g, ' ')) || 
+        field.includes(extracted) ||
+        extracted === field
+      )
+    );
+
+    const missingFields = requiredFieldsLower.filter(field => !foundFields.includes(field));
+    
+    const status = missingFields.length === 0 ? 'compliant' : 
+                   missingFields.length < requiredFieldsLower.length / 2 ? 'partial' : 'non-compliant';
+
+    const blockchainVerified = categoryDocuments.length > 0 && 
+                               categoryDocuments.every(doc => doc.status === 'processed');
+
+    complianceChecks.push({
+      requirement,
+      status,
+      extractedFields: foundFields,
+      missingFields,
+      blockchainVerified,
+      documentCount: categoryDocuments.length
+    });
+  }
+
+  return complianceChecks;
 }
 
 // Async document processing
