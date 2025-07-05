@@ -29,22 +29,71 @@ function Router() {
   return (
     <Switch>
       {!isAuthenticated ? (
-        <Route path="/" component={Landing} />
+        <>
+          <Route path="/" component={Landing} />
+          <Route component={NotFound} />
+        </>
       ) : (
-        <div className="flex h-screen bg-slate-50">
-          <Sidebar />
-          <div className="flex-1 flex flex-col overflow-hidden">
-            <Route path="/" component={Dashboard} />
-            <Route path="/document-import" component={DocumentImport} />
-            <Route path="/compliance-records" component={ComplianceRecords} />
-            <Route path="/audit-trail" component={AuditTrail} />
-            <Route path="/admin-dashboard" component={AdminDashboard} />
-            <Route path="/flight-school-dashboard" component={FlightSchoolDashboard} />
-            <Route path="/regulator-dashboard" component={RegulatorDashboard} />
-          </div>
-        </div>
+        <>
+          <Route path="/">
+            <div className="flex h-screen bg-slate-50">
+              <Sidebar />
+              <div className="flex-1 flex flex-col overflow-hidden p-6">
+                <Dashboard />
+              </div>
+            </div>
+          </Route>
+          <Route path="/document-import">
+            <div className="flex h-screen bg-slate-50">
+              <Sidebar />
+              <div className="flex-1 flex flex-col overflow-hidden p-6">
+                <DocumentImport />
+              </div>
+            </div>
+          </Route>
+          <Route path="/compliance-records">
+            <div className="flex h-screen bg-slate-50">
+              <Sidebar />
+              <div className="flex-1 flex flex-col overflow-hidden p-6">
+                <ComplianceRecords />
+              </div>
+            </div>
+          </Route>
+          <Route path="/audit-trail">
+            <div className="flex h-screen bg-slate-50">
+              <Sidebar />
+              <div className="flex-1 flex flex-col overflow-hidden p-6">
+                <AuditTrail />
+              </div>
+            </div>
+          </Route>
+          <Route path="/admin-dashboard">
+            <div className="flex h-screen bg-slate-50">
+              <Sidebar />
+              <div className="flex-1 flex flex-col overflow-hidden p-6">
+                <AdminDashboard />
+              </div>
+            </div>
+          </Route>
+          <Route path="/flight-school-dashboard">
+            <div className="flex h-screen bg-slate-50">
+              <Sidebar />
+              <div className="flex-1 flex flex-col overflow-hidden p-6">
+                <FlightSchoolDashboard />
+              </div>
+            </div>
+          </Route>
+          <Route path="/regulator-dashboard">
+            <div className="flex h-screen bg-slate-50">
+              <Sidebar />
+              <div className="flex-1 flex flex-col overflow-hidden p-6">
+                <RegulatorDashboard />
+              </div>
+            </div>
+          </Route>
+          <Route component={NotFound} />
+        </>
       )}
-      <Route component={NotFound} />
     </Switch>
   );
 }
