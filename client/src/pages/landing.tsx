@@ -48,13 +48,18 @@ export default function Landing() {
           <h1 className="text-4xl font-bold text-slate-900 mb-4">
             BCCS142 - Aviation Compliance Platform
           </h1>
+          <div className="bg-green-100 border border-green-300 rounded-lg p-2 mb-4 max-w-md mx-auto">
+            <p className="text-sm text-green-700 font-medium">
+              ✅ Landing Page Active - URL: {window.location.href}
+            </p>
+          </div>
           <div className="bg-aviation-blue/10 border border-aviation-blue/20 rounded-lg p-4 mb-6 max-w-md mx-auto">
             <p className="text-sm text-aviation-blue font-medium mb-2">
               🔐 To access the FAR Compliance system and all features:
             </p>
             <Button 
               className="w-full bg-aviation-blue hover:bg-blue-700"
-              onClick={() => window.location.href = "/dashboard"}
+              onClick={() => window.location.href = "/dashboard?t=" + Date.now()}
             >
               Enter BCCS142 Platform
             </Button>
