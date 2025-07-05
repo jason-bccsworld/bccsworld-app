@@ -1,6 +1,7 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { regulatoryMonitor } from "./services/regulatory-monitor";
 import * as fs from "fs";
 import * as path from "path";
 
@@ -81,5 +82,10 @@ app.use((req, res, next) => {
     reusePort: true,
   }, () => {
     log(`serving on port ${port}`);
+    
+    // Start regulatory monitoring service
+    regulatoryMonitor.startMonitoring().catch(error => {
+      console.error("Failed to start regulatory monitoring:", error);
+    });
   });
 })();

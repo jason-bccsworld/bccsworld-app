@@ -15,7 +15,8 @@ import {
   UserCheck,
   Brain,
   TrendingUp,
-  Cable
+  Cable,
+  Scale
 } from "lucide-react";
 
 const navigation = [
@@ -26,6 +27,7 @@ const navigation = [
   { name: "ML Training", href: "/ml-training", icon: Brain },
   { name: "Analytics", href: "/analytics", icon: TrendingUp },
   { name: "Integrations", href: "/integrations", icon: Cable },
+  { name: "Regulatory Monitor", href: "/regulatory-compliance", icon: Scale },
 ];
 
 const dashboardTypes = [

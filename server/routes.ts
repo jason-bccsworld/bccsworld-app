@@ -10,6 +10,7 @@ import { extractFieldsWithNLP } from "./services/nlp";
 import { generateBlockchainHash } from "./services/blockchain";
 import { mlTrainingService } from "./services/ml-training";
 import { analyticsService } from "./services/analytics";
+import { regulatoryMonitor } from "./services/regulatory-monitor";
 import { insertDocumentSchema, insertTrainingEventSchema, insertAuditLogSchema } from "@shared/schema";
 import { z } from "zod";
 import { db } from "./db";
@@ -480,6 +481,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching sync logs:", error);
       res.status(500).json({ message: "Failed to fetch sync logs" });
+    }
+  });
+
+  // Regulatory compliance monitoring routes
+  app.get("/api/regulatory/compliance-report", isAuthenticated, async (req: any, res) => {
+    try {
+      const report = await regulatoryMonitor.getComplianceReport();
+      res.json(report);
+    } catch (error) {
+      console.error("Error generating compliance report:", error);
+      res.status(500).json({ message: "Failed to generate compliance report" });
+    }
+  });
+
+  app.post("/api/regulatory/force-check", isAuthenticated, async (req: any, res) => {
+    try {
+      const results = await regulatoryMonitor.performComplianceCheck();
+      res.json({ 
+        message: "Compliance check completed", 
+        results: results.length,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error("Error performing compliance check:", error);
+      res.status(500).json({ message: "Failed to perform compliance check" });
+    }
+  });
+
+  app.get("/api/regulatory/compliance/:regulationId", isAuthenticated, async (req: any, res) => {
+    try {
+      const { regulationId } = req.params;
+      const compliance = await db.select()
+        .from(schema.regulatoryCompliance)
+        .where(eq(schema.regulatoryCompliance.id, regulationId));
+      
+      if (compliance.length === 0) {
+        return res.status(404).json({ message: "Regulation not found" });
+      }
+
+      const changes = await db.select()
+        .from(schema.regulatoryChanges)
+        .where(eq(schema.regulatoryChanges.complianceId, regulationId))
+        .orderBy(desc(schema.regulatoryChanges.detected));
+
+      res.json({
+        compliance: compliance[0],
+        changes
+      });
+    } catch (error) {
+      console.error("Error fetching regulation details:", error);
+      res.status(500).json({ message: "Failed to fetch regulation details" });
     }
   });
 

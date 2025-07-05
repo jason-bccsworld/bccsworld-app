@@ -250,6 +250,67 @@ export const lessonRecords = pgTable("lesson_records", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Regulatory compliance tracking
+export const regulatoryCompliance = pgTable("regulatory_compliance", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  
+  // Regulation identification
+  regulation: varchar("regulation").notNull(), // FAR-142, EASA-FCL, etc.
+  section: varchar("section"),
+  country: varchar("country").notNull(), // US, EU, CA, AU, etc.
+  
+  // Version tracking
+  currentVersion: varchar("current_version").notNull(),
+  lastCheckedVersion: varchar("last_checked_version"),
+  lastChecked: timestamp("last_checked").defaultNow(),
+  nextReviewDate: timestamp("next_review_date"),
+  
+  // Compliance status
+  complianceLevel: varchar("compliance_level").notNull(), // compliant, warning, non-compliant
+  pendingChanges: jsonb("pending_changes"), // Array of regulatory changes
+  
+  // Monitoring configuration
+  sourceUrl: varchar("source_url"),
+  monitoringActive: boolean("monitoring_active").default(true),
+  checkFrequency: integer("check_frequency").default(24), // hours
+  
+  // Compliance actions
+  requiredActions: jsonb("required_actions"), // Array of compliance actions
+  actionDeadline: timestamp("action_deadline"),
+  actionStatus: varchar("action_status").default("pending"), // pending, in-progress, completed
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Regulatory change history
+export const regulatoryChanges = pgTable("regulatory_changes", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  complianceId: uuid("compliance_id").references(() => regulatoryCompliance.id),
+  
+  // Change details
+  changeType: varchar("change_type").notNull(), // addition, modification, deletion
+  section: varchar("section").notNull(),
+  description: text("description").notNull(),
+  effectiveDate: timestamp("effective_date").notNull(),
+  
+  // Impact assessment
+  priority: varchar("priority").notNull(), // low, medium, high, critical
+  affectedFields: jsonb("affected_fields"), // Array of database fields affected
+  complianceActions: jsonb("compliance_actions"), // Array of required actions
+  
+  // Processing status
+  detected: timestamp("detected").defaultNow(),
+  processed: timestamp("processed"),
+  verified: boolean("verified").default(false),
+  
+  // Source information
+  sourceUrl: varchar("source_url"),
+  sourceDocument: varchar("source_document"),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Audit trail
 export const auditLogs = pgTable("audit_logs", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -342,6 +403,17 @@ export const syncLogRelations = relations(syncLogs, ({ one }) => ({
   }),
 }));
 
+export const regulatoryComplianceRelations = relations(regulatoryCompliance, ({ many }) => ({
+  changes: many(regulatoryChanges),
+}));
+
+export const regulatoryChangeRelations = relations(regulatoryChanges, ({ one }) => ({
+  compliance: one(regulatoryCompliance, {
+    fields: [regulatoryChanges.complianceId],
+    references: [regulatoryCompliance.id],
+  }),
+}));
+
 export const organizationRelations = relations(organizations, ({ many }) => ({
   documents: many(documents),
   trainingEvents: many(trainingEvents),
@@ -368,8 +440,12 @@ export const insertIntegrationSchema = createInsertSchema(integrations);
 export const selectIntegrationSchema = createSelectSchema(integrations);
 export const insertSyncLogSchema = createInsertSchema(syncLogs);
 export const selectSyncLogSchema = createSelectSchema(syncLogs);
+export const insertRegulatoryComplianceSchema = createInsertSchema(regulatoryCompliance);
+export const selectRegulatoryComplianceSchema = createSelectSchema(regulatoryCompliance);
+export const insertRegulatoryChangeSchema = createInsertSchema(regulatoryChanges);
+export const selectRegulatoryChangeSchema = createSelectSchema(regulatoryChanges);
 
-// TypeScript types for FAR Part 142 compliance
+// TypeScript types for FAR Part 142 compliance and regulatory monitoring
 export type UpsertUser = z.infer<typeof insertUserSchema>;
 export type User = z.infer<typeof selectUserSchema>;
 export type InsertDocument = z.infer<typeof insertDocumentSchema>;
@@ -388,3 +464,7 @@ export type InsertIntegration = z.infer<typeof insertIntegrationSchema>;
 export type Integration = z.infer<typeof selectIntegrationSchema>;
 export type InsertSyncLog = z.infer<typeof insertSyncLogSchema>;
 export type SyncLog = z.infer<typeof selectSyncLogSchema>;
+export type InsertRegulatoryCompliance = z.infer<typeof insertRegulatoryComplianceSchema>;
+export type RegulatoryCompliance = z.infer<typeof selectRegulatoryComplianceSchema>;
+export type InsertRegulatoryChange = z.infer<typeof insertRegulatoryChangeSchema>;
+export type RegulatoryChange = z.infer<typeof selectRegulatoryChangeSchema>;
