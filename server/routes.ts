@@ -2,11 +2,13 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import multer from "multer";
 import path from "path";
+import fs from "fs";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { processDocumentOCR } from "./services/ocr";
 import { extractFieldsWithNLP } from "./services/nlp";
 import { generateBlockchainHash } from "./services/blockchain";
+import { mlTrainingService } from "./services/ml-training";
 import { insertDocumentSchema, insertTrainingEventSchema, insertAuditLogSchema } from "@shared/schema";
 import { z } from "zod";
 
@@ -264,6 +266,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error reprocessing document:', error);
       res.status(500).json({ message: 'Failed to reprocess document' });
+    }
+  });
+
+  // ML Training Routes
+  app.post('/api/ml/feedback', isAuthenticated, async (req: any, res) => {
+    try {
+      const { documentId, fieldName, originalValue, correctedValue, confidenceScore, documentType, correctionReason } = req.body;
+      const userId = req.user.claims.sub;
+
+      await mlTrainingService.recordUserFeedback({
+        documentId,
+        fieldName,
+        originalValue,
+        correctedValue,
+        confidenceScore,
+        userId,
+        documentType,
+        correctionReason
+      });
+
+      res.json({ message: "Feedback recorded successfully" });
+    } catch (error) {
+      console.error("Error recording ML feedback:", error);
+      res.status(500).json({ message: "Failed to record feedback" });
+    }
+  });
+
+  app.get('/api/ml/metrics', isAuthenticated, async (req, res) => {
+    try {
+      const metrics = await mlTrainingService.getTrainingMetrics();
+      res.json(metrics);
+    } catch (error) {
+      console.error("Error fetching ML metrics:", error);
+      res.status(500).json({ message: "Failed to fetch metrics" });
+    }
+  });
+
+  app.post('/api/ml/train', isAuthenticated, async (req, res) => {
+    try {
+      await mlTrainingService.performIncrementalTraining();
+      res.json({ message: "Training completed successfully" });
+    } catch (error) {
+      console.error("Error performing training:", error);
+      res.status(500).json({ message: "Failed to perform training" });
+    }
+  });
+
+  app.get('/api/ml/export-data', isAuthenticated, async (req, res) => {
+    try {
+      const trainingData = await mlTrainingService.exportTrainingData();
+      res.json(trainingData);
+    } catch (error) {
+      console.error("Error exporting training data:", error);
+      res.status(500).json({ message: "Failed to export data" });
     }
   });
 

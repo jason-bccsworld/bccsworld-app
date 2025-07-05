@@ -12,6 +12,7 @@ import AuditTrail from "@/pages/audit-trail";
 import AdminDashboard from "@/pages/admin-dashboard";
 import FlightSchoolDashboard from "@/pages/flight-school-dashboard";
 import RegulatorDashboard from "@/pages/regulator-dashboard";
+import MLTraining from "@/pages/ml-training";
 import NotFound from "@/pages/not-found";
 import Sidebar from "@/components/sidebar";
 
@@ -88,6 +89,14 @@ function Router() {
               <Sidebar />
               <div className="flex-1 flex flex-col overflow-hidden p-6">
                 <RegulatorDashboard />
+              </div>
+            </div>
+          </Route>
+          <Route path="/ml-training">
+            <div className="flex h-screen bg-slate-50">
+              <Sidebar />
+              <div className="flex-1 flex flex-col overflow-hidden p-6">
+                <MLTraining />
               </div>
             </div>
           </Route>

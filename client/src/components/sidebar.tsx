@@ -12,7 +12,8 @@ import {
   LogOut,
   Users,
   Building,
-  UserCheck
+  UserCheck,
+  Brain
 } from "lucide-react";
 
 const navigation = [
@@ -20,6 +21,7 @@ const navigation = [
   { name: "Document Import", href: "/document-import", icon: Upload },
   { name: "Compliance Records", href: "/compliance-records", icon: FileText },
   { name: "Audit Trail", href: "/audit-trail", icon: History },
+  { name: "ML Training", href: "/ml-training", icon: Brain },
 ];
 
 const dashboardTypes = [
