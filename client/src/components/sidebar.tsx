@@ -2,6 +2,7 @@ import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import type { User } from "@/../../shared/schema";
 import { 
   Shield, 
   Home, 
@@ -44,6 +45,9 @@ const dashboardTypes = [
 export default function Sidebar() {
   const [location] = useLocation();
   const { user } = useAuth();
+  
+  // Type the user object properly to fix TypeScript errors
+  const typedUser = user as any;
 
   return (
     <nav className="w-64 bg-deep-navy text-white flex-shrink-0">
@@ -60,30 +64,30 @@ export default function Sidebar() {
       </div>
       
       <div className="p-4">
-        {user && (
+        {typedUser && (
           <div className="mb-6">
             <div className="flex items-center space-x-3 p-3 bg-slate-800 rounded-lg">
-              {user.profileImageUrl ? (
+              {typedUser.profileImageUrl ? (
                 <img 
-                  src={user.profileImageUrl} 
+                  src={typedUser.profileImageUrl} 
                   alt="User profile" 
                   className="w-8 h-8 rounded-full object-cover"
                 />
               ) : (
                 <div className="w-8 h-8 bg-aviation-blue rounded-full flex items-center justify-center">
                   <span className="text-white text-sm font-medium">
-                    {user.firstName?.[0] || user.email?.[0] || "U"}
+                    {typedUser.firstName?.[0] || typedUser.email?.[0] || "U"}
                   </span>
                 </div>
               )}
               <div>
                 <p className="font-medium text-sm">
-                  {user.firstName && user.lastName 
-                    ? `${user.firstName} ${user.lastName}`
-                    : user.email
+                  {typedUser.firstName && typedUser.lastName 
+                    ? `${typedUser.firstName} ${typedUser.lastName}`
+                    : typedUser.email
                   }
                 </p>
-                <p className="text-slate-400 text-xs capitalize">{user.role}</p>
+                <p className="text-slate-400 text-xs capitalize">{typedUser.role}</p>
               </div>
             </div>
           </div>
@@ -110,6 +114,10 @@ export default function Sidebar() {
               </li>
             );
           })}
+          {/* Debug info */}
+          <li className="text-xs text-gray-400 p-2">
+            Navigation items: {navigation.length}
+          </li>
 
         </ul>
 
