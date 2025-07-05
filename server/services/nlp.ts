@@ -97,7 +97,8 @@ If you cannot find a field, omit it from the response.`,
     console.error("NLP processing error:", error);
     
     // If quota exceeded, provide demonstration data based on text patterns
-    if (error.message?.includes('quota') || error.message?.includes('429')) {
+    const errorMessage = error instanceof Error ? error.message : '';
+    if (errorMessage.includes('quota') || errorMessage.includes('429')) {
       console.log("API quota exceeded - demonstrating with pattern matching for document analysis");
       return extractFieldsWithPatternMatching(text);
     }

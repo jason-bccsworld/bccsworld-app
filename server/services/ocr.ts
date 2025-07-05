@@ -8,41 +8,95 @@ const execAsync = promisify(exec);
 
 async function processPdfText(pdfPath: string): Promise<string> {
   try {
-    // Use pdftotext command to extract text directly from PDF
-    
     console.log(`Extracting text from PDF: ${pdfPath}`);
     
-    // Extract text using pdftotext
-    const { stdout } = await execAsync(`pdftotext "${pdfPath}" -`);
-    
-    if (stdout && stdout.trim().length > 0) {
-      console.log('Successfully extracted text from PDF');
-      return stdout.trim();
+    // First, try to extract text using pdftotext
+    try {
+      const { stdout } = await execAsync(`pdftotext "${pdfPath}" -`);
+      
+      if (stdout && stdout.trim().length > 0) {
+        console.log('Successfully extracted text from PDF');
+        return stdout.trim();
+      }
+    } catch (pdfTextError) {
+      console.log('pdftotext failed, PDF might be scanned or corrupted');
     }
     
-    // If no text extracted, it might be a scanned PDF - use Tesseract on the PDF directly
-    console.log('No text found, trying OCR on PDF pages...');
+    // If pdftotext fails or returns no text, convert PDF to images and OCR them
+    console.log('Converting PDF to images for OCR...');
     
-    // Fallback: Use Tesseract to OCR the PDF directly (limited but might work)
-    const worker = await createWorker('eng');
+    // Create temporary directory for images
+    const tempDir = path.join(path.dirname(pdfPath), 'temp_pdf_images');
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
+    }
     
     try {
-      const { data: { text } } = await worker.recognize(pdfPath);
-      await worker.terminate();
+      // Convert PDF to images using pdftoppm
+      const baseFileName = path.basename(pdfPath, '.pdf');
+      const imagePrefix = path.join(tempDir, `${baseFileName}_page`);
       
-      if (text && text.trim().length > 0) {
-        return text.trim();
+      await execAsync(`pdftoppm -png "${pdfPath}" "${imagePrefix}"`);
+      
+      // Find all generated image files
+      const imageFiles = fs.readdirSync(tempDir)
+        .filter(file => file.startsWith(`${baseFileName}_page`) && file.endsWith('.png'))
+        .sort();
+      
+      if (imageFiles.length === 0) {
+        throw new Error('No images were generated from PDF');
       }
-    } catch (ocrError) {
-      await worker.terminate();
-      console.log('Direct OCR failed, this appears to be a complex PDF');
+      
+      console.log(`Generated ${imageFiles.length} images from PDF`);
+      
+      // OCR each image and combine results
+      let combinedText = '';
+      
+      for (const imageFile of imageFiles) {
+        const imagePath = path.join(tempDir, imageFile);
+        console.log(`Processing image: ${imageFile}`);
+        
+        try {
+          const imageText = await processImageOCR(imagePath);
+          combinedText += imageText + '\n\n';
+        } catch (imageError) {
+          const errorMessage = imageError instanceof Error ? imageError.message : 'Unknown error';
+          console.log(`Failed to OCR image ${imageFile}:`, errorMessage);
+        }
+      }
+      
+      // Clean up temporary images
+      for (const imageFile of imageFiles) {
+        const imagePath = path.join(tempDir, imageFile);
+        if (fs.existsSync(imagePath)) {
+          fs.unlinkSync(imagePath);
+        }
+      }
+      
+      // Remove temp directory if empty
+      try {
+        fs.rmdirSync(tempDir);
+      } catch (e) {
+        // Ignore if directory is not empty
+      }
+      
+      if (combinedText.trim().length > 0) {
+        console.log('Successfully extracted text from PDF images');
+        return combinedText.trim();
+      }
+      
+      throw new Error('No text could be extracted from PDF images');
+      
+    } catch (conversionError) {
+      console.error('PDF to image conversion failed:', conversionError);
+      const errorMessage = conversionError instanceof Error ? conversionError.message : 'Unknown error';
+      throw new Error(`Failed to process PDF: ${errorMessage}`);
     }
-    
-    throw new Error('Unable to extract text from this PDF format');
     
   } catch (error) {
     console.error('PDF processing error:', error);
-    throw new Error(`Failed to process PDF: ${error.message}`);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    throw new Error(`Failed to process PDF: ${errorMessage}`);
   }
 }
 
