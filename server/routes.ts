@@ -11,6 +11,7 @@ import { generateBlockchainHash } from "./services/blockchain";
 import { mlTrainingService } from "./services/ml-training";
 import { analyticsService } from "./services/analytics";
 import { regulatoryMonitor } from "./services/regulatory-monitor";
+import { supportChatService } from "./services/support-chat";
 import { insertDocumentSchema, insertTrainingEventSchema, insertAuditLogSchema } from "@shared/schema";
 import { z } from "zod";
 import { db } from "./db";
@@ -532,6 +533,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching regulation details:", error);
       res.status(500).json({ message: "Failed to fetch regulation details" });
+    }
+  });
+
+  // Support chat endpoint - accessible to both authenticated and anonymous users
+  app.post("/api/support/chat", async (req, res) => {
+    try {
+      const { message, sessionId } = req.body;
+      
+      if (!message || typeof message !== 'string') {
+        return res.status(400).json({ message: "Message is required" });
+      }
+
+      // Get user context if authenticated
+      let userContext = { isAuthenticated: false };
+      if (req.user) {
+        userContext = {
+          isAuthenticated: true,
+          role: req.user.role,
+          organizationId: req.user.organizationId
+        };
+      }
+
+      const response = await supportChatService.handleChatMessage({
+        message,
+        sessionId: sessionId || `anonymous_${Date.now()}`,
+        userContext
+      });
+
+      // Log the interaction
+      await supportChatService.logSupportInteraction(
+        sessionId || `anonymous_${Date.now()}`,
+        message,
+        response,
+        userContext
+      );
+
+      res.json(response);
+    } catch (error) {
+      console.error("Support chat error:", error);
+      res.status(500).json({ 
+        content: "I'm experiencing technical difficulties. Please try again or contact support directly.",
+        type: 'escalation',
+        needsHumanSupport: true,
+        options: [
+          { text: "Email support", action: "email-support" },
+          { text: "Call support", action: "phone-support" }
+        ]
+      });
     }
   });
 

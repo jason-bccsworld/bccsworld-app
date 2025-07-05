@@ -127,6 +127,7 @@ Changelog:
 - July 05, 2025. Implemented automated regulatory monitoring system for future-proofing compliance - monitors FAA, EASA, Transport Canada, and CASA Australia regulations with automatic change detection, compliance tracking, and administrator alerts to ensure never falling out of regulatory compliance
 - July 05, 2025. Rebranded platform to "BCCS142" - positioned as flagship aviation compliance platform designed for scalability across diverse aviation entities, with updated branding across all user interfaces, documentation, and application metadata
 - July 05, 2025. Implemented comprehensive user-friendly onboarding system with tutorials, FAQ, and step-by-step guides specifically designed for aviation professionals without technical backgrounds - includes video tutorial framework, quick start guide, and dedicated support pathways
+- July 05, 2025. Deployed AI-powered support chat system with intelligent escalation to human support - features OpenAI GPT-4o integration for natural language understanding, context-aware responses, and seamless handoff to human agents when needed. Available to both authenticated users and website visitors.
 ```
 
 ## User Preferences

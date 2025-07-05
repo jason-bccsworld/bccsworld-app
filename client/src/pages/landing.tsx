@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Shield, Database, Users, FileText, CheckCircle, Clock } from "lucide-react";
+import SupportChat from "@/components/support-chat";
 
 export default function Landing() {
   return (
@@ -210,6 +211,7 @@ export default function Landing() {
           </div>
         </div>
       </div>
+      <SupportChat />
     </div>
   );
 }

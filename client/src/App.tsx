@@ -22,6 +22,7 @@ import IntegrationsDashboard from "@/pages/integrations-dashboard";
 import RegulatoryCompliancePage from "@/pages/regulatory-compliance";
 import NotFound from "@/pages/not-found";
 import Sidebar from "@/components/sidebar";
+import SupportChat from "@/components/support-chat";
 import { useIsMobile } from "@/hooks/use-mobile";
 import ErrorBoundary from "@/components/error-boundary";
 
@@ -156,6 +157,7 @@ function App() {
           <TooltipProvider>
             <Toaster />
             <Router />
+            <SupportChat />
           </TooltipProvider>
         </QueryClientProvider>
       </ErrorBoundary>
