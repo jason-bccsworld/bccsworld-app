@@ -19,13 +19,23 @@ export default function Landing() {
           <p className="text-xl text-slate-600 max-w-2xl mx-auto mb-8">
             Efficient. Transparent. Secure. Aviation compliance tracking with AI-powered document processing.
           </p>
-          <Button 
-            size="lg" 
-            className="bg-aviation-blue hover:bg-blue-700 text-white px-8 py-3"
-            onClick={() => window.location.href = "/api/login"}
-          >
-            Get Started
-          </Button>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Button 
+              size="lg" 
+              className="bg-aviation-blue hover:bg-blue-700 text-white px-8 py-3"
+              onClick={() => window.location.href = "/api/login"}
+            >
+              Start Free Trial
+            </Button>
+            <Button 
+              size="lg" 
+              variant="outline"
+              className="px-8 py-3"
+              onClick={() => window.location.href = "/pricing"}
+            >
+              View Pricing
+            </Button>
+          </div>
         </div>
 
         {/* Features Grid */}

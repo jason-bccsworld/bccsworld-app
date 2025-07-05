@@ -10,6 +10,7 @@ import {
   boolean,
   real,
   uuid,
+  decimal,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
@@ -45,6 +46,22 @@ export const organizations = pgTable("organizations", {
   name: varchar("name").notNull(),
   type: varchar("type").notNull(), // ATO, TRTO, etc.
   regulatoryId: varchar("regulatory_id"),
+  // Subscription Management
+  subscriptionTier: varchar("subscription_tier").notNull().default("trial"), // trial, training_center, enterprise, regulatory
+  subscriptionStatus: varchar("subscription_status").notNull().default("active"), // active, cancelled, expired, pilot
+  billingEmail: varchar("billing_email"),
+  // Pilot Program Controls
+  isPilotProgram: boolean("is_pilot_program").default(false),
+  pilotStartDate: timestamp("pilot_start_date"),
+  pilotEndDate: timestamp("pilot_end_date"),
+  pilotNotes: text("pilot_notes"),
+  // Usage Limits
+  userLimit: integer("user_limit").default(50),
+  documentLimit: integer("document_limit").default(1000),
+  // Billing
+  monthlyPrice: real("monthly_price"),
+  lastBillingDate: timestamp("last_billing_date"),
+  nextBillingDate: timestamp("next_billing_date"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
