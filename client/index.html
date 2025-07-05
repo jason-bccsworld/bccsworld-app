@@ -16,6 +16,17 @@
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
     <script>
+      // Disable HMR overlay globally before Vite loads
+      window.__vite_plugin_react_preamble_installed__ = true;
+      
+      // Override Vite's HMR overlay configuration
+      if (window.__vite_is_modern_browser) {
+        window.__vite_plugin_react_preamble_installed__ = true;
+      }
+      
+      // Set HMR overlay to false
+      window.__vite_hmr_overlay_disabled = true;
+      
       // Suppress Replit runtime error overlay
       window.__replit_runtime_error_plugin_disabled = true;
       
