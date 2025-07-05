@@ -48,8 +48,8 @@ export default function Sidebar() {
             <Shield className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h1 className="text-xl font-bold">BCCS</h1>
-            <p className="text-slate-400 text-sm">Compliance Systems</p>
+            <h1 className="text-xl font-bold">BCCS142</h1>
+            <p className="text-slate-400 text-sm">Aviation Compliance</p>
           </div>
         </div>
       </div>

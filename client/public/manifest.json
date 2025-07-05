@@ -1,6 +1,6 @@
 {
-  "name": "BCCS Mobile - Blockchain Compliance System",
-  "short_name": "BCCS Mobile",
+  "name": "BCCS142 - Aviation Compliance Platform",
+  "short_name": "BCCS142",
   "description": "Aviation compliance tracking for field operations",
   "start_url": "/",
   "display": "standalone",

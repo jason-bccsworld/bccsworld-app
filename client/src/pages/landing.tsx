@@ -14,7 +14,7 @@ export default function Landing() {
             </div>
           </div>
           <h1 className="text-4xl font-bold text-slate-900 mb-4">
-            Blockchain Continuous Compliance Systems
+            BCCS142 - Aviation Compliance Platform
           </h1>
           <p className="text-xl text-slate-600 max-w-2xl mx-auto mb-8">
             Efficient. Transparent. Secure. Aviation compliance tracking with AI-powered document processing.
