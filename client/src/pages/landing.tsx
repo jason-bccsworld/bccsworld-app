@@ -48,6 +48,20 @@ export default function Landing() {
           <h1 className="text-4xl font-bold text-slate-900 mb-4">
             BCCS142 - Aviation Compliance Platform
           </h1>
+          <div className="bg-aviation-blue/10 border border-aviation-blue/20 rounded-lg p-4 mb-6 max-w-md mx-auto">
+            <p className="text-sm text-aviation-blue font-medium mb-2">
+              🔐 To access the FAR Compliance system and all features:
+            </p>
+            <Button 
+              className="w-full bg-aviation-blue hover:bg-blue-700"
+              onClick={() => window.location.href = "/api/login"}
+            >
+              Sign In to Access Dashboard
+            </Button>
+            <p className="text-xs text-gray-500 mt-2">
+              Note: Authentication requires using the official Replit domain URL
+            </p>
+          </div>
           <p className="text-xl text-slate-600 max-w-2xl mx-auto mb-8">
             Efficient. Transparent. Secure. Aviation compliance tracking with AI-powered document processing.
           </p>
