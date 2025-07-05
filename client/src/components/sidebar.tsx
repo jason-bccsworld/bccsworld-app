@@ -114,10 +114,7 @@ export default function Sidebar() {
               </li>
             );
           })}
-          {/* Debug info */}
-          <li className="text-xs text-gray-400 p-2">
-            Navigation items: {navigation.length}
-          </li>
+
 
         </ul>
 
