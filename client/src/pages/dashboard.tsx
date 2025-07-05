@@ -8,6 +8,7 @@ import DocumentUpload from "@/components/document-upload";
 import RecentActivity from "@/components/recent-activity";
 import ComplianceAlerts from "@/components/compliance-alerts";
 import DocumentValidation from "@/components/document-validation";
+import { FARComplianceValidator } from "@/components/far-compliance-validator";
 
 export default function Dashboard() {
   const { toast } = useToast();
@@ -58,6 +59,8 @@ export default function Dashboard() {
         </div>
         
         <DocumentValidation />
+        
+        <FARComplianceValidator />
       </main>
     </>
   );
