@@ -77,30 +77,77 @@ export const extractedData = pgTable("extracted_data", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-// Training events and compliance records
+// FAR Part 142 Compliant Training Records
 export const trainingEvents = pgTable("training_events", {
   id: uuid("id").defaultRandom().primaryKey(),
+  
+  // FAR 142.73(a)(1) - Name of the trainee
   studentName: varchar("student_name").notNull(),
-  licenseNumber: varchar("license_number"),
+  
+  // FAR 142.73(a)(2) - Copy of trainee's pilot certificate and medical certificate
+  pilotCertificateNumber: varchar("pilot_certificate_number"),
+  pilotCertificateType: varchar("pilot_certificate_type"), // student, recreational, private, commercial, atp
+  pilotCertificateIssueDate: timestamp("pilot_certificate_issue_date"),
+  pilotCertificateExpirationDate: timestamp("pilot_certificate_expiration_date"),
+  medicalCertificateClass: varchar("medical_certificate_class"), // first, second, third, basicmed
+  medicalCertificateNumber: varchar("medical_certificate_number"),
+  medicalCertificateIssueDate: timestamp("medical_certificate_issue_date"),
+  medicalCertificateExpirationDate: timestamp("medical_certificate_expiration_date"),
+  
+  // FAR 142.73(a)(3) - Course name and make/model of flight training equipment
+  courseName: varchar("course_name").notNull(),
+  courseType: varchar("course_type").notNull(), // initial, recurrent, upgrade, differences
+  aircraftMake: varchar("aircraft_make"),
+  aircraftModel: varchar("aircraft_model"),
+  flightTrainingDeviceType: varchar("flight_training_device_type"), // simulator, ftd, aircraft
+  flightTrainingDeviceMake: varchar("flight_training_device_make"),
+  flightTrainingDeviceModel: varchar("flight_training_device_model"),
+  
+  // FAR 142.73(a)(4) - Prerequisite experience and course time completed
+  prerequisiteExperience: text("prerequisite_experience"),
+  totalCourseHours: integer("total_course_hours").default(0),
+  flightHours: integer("flight_hours").default(0),
+  groundHours: integer("ground_hours").default(0),
+  simulatorHours: integer("simulator_hours").default(0),
+  
+  // FAR 142.73(a)(5) - Performance on each lesson and instructor name
+  lessonPerformance: jsonb("lesson_performance"), // Array of lesson records
+  primaryInstructorName: varchar("primary_instructor_name"),
+  primaryInstructorId: varchar("primary_instructor_id"),
+  
+  // FAR 142.73(a)(6) - Date and result of end-of-course practical test and evaluator name
+  practicalTestDate: timestamp("practical_test_date"),
+  practicalTestResult: varchar("practical_test_result"), // pass, fail, discontinue
+  evaluatorName: varchar("evaluator_name"),
+  evaluatorId: varchar("evaluator_id"),
+  
+  // FAR 142.73(a)(7) - Additional training hours after unsatisfactory test
+  additionalTrainingHours: integer("additional_training_hours").default(0),
+  additionalTrainingReason: text("additional_training_reason"),
+  
+  // Legacy fields for backwards compatibility
+  licenseNumber: varchar("license_number"), // Deprecated - use pilotCertificateNumber
   eventType: varchar("event_type").notNull(),
   eventDate: timestamp("event_date").notNull(),
-  instructorName: varchar("instructor_name"),
+  instructorName: varchar("instructor_name"), // Deprecated - use primaryInstructorName
   status: varchar("status").notNull().default("pending"), // pending, completed, failed
   certificateUrl: varchar("certificate_url"),
   blockchainHash: varchar("blockchain_hash"),
   organizationId: uuid("organization_id").references(() => organizations.id),
   createdBy: varchar("created_by").references(() => users.id),
-  // New fields for integrations
-  courseType: varchar("course_type"),
+  
+  // Integration fields
   completionDate: timestamp("completion_date"),
   certificateNumber: varchar("certificate_number"),
-  flightHours: integer("flight_hours").default(0),
-  groundHours: integer("ground_hours").default(0),
   checkride: boolean("checkride").default(false),
   grade: varchar("grade").default("Pass"),
   expirationDate: timestamp("expiration_date"),
   source: varchar("source").default("manual"), // manual, flightschedulepro, flightcircle, tafs, webhook
   externalId: varchar("external_id"), // ID from external system
+  
+  // Record retention compliance
+  recordRetentionDate: timestamp("record_retention_date"), // FAR 142.73(c)(1) - 1 year minimum
+  
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -135,6 +182,72 @@ export const syncLogs = pgTable("sync_logs", {
   startTime: timestamp("start_time").defaultNow(),
   endTime: timestamp("end_time"),
   duration: integer("duration"), // seconds
+});
+
+// FAR Part 142 Compliant Instructor/Evaluator Records
+export const instructorRecords = pgTable("instructor_records", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  
+  // Instructor identification
+  instructorName: varchar("instructor_name").notNull(),
+  instructorId: varchar("instructor_id").notNull(),
+  certificateNumber: varchar("certificate_number"),
+  certificateType: varchar("certificate_type"), // CFI, CFII, MEI, ATP, etc.
+  
+  // FAR 142.73(b) - Compliance with requirements
+  managementRequirementsCompliance: boolean("management_requirements_compliance").default(false), // 142.13
+  eligibilityRequirementsCompliance: boolean("eligibility_requirements_compliance").default(false), // 142.47
+  privilegesLimitationsCompliance: boolean("privileges_limitations_compliance").default(false), // 142.49
+  trainingTestingCompliance: boolean("training_testing_compliance").default(false), // 142.53
+  
+  // Qualification records
+  qualificationDate: timestamp("qualification_date"),
+  qualificationExpiration: timestamp("qualification_expiration"),
+  
+  // Recurrent proficiency demonstrations
+  lastProficiencyCheck: timestamp("last_proficiency_check"),
+  nextProficiencyDue: timestamp("next_proficiency_due"),
+  proficiencyHistory: jsonb("proficiency_history"), // Array of proficiency records
+  
+  // Employment tracking
+  organizationId: uuid("organization_id").references(() => organizations.id),
+  employmentStartDate: timestamp("employment_start_date"),
+  employmentEndDate: timestamp("employment_end_date"),
+  isActive: boolean("is_active").default(true),
+  
+  // Record retention compliance - FAR 142.73(c)(2) & (c)(3)
+  recordRetentionDate: timestamp("record_retention_date"), // While employed + 1 year thereafter
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Individual lesson performance records for detailed tracking
+export const lessonRecords = pgTable("lesson_records", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  trainingEventId: uuid("training_event_id").references(() => trainingEvents.id),
+  
+  // Lesson details
+  lessonNumber: integer("lesson_number").notNull(),
+  lessonTitle: varchar("lesson_title").notNull(),
+  lessonDate: timestamp("lesson_date").notNull(),
+  lessonDuration: integer("lesson_duration"), // minutes
+  
+  // Performance tracking
+  performanceGrade: varchar("performance_grade"), // satisfactory, unsatisfactory, incomplete
+  performanceNotes: text("performance_notes"),
+  objectivesMet: jsonb("objectives_met"), // Array of learning objectives
+  
+  // Instructor information
+  instructorName: varchar("instructor_name").notNull(),
+  instructorId: varchar("instructor_id"),
+  instructorSignature: varchar("instructor_signature"),
+  
+  // Equipment used
+  equipmentType: varchar("equipment_type"), // aircraft, simulator, ftd
+  equipmentIdentifier: varchar("equipment_identifier"),
+  
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
 // Audit trail
@@ -181,7 +294,7 @@ export const extractedDataRelations = relations(extractedData, ({ one }) => ({
   }),
 }));
 
-export const trainingEventRelations = relations(trainingEvents, ({ one }) => ({
+export const trainingEventRelations = relations(trainingEvents, ({ one, many }) => ({
   organization: one(organizations, {
     fields: [trainingEvents.organizationId],
     references: [organizations.id],
@@ -189,6 +302,21 @@ export const trainingEventRelations = relations(trainingEvents, ({ one }) => ({
   createdBy: one(users, {
     fields: [trainingEvents.createdBy],
     references: [users.id],
+  }),
+  lessonRecords: many(lessonRecords),
+}));
+
+export const instructorRecordRelations = relations(instructorRecords, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [instructorRecords.organizationId],
+    references: [organizations.id],
+  }),
+}));
+
+export const lessonRecordRelations = relations(lessonRecords, ({ one }) => ({
+  trainingEvent: one(trainingEvents, {
+    fields: [lessonRecords.trainingEventId],
+    references: [trainingEvents.id],
   }),
 }));
 
@@ -218,9 +346,10 @@ export const organizationRelations = relations(organizations, ({ many }) => ({
   documents: many(documents),
   trainingEvents: many(trainingEvents),
   integrations: many(integrations),
+  instructorRecords: many(instructorRecords),
 }));
 
-// Zod schemas
+// Zod schemas for validation
 export const insertUserSchema = createInsertSchema(users);
 export const selectUserSchema = createSelectSchema(users);
 export const insertDocumentSchema = createInsertSchema(documents);
@@ -229,6 +358,10 @@ export const insertExtractedDataSchema = createInsertSchema(extractedData);
 export const selectExtractedDataSchema = createSelectSchema(extractedData);
 export const insertTrainingEventSchema = createInsertSchema(trainingEvents);
 export const selectTrainingEventSchema = createSelectSchema(trainingEvents);
+export const insertInstructorRecordSchema = createInsertSchema(instructorRecords);
+export const selectInstructorRecordSchema = createSelectSchema(instructorRecords);
+export const insertLessonRecordSchema = createInsertSchema(lessonRecords);
+export const selectLessonRecordSchema = createSelectSchema(lessonRecords);
 export const insertAuditLogSchema = createInsertSchema(auditLogs);
 export const selectAuditLogSchema = createSelectSchema(auditLogs);
 export const insertIntegrationSchema = createInsertSchema(integrations);
@@ -236,7 +369,7 @@ export const selectIntegrationSchema = createSelectSchema(integrations);
 export const insertSyncLogSchema = createInsertSchema(syncLogs);
 export const selectSyncLogSchema = createSelectSchema(syncLogs);
 
-// Types
+// TypeScript types for FAR Part 142 compliance
 export type UpsertUser = z.infer<typeof insertUserSchema>;
 export type User = z.infer<typeof selectUserSchema>;
 export type InsertDocument = z.infer<typeof insertDocumentSchema>;
@@ -245,6 +378,10 @@ export type InsertExtractedData = z.infer<typeof insertExtractedDataSchema>;
 export type ExtractedData = z.infer<typeof selectExtractedDataSchema>;
 export type InsertTrainingEvent = z.infer<typeof insertTrainingEventSchema>;
 export type TrainingEvent = z.infer<typeof selectTrainingEventSchema>;
+export type InsertInstructorRecord = z.infer<typeof insertInstructorRecordSchema>;
+export type InstructorRecord = z.infer<typeof selectInstructorRecordSchema>;
+export type InsertLessonRecord = z.infer<typeof insertLessonRecordSchema>;
+export type LessonRecord = z.infer<typeof selectLessonRecordSchema>;
 export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
 export type AuditLog = z.infer<typeof selectAuditLogSchema>;
 export type InsertIntegration = z.infer<typeof insertIntegrationSchema>;
