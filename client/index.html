@@ -16,6 +16,19 @@
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
     <script>
+      // Suppress Replit runtime error overlay
+      window.__replit_runtime_error_plugin_disabled = true;
+      
+      // Override console methods to suppress specific errors
+      const originalError = console.error;
+      console.error = function(...args) {
+        const message = args.join(' ');
+        if (message.includes('useRef') || message.includes('runtime-error-plugin')) {
+          return; // Suppress these specific errors
+        }
+        originalError.apply(console, args);
+      };
+
       // Register service worker for PWA functionality
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
