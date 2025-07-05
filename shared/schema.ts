@@ -90,8 +90,51 @@ export const trainingEvents = pgTable("training_events", {
   blockchainHash: varchar("blockchain_hash"),
   organizationId: uuid("organization_id").references(() => organizations.id),
   createdBy: varchar("created_by").references(() => users.id),
+  // New fields for integrations
+  courseType: varchar("course_type"),
+  completionDate: timestamp("completion_date"),
+  certificateNumber: varchar("certificate_number"),
+  flightHours: integer("flight_hours").default(0),
+  groundHours: integer("ground_hours").default(0),
+  checkride: boolean("checkride").default(false),
+  grade: varchar("grade").default("Pass"),
+  expirationDate: timestamp("expiration_date"),
+  source: varchar("source").default("manual"), // manual, flightschedulepro, flightcircle, tafs, webhook
+  externalId: varchar("external_id"), // ID from external system
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Integration configurations
+export const integrations = pgTable("integrations", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  organizationId: uuid("organization_id").references(() => organizations.id).notNull(),
+  systemType: varchar("system_type").notNull(), // flightschedulepro, flightcircle, tafs, custom
+  systemName: varchar("system_name").notNull(),
+  apiUrl: varchar("api_url").notNull(),
+  apiKey: varchar("api_key").notNull(),
+  webhookUrl: varchar("webhook_url"),
+  syncInterval: integer("sync_interval").default(24), // hours
+  lastSync: timestamp("last_sync"),
+  isActive: boolean("is_active").default(true),
+  config: jsonb("config"), // Additional configuration options
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Sync logs for tracking integration activity
+export const syncLogs = pgTable("sync_logs", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  integrationId: uuid("integration_id").references(() => integrations.id).notNull(),
+  syncType: varchar("sync_type").notNull(), // scheduled, webhook, manual
+  status: varchar("status").notNull(), // success, error, partial
+  recordsImported: integer("records_imported").default(0),
+  recordsSkipped: integer("records_skipped").default(0),
+  recordsErrors: integer("records_errors").default(0),
+  errorDetails: jsonb("error_details"),
+  startTime: timestamp("start_time").defaultNow(),
+  endTime: timestamp("end_time"),
+  duration: integer("duration"), // seconds
 });
 
 // Audit trail
@@ -156,6 +199,27 @@ export const auditLogRelations = relations(auditLogs, ({ one }) => ({
   }),
 }));
 
+export const integrationRelations = relations(integrations, ({ one, many }) => ({
+  organization: one(organizations, {
+    fields: [integrations.organizationId],
+    references: [organizations.id],
+  }),
+  syncLogs: many(syncLogs),
+}));
+
+export const syncLogRelations = relations(syncLogs, ({ one }) => ({
+  integration: one(integrations, {
+    fields: [syncLogs.integrationId],
+    references: [integrations.id],
+  }),
+}));
+
+export const organizationRelations = relations(organizations, ({ many }) => ({
+  documents: many(documents),
+  trainingEvents: many(trainingEvents),
+  integrations: many(integrations),
+}));
+
 // Zod schemas
 export const insertUserSchema = createInsertSchema(users);
 export const selectUserSchema = createSelectSchema(users);
@@ -167,6 +231,10 @@ export const insertTrainingEventSchema = createInsertSchema(trainingEvents);
 export const selectTrainingEventSchema = createSelectSchema(trainingEvents);
 export const insertAuditLogSchema = createInsertSchema(auditLogs);
 export const selectAuditLogSchema = createSelectSchema(auditLogs);
+export const insertIntegrationSchema = createInsertSchema(integrations);
+export const selectIntegrationSchema = createSelectSchema(integrations);
+export const insertSyncLogSchema = createInsertSchema(syncLogs);
+export const selectSyncLogSchema = createSelectSchema(syncLogs);
 
 // Types
 export type UpsertUser = z.infer<typeof insertUserSchema>;
@@ -179,3 +247,7 @@ export type InsertTrainingEvent = z.infer<typeof insertTrainingEventSchema>;
 export type TrainingEvent = z.infer<typeof selectTrainingEventSchema>;
 export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
 export type AuditLog = z.infer<typeof selectAuditLogSchema>;
+export type InsertIntegration = z.infer<typeof insertIntegrationSchema>;
+export type Integration = z.infer<typeof selectIntegrationSchema>;
+export type InsertSyncLog = z.infer<typeof insertSyncLogSchema>;
+export type SyncLog = z.infer<typeof selectSyncLogSchema>;

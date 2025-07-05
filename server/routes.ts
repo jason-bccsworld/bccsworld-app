@@ -12,6 +12,9 @@ import { mlTrainingService } from "./services/ml-training";
 import { analyticsService } from "./services/analytics";
 import { insertDocumentSchema, insertTrainingEventSchema, insertAuditLogSchema } from "@shared/schema";
 import { z } from "zod";
+import { db } from "./db";
+import * as schema from "@shared/schema";
+import { eq, desc } from "drizzle-orm";
 
 // Configure multer for file uploads
 const upload = multer({
@@ -361,6 +364,122 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error generating analytics report:", error);
       res.status(500).json({ message: "Failed to generate report" });
+    }
+  });
+
+  // Integration management routes
+  app.get("/api/integrations/:organizationId", isAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId } = req.params;
+      const integrations = await db.select()
+        .from(schema.integrations)
+        .where(eq(schema.integrations.organizationId, organizationId));
+      
+      res.json(integrations);
+    } catch (error) {
+      console.error("Error fetching integrations:", error);
+      res.status(500).json({ message: "Failed to fetch integrations" });
+    }
+  });
+
+  app.post("/api/integrations", isAuthenticated, async (req: any, res) => {
+    try {
+      const integration = await db.insert(schema.integrations)
+        .values(req.body)
+        .returning();
+      
+      res.json(integration[0]);
+    } catch (error) {
+      console.error("Error creating integration:", error);
+      res.status(500).json({ message: "Failed to create integration" });
+    }
+  });
+
+  app.post("/api/integrations/:integrationId/sync", isAuthenticated, async (req: any, res) => {
+    try {
+      const { integrationId } = req.params;
+      
+      // Get integration config
+      const [integration] = await db.select()
+        .from(schema.integrations)
+        .where(eq(schema.integrations.id, integrationId));
+      
+      if (!integration || !integration.isActive) {
+        return res.status(404).json({ message: "Integration not found or inactive" });
+      }
+
+      // Import the integration service
+      const { trainingIntegrationManager } = await import("./services/training-integrations");
+      
+      // Configure the integration
+      trainingIntegrationManager.addIntegration({
+        systemType: integration.systemType as any,
+        apiUrl: integration.apiUrl,
+        apiKey: integration.apiKey,
+        organizationId: integration.organizationId,
+        syncInterval: integration.syncInterval || 24,
+        lastSync: integration.lastSync || undefined,
+        isActive: integration.isActive
+      });
+
+      // Perform sync
+      const result = await trainingIntegrationManager.syncOrganization(integration.organizationId);
+      
+      // Log sync result
+      await db.insert(schema.syncLogs).values({
+        integrationId: integration.id,
+        syncType: 'manual',
+        status: result.success ? 'success' : 'error',
+        recordsImported: result.recordsImported,
+        recordsErrors: result.errors.length,
+        errorDetails: result.errors.length > 0 ? { errors: result.errors } : null,
+        endTime: new Date(),
+        duration: 0
+      });
+
+      // Update last sync time
+      await db.update(schema.integrations)
+        .set({ lastSync: new Date() })
+        .where(eq(schema.integrations.id, integrationId));
+
+      res.json(result);
+    } catch (error) {
+      console.error("Error syncing integration:", error);
+      res.status(500).json({ message: "Failed to sync integration" });
+    }
+  });
+
+  app.post("/api/integrations/webhook/:organizationId", async (req, res) => {
+    try {
+      const { organizationId } = req.params;
+      const payload = req.body;
+
+      // Import the integration service
+      const { trainingIntegrationManager } = await import("./services/training-integrations");
+      
+      // Process webhook
+      await trainingIntegrationManager.handleWebhook(organizationId, payload);
+      
+      res.json({ success: true, message: "Webhook processed successfully" });
+    } catch (error) {
+      console.error("Error processing webhook:", error);
+      res.status(500).json({ message: "Failed to process webhook" });
+    }
+  });
+
+  app.get("/api/integrations/:integrationId/logs", isAuthenticated, async (req: any, res) => {
+    try {
+      const { integrationId } = req.params;
+      const logs = await db.select()
+        .from(schema.syncLogs)
+        .where(eq(schema.syncLogs.integrationId, integrationId))
+        .orderBy(desc(schema.syncLogs.startTime))
+        .limit(50);
+      
+      res.json(logs);
+    } catch (error) {
+      console.error("Error fetching sync logs:", error);
+      res.status(500).json({ message: "Failed to fetch sync logs" });
     }
   });
 

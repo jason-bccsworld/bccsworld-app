@@ -15,6 +15,7 @@ import RegulatorDashboard from "@/pages/regulator-dashboard";
 import MLTraining from "@/pages/ml-training";
 import AnalyticsDashboard from "@/pages/analytics-dashboard";
 import MobileField from "@/pages/mobile-field";
+import IntegrationsDashboard from "@/pages/integrations-dashboard";
 import NotFound from "@/pages/not-found";
 import Sidebar from "@/components/sidebar";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -114,6 +115,14 @@ function Router() {
               <Sidebar />
               <div className="flex-1 flex flex-col overflow-hidden p-6">
                 <AnalyticsDashboard />
+              </div>
+            </div>
+          </Route>
+          <Route path="/integrations">
+            <div className="flex h-screen bg-slate-50">
+              <Sidebar />
+              <div className="flex-1 flex flex-col overflow-hidden p-6">
+                <IntegrationsDashboard />
               </div>
             </div>
           </Route>
