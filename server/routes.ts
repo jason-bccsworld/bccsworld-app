@@ -9,6 +9,7 @@ import { processDocumentOCR } from "./services/ocr";
 import { extractFieldsWithNLP } from "./services/nlp";
 import { generateBlockchainHash } from "./services/blockchain";
 import { mlTrainingService } from "./services/ml-training";
+import { analyticsService } from "./services/analytics";
 import { insertDocumentSchema, insertTrainingEventSchema, insertAuditLogSchema } from "@shared/schema";
 import { z } from "zod";
 
@@ -320,6 +321,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error exporting training data:", error);
       res.status(500).json({ message: "Failed to export data" });
+    }
+  });
+
+  // Analytics Routes
+  app.get('/api/analytics/compliance-metrics', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      const organizationId = req.query.organizationId || user?.organizationId;
+      
+      const metrics = await analyticsService.generateComplianceMetrics(organizationId);
+      res.json(metrics);
+    } catch (error) {
+      console.error("Error fetching compliance metrics:", error);
+      res.status(500).json({ message: "Failed to fetch compliance metrics" });
+    }
+  });
+
+  app.get('/api/analytics/forecast', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      const organizationId = req.query.organizationId || user?.organizationId;
+      
+      const forecast = await analyticsService.generateDetailedForecast(organizationId);
+      res.json(forecast);
+    } catch (error) {
+      console.error("Error generating forecast:", error);
+      res.status(500).json({ message: "Failed to generate forecast" });
+    }
+  });
+
+  app.get('/api/analytics/report', isAuthenticated, async (req, res) => {
+    try {
+      const period = (req.query.period as "week" | "month" | "quarter") || "month";
+      const report = await analyticsService.generateAnalyticsReport(period);
+      res.json(report);
+    } catch (error) {
+      console.error("Error generating analytics report:", error);
+      res.status(500).json({ message: "Failed to generate report" });
     }
   });
 
