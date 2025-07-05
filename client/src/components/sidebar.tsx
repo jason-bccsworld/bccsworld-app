@@ -9,7 +9,10 @@ import {
   FileText, 
   History, 
   Settings, 
-  LogOut 
+  LogOut,
+  Users,
+  Building,
+  UserCheck
 } from "lucide-react";
 
 const navigation = [
@@ -17,7 +20,12 @@ const navigation = [
   { name: "Document Import", href: "/document-import", icon: Upload },
   { name: "Compliance Records", href: "/compliance-records", icon: FileText },
   { name: "Audit Trail", href: "/audit-trail", icon: History },
-  { name: "Settings", href: "/settings", icon: Settings },
+];
+
+const dashboardTypes = [
+  { name: "Admin Dashboard", href: "/admin-dashboard", icon: Settings },
+  { name: "Flight School", href: "/flight-school-dashboard", icon: Building },
+  { name: "Regulator", href: "/regulator-dashboard", icon: UserCheck },
 ];
 
 export default function Sidebar() {
@@ -90,6 +98,35 @@ export default function Sidebar() {
             );
           })}
         </ul>
+
+        {/* Dashboard Types Section */}
+        <div className="mt-6 pt-4 border-t border-slate-700">
+          <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
+            Dashboard Views
+          </h3>
+          <ul className="space-y-2">
+            {dashboardTypes.map((item) => {
+              const Icon = item.icon;
+              const isActive = location === item.href;
+              
+              return (
+                <li key={item.name}>
+                  <Link href={item.href}>
+                    <a className={cn(
+                      "flex items-center space-x-3 p-3 rounded-lg transition-colors",
+                      isActive 
+                        ? "bg-aviation-blue text-white" 
+                        : "hover:bg-slate-800"
+                    )}>
+                      <Icon className="w-5 h-5" />
+                      <span>{item.name}</span>
+                    </a>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
         
         <div className="mt-8 pt-4 border-t border-slate-700">
           <Button

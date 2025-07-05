@@ -9,6 +9,9 @@ import Dashboard from "@/pages/dashboard";
 import DocumentImport from "@/pages/document-import";
 import ComplianceRecords from "@/pages/compliance-records";
 import AuditTrail from "@/pages/audit-trail";
+import AdminDashboard from "@/pages/admin-dashboard";
+import FlightSchoolDashboard from "@/pages/flight-school-dashboard";
+import RegulatorDashboard from "@/pages/regulator-dashboard";
 import NotFound from "@/pages/not-found";
 import Sidebar from "@/components/sidebar";
 
@@ -35,6 +38,9 @@ function Router() {
             <Route path="/document-import" component={DocumentImport} />
             <Route path="/compliance-records" component={ComplianceRecords} />
             <Route path="/audit-trail" component={AuditTrail} />
+            <Route path="/admin-dashboard" component={AdminDashboard} />
+            <Route path="/flight-school-dashboard" component={FlightSchoolDashboard} />
+            <Route path="/regulator-dashboard" component={RegulatorDashboard} />
           </div>
         </div>
       )}
