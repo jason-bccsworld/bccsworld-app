@@ -20,6 +20,7 @@ import {
   Database
 } from "lucide-react";
 
+// Navigation menu with FAR Compliance access
 const navigation = [
   { name: "Dashboard", href: "/", icon: Home },
   { name: "Document Import", href: "/document-import", icon: Upload },

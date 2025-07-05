@@ -173,7 +173,11 @@ function Router() {
             <div className="flex h-screen bg-slate-50">
               <Sidebar />
               <div className="flex-1 flex flex-col overflow-hidden p-6">
-                <FARCompliancePage />
+                <div className="bg-white p-6 rounded-lg shadow-sm">
+                  <h2 className="text-xl font-bold mb-4">FAR Compliance Working!</h2>
+                  <p className="text-gray-600">Route is working correctly. Loading full component...</p>
+                  <FARCompliancePage />
+                </div>
               </div>
             </div>
           </Route>
