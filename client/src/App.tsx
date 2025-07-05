@@ -7,6 +7,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
 import Landing from "@/pages/landing";
 import Pricing from "@/pages/pricing";
+import Tutorials from "@/pages/tutorials";
 import Dashboard from "@/pages/dashboard";
 import DocumentImport from "@/pages/document-import";
 import ComplianceRecords from "@/pages/compliance-records";
@@ -42,6 +43,7 @@ function Router() {
         <>
           <Route path="/" component={Landing} />
           <Route path="/pricing" component={Pricing} />
+          <Route path="/tutorials" component={Tutorials} />
           <Route component={NotFound} />
         </>
       ) : (
