@@ -21,6 +21,7 @@ import MobileField from "@/pages/mobile-field";
 import IntegrationsDashboard from "@/pages/integrations-dashboard";
 import RegulatoryCompliancePage from "@/pages/regulatory-compliance";
 import FieldMapping from "@/pages/field-mapping";
+import FARCompliancePage from "@/pages/far-compliance";
 import NotFound from "@/pages/not-found";
 import Sidebar from "@/components/sidebar";
 import SupportChat from "@/components/support-chat";
@@ -168,6 +169,15 @@ function Router() {
               </div>
             </div>
           </Route>
+          <Route path="/far-compliance">
+            <div className="flex h-screen bg-slate-50">
+              <Sidebar />
+              <div className="flex-1 flex flex-col overflow-hidden p-6">
+                <FARCompliancePage />
+              </div>
+            </div>
+          </Route>
+          <Route component={NotFound} />
         </>
       )}
     </Switch>
