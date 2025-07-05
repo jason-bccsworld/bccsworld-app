@@ -36,13 +36,32 @@ export async function extractFieldsWithNLP(text: string): Promise<ExtractedField
           role: "system",
           content: `You are an expert in aviation training document analysis. Extract key information from training documents and return it in JSON format. 
 
-Focus on these fields:
-- studentName: Full name of the student/pilot
-- licenseNumber: License or certificate number
-- eventType: Type of training event (checkride, flight review, etc.)
-- eventDate: Date of the training event
-- instructorName: Name of the instructor
-- status: Status of the training (completed, pending, etc.)
+Focus on these specific FAA certificate fields (identified by Roman Numerals):
+- IV_Name_First: First name from section IV
+- IV_Name_Middle: Middle name from section IV  
+- IV_Name_Last: Last name from section IV
+- V_Address_Number: Street number from section V
+- V_Address_Street: Street name from section V
+- V_Address_City: Town/City from section V
+- V_Address_PostalCode: Postal/ZIP Code from section V
+- VI_Nationality: 3-letter nationality code from section VI
+- VI_Sex: M/F from section VI
+- VI_Height: Height in inches from section VI
+- VI_Weight: Weight in LBS from section VI
+- VI_Hair: Hair color from section VI
+- VI_Eyes: Eye color from section VI
+- IVa_DOB_Day: Day of birth from section IVa
+- IVa_DOB_Month: Month of birth from section IVa
+- IVa_DOB_Year: Year of birth from section IVa
+- II_Certificate_Type: Certificate type from section II
+- III_Certificate_Number: Certificate number from section III
+- X_Date_Issue_Day: Day of issue from section X
+- X_Date_Issue_Month: Month of issue from section X
+- X_Date_Issue_Year: Year of issue from section X
+- XII_Ratings: Aircraft type designations from section XII
+- XIII_Limitations_English: English language proficiency from section XIII
+- XIII_Limitations_Circle_Land: Circle to land limitation from section XIII
+- XIII_Limitations_Other: Other limitations from section XIII
 
 For each field, provide a confidence score between 0 and 100 based on how certain you are about the extraction.
 
@@ -92,58 +111,112 @@ function extractFieldsWithPatternMatching(text: string): ExtractedField[] {
   const fields: ExtractedField[] = [];
   const upperText = text.toUpperCase();
   
-  // Extract student/pilot name patterns
-  const namePatterns = [
-    /(?:NAME|PILOT)\s*:?\s*([A-Z\s]+?)(?:\n|$)/i,
-    /^([A-Z][A-Z\s]+)$/m,
-  ];
+  // FAA Certificate Field Patterns based on Roman Numeral sections
   
-  for (const pattern of namePatterns) {
-    const match = text.match(pattern);
-    if (match && match[1] && match[1].trim().length > 3) {
-      fields.push({
-        fieldName: "studentName",
-        extractedValue: match[1].trim(),
-        confidenceScore: 85
-      });
-      break;
-    }
+  // Section IV - Name (First, Middle, Last)
+  const nameMatch = text.match(/(?:IV\.?\s*)?([A-Z]+)\s+([A-Z]*)\s*([A-Z]+)/i);
+  if (nameMatch) {
+    fields.push(
+      { fieldName: "IV_Name_First", extractedValue: nameMatch[1], confidenceScore: 80 },
+      { fieldName: "IV_Name_Middle", extractedValue: nameMatch[2] || "", confidenceScore: 70 },
+      { fieldName: "IV_Name_Last", extractedValue: nameMatch[3], confidenceScore: 80 }
+    );
   }
   
-  // Extract certificate/license numbers
-  const certPatterns = [
-    /(?:CERTIFICATE|LICENSE)?\s*(?:NUMBER|#)\s*:?\s*([A-Z0-9-]+)/i,
-    /([A-Z]{2,3}-\d{6,})/g,
-  ];
-  
-  for (const pattern of certPatterns) {
-    const match = text.match(pattern);
-    if (match && match[1]) {
-      fields.push({
-        fieldName: "licenseNumber",
-        extractedValue: match[1].trim(),
-        confidenceScore: 90
-      });
-      break;
-    }
+  // Section V - Address
+  const addressMatch = text.match(/(\d+)\s+([A-Z\s]+?)\s+([A-Z\s]+?)\s+(\d{5}|\d{5}-\d{4})/i);
+  if (addressMatch) {
+    fields.push(
+      { fieldName: "V_Address_Number", extractedValue: addressMatch[1], confidenceScore: 85 },
+      { fieldName: "V_Address_Street", extractedValue: addressMatch[2].trim(), confidenceScore: 80 },
+      { fieldName: "V_Address_City", extractedValue: addressMatch[3].trim(), confidenceScore: 80 },
+      { fieldName: "V_Address_PostalCode", extractedValue: addressMatch[4], confidenceScore: 90 }
+    );
   }
   
-  // Extract dates
-  const datePatterns = [
-    /(?:DATE|ISSUED?)\s*:?\s*([A-Z]+ \d{1,2},? \d{4})/i,
-    /(\d{1,2}\/\d{1,2}\/\d{4})/g,
-  ];
+  // Section VI - Personal Details
+  const nationalityMatch = text.match(/(?:NATIONALITY|NAT)\s*:?\s*([A-Z]{3})/i);
+  if (nationalityMatch) {
+    fields.push({ fieldName: "VI_Nationality", extractedValue: nationalityMatch[1], confidenceScore: 85 });
+  }
   
-  for (const pattern of datePatterns) {
-    const match = text.match(pattern);
-    if (match && match[1]) {
-      fields.push({
-        fieldName: "eventDate",
-        extractedValue: match[1].trim(),
-        confidenceScore: 80
-      });
-      break;
-    }
+  const sexMatch = text.match(/(?:SEX|GENDER)\s*:?\s*([MF])/i);
+  if (sexMatch) {
+    fields.push({ fieldName: "VI_Sex", extractedValue: sexMatch[1], confidenceScore: 90 });
+  }
+  
+  const heightMatch = text.match(/(?:HEIGHT|HGT)\s*:?\s*(\d{2,3})/i);
+  if (heightMatch) {
+    fields.push({ fieldName: "VI_Height", extractedValue: heightMatch[1], confidenceScore: 80 });
+  }
+  
+  const weightMatch = text.match(/(?:WEIGHT|WGT)\s*:?\s*(\d{2,3})/i);
+  if (weightMatch) {
+    fields.push({ fieldName: "VI_Weight", extractedValue: weightMatch[1], confidenceScore: 80 });
+  }
+  
+  const hairMatch = text.match(/(?:HAIR)\s*:?\s*([A-Z]+)/i);
+  if (hairMatch) {
+    fields.push({ fieldName: "VI_Hair", extractedValue: hairMatch[1], confidenceScore: 75 });
+  }
+  
+  const eyesMatch = text.match(/(?:EYES)\s*:?\s*([A-Z]+)/i);
+  if (eyesMatch) {
+    fields.push({ fieldName: "VI_Eyes", extractedValue: eyesMatch[1], confidenceScore: 75 });
+  }
+  
+  // Section IVa - Date of Birth
+  const dobMatch = text.match(/(?:IVa\.?\s*)?(?:DOB|DATE OF BIRTH)\s*:?\s*(\d{1,2})\/(\d{1,2})\/(\d{4})/i);
+  if (dobMatch) {
+    fields.push(
+      { fieldName: "IVa_DOB_Month", extractedValue: dobMatch[1], confidenceScore: 85 },
+      { fieldName: "IVa_DOB_Day", extractedValue: dobMatch[2], confidenceScore: 85 },
+      { fieldName: "IVa_DOB_Year", extractedValue: dobMatch[3], confidenceScore: 85 }
+    );
+  }
+  
+  // Section II - Certificate Type
+  const certTypeMatch = text.match(/(?:II\.?\s*)?(?:CERTIFICATE TYPE|TYPE)\s*:?\s*([A-Z\s&]+)/i);
+  if (certTypeMatch) {
+    fields.push({ fieldName: "II_Certificate_Type", extractedValue: certTypeMatch[1].trim(), confidenceScore: 85 });
+  }
+  
+  // Section III - Certificate Number
+  const certNumberMatch = text.match(/(?:III\.?\s*)?(?:CERTIFICATE NUMBER|NO\.?)\s*:?\s*([A-Z0-9]+)/i);
+  if (certNumberMatch) {
+    fields.push({ fieldName: "III_Certificate_Number", extractedValue: certNumberMatch[1], confidenceScore: 90 });
+  }
+  
+  // Section X - Date of Issue
+  const issueMatch = text.match(/(?:X\.?\s*)?(?:DATE OF ISSUE|ISSUED)\s*:?\s*(\d{1,2})\/(\d{1,2})\/(\d{4})/i);
+  if (issueMatch) {
+    fields.push(
+      { fieldName: "X_Date_Issue_Month", extractedValue: issueMatch[1], confidenceScore: 85 },
+      { fieldName: "X_Date_Issue_Day", extractedValue: issueMatch[2], confidenceScore: 85 },
+      { fieldName: "X_Date_Issue_Year", extractedValue: issueMatch[3], confidenceScore: 85 }
+    );
+  }
+  
+  // Section XII - Ratings
+  const ratingsMatch = text.match(/(?:XII\.?\s*)?(?:RATINGS?)\s*:?\s*([A-Z0-9\s,\-]+)/i);
+  if (ratingsMatch) {
+    fields.push({ fieldName: "XII_Ratings", extractedValue: ratingsMatch[1].trim(), confidenceScore: 80 });
+  }
+  
+  // Section XIII - Limitations
+  const englishMatch = text.match(/(?:XIII\.?\s*)?(?:LIMITATIONS?|ENGLISH PROFICIENCY)\s*:?\s*([A-Z\s]+)/i);
+  if (englishMatch) {
+    fields.push({ fieldName: "XIII_Limitations_English", extractedValue: englishMatch[1].trim(), confidenceScore: 75 });
+  }
+  
+  const circleMatch = text.match(/(?:CIRCLE TO LAND)\s*:?\s*([YES|NO|Y|N])/i);
+  if (circleMatch) {
+    fields.push({ fieldName: "XIII_Limitations_Circle_Land", extractedValue: circleMatch[1], confidenceScore: 80 });
+  }
+  
+  const otherLimitationsMatch = text.match(/(?:OTHER LIMITATIONS?)\s*:?\s*([A-Z0-9\s,\-]+)/i);
+  if (otherLimitationsMatch) {
+    fields.push({ fieldName: "XIII_Limitations_Other", extractedValue: otherLimitationsMatch[1].trim(), confidenceScore: 75 });
   }
   
   // Detect training type
