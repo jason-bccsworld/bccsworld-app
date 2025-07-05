@@ -52,6 +52,9 @@ export default function Landing() {
             <p className="text-sm text-green-700 font-medium">
               ✅ Landing Page Active - URL: {window.location.href}
             </p>
+            <p className="text-xs text-green-600 mt-1">
+              If this shows dashboard instead, try: {window.location.origin}/home
+            </p>
           </div>
           <div className="bg-aviation-blue/10 border border-aviation-blue/20 rounded-lg p-4 mb-6 max-w-md mx-auto">
             <p className="text-sm text-aviation-blue font-medium mb-2">

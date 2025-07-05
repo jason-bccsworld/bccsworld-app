@@ -1,4 +1,4 @@
-const CACHE_NAME = 'bccs-mobile-v1';
+const CACHE_NAME = 'bccs-mobile-v2';
 const urlsToCache = [
   '/',
   '/mobile-field',
