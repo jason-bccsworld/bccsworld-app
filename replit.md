@@ -131,4 +131,5 @@ Target market: International aviation training centers across diverse technologi
 Testing strategy: Comprehensive validation across multiple document types and regions (US, Africa, South America)
 Quality standards: Zero tolerance for bugs - system must work reliably in all environments before market deployment
 Next phase focus: Testing different training organization scenarios with Excel data and paper document scanning to demonstrate MVP scalability and customization capabilities
+Future expansion targets: Small airport regulatory compliance, ATC training and licensing compliance, maintenance and repair organizations (MRO) compliance - both domestic and international markets
 ```
