@@ -54,9 +54,9 @@ export default function Landing() {
             </p>
             <Button 
               className="w-full bg-aviation-blue hover:bg-blue-700"
-              onClick={() => window.location.href = "/api/login"}
+              onClick={() => window.location.href = "/dashboard"}
             >
-              Sign In to Access Dashboard
+              Enter BCCS142 Platform
             </Button>
             <p className="text-xs text-gray-500 mt-2">
               Note: Authentication requires using the official Replit domain URL

@@ -21,9 +21,10 @@ import {
   Database
 } from "lucide-react";
 
-// Navigation menu with FAR Compliance access
+// Navigation menu with FAR Compliance access - prioritized order
 const navigation = [
-  { name: "Dashboard", href: "/", icon: Home },
+  { name: "Dashboard", href: "/dashboard", icon: Home },
+  { name: "FAR Compliance", href: "/far-compliance", icon: Shield },
   { name: "Document Import", href: "/document-import", icon: Upload },
   { name: "Compliance Records", href: "/compliance-records", icon: FileText },
   { name: "Audit Trail", href: "/audit-trail", icon: History },
@@ -32,7 +33,6 @@ const navigation = [
   { name: "Integrations", href: "/integrations", icon: Cable },
   { name: "Regulatory Monitor", href: "/regulatory-compliance", icon: Scale },
   { name: "FAR Field Mapping", href: "/field-mapping", icon: Database },
-  { name: "FAR Compliance", href: "/far-compliance", icon: Shield },
   { name: "System Configuration", href: "/system-config", icon: Settings },
 ];
 

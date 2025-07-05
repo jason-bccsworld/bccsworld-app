@@ -42,148 +42,80 @@ function Router() {
 
   return (
     <Switch>
-      {!isAuthenticated ? (
-        <>
-          <Route path="/" component={Landing} />
-          <Route path="/pricing" component={Pricing} />
-          <Route path="/tutorials" component={Tutorials} />
-          <Route component={NotFound} />
-        </>
-      ) : (
-        <>
-          <Route path="/mobile-field" component={MobileField} />
-          <Route path="/" nest>
-            {isMobile ? (
-              <MobileField />
-            ) : (
-              <div className="flex h-screen bg-slate-50">
-                <Sidebar />
-                <div className="flex-1 flex flex-col overflow-hidden p-6">
-                  <Dashboard />
-                </div>
-              </div>
-            )}
-          </Route>
-          <Route path="/document-import">
-            <div className="flex h-screen bg-slate-50">
-              <Sidebar />
-              <div className="flex-1 flex flex-col overflow-hidden p-6">
-                <DocumentImport />
-              </div>
+      <Route path="/" component={Landing} />
+      <Route path="/pricing" component={Pricing} />
+      <Route path="/tutorials" component={Tutorials} />
+      
+      {/* Dashboard routes - available when authenticated */}
+      <Route path="/dashboard">
+        {!isAuthenticated ? (
+          <Landing />
+        ) : isMobile ? (
+          <MobileField />
+        ) : (
+          <div className="flex h-screen bg-slate-50">
+            <Sidebar />
+            <div className="flex-1 flex flex-col overflow-hidden p-6">
+              <Dashboard />
             </div>
-          </Route>
-          <Route path="/compliance-records">
-            <div className="flex h-screen bg-slate-50">
-              <Sidebar />
-              <div className="flex-1 flex flex-col overflow-hidden p-6">
-                <ComplianceRecords />
-              </div>
+          </div>
+        )}
+      </Route>
+      
+      <Route path="/far-compliance">
+        {!isAuthenticated ? (
+          <Landing />
+        ) : (
+          <div className="flex h-screen bg-slate-50">
+            <Sidebar />
+            <div className="flex-1 flex flex-col overflow-hidden p-6">
+              <FARCompliancePage />
             </div>
-          </Route>
-          <Route path="/audit-trail">
-            <div className="flex h-screen bg-slate-50">
-              <Sidebar />
-              <div className="flex-1 flex flex-col overflow-hidden p-6">
-                <AuditTrail />
-              </div>
+          </div>
+        )}
+      </Route>
+
+      <Route path="/document-import">
+        {!isAuthenticated ? (
+          <Landing />
+        ) : (
+          <div className="flex h-screen bg-slate-50">
+            <Sidebar />
+            <div className="flex-1 flex flex-col overflow-hidden p-6">
+              <DocumentImport />
             </div>
-          </Route>
-          <Route path="/admin-dashboard">
-            <div className="flex h-screen bg-slate-50">
-              <Sidebar />
-              <div className="flex-1 flex flex-col overflow-hidden p-6">
-                <AdminDashboard />
-              </div>
+          </div>
+        )}
+      </Route>
+
+      <Route path="/compliance-records">
+        {!isAuthenticated ? (
+          <Landing />
+        ) : (
+          <div className="flex h-screen bg-slate-50">
+            <Sidebar />
+            <div className="flex-1 flex flex-col overflow-hidden p-6">
+              <ComplianceRecords />
             </div>
-          </Route>
-          <Route path="/flight-school-dashboard">
-            <div className="flex h-screen bg-slate-50">
-              <Sidebar />
-              <div className="flex-1 flex flex-col overflow-hidden p-6">
-                <FlightSchoolDashboard />
-              </div>
+          </div>
+        )}
+      </Route>
+
+      <Route path="/admin-dashboard">
+        {!isAuthenticated ? (
+          <Landing />
+        ) : (
+          <div className="flex h-screen bg-slate-50">
+            <Sidebar />
+            <div className="flex-1 flex flex-col overflow-hidden p-6">
+              <AdminDashboard />
             </div>
-          </Route>
-          <Route path="/regulator-dashboard">
-            <div className="flex h-screen bg-slate-50">
-              <Sidebar />
-              <div className="flex-1 flex flex-col overflow-hidden p-6">
-                <RegulatorDashboard />
-              </div>
-            </div>
-          </Route>
-          <Route path="/ml-training">
-            <div className="flex h-screen bg-slate-50">
-              <Sidebar />
-              <div className="flex-1 flex flex-col overflow-hidden p-6">
-                <MLTraining />
-              </div>
-            </div>
-          </Route>
-          <Route path="/analytics">
-            <div className="flex h-screen bg-slate-50">
-              <Sidebar />
-              <div className="flex-1 flex flex-col overflow-hidden p-6">
-                <AnalyticsDashboard />
-              </div>
-            </div>
-          </Route>
-          <Route path="/integrations">
-            <div className="flex h-screen bg-slate-50">
-              <Sidebar />
-              <div className="flex-1 flex flex-col overflow-hidden p-6">
-                <IntegrationsDashboard />
-              </div>
-            </div>
-          </Route>
-          <Route path="/regulatory-compliance">
-            <div className="flex h-screen bg-slate-50">
-              <Sidebar />
-              <div className="flex-1 flex flex-col overflow-hidden p-6">
-                <RegulatoryCompliancePage />
-              </div>
-            </div>
-          </Route>
-          <Route path="/field-mapping">
-            <div className="flex h-screen bg-slate-50">
-              <Sidebar />
-              <div className="flex-1 flex flex-col overflow-hidden p-6">
-                <FieldMapping />
-              </div>
-            </div>
-          </Route>
-          <Route path="/system-config">
-            <div className="flex h-screen bg-slate-50">
-              <Sidebar />
-              <div className="flex-1 flex flex-col overflow-hidden p-6">
-                <div className="space-y-6">
-                  <div>
-                    <h1 className="text-2xl font-bold text-gray-900">System Configuration</h1>
-                    <p className="text-gray-600">Configure system modules and settings</p>
-                  </div>
-                  <div className="bg-white p-6 rounded-lg shadow-sm border">
-                    <h2 className="text-lg font-semibold mb-4">Configuration Options</h2>
-                    <p className="text-gray-600">System configuration features will be available here.</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </Route>
-          <Route path="/far-compliance">
-            <div className="flex h-screen bg-slate-50">
-              <Sidebar />
-              <div className="flex-1 flex flex-col overflow-hidden p-6">
-                <div className="bg-white p-6 rounded-lg shadow-sm">
-                  <h2 className="text-xl font-bold mb-4">FAR Compliance Working!</h2>
-                  <p className="text-gray-600">Route is working correctly. Loading full component...</p>
-                  <FARCompliancePage />
-                </div>
-              </div>
-            </div>
-          </Route>
-          <Route component={NotFound} />
-        </>
-      )}
+          </div>
+        )}
+      </Route>
+
+      <Route path="/mobile-field" component={MobileField} />
+      <Route component={NotFound} />
     </Switch>
   );
 }
