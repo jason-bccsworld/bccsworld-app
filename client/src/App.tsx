@@ -51,7 +51,7 @@ function Router() {
       ) : (
         <>
           <Route path="/mobile-field" component={MobileField} />
-          <Route path="/">
+          <Route path="/" nest>
             {isMobile ? (
               <MobileField />
             ) : (
@@ -151,7 +151,23 @@ function Router() {
               </div>
             </div>
           </Route>
-          <Route component={NotFound} />
+          <Route path="/system-config">
+            <div className="flex h-screen bg-slate-50">
+              <Sidebar />
+              <div className="flex-1 flex flex-col overflow-hidden p-6">
+                <div className="space-y-6">
+                  <div>
+                    <h1 className="text-2xl font-bold text-gray-900">System Configuration</h1>
+                    <p className="text-gray-600">Configure system modules and settings</p>
+                  </div>
+                  <div className="bg-white p-6 rounded-lg shadow-sm border">
+                    <h2 className="text-lg font-semibold mb-4">Configuration Options</h2>
+                    <p className="text-gray-600">System configuration features will be available here.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </Route>
         </>
       )}
     </Switch>

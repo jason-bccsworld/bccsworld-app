@@ -30,6 +30,7 @@ const navigation = [
   { name: "Integrations", href: "/integrations", icon: Cable },
   { name: "Regulatory Monitor", href: "/regulatory-compliance", icon: Scale },
   { name: "FAR Field Mapping", href: "/field-mapping", icon: Database },
+  { name: "System Configuration", href: "/system-config", icon: Settings },
 ];
 
 const dashboardTypes = [
