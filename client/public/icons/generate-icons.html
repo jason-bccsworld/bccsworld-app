@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Generate Icons</title>
+</head>
+<body>
+    <canvas id="canvas" width="512" height="512"></canvas>
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Draw blue background
+        ctx.fillStyle = '#0ea5e9';
+        ctx.fillRect(0, 0, 512, 512);
+        
+        // Draw white airplane symbol
+        ctx.fillStyle = 'white';
+        ctx.beginPath();
+        ctx.moveTo(256, 128);
+        ctx.lineTo(320, 192);
+        ctx.lineTo(256, 384);
+        ctx.lineTo(192, 192);
+        ctx.closePath();
+        ctx.fill();
+        
+        // Draw horizontal bar
+        ctx.fillRect(200, 240, 112, 32);
+        
+        // Generate 512x512 PNG
+        canvas.toBlob(function(blob) {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'icon-512x512.png';
+            a.click();
+            
+            // Generate 192x192 PNG
+            const smallCanvas = document.createElement('canvas');
+            smallCanvas.width = 192;
+            smallCanvas.height = 192;
+            const smallCtx = smallCanvas.getContext('2d');
+            smallCtx.drawImage(canvas, 0, 0, 192, 192);
+            
+            smallCanvas.toBlob(function(smallBlob) {
+                const smallUrl = URL.createObjectURL(smallBlob);
+                const smallA = document.createElement('a');
+                smallA.href = smallUrl;
+                smallA.download = 'icon-192x192.png';
+                smallA.click();
+            });
+        });
+    </script>
+</body>
+</html>

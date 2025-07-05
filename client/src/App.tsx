@@ -13,11 +13,14 @@ import AdminDashboard from "@/pages/admin-dashboard";
 import FlightSchoolDashboard from "@/pages/flight-school-dashboard";
 import RegulatorDashboard from "@/pages/regulator-dashboard";
 import MLTraining from "@/pages/ml-training";
+import MobileField from "@/pages/mobile-field";
 import NotFound from "@/pages/not-found";
 import Sidebar from "@/components/sidebar";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
+  const isMobile = useIsMobile();
 
   if (isLoading) {
     return (
@@ -36,13 +39,18 @@ function Router() {
         </>
       ) : (
         <>
+          <Route path="/mobile-field" component={MobileField} />
           <Route path="/">
-            <div className="flex h-screen bg-slate-50">
-              <Sidebar />
-              <div className="flex-1 flex flex-col overflow-hidden p-6">
-                <Dashboard />
+            {isMobile ? (
+              <MobileField />
+            ) : (
+              <div className="flex h-screen bg-slate-50">
+                <Sidebar />
+                <div className="flex-1 flex flex-col overflow-hidden p-6">
+                  <Dashboard />
+                </div>
               </div>
-            </div>
+            )}
           </Route>
           <Route path="/document-import">
             <div className="flex h-screen bg-slate-50">
