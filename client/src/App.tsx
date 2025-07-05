@@ -23,6 +23,18 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import ErrorBoundary from "@/components/error-boundary";
 
 function Router() {
+  // Temporarily simplify to isolate useRef error
+  return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div>
+        <h1>BCCS Application</h1>
+        <p>Temporary simplified view to debug useRef error</p>
+      </div>
+    </div>
+  );
+}
+
+function RouterOld() {
   const { isAuthenticated, isLoading } = useAuth();
   const isMobile = useIsMobile();
 
