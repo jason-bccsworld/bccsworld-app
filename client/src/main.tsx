@@ -41,4 +41,15 @@ const suppressError = (event: any) => {
 window.addEventListener('error', suppressError, true);
 window.addEventListener('unhandledrejection', suppressError, true);
 
-createRoot(document.getElementById("root")!).render(<App />);
+try {
+  createRoot(document.getElementById("root")!).render(<App />);
+} catch (error) {
+  console.error("Error rendering app:", error);
+  document.getElementById("root")!.innerHTML = `
+    <div style="padding: 20px; text-align: center; color: red;">
+      <h1>Error Loading App</h1>
+      <p>Error: ${error}</p>
+      <button onclick="window.location.reload()">Reload</button>
+    </div>
+  `;
+}
