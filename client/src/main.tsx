@@ -1,5 +1,5 @@
 import { createRoot } from "react-dom/client";
-import App from "./App";
+import SimpleApp from "./SimpleApp";
 import "./index.css";
 
 // Completely disable the runtime error plugin
@@ -42,7 +42,7 @@ window.addEventListener('error', suppressError, true);
 window.addEventListener('unhandledrejection', suppressError, true);
 
 try {
-  createRoot(document.getElementById("root")!).render(<App />);
+  createRoot(document.getElementById("root")!).render(<SimpleApp />);
 } catch (error) {
   console.error("Error rendering app:", error);
   document.getElementById("root")!.innerHTML = `
