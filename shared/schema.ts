@@ -485,3 +485,201 @@ export type InsertRegulatoryCompliance = z.infer<typeof insertRegulatoryComplian
 export type RegulatoryCompliance = z.infer<typeof selectRegulatoryComplianceSchema>;
 export type InsertRegulatoryChange = z.infer<typeof insertRegulatoryChangeSchema>;
 export type RegulatoryChange = z.infer<typeof selectRegulatoryChangeSchema>;
+
+// ============================================================================
+// AEROTRAINING PLATFORM ECOSYSTEM MODULES
+// ============================================================================
+
+// AeroSchedule Module - Simulator & Resource Management
+export const simulators = pgTable("simulators", {
+  id: text("id").primaryKey().$defaultFn(() => `sim_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`),
+  organizationId: text("organization_id").references(() => organizations.id).notNull(),
+  name: text("name").notNull(),
+  model: text("model").notNull(),
+  manufacturer: text("manufacturer").notNull(), // CAE, FlightSafety, L3Harris
+  aircraftType: text("aircraft_type").notNull(),
+  levelOfFidelity: text("level_of_fidelity").notNull(), // Level A, B, C, D
+  serialNumber: text("serial_number"),
+  location: text("location"),
+  status: text("status").default("active").notNull(), // active, maintenance, offline
+  capabilities: jsonb("capabilities"), // IFR, VFR, specific training scenarios
+  maintenanceSchedule: jsonb("maintenance_schedule"),
+  utilizationHours: integer("utilization_hours").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const instructorProfiles = pgTable("instructor_profiles", {
+  id: text("id").primaryKey().$defaultFn(() => `inst_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`),
+  userId: text("user_id").references(() => users.id).notNull(),
+  organizationId: text("organization_id").references(() => organizations.id).notNull(),
+  certificateNumber: text("certificate_number"),
+  certificateType: text("certificate_type").notNull(), // CFI, CFII, MEI, ATP
+  ratings: jsonb("ratings").notNull(), // Array of aircraft ratings
+  medicalClass: text("medical_class"),
+  medicalExpiration: date("medical_expiration"),
+  availabilitySchedule: jsonb("availability_schedule"),
+  specializations: jsonb("specializations"), // IFR, Commercial, Multi-engine, etc.
+  performanceMetrics: jsonb("performance_metrics"), // Success rates, student feedback
+  hourlyRate: decimal("hourly_rate"),
+  status: text("status").default("active").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const trainingSchedules = pgTable("training_schedules", {
+  id: text("id").primaryKey().$defaultFn(() => `sched_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`),
+  organizationId: text("organization_id").references(() => organizations.id).notNull(),
+  studentId: text("student_id").references(() => users.id).notNull(),
+  instructorId: text("instructor_id").references(() => instructorProfiles.id),
+  simulatorId: text("simulator_id").references(() => simulators.id),
+  trainingType: text("training_type").notNull(), // initial, recurrent, proficiency
+  courseCode: text("course_code").notNull(),
+  sessionTitle: text("session_title").notNull(),
+  scheduledStart: timestamp("scheduled_start").notNull(),
+  scheduledEnd: timestamp("scheduled_end").notNull(),
+  actualStart: timestamp("actual_start"),
+  actualEnd: timestamp("actual_end"),
+  status: text("status").default("scheduled").notNull(), // scheduled, in_progress, completed, cancelled
+  location: text("location"),
+  objectives: jsonb("objectives"),
+  completionNotes: text("completion_notes"),
+  studentPerformance: jsonb("student_performance"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// AeroStudent Module - Student Experience Platform
+export const studentProfiles = pgTable("student_profiles", {
+  id: text("id").primaryKey().$defaultFn(() => `student_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`),
+  userId: text("user_id").references(() => users.id).notNull(),
+  organizationId: text("organization_id").references(() => organizations.id).notNull(),
+  studentNumber: text("student_number").notNull(),
+  pilotCertificateNumber: text("pilot_certificate_number"),
+  currentCertificates: jsonb("current_certificates"), // PPL, CPL, ATPL, etc.
+  medicalClass: text("medical_class"),
+  medicalExpiration: date("medical_expiration"),
+  trainingGoals: jsonb("training_goals"),
+  learningPreferences: jsonb("learning_preferences"),
+  academicHistory: jsonb("academic_history"),
+  performanceMetrics: jsonb("performance_metrics"),
+  progressTracking: jsonb("progress_tracking"),
+  enrollmentDate: date("enrollment_date").notNull(),
+  expectedGraduation: date("expected_graduation"),
+  status: text("status").default("active").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const courseProgress = pgTable("course_progress", {
+  id: text("id").primaryKey().$defaultFn(() => `progress_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`),
+  studentId: text("student_id").references(() => studentProfiles.id).notNull(),
+  courseCode: text("course_code").notNull(),
+  moduleId: text("module_id").notNull(),
+  startDate: date("start_date").notNull(),
+  completionDate: date("completion_date"),
+  scoreAchieved: decimal("score_achieved"),
+  timeSpent: integer("time_spent"), // minutes
+  attemptsCount: integer("attempts_count").default(1),
+  status: text("status").default("in_progress").notNull(), // not_started, in_progress, completed, failed
+  feedbackNotes: text("feedback_notes"),
+  nextRecommendedModule: text("next_recommended_module"),
+  difficultyRating: integer("difficulty_rating"), // 1-5 scale
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// AeroAnalytics Module - Business Intelligence
+export const analyticsMetrics = pgTable("analytics_metrics", {
+  id: text("id").primaryKey().$defaultFn(() => `metric_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`),
+  organizationId: text("organization_id").references(() => organizations.id).notNull(),
+  metricType: text("metric_type").notNull(), // revenue, utilization, performance, satisfaction
+  metricName: text("metric_name").notNull(),
+  value: decimal("value").notNull(),
+  unit: text("unit"), // dollars, percentage, hours, count
+  period: text("period").notNull(), // daily, weekly, monthly, quarterly
+  periodStart: date("period_start").notNull(),
+  periodEnd: date("period_end").notNull(),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Platform Ecosystem Relations
+export const simulatorRelations = relations(simulators, ({ one, many }) => ({
+  organization: one(organizations, {
+    fields: [simulators.organizationId],
+    references: [organizations.id],
+  }),
+  schedules: many(trainingSchedules),
+}));
+
+export const instructorProfileRelations = relations(instructorProfiles, ({ one, many }) => ({
+  user: one(users, {
+    fields: [instructorProfiles.userId],
+    references: [users.id],
+  }),
+  organization: one(organizations, {
+    fields: [instructorProfiles.organizationId],
+    references: [organizations.id],
+  }),
+  schedules: many(trainingSchedules),
+}));
+
+export const trainingScheduleRelations = relations(trainingSchedules, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [trainingSchedules.organizationId],
+    references: [organizations.id],
+  }),
+  student: one(users, {
+    fields: [trainingSchedules.studentId],
+    references: [users.id],
+  }),
+  instructor: one(instructorProfiles, {
+    fields: [trainingSchedules.instructorId],
+    references: [instructorProfiles.id],
+  }),
+  simulator: one(simulators, {
+    fields: [trainingSchedules.simulatorId],
+    references: [simulators.id],
+  }),
+}));
+
+export const studentProfileRelations = relations(studentProfiles, ({ one, many }) => ({
+  user: one(users, {
+    fields: [studentProfiles.userId],
+    references: [users.id],
+  }),
+  organization: one(organizations, {
+    fields: [studentProfiles.organizationId],
+    references: [organizations.id],
+  }),
+  progress: many(courseProgress),
+}));
+
+// Schema exports for platform modules
+export const insertSimulatorSchema = createInsertSchema(simulators);
+export const selectSimulatorSchema = createSelectSchema(simulators);
+export const insertInstructorProfileSchema = createInsertSchema(instructorProfiles);
+export const selectInstructorProfileSchema = createSelectSchema(instructorProfiles);
+export const insertTrainingScheduleSchema = createInsertSchema(trainingSchedules);
+export const selectTrainingScheduleSchema = createSelectSchema(trainingSchedules);
+export const insertStudentProfileSchema = createInsertSchema(studentProfiles);
+export const selectStudentProfileSchema = createSelectSchema(studentProfiles);
+export const insertCourseProgressSchema = createInsertSchema(courseProgress);
+export const selectCourseProgressSchema = createSelectSchema(courseProgress);
+export const insertAnalyticsMetricSchema = createInsertSchema(analyticsMetrics);
+export const selectAnalyticsMetricSchema = createSelectSchema(analyticsMetrics);
+
+// Type exports for platform modules
+export type InsertSimulator = z.infer<typeof insertSimulatorSchema>;
+export type Simulator = z.infer<typeof selectSimulatorSchema>;
+export type InsertInstructorProfile = z.infer<typeof insertInstructorProfileSchema>;
+export type InstructorProfile = z.infer<typeof selectInstructorProfileSchema>;
+export type InsertTrainingSchedule = z.infer<typeof insertTrainingScheduleSchema>;
+export type TrainingSchedule = z.infer<typeof selectTrainingScheduleSchema>;
+export type InsertStudentProfile = z.infer<typeof insertStudentProfileSchema>;
+export type StudentProfile = z.infer<typeof selectStudentProfileSchema>;
+export type InsertCourseProgress = z.infer<typeof insertCourseProgressSchema>;
+export type CourseProgress = z.infer<typeof selectCourseProgressSchema>;
+export type InsertAnalyticsMetric = z.infer<typeof insertAnalyticsMetricSchema>;
+export type AnalyticsMetric = z.infer<typeof selectAnalyticsMetricSchema>;
