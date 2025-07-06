@@ -24,7 +24,7 @@ import FieldMapping from "@/pages/field-mapping";
 import FARCompliancePage from "@/pages/far-compliance";
 import DebugSidebar from "@/pages/debug-sidebar";
 import NotFound from "@/pages/not-found";
-import SidebarPro from "@/components/sidebar-pro";
+import DashboardLayout from "@/layouts/dashboard-layout";
 import SupportChat from "@/components/support-chat";
 import { useIsMobile } from "@/hooks/use-mobile";
 import ErrorBoundary from "@/components/error-boundary";
@@ -69,12 +69,9 @@ function Router() {
         ) : isMobile ? (
           <MobileField />
         ) : (
-          <div className="flex h-screen bg-slate-50">
-            <SidebarPro />
-            <div className="flex-1 ml-64 flex flex-col overflow-hidden p-6">
-              <Dashboard />
-            </div>
-          </div>
+          <DashboardLayout>
+            <Dashboard />
+          </DashboardLayout>
         )}
       </Route>
       
@@ -82,12 +79,9 @@ function Router() {
         {!isAuthenticated ? (
           <Landing />
         ) : (
-          <div className="flex h-screen bg-slate-50">
-            <SidebarPro />
-            <div className="flex-1 ml-64 flex flex-col overflow-hidden p-6">
-              <FARCompliancePage />
-            </div>
-          </div>
+          <DashboardLayout>
+            <FARCompliancePage />
+          </DashboardLayout>
         )}
       </Route>
 
@@ -95,12 +89,9 @@ function Router() {
         {!isAuthenticated ? (
           <Landing />
         ) : (
-          <div className="flex h-screen bg-slate-50">
-            <SidebarPro />
-            <div className="flex-1 ml-64 flex flex-col overflow-hidden p-6">
-              <DocumentImport />
-            </div>
-          </div>
+          <DashboardLayout>
+            <DocumentImport />
+          </DashboardLayout>
         )}
       </Route>
 
@@ -108,12 +99,9 @@ function Router() {
         {!isAuthenticated ? (
           <Landing />
         ) : (
-          <div className="flex h-screen bg-slate-50">
-            <SidebarPro />
-            <div className="flex-1 ml-64 flex flex-col overflow-hidden p-6">
-              <ComplianceRecords />
-            </div>
-          </div>
+          <DashboardLayout>
+            <ComplianceRecords />
+          </DashboardLayout>
         )}
       </Route>
 
@@ -121,12 +109,9 @@ function Router() {
         {!isAuthenticated ? (
           <Landing />
         ) : (
-          <div className="flex h-screen bg-slate-50">
-            <SidebarPro />
-            <div className="flex-1 ml-64 flex flex-col overflow-hidden p-6">
-              <AdminDashboard />
-            </div>
-          </div>
+          <DashboardLayout>
+            <AdminDashboard />
+          </DashboardLayout>
         )}
       </Route>
 
@@ -134,12 +119,9 @@ function Router() {
         {!isAuthenticated ? (
           <Landing />
         ) : (
-          <div className="flex h-screen bg-slate-50">
-            <SidebarPro />
-            <div className="flex-1 ml-64 flex flex-col overflow-hidden p-6">
-              <RegulatoryCompliancePage />
-            </div>
-          </div>
+          <DashboardLayout>
+            <RegulatoryCompliancePage />
+          </DashboardLayout>
         )}
       </Route>
 

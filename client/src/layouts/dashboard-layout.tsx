@@ -1,0 +1,85 @@
+import React from 'react';
+import { Link, useLocation } from 'wouter';
+import { 
+  Shield, 
+  FileText, 
+  Users, 
+  Settings, 
+  BarChart3, 
+  AlertTriangle,
+  Clock,
+  CheckCircle,
+  Globe,
+  Smartphone,
+  HelpCircle
+} from 'lucide-react';
+
+interface DashboardLayoutProps {
+  children: React.ReactNode;
+}
+
+const navigationItems = [
+  { path: "/dashboard", icon: BarChart3, label: "Dashboard" },
+  { path: "/far-compliance", icon: CheckCircle, label: "FAR Compliance" },
+  { path: "/regulatory-compliance", icon: AlertTriangle, label: "Regulatory Monitor" },
+  { path: "/document-import", icon: FileText, label: "Document Import" },
+  { path: "/compliance-records", icon: Clock, label: "Compliance Records" },
+  { path: "/admin-dashboard", icon: Users, label: "Admin Dashboard" },
+  { path: "/mobile-field", icon: Smartphone, label: "Mobile Field" },
+  { path: "/support", icon: HelpCircle, label: "Support" },
+  { path: "/settings", icon: Settings, label: "Settings" },
+];
+
+export default function DashboardLayout({ children }: DashboardLayoutProps) {
+  const [location] = useLocation();
+
+  return (
+    <div className="flex h-screen bg-slate-50">
+      {/* Sidebar */}
+      <div className="w-64 bg-slate-900 text-white flex flex-col">
+        {/* Header */}
+        <div className="p-6 border-b border-slate-700 bg-blue-600">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-white bg-opacity-20 rounded-lg">
+              <Shield size={24} className="text-white" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold">BCCS142</h1>
+              <p className="text-sm text-blue-100">Aviation Compliance</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Navigation */}
+        <nav className="flex-1 p-4 space-y-2">
+          {navigationItems.map((item) => (
+            <Link
+              key={item.path}
+              href={item.path}
+              className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm transition-colors ${
+                location === item.path
+                  ? 'bg-blue-600 text-white' 
+                  : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+              }`}
+            >
+              <item.icon size={20} />
+              {item.label}
+            </Link>
+          ))}
+        </nav>
+
+        {/* Footer */}
+        <div className="p-4 border-t border-slate-700 text-sm text-slate-400">
+          Enterprise Ready Platform
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 p-6 overflow-y-auto">
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+}
