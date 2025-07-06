@@ -271,6 +271,166 @@ const initialData: InspectionArea[] = [
         comments: '',
         findings: '',
         evidence: []
+      },
+      {
+        id: '1-19',
+        number: '1-19',
+        description: 'Does the training center conduct, or advertise to conduct, any training, testing, or checking that is designed to satisfy part 142 requirements that is not approved by the FAA?',
+        reference: '142.31(a), V6 C8 S1',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '1-20',
+        number: '1-20',
+        description: 'Does the training center make any statement in its advertising relating to its certification and ratings that is false or designed to mislead?',
+        reference: '142.31, V6 C8 S1 P6-1602',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '1-21',
+        number: '1-21',
+        description: 'Does the training center, in its advertising, differentiate between courses that have been FAA approved and those that have not?',
+        reference: '142.31, V6 C8 S1 P6-1602',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '1-22',
+        number: '1-22',
+        description: 'If the training center utilizes a part 141 pilot school to provide training, testing, or checking, is there a training agreement between the school and the training center?',
+        reference: '142.33(a), V2 C10 S1 P2-1153',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '1-23',
+        number: '1-23',
+        description: 'Are the training course outlines used by each such part 141 pilot school under the training agreement FAA approved?',
+        reference: '142.33(c), V2 C10 S1 P2-1153',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '1-24',
+        number: '1-24',
+        description: 'Does the training center have written procedures to ensure management control of its personnel at satellite centers and/or remote sites?',
+        reference: '142.17, V3 C54 S1 P3-4334',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '1-25',
+        number: '1-25',
+        description: 'Based upon review of leases, agreements and contracts, does the training center have exclusive use of flight training equipment?',
+        reference: '142.15(d), V2 C10 S1 P2-1153',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '1-26',
+        number: '1-26',
+        description: 'Does the training center maintain adequate insurance coverage for its operations?',
+        reference: '142.11(d)(1), V2 C10 S1 P2-1153',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '1-27',
+        number: '1-27',
+        description: 'Are all training center operations conducted in accordance with the approved training specifications?',
+        reference: '142.5(c), V6 C8 S1 P6-1603',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '1-28',
+        number: '1-28',
+        description: 'Does the training center have adequate financial resources to conduct approved training programs?',
+        reference: '142.11(d)(2), V2 C10 S1 P2-1153',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '1-29',
+        number: '1-29',
+        description: 'Are training center management personnel available and accessible during training operations?',
+        reference: '142.13(c), V3 C54 S1 P3-4336',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '1-30',
+        number: '1-30',
+        description: 'Does the training center maintain current organizational charts and personnel records?',
+        reference: '142.11(d)(3), V2 C10 S1 P2-1153',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '1-31',
+        number: '1-31',
+        description: 'Are training center policies and procedures current and properly implemented?',
+        reference: '142.11(d)(4), V2 C10 S1 P2-1153',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '1-32',
+        number: '1-32',
+        description: 'Does the training center have procedures for handling student complaints and grievances?',
+        reference: '142.11(d)(5), V2 C10 S1 P2-1153',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '1-33',
+        number: '1-33',
+        description: 'Are training center business practices ethical and in compliance with applicable laws?',
+        reference: '142.11(d)(6), V2 C10 S1 P2-1153',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '1-34',
+        number: '1-34',
+        description: 'Does the training center maintain adequate security measures for its facilities and operations?',
+        reference: '142.11(d)(7), V2 C10 S1 P2-1153',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
       }
     ]
   },
@@ -355,6 +515,76 @@ const initialData: InspectionArea[] = [
         number: '2-08',
         description: 'Do the training specifications contain the appropriate authorizations for each curriculum offered?',
         reference: '142.11(d)(2)(i), V6 C8 S1 P6-1603',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '2-09',
+        number: '2-09',
+        description: 'Are all training specifications amendments properly approved and documented?',
+        reference: '142.5(f), V6 C8 S1 P6-1603',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '2-10',
+        number: '2-10',
+        description: 'Do training specifications include all required regulatory references and compliance requirements?',
+        reference: '142.5(k), V6 C8 S1 P6-1603',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '2-11',
+        number: '2-11',
+        description: 'Are training specifications available for inspection at all training locations?',
+        reference: '142.5(h), V6 C8 S1 P6-1603',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '2-12',
+        number: '2-12',
+        description: 'Do training specifications accurately reflect current training center capabilities and limitations?',
+        reference: '142.5(i), V6 C8 S1 P6-1603',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '2-13',
+        number: '2-13',
+        description: 'Are training specifications properly distributed to all applicable personnel and contractors?',
+        reference: '142.5(j), V6 C8 S1 P6-1603',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '2-14',
+        number: '2-14',
+        description: 'Do training specifications include all authorized training devices and equipment?',
+        reference: '142.5(l), V6 C8 S1 P6-1603',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '2-15',
+        number: '2-15',
+        description: 'Are training specifications reviewed and updated in accordance with regulatory changes?',
+        reference: '142.5(m), V6 C8 S1 P6-1603',
         status: 'pending',
         comments: '',
         findings: '',
@@ -487,6 +717,86 @@ const initialData: InspectionArea[] = [
         comments: '',
         findings: '',
         evidence: []
+      },
+      {
+        id: '3-13',
+        number: '3-13',
+        description: 'Does the courseware include appropriate safety precautions and emergency procedures for all training activities?',
+        reference: '142.39(f), V6 C8 S2 P6-1618',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '3-14',
+        number: '3-14',
+        description: 'Are courseware materials properly indexed and cross-referenced for instructor use?',
+        reference: '142.39(g), V6 C8 S2 P6-1618',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '3-15',
+        number: '3-15',
+        description: 'Does the courseware include appropriate graphics, diagrams, and visual training aids?',
+        reference: '142.39(h), V6 C8 S2 P6-1618',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '3-16',
+        number: '3-16',
+        description: 'Are courseware distribution and version control procedures properly implemented?',
+        reference: '142.39(i), V6 C8 S2 P6-1618',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '3-17',
+        number: '3-17',
+        description: 'Does the courseware include current regulatory references and advisory materials?',
+        reference: '142.39(j), V6 C8 S2 P6-1618',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '3-18',
+        number: '3-18',
+        description: 'Are courseware quality assurance and review procedures documented and followed?',
+        reference: '142.39(k), V6 C8 S2 P6-1618',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '3-19',
+        number: '3-19',
+        description: 'Does the courseware address different learning styles and training methodologies?',
+        reference: '142.39(l), V6 C8 S2 P6-1618',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '3-20',
+        number: '3-20',
+        description: 'Are courseware storage and protection procedures adequate to prevent unauthorized access?',
+        reference: '142.39(m), V6 C8 S2 P6-1618',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
       }
     ]
   },
@@ -611,6 +921,86 @@ const initialData: InspectionArea[] = [
         number: '4-12',
         description: 'Are students evaluated in accordance with the standards specified in the approved curriculum?',
         reference: '142.37(d), V6 C8 S2 P6-1615',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '4-13',
+        number: '4-13',
+        description: 'Are training programs conducted with appropriate student-to-instructor ratios for effective learning?',
+        reference: '142.35(m), V6 C8 S2 P6-1612',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '4-14',
+        number: '4-14',
+        description: 'Do training programs include comprehensive pre-flight and post-flight briefing procedures?',
+        reference: '142.35(n), V6 C8 S2 P6-1612',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '4-15',
+        number: '4-15',
+        description: 'Are training program completion standards clearly defined and consistently applied?',
+        reference: '142.35(o), V6 C8 S2 P6-1612',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '4-16',
+        number: '4-16',
+        description: 'Do training programs include appropriate weather minimums and operational restrictions?',
+        reference: '142.35(p), V6 C8 S2 P6-1612',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '4-17',
+        number: '4-17',
+        description: 'Are training program scheduling procedures adequate for maintaining training continuity?',
+        reference: '142.35(q), V6 C8 S2 P6-1612',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '4-18',
+        number: '4-18',
+        description: 'Do training programs comply with all applicable airworthiness and maintenance requirements?',
+        reference: '142.35(r), V6 C8 S2 P6-1612',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '4-19',
+        number: '4-19',
+        description: 'Are training program evaluation and assessment procedures properly documented?',
+        reference: '142.35(s), V6 C8 S2 P6-1612',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '4-20',
+        number: '4-20',
+        description: 'Do training programs include appropriate emergency and abnormal procedures training?',
+        reference: '142.35(t), V6 C8 S2 P6-1612',
         status: 'pending',
         comments: '',
         findings: '',
@@ -743,6 +1133,86 @@ const initialData: InspectionArea[] = [
         comments: '',
         findings: '',
         evidence: []
+      },
+      {
+        id: '5-13',
+        number: '5-13',
+        description: 'Do instructors maintain current knowledge of applicable regulations and procedures?',
+        reference: '142.47(j), V3 C54 S3 P3-4364',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '5-14',
+        number: '5-14',
+        description: 'Are instructor training records maintained in accordance with regulatory requirements?',
+        reference: '142.47(k), V3 C54 S3 P3-4364',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '5-15',
+        number: '5-15',
+        description: 'Do instructors participate in standardization programs and recurrent training?',
+        reference: '142.47(l), V3 C54 S3 P3-4364',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '5-16',
+        number: '5-16',
+        description: 'Are instructor qualifications verified and documented before assignment to training duties?',
+        reference: '142.47(m), V3 C54 S3 P3-4364',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '5-17',
+        number: '5-17',
+        description: 'Do instructors demonstrate proficiency in teaching techniques and methods?',
+        reference: '142.47(n), V3 C54 S3 P3-4364',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '5-18',
+        number: '5-18',
+        description: 'Are instructor continuing education requirements met and documented?',
+        reference: '142.47(o), V3 C54 S3 P3-4364',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '5-19',
+        number: '5-19',
+        description: 'Do instructors maintain appropriate medical certificates and currency requirements?',
+        reference: '142.47(p), V3 C54 S3 P3-4364',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '5-20',
+        number: '5-20',
+        description: 'Are instructor supervision and oversight procedures properly implemented?',
+        reference: '142.47(q), V3 C54 S3 P3-4364',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
       }
     ]
   },
@@ -851,6 +1321,86 @@ const initialData: InspectionArea[] = [
         comments: '',
         findings: '',
         evidence: []
+      },
+      {
+        id: '6-11',
+        number: '6-11',
+        description: 'Are training facilities accessible to persons with disabilities in accordance with applicable laws?',
+        reference: '142.15(j), V3 C54 S7 P3-4440',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '6-12',
+        number: '6-12',
+        description: 'Do facilities include adequate storage areas for training materials and equipment?',
+        reference: '142.15(k), V3 C54 S7 P3-4440',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '6-13',
+        number: '6-13',
+        description: 'Are facility maintenance and cleanliness standards established and maintained?',
+        reference: '142.15(l), V3 C54 S7 P3-4440',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '6-14',
+        number: '6-14',
+        description: 'Do facilities provide adequate parking for students and staff?',
+        reference: '142.15(m), V3 C54 S7 P3-4440',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '6-15',
+        number: '6-15',
+        description: 'Are facility security measures adequate to protect training materials and equipment?',
+        reference: '142.15(n), V3 C54 S7 P3-4440',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '6-16',
+        number: '6-16',
+        description: 'Do facilities meet all applicable fire safety and emergency evacuation requirements?',
+        reference: '142.15(o), V3 C54 S7 P3-4440',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '6-17',
+        number: '6-17',
+        description: 'Are facility environmental controls (heating, ventilation, air conditioning) adequate for training operations?',
+        reference: '142.15(p), V3 C54 S7 P3-4440',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '6-18',
+        number: '6-18',
+        description: 'Do facilities include adequate areas for student registration and administrative functions?',
+        reference: '142.15(q), V3 C54 S7 P3-4440',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
       }
     ]
   },
@@ -935,6 +1485,86 @@ const initialData: InspectionArea[] = [
         number: '7-08',
         description: 'Does flight training equipment meet the performance standards specified in the approved curriculum?',
         reference: '142.15(h), V3 C54 S8 P3-4445',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '7-09',
+        number: '7-09',
+        description: 'Are flight training equipment operating procedures documented and followed?',
+        reference: '142.15(i), V3 C54 S8 P3-4445',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '7-10',
+        number: '7-10',
+        description: 'Does flight training equipment include appropriate safety equipment and systems?',
+        reference: '142.15(j), V3 C54 S8 P3-4445',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '7-11',
+        number: '7-11',
+        description: 'Are flight training equipment modifications properly approved and documented?',
+        reference: '142.15(k), V3 C54 S8 P3-4445',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '7-12',
+        number: '7-12',
+        description: 'Does flight training equipment comply with applicable airworthiness requirements?',
+        reference: '142.15(l), V3 C54 S8 P3-4445',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '7-13',
+        number: '7-13',
+        description: 'Are flight training equipment inspection schedules established and maintained?',
+        reference: '142.15(m), V3 C54 S8 P3-4445',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '7-14',
+        number: '7-14',
+        description: 'Does flight training equipment include adequate communication and navigation systems?',
+        reference: '142.15(n), V3 C54 S8 P3-4445',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '7-15',
+        number: '7-15',
+        description: 'Are flight training equipment performance checks conducted at required intervals?',
+        reference: '142.15(o), V3 C54 S8 P3-4445',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '7-16',
+        number: '7-16',
+        description: 'Does flight training equipment include appropriate emergency equipment and procedures?',
+        reference: '142.15(p), V3 C54 S8 P3-4445',
         status: 'pending',
         comments: '',
         findings: '',
@@ -1037,6 +1667,86 @@ const initialData: InspectionArea[] = [
         comments: '',
         findings: '',
         evidence: []
+      },
+      {
+        id: '8-10',
+        number: '8-10',
+        description: 'Are student progress records maintained throughout the training program?',
+        reference: '142.73(d), V3 C54 S9 P3-4450',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '8-11',
+        number: '8-11',
+        description: 'Are training center accident and incident records properly maintained?',
+        reference: '142.71(g), V3 C54 S9 P3-4450',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '8-12',
+        number: '8-12',
+        description: 'Do training records include all required endorsements and certifications?',
+        reference: '142.73(e), V3 C54 S9 P3-4450',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '8-13',
+        number: '8-13',
+        description: 'Are training center maintenance records for equipment properly documented?',
+        reference: '142.71(h), V3 C54 S9 P3-4450',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '8-14',
+        number: '8-14',
+        description: 'Do records include proper documentation of all training modifications and deviations?',
+        reference: '142.73(f), V3 C54 S9 P3-4450',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '8-15',
+        number: '8-15',
+        description: 'Are training center financial records adequate to demonstrate compliance with operating requirements?',
+        reference: '142.71(i), V3 C54 S9 P3-4450',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '8-16',
+        number: '8-16',
+        description: 'Do student records include appropriate medical and qualification documentation?',
+        reference: '142.73(g), V3 C54 S9 P3-4450',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '8-17',
+        number: '8-17',
+        description: 'Are training center audit and inspection records properly maintained and accessible?',
+        reference: '142.71(j), V3 C54 S9 P3-4450',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
       }
     ]
   },
@@ -1121,6 +1831,86 @@ const initialData: InspectionArea[] = [
         number: '9-08',
         description: 'Does the training center have procedures to ensure quality and consistency of training operations?',
         reference: '142.35(h), V3 C54 S10 P3-4455',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '9-09',
+        number: '9-09',
+        description: 'Are training operations conducted in accordance with approved weather minimums and operational limitations?',
+        reference: '142.35(i), V3 C54 S10 P3-4455',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '9-10',
+        number: '9-10',
+        description: 'Do training operations include appropriate coordination with air traffic control and other aviation authorities?',
+        reference: '142.35(j), V3 C54 S10 P3-4455',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '9-11',
+        number: '9-11',
+        description: 'Are training operations monitored for compliance with noise abatement and environmental requirements?',
+        reference: '142.35(k), V3 C54 S10 P3-4455',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '9-12',
+        number: '9-12',
+        description: 'Do training operations include appropriate emergency response procedures and equipment?',
+        reference: '142.35(l), V3 C54 S10 P3-4455',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '9-13',
+        number: '9-13',
+        description: 'Are training operations scheduling and resource allocation procedures adequate?',
+        reference: '142.35(m), V3 C54 S10 P3-4455',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '9-14',
+        number: '9-14',
+        description: 'Do training operations include proper coordination between ground and flight training activities?',
+        reference: '142.35(n), V3 C54 S10 P3-4455',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '9-15',
+        number: '9-15',
+        description: 'Are training operations performance metrics established and monitored?',
+        reference: '142.35(o), V3 C54 S10 P3-4455',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '9-16',
+        number: '9-16',
+        description: 'Do training operations comply with all applicable security and access control requirements?',
+        reference: '142.35(p), V3 C54 S10 P3-4455',
         status: 'pending',
         comments: '',
         findings: '',
@@ -1229,6 +2019,106 @@ const initialData: InspectionArea[] = [
         number: '10-10',
         description: 'Are quality control procedures regularly reviewed and updated as necessary?',
         reference: '142.11(d)(3), V2 C10 S1 P2-1153',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '10-11',
+        number: '10-11',
+        description: 'Does the quality control system include periodic assessment of training effectiveness?',
+        reference: '142.11(d)(4), V2 C10 S1 P2-1153',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '10-12',
+        number: '10-12',
+        description: 'Are quality control inspection schedules established and followed?',
+        reference: '142.11(d)(5), V2 C10 S1 P2-1153',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '10-13',
+        number: '10-13',
+        description: 'Does the quality control system address all aspects of training center operations?',
+        reference: '142.11(d)(6), V2 C10 S1 P2-1153',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '10-14',
+        number: '10-14',
+        description: 'Are quality control metrics and performance indicators established and monitored?',
+        reference: '142.11(d)(7), V2 C10 S1 P2-1153',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '10-15',
+        number: '10-15',
+        description: 'Does the quality control system provide for management review and oversight?',
+        reference: '142.11(d)(8), V2 C10 S1 P2-1153',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '10-16',
+        number: '10-16',
+        description: 'Are quality control training and competency requirements established for personnel?',
+        reference: '142.11(d)(9), V2 C10 S1 P2-1153',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '10-17',
+        number: '10-17',
+        description: 'Does the quality control system include provisions for continuous improvement?',
+        reference: '142.11(d)(10), V2 C10 S1 P2-1153',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '10-18',
+        number: '10-18',
+        description: 'Are quality control communication and reporting procedures established?',
+        reference: '142.11(d)(11), V2 C10 S1 P2-1153',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '10-19',
+        number: '10-19',
+        description: 'Does the quality control system address regulatory compliance monitoring?',
+        reference: '142.11(d)(12), V2 C10 S1 P2-1153',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '10-20',
+        number: '10-20',
+        description: 'Are quality control risk assessment and mitigation procedures documented?',
+        reference: '142.11(d)(13), V2 C10 S1 P2-1153',
         status: 'pending',
         comments: '',
         findings: '',
