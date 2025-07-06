@@ -63,7 +63,7 @@ export default function Sidebar() {
         </div>
       </div>
       
-      <div className="p-4 flex-1 min-h-0">
+      <div className="p-4 flex-1 overflow-y-auto min-h-0">
         {typedUser && (
           <div className="mb-6">
             <div className="flex items-center space-x-3 p-3 bg-slate-800 rounded-lg">
