@@ -130,6 +130,19 @@ function Router() {
         )}
       </Route>
 
+      <Route path="/regulatory-compliance">
+        {!isAuthenticated ? (
+          <Landing />
+        ) : (
+          <div className="flex h-screen bg-slate-50">
+            <SidebarFixed />
+            <div className="flex-1 flex flex-col overflow-hidden p-6">
+              <RegulatoryCompliancePage />
+            </div>
+          </div>
+        )}
+      </Route>
+
       <Route path="/mobile-field" component={MobileField} />
       <Route component={NotFound} />
     </Switch>

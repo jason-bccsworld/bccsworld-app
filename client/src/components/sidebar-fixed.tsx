@@ -48,7 +48,7 @@ export default function SidebarFixed() {
         color: 'white',
         overflowY: 'auto',
         zIndex: 10,
-        border: '3px solid yellow'
+        boxShadow: '2px 0 4px rgba(0,0,0,0.1)'
       }}
     >
       {/* Header */}
@@ -67,7 +67,7 @@ export default function SidebarFixed() {
           </div>
           <div>
             <h1 style={{ fontSize: '20px', fontWeight: 'bold', margin: 0 }}>BCCS142</h1>
-            <p style={{ fontSize: '14px', color: 'rgb(148 163 184)', margin: 0 }}>WORKING SIDEBAR</p>
+            <p style={{ fontSize: '14px', color: 'rgb(148 163 184)', margin: 0 }}>Aviation Compliance</p>
           </div>
         </div>
       </div>
