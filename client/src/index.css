@@ -32,6 +32,13 @@
   --red-alert: hsl(0, 84.2%, 60.2%);
 }
 
+/* Force sidebar to full height */
+nav[class*="bg-deep-navy"] {
+  height: 100vh !important;
+  max-height: 100vh !important;
+  overflow-y: auto !important;
+}
+
 .dark {
   --background: hsl(240, 10%, 3.9%);
   --foreground: hsl(0, 0%, 98%);
