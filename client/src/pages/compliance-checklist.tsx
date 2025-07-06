@@ -22,7 +22,8 @@ import {
   Shield,
   Download,
   Upload,
-  Eye
+  Eye,
+  ExternalLink
 } from 'lucide-react';
 
 interface ChecklistItem {
@@ -307,6 +308,77 @@ const initialData: InspectionArea[] = [
   }
 ];
 
+// Reference URL mappings for regulatory documents
+const referenceUrls: Record<string, string> = {
+  '142.11': 'https://www.ecfr.gov/current/title-14/chapter-I/subchapter-G/part-142/section-142.11',
+  '142.13': 'https://www.ecfr.gov/current/title-14/chapter-I/subchapter-G/part-142/section-142.13',
+  '142.15': 'https://www.ecfr.gov/current/title-14/chapter-I/subchapter-G/part-142/section-142.15',
+  '142.17': 'https://www.ecfr.gov/current/title-14/chapter-I/subchapter-G/part-142/section-142.17',
+  '142.5': 'https://www.ecfr.gov/current/title-14/chapter-I/subchapter-G/part-142/section-142.5',
+  '142.27': 'https://www.ecfr.gov/current/title-14/chapter-I/subchapter-G/part-142/section-142.27',
+  '142.9': 'https://www.ecfr.gov/current/title-14/chapter-I/subchapter-G/part-142/section-142.9',
+  '142.31': 'https://www.ecfr.gov/current/title-14/chapter-I/subchapter-G/part-142/section-142.31',
+  '142.33': 'https://www.ecfr.gov/current/title-14/chapter-I/subchapter-G/part-142/section-142.33',
+  '142.47': 'https://www.ecfr.gov/current/title-14/chapter-I/subchapter-G/part-142/section-142.47',
+  '142.59': 'https://www.ecfr.gov/current/title-14/chapter-I/subchapter-G/part-142/section-142.59',
+  '142.63': 'https://www.ecfr.gov/current/title-14/chapter-I/subchapter-G/part-142/section-142.63',
+  '142.65': 'https://www.ecfr.gov/current/title-14/chapter-I/subchapter-G/part-142/section-142.65',
+  '142.71': 'https://www.ecfr.gov/current/title-14/chapter-I/subchapter-G/part-142/section-142.71',
+  '142.73': 'https://www.ecfr.gov/current/title-14/chapter-I/subchapter-G/part-142/section-142.73',
+  'AC 60-14': 'https://www.faa.gov/documentlibrary/media/advisory_circular/ac_60-14.pdf',
+  'V2 C10 S1': 'https://www.faa.gov/documentlibrary/media/order/8900.1/volume2/2_010_00.pdf',
+  'V3 C54 S1': 'https://www.faa.gov/documentlibrary/media/order/8900.1/volume3/3_054_00.pdf',
+  'V3 C54 S2': 'https://www.faa.gov/documentlibrary/media/order/8900.1/volume3/3_054_00.pdf',
+  'V3 C54 S5': 'https://www.faa.gov/documentlibrary/media/order/8900.1/volume3/3_054_00.pdf',
+  'V3 C54 S6': 'https://www.faa.gov/documentlibrary/media/order/8900.1/volume3/3_054_00.pdf',
+  'V3 C18': 'https://www.faa.gov/documentlibrary/media/order/8900.1/volume3/3_018_00.pdf',
+  'V3 C19 S6': 'https://www.faa.gov/documentlibrary/media/order/8900.1/volume3/3_019_00.pdf',
+  'V3 C20': 'https://www.faa.gov/documentlibrary/media/order/8900.1/volume3/3_020_00.pdf',
+  'V6 C8 S1': 'https://www.faa.gov/documentlibrary/media/order/8900.1/volume6/6_008_00.pdf',
+  'Part 61': 'https://www.ecfr.gov/current/title-14/chapter-I/subchapter-D/part-61',
+  '14 CFR part 60': 'https://www.ecfr.gov/current/title-14/chapter-I/subchapter-C/part-60'
+};
+
+// Function to parse reference text and create clickable links
+function parseReferenceLinks(reference: string) {
+  const parts = reference.split(/[,;]\s*/);
+  
+  return (
+    <div className="space-y-1">
+      {parts.map((part, index) => {
+        const trimmedPart = part.trim();
+        
+        // Find matching URL for this reference part
+        const matchingKey = Object.keys(referenceUrls).find(key => 
+          trimmedPart.includes(key)
+        );
+        
+        if (matchingKey && referenceUrls[matchingKey]) {
+          return (
+            <div key={index} className="flex items-center gap-2">
+              <a
+                href={referenceUrls[matchingKey]}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-600 hover:text-blue-800 underline flex items-center gap-1"
+              >
+                {trimmedPart}
+                <ExternalLink className="h-3 w-3" />
+              </a>
+            </div>
+          );
+        }
+        
+        return (
+          <div key={index} className="text-gray-600">
+            {trimmedPart}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function ComplianceChecklist() {
   const [inspectionAreas, setInspectionAreas] = useState<InspectionArea[]>(initialData);
   const [selectedArea, setSelectedArea] = useState<string>('area1');
@@ -501,7 +573,9 @@ export default function ComplianceChecklist() {
                           
                           <div>
                             <h4 className="font-medium mb-2">Reference</h4>
-                            <p className="text-sm text-gray-600">{item.reference}</p>
+                            <div className="text-sm text-gray-600">
+                              {parseReferenceLinks(item.reference)}
+                            </div>
                           </div>
 
                           <div>
