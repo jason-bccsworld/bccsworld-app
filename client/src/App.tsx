@@ -24,7 +24,7 @@ import FieldMapping from "@/pages/field-mapping";
 import FARCompliancePage from "@/pages/far-compliance";
 import DebugSidebar from "@/pages/debug-sidebar";
 import NotFound from "@/pages/not-found";
-import SidebarFixed from "@/components/sidebar-fixed";
+import SidebarPro from "@/components/sidebar-pro";
 import SupportChat from "@/components/support-chat";
 import { useIsMobile } from "@/hooks/use-mobile";
 import ErrorBoundary from "@/components/error-boundary";
@@ -70,8 +70,8 @@ function Router() {
           <MobileField />
         ) : (
           <div className="flex h-screen bg-slate-50">
-            <SidebarFixed />
-            <div className="flex-1 flex flex-col overflow-hidden p-6">
+            <SidebarPro />
+            <div className="flex-1 ml-64 flex flex-col overflow-hidden p-6">
               <Dashboard />
             </div>
           </div>
@@ -83,8 +83,8 @@ function Router() {
           <Landing />
         ) : (
           <div className="flex h-screen bg-slate-50">
-            <SidebarFixed />
-            <div className="flex-1 flex flex-col overflow-hidden p-6">
+            <SidebarPro />
+            <div className="flex-1 ml-64 flex flex-col overflow-hidden p-6">
               <FARCompliancePage />
             </div>
           </div>
@@ -96,8 +96,8 @@ function Router() {
           <Landing />
         ) : (
           <div className="flex h-screen bg-slate-50">
-            <SidebarFixed />
-            <div className="flex-1 flex flex-col overflow-hidden p-6">
+            <SidebarPro />
+            <div className="flex-1 ml-64 flex flex-col overflow-hidden p-6">
               <DocumentImport />
             </div>
           </div>
@@ -109,8 +109,8 @@ function Router() {
           <Landing />
         ) : (
           <div className="flex h-screen bg-slate-50">
-            <SidebarFixed />
-            <div className="flex-1 flex flex-col overflow-hidden p-6">
+            <SidebarPro />
+            <div className="flex-1 ml-64 flex flex-col overflow-hidden p-6">
               <ComplianceRecords />
             </div>
           </div>
@@ -122,8 +122,8 @@ function Router() {
           <Landing />
         ) : (
           <div className="flex h-screen bg-slate-50">
-            <SidebarFixed />
-            <div className="flex-1 flex flex-col overflow-hidden p-6">
+            <SidebarPro />
+            <div className="flex-1 ml-64 flex flex-col overflow-hidden p-6">
               <AdminDashboard />
             </div>
           </div>
@@ -135,8 +135,8 @@ function Router() {
           <Landing />
         ) : (
           <div className="flex h-screen bg-slate-50">
-            <SidebarFixed />
-            <div className="flex-1 flex flex-col overflow-hidden p-6">
+            <SidebarPro />
+            <div className="flex-1 ml-64 flex flex-col overflow-hidden p-6">
               <RegulatoryCompliancePage />
             </div>
           </div>
