@@ -21,6 +21,7 @@ import MobileField from "@/pages/mobile-field";
 import IntegrationsDashboard from "@/pages/integrations-dashboard";
 import RegulatoryCompliancePage from "@/pages/regulatory-compliance";
 import RegulatoryAlerts from "@/pages/regulatory-alerts";
+import LinkMonitor from "@/pages/link-monitor";
 import ComplianceChecklist from "@/pages/compliance-checklist";
 import Support from "@/pages/support";
 import Settings from "@/pages/settings";
@@ -135,6 +136,16 @@ function Router() {
         ) : (
           <DashboardLayout>
             <RegulatoryAlerts />
+          </DashboardLayout>
+        )}
+      </Route>
+
+      <Route path="/link-monitor">
+        {!isAuthenticated ? (
+          <Landing />
+        ) : (
+          <DashboardLayout>
+            <LinkMonitor />
           </DashboardLayout>
         )}
       </Route>

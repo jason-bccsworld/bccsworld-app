@@ -2,6 +2,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { regulatoryMonitor } from "./services/regulatory-monitor";
+import { linkMonitoringService } from "./services/link-monitor";
 import * as fs from "fs";
 import * as path from "path";
 
@@ -86,6 +87,11 @@ app.use((req, res, next) => {
     // Start regulatory monitoring service
     regulatoryMonitor.startMonitoring().catch(error => {
       console.error("Failed to start regulatory monitoring:", error);
+    });
+    
+    // Start link monitoring service
+    linkMonitoringService.initializeMonitoring().catch(error => {
+      console.error("Failed to start link monitoring:", error);
     });
   });
 })();

@@ -12,7 +12,8 @@ import {
   Globe,
   Smartphone,
   HelpCircle,
-  Bell
+  Bell,
+  ExternalLink
 } from 'lucide-react';
 
 interface DashboardLayoutProps {
@@ -25,6 +26,7 @@ const navigationItems = [
   { path: "/compliance-checklist", icon: Shield, label: "Part 142 Checklist", badge: "New" },
   { path: "/regulatory-compliance", icon: AlertTriangle, label: "Regulatory Monitor" },
   { path: "/regulatory-alerts", icon: Bell, label: "Regulatory Alerts", badge: "2" },
+  { path: "/link-monitor", icon: ExternalLink, label: "Link Monitor" },
   { path: "/document-import", icon: FileText, label: "Document Import" },
   { path: "/compliance-records", icon: Clock, label: "Compliance Records" },
   { path: "/admin-dashboard", icon: Users, label: "Admin Dashboard" },
