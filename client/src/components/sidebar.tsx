@@ -50,20 +50,32 @@ export default function Sidebar() {
   const typedUser = user as any;
 
   return (
-    <nav className="w-64 bg-deep-navy text-white flex-shrink-0 flex flex-col" style={{ height: '100vh', border: '5px solid red', boxSizing: 'border-box' }}>
-      <div className="p-6 border-b border-slate-700">
+    <div 
+      className="bg-deep-navy text-white"
+      style={{ 
+        position: 'fixed',
+        left: 0,
+        top: 0,
+        width: '256px',
+        height: '100vh',
+        overflowY: 'auto',
+        zIndex: 10,
+        border: '3px solid yellow'
+      }}
+    >
+      <div className="p-6 border-b border-slate-700 bg-blue-600">
         <div className="flex items-center space-x-3">
           <div className="w-10 h-10 bg-aviation-blue rounded-lg flex items-center justify-center">
             <Shield className="w-6 h-6 text-white" />
           </div>
           <div>
             <h1 className="text-xl font-bold">BCCS142</h1>
-            <p className="text-slate-400 text-sm">Aviation Compliance v2</p>
+            <p className="text-slate-400 text-sm">FIXED SIDEBAR TEST</p>
           </div>
         </div>
       </div>
       
-      <div className="p-4 flex-1 overflow-y-auto min-h-0">
+      <div className="p-4">
         {typedUser && (
           <div className="mb-6">
             <div className="flex items-center space-x-3 p-3 bg-slate-800 rounded-lg">
@@ -158,6 +170,6 @@ export default function Sidebar() {
           </Button>
         </div>
       </div>
-    </nav>
+    </div>
   );
 }
