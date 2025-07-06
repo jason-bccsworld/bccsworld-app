@@ -2,6 +2,9 @@ import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./index.css";
 
+// Force cache clear - version 2.0.0
+console.log('Loading new sidebar version 2.0.0...');
+
 // Completely disable the runtime error plugin
 (window as any).__replit_runtime_error_plugin_disabled = true;
 

@@ -1,6 +1,12 @@
+/* Force cache refresh v2.0.0 */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Clear any cached styles */
+* {
+  box-sizing: border-box;
+}
 
 :root {
   --background: hsl(0, 0%, 100%);
