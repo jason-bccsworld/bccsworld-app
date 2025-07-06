@@ -101,6 +101,176 @@ const initialData: InspectionArea[] = [
         comments: '',
         findings: '',
         evidence: []
+      },
+      {
+        id: '1-06',
+        number: '1-06',
+        description: 'Has the training center certificate been properly issued and does it contain all business names under which the certificate holder may conduct operations and the address of each business office used?',
+        reference: '142.5(b) and 142.11(d), V2 C10 S1 P2-1153',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '1-07',
+        number: '1-07',
+        description: 'Is the training center certificate prominently displayed in a place accessible to the public in the principal business office?',
+        reference: '142.27(a)',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '1-08',
+        number: '1-08',
+        description: 'Has the training center been properly issued training specifications?',
+        reference: '142.5(b), V6 C8 S1 P6-1603',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '1-09',
+        number: '1-09',
+        description: 'Are all exemptions, deviations or waivers properly approved and contained in the center\'s training specifications paragraph A005?',
+        reference: '142.9 and 142.11(d)(2)(vi), TSpec A005',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '1-10',
+        number: '1-10',
+        description: 'Does the training center comply with all conditions and provisions of any exemptions, deviations, or waivers?',
+        reference: 'applicable training center written procedures',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '1-11',
+        number: '1-11',
+        description: 'Does the training center conduct, or advertise to conduct, any training, testing, or checking that is designed to satisfy part 142 requirements that is not approved by the FAA?',
+        reference: '142.31(a), V6 C8 S1',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '1-12',
+        number: '1-12',
+        description: 'Does the training center make any statement in its advertising relating to its certification and ratings that is false or designed to mislead?',
+        reference: '142.31, V6 C8 S1 P6-1602',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '1-13',
+        number: '1-13',
+        description: 'Does the training center, in its advertising, differentiate between courses that have been FAA approved and those that have not?',
+        reference: '142.31, V6 C8 S1 P6-1602',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '1-14',
+        number: '1-14',
+        description: 'If the training center utilizes a part 141 pilot school to provide training, testing, or checking, is there a training agreement between the school and the training center?',
+        reference: '142.33(a), V2 C10 S1 P2-1153',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '1-15',
+        number: '1-15',
+        description: 'Are the training course outlines used by each such part 141 pilot school under the training agreement FAA approved?',
+        reference: '142.33(c), V2 C10 S1 P2-1153',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '1-16',
+        number: '1-16',
+        description: 'Does the training center have written procedures to ensure management control of its personnel at satellite centers and/or remote sites?',
+        reference: '142.17, V3 C54 S1 P3-4334',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '1-17',
+        number: '1-17',
+        description: 'Based upon review of leases, agreements and contracts, does the training center have exclusive use of flight training equipment?',
+        reference: '142.15(d), V2 C10 S1 P2-1153',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '1-18',
+        number: '1-18',
+        description: 'Does the center conduct training for part 91 subpart K and/or part 119 air carriers?',
+        reference: 'V3 C20, V3 C54 and OpSpec A031 issued to the air carrier',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '1-18-1',
+        number: '1-18-1',
+        description: 'If so, does the center have a procedure to advise the air carrier of changes to its core or other curriculums on which the carrier\'s programs are based?',
+        reference: 'V3 C54 S5 P3-4416',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '1-18-2',
+        number: '1-18-2',
+        description: 'Does the center provide a means to enable contract instructors to have updated information concerning assigned operators (read files or electronic system)?',
+        reference: 'V3 C54 S5 P3-4414',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '1-18-3',
+        number: '1-18-3',
+        description: 'Does the center provide written procedures that direct their instructors/evaluators to review a customers "read file" prior to conducting any instruction or evaluations?',
+        reference: 'V3 C54 S5 P3-4414',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
+      },
+      {
+        id: '1-18-4',
+        number: '1-18-4',
+        description: 'Does the center have or participate in standardization programs with their 91K and/or air carrier customers?',
+        reference: 'V3 C54 S5 P3-4416',
+        status: 'pending',
+        comments: '',
+        findings: '',
+        evidence: []
       }
     ]
   },
