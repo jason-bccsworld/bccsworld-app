@@ -34,7 +34,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [location] = useLocation();
 
   return (
-    <div className="flex h-screen bg-slate-50">
+    <div className="dashboard-layout-new">
       {/* Sidebar */}
       <div className="w-64 bg-slate-900 text-white flex flex-col">
         {/* Header */}

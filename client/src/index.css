@@ -1,11 +1,27 @@
-/* Force cache refresh v2.0.0 */
+/* CACHE BUSTER v3.0.0 - NEW LAYOUT SYSTEM */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Clear any cached styles */
-* {
+/* FORCE COMPLETE RELOAD */
+html, body, #root {
+  margin: 0;
+  padding: 0;
   box-sizing: border-box;
+  overflow-x: hidden;
+}
+
+/* OVERRIDE ANY CACHED SIDEBAR STYLES */
+.sidebar-old-cache {
+  display: none !important;
+  visibility: hidden !important;
+}
+
+/* NEW LAYOUT SYSTEM STYLES */
+.dashboard-layout-new {
+  display: flex;
+  height: 100vh;
+  background: #f8fafc;
 }
 
 :root {
