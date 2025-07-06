@@ -50,7 +50,7 @@ export default function Sidebar() {
   const typedUser = user as any;
 
   return (
-    <nav className="w-64 bg-deep-navy text-white flex-shrink-0 flex flex-col" style={{ height: '100vh', overflowY: 'auto', border: '5px solid red', boxSizing: 'border-box' }}>
+    <nav className="w-64 bg-deep-navy text-white flex-shrink-0 flex flex-col" style={{ height: '100vh', border: '5px solid red', boxSizing: 'border-box' }}>
       <div className="p-6 border-b border-slate-700">
         <div className="flex items-center space-x-3">
           <div className="w-10 h-10 bg-aviation-blue rounded-lg flex items-center justify-center">
