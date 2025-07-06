@@ -50,7 +50,7 @@ export default function Sidebar() {
   const typedUser = user as any;
 
   return (
-    <nav className="w-64 bg-deep-navy text-white flex-shrink-0 h-screen overflow-y-auto">
+    <nav className="w-64 bg-deep-navy text-white flex-shrink-0 h-screen overflow-y-auto flex flex-col">
       <div className="p-6 border-b border-slate-700">
         <div className="flex items-center space-x-3">
           <div className="w-10 h-10 bg-aviation-blue rounded-lg flex items-center justify-center">
@@ -63,7 +63,7 @@ export default function Sidebar() {
         </div>
       </div>
       
-      <div className="p-4">
+      <div className="p-4 flex-1 min-h-0">
         {typedUser && (
           <div className="mb-6">
             <div className="flex items-center space-x-3 p-3 bg-slate-800 rounded-lg">
@@ -147,7 +147,7 @@ export default function Sidebar() {
           </ul>
         </div>
         
-        <div className="mt-8 pt-4 border-t border-slate-700">
+        <div className="mt-8 pt-4 border-t border-slate-700 pb-6">
           <Button
             variant="ghost"
             className="w-full justify-start text-slate-300 hover:text-white hover:bg-slate-800"
