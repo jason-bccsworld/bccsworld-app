@@ -92,6 +92,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         <div style="background: #f0f9ff; padding: 15px; border-radius: 8px; margin-top: 20px;">
             <p style="color: #0369a1; margin: 0;">✅ All systems operational - FAR compliance validated</p>
         </div>
+        <div style="margin-top: 30px; text-align: center;">
+            <button class="button" onclick="window.location.href='/'">🏠 Return to Main Dashboard</button>
+            <button class="button" onclick="window.location.href='/dashboard'" style="background: #059669;">📊 Access Full Platform</button>
+        </div>
     </div>
     <script>
         function showFields() {
