@@ -22,6 +22,7 @@ import IntegrationsDashboard from "@/pages/integrations-dashboard";
 import RegulatoryCompliancePage from "@/pages/regulatory-compliance";
 import FieldMapping from "@/pages/field-mapping";
 import FARCompliancePage from "@/pages/far-compliance";
+import DebugSidebar from "@/pages/debug-sidebar";
 import NotFound from "@/pages/not-found";
 import SidebarNew from "@/components/sidebar-new";
 import SupportChat from "@/components/support-chat";
@@ -59,6 +60,7 @@ function Router() {
       </Route>
       <Route path="/pricing" component={Pricing} />
       <Route path="/tutorials" component={Tutorials} />
+      <Route path="/debug-sidebar" component={DebugSidebar} />
       
       {/* Dashboard routes - available when authenticated */}
       <Route path="/dashboard">
