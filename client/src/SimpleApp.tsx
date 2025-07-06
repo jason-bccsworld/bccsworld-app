@@ -56,9 +56,15 @@ export default function SimpleApp() {
       <div style={{ margin: "30px 0" }}>
         <button 
           onClick={() => setShowFAR(true)}
-          style={{ padding: "15px 30px", background: "#0369a1", color: "white", border: "none", borderRadius: "5px", fontSize: "16px" }}
+          style={{ padding: "15px 30px", background: "#0369a1", color: "white", border: "none", borderRadius: "5px", fontSize: "16px", marginRight: "15px" }}
         >
           🔍 Access FAR Compliance System
+        </button>
+        <button 
+          onClick={() => window.location.href = "/dashboard"}
+          style={{ padding: "15px 30px", background: "#059669", color: "white", border: "none", borderRadius: "5px", fontSize: "16px" }}
+        >
+          📊 Go to Dashboard
         </button>
       </div>
       <div style={{ background: "#f0f9ff", padding: "15px", borderRadius: "8px", marginTop: "20px" }}>
