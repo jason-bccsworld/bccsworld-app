@@ -20,6 +20,8 @@ import AnalyticsDashboard from "@/pages/analytics-dashboard";
 import MobileField from "@/pages/mobile-field";
 import IntegrationsDashboard from "@/pages/integrations-dashboard";
 import RegulatoryCompliancePage from "@/pages/regulatory-compliance";
+import Support from "@/pages/support";
+import Settings from "@/pages/settings";
 import FieldMapping from "@/pages/field-mapping";
 import FARCompliancePage from "@/pages/far-compliance";
 import DebugSidebar from "@/pages/debug-sidebar";
@@ -121,6 +123,26 @@ function Router() {
         ) : (
           <DashboardLayout>
             <RegulatoryCompliancePage />
+          </DashboardLayout>
+        )}
+      </Route>
+
+      <Route path="/support">
+        {!isAuthenticated ? (
+          <Landing />
+        ) : (
+          <DashboardLayout>
+            <Support />
+          </DashboardLayout>
+        )}
+      </Route>
+
+      <Route path="/settings">
+        {!isAuthenticated ? (
+          <Landing />
+        ) : (
+          <DashboardLayout>
+            <Settings />
           </DashboardLayout>
         )}
       </Route>
