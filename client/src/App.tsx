@@ -20,6 +20,8 @@ import AnalyticsDashboard from "@/pages/analytics-dashboard";
 import MobileField from "@/pages/mobile-field";
 import IntegrationsDashboard from "@/pages/integrations-dashboard";
 import RegulatoryCompliancePage from "@/pages/regulatory-compliance";
+import RegulatoryAlerts from "@/pages/regulatory-alerts";
+import ComplianceChecklist from "@/pages/compliance-checklist";
 import Support from "@/pages/support";
 import Settings from "@/pages/settings";
 import FieldMapping from "@/pages/field-mapping";
@@ -123,6 +125,26 @@ function Router() {
         ) : (
           <DashboardLayout>
             <RegulatoryCompliancePage />
+          </DashboardLayout>
+        )}
+      </Route>
+
+      <Route path="/regulatory-alerts">
+        {!isAuthenticated ? (
+          <Landing />
+        ) : (
+          <DashboardLayout>
+            <RegulatoryAlerts />
+          </DashboardLayout>
+        )}
+      </Route>
+
+      <Route path="/compliance-checklist">
+        {!isAuthenticated ? (
+          <Landing />
+        ) : (
+          <DashboardLayout>
+            <ComplianceChecklist />
           </DashboardLayout>
         )}
       </Route>

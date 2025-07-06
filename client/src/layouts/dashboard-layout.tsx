@@ -11,7 +11,8 @@ import {
   CheckCircle,
   Globe,
   Smartphone,
-  HelpCircle
+  HelpCircle,
+  Bell
 } from 'lucide-react';
 
 interface DashboardLayoutProps {
@@ -21,7 +22,9 @@ interface DashboardLayoutProps {
 const navigationItems = [
   { path: "/dashboard", icon: BarChart3, label: "Dashboard" },
   { path: "/far-compliance", icon: CheckCircle, label: "FAR Compliance" },
+  { path: "/compliance-checklist", icon: Shield, label: "Part 142 Checklist", badge: "New" },
   { path: "/regulatory-compliance", icon: AlertTriangle, label: "Regulatory Monitor" },
+  { path: "/regulatory-alerts", icon: Bell, label: "Regulatory Alerts", badge: "2" },
   { path: "/document-import", icon: FileText, label: "Document Import" },
   { path: "/compliance-records", icon: Clock, label: "Compliance Records" },
   { path: "/admin-dashboard", icon: Users, label: "Admin Dashboard" },
@@ -56,14 +59,21 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             <Link
               key={item.path}
               href={item.path}
-              className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm transition-colors ${
+              className={`flex items-center justify-between px-4 py-3 rounded-lg text-sm transition-colors ${
                 location === item.path
                   ? 'bg-blue-600 text-white' 
                   : 'text-slate-300 hover:bg-slate-800 hover:text-white'
               }`}
             >
-              <item.icon size={20} />
-              {item.label}
+              <div className="flex items-center gap-3">
+                <item.icon size={20} />
+                {item.label}
+              </div>
+              {item.badge && (
+                <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full">
+                  {item.badge}
+                </span>
+              )}
             </Link>
           ))}
         </nav>
