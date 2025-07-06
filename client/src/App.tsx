@@ -23,7 +23,7 @@ import RegulatoryCompliancePage from "@/pages/regulatory-compliance";
 import FieldMapping from "@/pages/field-mapping";
 import FARCompliancePage from "@/pages/far-compliance";
 import NotFound from "@/pages/not-found";
-import Sidebar from "@/components/sidebar";
+import SidebarNew from "@/components/sidebar-new";
 import SupportChat from "@/components/support-chat";
 import { useIsMobile } from "@/hooks/use-mobile";
 import ErrorBoundary from "@/components/error-boundary";
@@ -68,7 +68,7 @@ function Router() {
           <MobileField />
         ) : (
           <div className="flex h-screen bg-slate-50">
-            <Sidebar />
+            <SidebarNew />
             <div className="flex-1 flex flex-col overflow-hidden p-6">
               <Dashboard />
             </div>
@@ -81,7 +81,7 @@ function Router() {
           <Landing />
         ) : (
           <div className="flex h-screen bg-slate-50">
-            <Sidebar />
+            <SidebarNew />
             <div className="flex-1 flex flex-col overflow-hidden p-6">
               <FARCompliancePage />
             </div>
@@ -94,7 +94,7 @@ function Router() {
           <Landing />
         ) : (
           <div className="flex h-screen bg-slate-50">
-            <Sidebar />
+            <SidebarNew />
             <div className="flex-1 flex flex-col overflow-hidden p-6">
               <DocumentImport />
             </div>
@@ -107,7 +107,7 @@ function Router() {
           <Landing />
         ) : (
           <div className="flex h-screen bg-slate-50">
-            <Sidebar />
+            <SidebarNew />
             <div className="flex-1 flex flex-col overflow-hidden p-6">
               <ComplianceRecords />
             </div>
@@ -120,7 +120,7 @@ function Router() {
           <Landing />
         ) : (
           <div className="flex h-screen bg-slate-50">
-            <Sidebar />
+            <SidebarNew />
             <div className="flex-1 flex flex-col overflow-hidden p-6">
               <AdminDashboard />
             </div>
