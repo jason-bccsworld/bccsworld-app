@@ -1,12 +1,41 @@
 import React from 'react';
 
 export default function TestFARRoute() {
+  React.useEffect(() => {
+    console.log('🚨 TEST FAR ROUTE COMPONENT LOADED SUCCESSFULLY 🚨');
+    document.title = 'TEST ROUTE LOADED';
+    document.body.style.backgroundColor = 'red';
+  }, []);
+
   return (
-    <div className="min-h-screen bg-red-500 text-white text-center p-8">
-      <h1 className="text-6xl font-bold">🚨 ROUTING TEST SUCCESS 🚨</h1>
-      <p className="text-2xl mt-4">If you see this, the route is working correctly!</p>
-      <p className="text-xl mt-2">Component: TestFARRoute</p>
-      <p className="text-lg mt-2">Time: {new Date().toISOString()}</p>
+    <div style={{
+      minHeight: '100vh',
+      backgroundColor: 'red',
+      color: 'white',
+      textAlign: 'center',
+      padding: '50px',
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      zIndex: 9999
+    }}>
+      <h1 style={{ fontSize: '60px', fontWeight: 'bold', marginBottom: '20px' }}>
+        🚨 ROUTING TEST SUCCESS 🚨
+      </h1>
+      <p style={{ fontSize: '30px', marginBottom: '10px' }}>
+        If you see this, the route is working correctly!
+      </p>
+      <p style={{ fontSize: '20px', marginBottom: '10px' }}>
+        Component: TestFARRoute
+      </p>
+      <p style={{ fontSize: '18px' }}>
+        Time: {new Date().toISOString()}
+      </p>
+      <p style={{ fontSize: '16px', marginTop: '20px' }}>
+        URL: {window.location.pathname}
+      </p>
     </div>
   );
 }

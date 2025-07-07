@@ -180,7 +180,9 @@ export default function AdminDashboard() {
         </TabsContent>
 
         <TabsContent value="compliance" className="space-y-4">
-          <FARComplianceValidator />
+          <div className="text-center p-8 bg-blue-50 rounded-lg">
+            <p className="text-lg">Compliance monitoring tools will be displayed here.</p>
+          </div>
         </TabsContent>
       </Tabs>
 

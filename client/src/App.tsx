@@ -83,15 +83,7 @@ function Router() {
         )}
       </Route>
       
-      <Route path="/far-compliance">
-        {!isAuthenticated ? (
-          <Landing />
-        ) : (
-          <DashboardLayout>
-            <TestFARRoute />
-          </DashboardLayout>
-        )}
-      </Route>
+      <Route path="/far-compliance" component={TestFARRoute} />
       
       <Route path="/test-checklist" component={TestChecklist} />
 
