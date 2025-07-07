@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -2204,7 +2204,7 @@ export default function ComplianceChecklist() {
   const [selectedArea, setSelectedArea] = useState<string>('area1');
   
   // Debug: Log the actual data structure and force display
-  React.useEffect(() => {
+  useEffect(() => {
     console.log('=== CHECKLIST DEBUG ===');
     console.log('Total areas:', inspectionAreas.length);
     console.log('Items per area:', inspectionAreas.map(area => `${area.id}: ${area.items.length}`));
