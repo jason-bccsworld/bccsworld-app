@@ -2301,7 +2301,13 @@ export default function ComplianceChecklist() {
               </div>
               <Progress value={calculateOverallProgress()} className="h-2" />
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
+              <div className="text-center">
+                <div className="font-semibold text-blue-600">
+                  {inspectionAreas.reduce((sum, area) => sum + area.items.length, 0)}
+                </div>
+                <div className="text-gray-600">Total Items</div>
+              </div>
               <div className="text-center">
                 <div className="font-semibold text-green-600">
                   {inspectionAreas.reduce((sum, area) => 
@@ -2344,7 +2350,7 @@ export default function ComplianceChecklist() {
         <TabsList className="grid w-full grid-cols-5 lg:grid-cols-10">
           {inspectionAreas.map((area) => (
             <TabsTrigger key={area.id} value={area.id} className="text-xs">
-              Area {area.id.slice(-1)}
+              Area {area.id.slice(-1)} ({area.items.length})
             </TabsTrigger>
           ))}
         </TabsList>
