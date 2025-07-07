@@ -86,14 +86,12 @@ function Router() {
           <Landing />
         ) : (
           <DashboardLayout>
-            <FARCompliancePage />
+            <TestChecklist />
           </DashboardLayout>
         )}
       </Route>
       
-      <Route path="/test-checklist">
-        <TestChecklist />
-      </Route>
+      <Route path="/test-checklist" component={TestChecklist} />
 
       <Route path="/document-import">
         {!isAuthenticated ? (
