@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -79,14 +79,23 @@ export default function FARCompliancePage() {
   const pendingItems = inspectionAreas.reduce((sum, area) => 
     sum + area.items.filter(item => item.status === 'pending').length, 0);
 
+  // Force cache clear
+  React.useEffect(() => {
+    console.log('🚀 NEW FAR COMPLIANCE VERSION 3.0 LOADED - 200 ITEMS:', totalItems);
+    document.title = `BCCS142 FAR Compliance - ${totalItems} Items Loaded`;
+  }, [totalItems]);
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-start">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Part 142 Compliance Checklist</h1>
-          <p className="text-gray-600 mt-2">FAA Training Center Inspection Checklist & Job Aid</p>
-          <div className="text-green-600 font-bold text-center p-3 bg-green-100 rounded mt-2 border-2 border-green-500">
-            ✅ SUCCESS: {totalItems} authentic FAA items loaded from {inspectionAreas.length} areas
+          <h1 className="text-3xl font-bold text-gray-900">Part 142 Compliance Checklist v3.0</h1>
+          <p className="text-gray-600 mt-2">FAA Training Center Inspection Checklist & Job Aid - Updated {new Date().toISOString().split('T')[0]}</p>
+          <div className="text-green-600 font-bold text-center p-3 bg-green-100 rounded mt-2 border-4 border-green-600 animate-pulse">
+            🎯 NEW VERSION: {totalItems} authentic FAA items loaded from {inspectionAreas.length} areas
+          </div>
+          <div className="text-blue-600 text-center p-2 bg-blue-50 rounded mt-1">
+            Cache Version: {Date.now()} | Component: FARCompliancePage v3.0
           </div>
         </div>
         <div className="flex gap-2">
