@@ -2290,8 +2290,8 @@ export default function ComplianceChecklist() {
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Part 142 Compliance Checklist</h1>
           <p className="text-gray-600 mt-2">FAA Training Center Inspection Checklist & Job Aid</p>
-          <div id="debug-count" className="text-red-600 font-bold text-center p-2 bg-yellow-100 rounded mt-2">
-            DEBUG: Loading item count...
+          <div className="text-red-600 font-bold text-center p-2 bg-yellow-100 rounded mt-2">
+            DEBUG: {inspectionAreas.reduce((sum, area) => sum + area.items.length, 0)} items loaded from {inspectionAreas.length} areas
           </div>
         </div>
         <div className="flex gap-2">
