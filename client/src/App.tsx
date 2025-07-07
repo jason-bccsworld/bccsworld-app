@@ -29,6 +29,7 @@ import Support from "@/pages/support";
 import Settings from "@/pages/settings";
 import FieldMapping from "@/pages/field-mapping";
 import FARCompliancePage from "@/pages/far-compliance";
+import TestFARRoute from "@/pages/test-far-route";
 import DebugSidebar from "@/pages/debug-sidebar";
 import NotFound from "@/pages/not-found";
 import DashboardLayout from "@/layouts/dashboard-layout";
@@ -87,7 +88,7 @@ function Router() {
           <Landing />
         ) : (
           <DashboardLayout>
-            <FARCompliancePage />
+            <TestFARRoute />
           </DashboardLayout>
         )}
       </Route>

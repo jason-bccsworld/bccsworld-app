@@ -1,11 +1,6 @@
-const CACHE_NAME = 'bccs-mobile-v3-' + Date.now();
-const urlsToCache = [
-  '/',
-  '/mobile-field',
-  '/manifest.json',
-  '/icons/icon-192x192.png',
-  '/icons/icon-512x512.png'
-];
+// Service worker disabled to prevent caching issues
+const CACHE_NAME = 'disabled-cache';
+const urlsToCache = [];
 
 // Install event - cache resources
 self.addEventListener('install', event => {
@@ -18,14 +13,10 @@ self.addEventListener('install', event => {
   );
 });
 
-// Fetch event - serve from cache when offline
+// Fetch event - always fetch from network (no caching)
 self.addEventListener('fetch', event => {
   event.respondWith(
-    caches.match(event.request)
-      .then(response => {
-        // Return cached version or fetch from network
-        return response || fetch(event.request);
-      })
+    fetch(event.request)
   );
 });
 

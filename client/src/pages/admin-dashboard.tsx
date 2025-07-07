@@ -7,7 +7,7 @@ import { Settings, Users, Building, Plus, ChevronRight, Shield } from "lucide-re
 import { useAuth } from "@/hooks/useAuth";
 import { useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { FARComplianceValidator } from "@/components/far-compliance-validator";
+// FARComplianceValidator removed to prevent routing conflicts
 
 export default function AdminDashboard() {
   const { toast } = useToast();
