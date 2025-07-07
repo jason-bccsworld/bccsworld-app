@@ -87,7 +87,7 @@ function Router() {
           <Landing />
         ) : (
           <DashboardLayout>
-            <WorkingComplianceChecklist />
+            <FARCompliancePage />
           </DashboardLayout>
         )}
       </Route>
