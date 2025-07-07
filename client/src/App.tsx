@@ -84,7 +84,15 @@ function Router() {
         )}
       </Route>
       
-      <Route path="/far-compliance" component={CacheBuster} />
+      <Route path="/far-compliance">
+        {!isAuthenticated ? (
+          <Landing />
+        ) : (
+          <DashboardLayout>
+            <FARCompliancePage />
+          </DashboardLayout>
+        )}
+      </Route>
       
       <Route path="/test-checklist" component={TestChecklist} />
 
