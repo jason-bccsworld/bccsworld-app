@@ -24,6 +24,7 @@ import RegulatoryAlerts from "@/pages/regulatory-alerts";
 import LinkMonitor from "@/pages/link-monitor";
 import ComplianceChecklist from "@/pages/compliance-checklist";
 import TestChecklist from "@/pages/test-checklist";
+import WorkingComplianceChecklist from "@/pages/working-compliance-checklist";
 import Support from "@/pages/support";
 import Settings from "@/pages/settings";
 import FieldMapping from "@/pages/field-mapping";
@@ -86,7 +87,7 @@ function Router() {
           <Landing />
         ) : (
           <DashboardLayout>
-            <TestChecklist />
+            <WorkingComplianceChecklist />
           </DashboardLayout>
         )}
       </Route>
