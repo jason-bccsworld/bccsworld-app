@@ -2204,9 +2204,13 @@ export default function ComplianceChecklist() {
   const [selectedArea, setSelectedArea] = useState<string>('area1');
   
   // Debug: Log the actual data structure
+  console.log('=== CHECKLIST DEBUG ===');
   console.log('Total areas:', inspectionAreas.length);
   console.log('Items per area:', inspectionAreas.map(area => `${area.id}: ${area.items.length}`));
   console.log('Total items:', inspectionAreas.reduce((sum, area) => sum + area.items.length, 0));
+  console.log('Expected: 200 items');
+  console.log('Actual areas data:', inspectionAreas.map(area => ({ id: area.id, name: area.name, itemCount: area.items.length })));
+  console.log('=== END DEBUG ===');
   const [inspectionDate, setInspectionDate] = useState<string>(new Date().toISOString().split('T')[0]);
 
   const getStatusIcon = (status: string) => {
