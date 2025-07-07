@@ -23,6 +23,7 @@ import RegulatoryCompliancePage from "@/pages/regulatory-compliance";
 import RegulatoryAlerts from "@/pages/regulatory-alerts";
 import LinkMonitor from "@/pages/link-monitor";
 import ComplianceChecklist from "@/pages/compliance-checklist";
+import TestChecklist from "@/pages/test-checklist";
 import Support from "@/pages/support";
 import Settings from "@/pages/settings";
 import FieldMapping from "@/pages/field-mapping";
@@ -88,6 +89,10 @@ function Router() {
             <FARCompliancePage />
           </DashboardLayout>
         )}
+      </Route>
+      
+      <Route path="/test-checklist">
+        <TestChecklist />
       </Route>
 
       <Route path="/document-import">
