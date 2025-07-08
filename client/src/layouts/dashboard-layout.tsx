@@ -41,9 +41,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   return (
     <div className="dashboard-layout-new">
       {/* Sidebar */}
-      <div className="w-64 bg-slate-900 text-white flex flex-col">
+      <div className="w-64 bg-slate-900 text-white flex flex-col h-screen">
         {/* Header */}
-        <div className="p-6 border-b border-slate-700 bg-blue-600">
+        <div className="p-6 border-b border-slate-700 bg-blue-600 flex-shrink-0">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-white bg-opacity-20 rounded-lg">
               <Shield size={24} className="text-white" />
@@ -56,7 +56,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 p-4 space-y-2">
+        <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
           {navigationItems.map((item) => (
             <Link
               key={item.path}
@@ -81,7 +81,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         </nav>
 
         {/* Footer */}
-        <div className="p-4 border-t border-slate-700 text-sm text-slate-400">
+        <div className="p-4 border-t border-slate-700 text-sm text-slate-400 flex-shrink-0">
           Enterprise Ready Platform
         </div>
       </div>
