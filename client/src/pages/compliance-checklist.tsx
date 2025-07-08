@@ -2203,22 +2203,7 @@ export default function ComplianceChecklist() {
   const [inspectionAreas, setInspectionAreas] = useState<InspectionArea[]>(initialData);
   const [selectedArea, setSelectedArea] = useState<string>('area1');
   
-  // Debug: Log the actual data structure and force display
-  useEffect(() => {
-    console.log('=== CHECKLIST DEBUG ===');
-    console.log('Total areas:', inspectionAreas.length);
-    console.log('Items per area:', inspectionAreas.map(area => `${area.id}: ${area.items.length}`));
-    console.log('Total items:', inspectionAreas.reduce((sum, area) => sum + area.items.length, 0));
-    console.log('Expected: 200 items');
-    console.log('Actual areas data:', inspectionAreas.map(area => ({ id: area.id, name: area.name, itemCount: area.items.length })));
-    console.log('=== END DEBUG ===');
-    
-    // Force display the count in the UI
-    const debugDiv = document.getElementById('debug-count');
-    if (debugDiv) {
-      debugDiv.innerHTML = `DEBUG: ${inspectionAreas.reduce((sum, area) => sum + area.items.length, 0)} items loaded`;
-    }
-  }, [inspectionAreas]);
+
   const [inspectionDate, setInspectionDate] = useState<string>(new Date().toISOString().split('T')[0]);
 
   const getStatusIcon = (status: string) => {
@@ -2290,9 +2275,7 @@ export default function ComplianceChecklist() {
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Part 142 Compliance Checklist</h1>
           <p className="text-gray-600 mt-2">FAA Training Center Inspection Checklist & Job Aid</p>
-          <div className="text-red-600 font-bold text-center p-2 bg-yellow-100 rounded mt-2">
-            DEBUG: {inspectionAreas.reduce((sum, area) => sum + area.items.length, 0)} items loaded from {inspectionAreas.length} areas
-          </div>
+
         </div>
         <div className="flex gap-2">
           <Button variant="outline">
