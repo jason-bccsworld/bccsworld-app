@@ -13,7 +13,8 @@ import {
   Smartphone,
   HelpCircle,
   Bell,
-  ExternalLink
+  ExternalLink,
+  Brain
 } from 'lucide-react';
 
 interface DashboardLayoutProps {
@@ -23,6 +24,7 @@ interface DashboardLayoutProps {
 const navigationItems = [
   { path: "/dashboard", icon: BarChart3, label: "Dashboard" },
   { path: "/far-compliance", icon: CheckCircle, label: "FAR Compliance" },
+  { path: "/ai-audit-compliance", icon: Brain, label: "AI Audit Assistant", badge: "AI" },
   { path: "/compliance-checklist", icon: Shield, label: "Part 142 Checklist", badge: "New" },
   { path: "/regulatory-compliance", icon: AlertTriangle, label: "Regulatory Monitor" },
   { path: "/regulatory-alerts", icon: Bell, label: "Regulatory Alerts", badge: "2" },
@@ -72,7 +74,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                 {item.label}
               </div>
               {item.badge && (
-                <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full">
+                <span className={`text-white text-xs px-2 py-1 rounded-full ${
+                  item.badge === 'AI' ? 'bg-purple-500' : 'bg-red-500'
+                }`}>
                   {item.badge}
                 </span>
               )}

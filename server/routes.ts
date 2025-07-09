@@ -12,6 +12,7 @@ import { mlTrainingService } from "./services/ml-training";
 import { analyticsService } from "./services/analytics";
 import { regulatoryMonitor } from "./services/regulatory-monitor";
 import { supportChatService } from "./services/support-chat";
+import { auditComplianceAI } from "./services/audit-compliance-ai";
 import { insertDocumentSchema, insertTrainingEventSchema, insertAuditLogSchema } from "@shared/schema";
 import { z } from "zod";
 import { db } from "./db";
@@ -704,6 +705,137 @@ export async function registerRoutes(app: Express): Promise<Server> {
           { text: "Email support", action: "email-support" },
           { text: "Call support", action: "phone-support" }
         ]
+      });
+    }
+  });
+
+  // AI Audit Compliance Routes
+  app.post("/api/audit/analyze-compliance", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      
+      // First, analyze all uploaded documents
+      const documentContents = await auditComplianceAI.analyzeUploadedDocuments(userId);
+      
+      // Import the checklist data
+      const { completeChecklistData } = await import("../../complete-checklist-data");
+      
+      // Transform checklist data to audit items
+      const auditItems = completeChecklistData.flatMap(area => 
+        area.items.map(item => ({
+          id: item.id,
+          category: area.title,
+          requirement: item.description,
+          description: item.description,
+          references: [item.reference]
+        }))
+      );
+      
+      // Analyze compliance for each checklist item
+      const complianceAnalyses = await auditComplianceAI.analyzeChecklistCompliance(auditItems);
+      
+      // Generate overall compliance report
+      const complianceReport = await auditComplianceAI.generateComplianceReport(complianceAnalyses);
+      
+      // Return results
+      res.json({
+        documentCount: documentContents.length,
+        checklistItems: auditItems.length,
+        analyses: complianceAnalyses,
+        complianceReport,
+        summary: {
+          compliant: complianceAnalyses.filter(a => a.complianceStatus === 'COMPLIANT').length,
+          nonCompliant: complianceAnalyses.filter(a => a.complianceStatus === 'NON_COMPLIANT').length,
+          partial: complianceAnalyses.filter(a => a.complianceStatus === 'PARTIAL').length,
+          insufficientData: complianceAnalyses.filter(a => a.complianceStatus === 'INSUFFICIENT_DATA').length,
+          criticalIssues: complianceAnalyses.filter(a => a.riskLevel === 'CRITICAL').length,
+          highRiskIssues: complianceAnalyses.filter(a => a.riskLevel === 'HIGH').length
+        }
+      });
+    } catch (error) {
+      console.error("Error analyzing compliance:", error);
+      res.status(500).json({ 
+        message: "Failed to analyze compliance",
+        error: error.message 
+      });
+    }
+  });
+
+  app.post("/api/audit/analyze-requirement", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const { requirementId, requirement, category, description, references } = req.body;
+      
+      if (!requirementId || !requirement) {
+        return res.status(400).json({ message: "Requirement ID and requirement text are required" });
+      }
+      
+      // First, analyze uploaded documents
+      await auditComplianceAI.analyzeUploadedDocuments(userId);
+      
+      // Analyze specific requirement
+      const auditItem = {
+        id: requirementId,
+        category: category || 'General',
+        requirement,
+        description: description || requirement,
+        references: references || []
+      };
+      
+      const [complianceAnalysis] = await auditComplianceAI.analyzeChecklistCompliance([auditItem]);
+      
+      res.json(complianceAnalysis);
+    } catch (error) {
+      console.error("Error analyzing individual requirement:", error);
+      res.status(500).json({ 
+        message: "Failed to analyze requirement",
+        error: error.message 
+      });
+    }
+  });
+
+  app.get("/api/audit/document-summary", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const documentContents = await auditComplianceAI.analyzeUploadedDocuments(userId);
+      
+      const summary = {
+        totalDocuments: documentContents.length,
+        documentTypes: [...new Set(documentContents.map(doc => doc.documentType))],
+        documents: documentContents.map(doc => ({
+          filename: doc.filename,
+          type: doc.documentType,
+          extractedFields: Object.keys(doc.metadata || {}).length,
+          contentLength: doc.extractedText.length
+        }))
+      };
+      
+      res.json(summary);
+    } catch (error) {
+      console.error("Error getting document summary:", error);
+      res.status(500).json({ 
+        message: "Failed to get document summary",
+        error: error.message 
+      });
+    }
+  });
+
+  app.post("/api/audit/generate-report", isAuthenticated, async (req: any, res) => {
+    try {
+      const { analyses } = req.body;
+      
+      if (!analyses || !Array.isArray(analyses)) {
+        return res.status(400).json({ message: "Compliance analyses are required" });
+      }
+      
+      const complianceReport = await auditComplianceAI.generateComplianceReport(analyses);
+      
+      res.json({ report: complianceReport });
+    } catch (error) {
+      console.error("Error generating compliance report:", error);
+      res.status(500).json({ 
+        message: "Failed to generate compliance report",
+        error: error.message 
       });
     }
   });
