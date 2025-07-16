@@ -16,7 +16,7 @@
 ## Phase 1: Months 1-6 (Core Team - 35 employees)
 **Funding Required: $5M**
 
-### **Essential Leadership (6 people)**
+### **Essential Leadership (5 people)**
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                    CORE LEADERSHIP TEAM                        │
@@ -27,10 +27,9 @@
 │ CTO                           $156,250         $312,500         │
 │ VP Sales                      $125,000         $250,000         │
 │ VP Customer Success           $112,500         $225,000         │
-│ VP Engineering                $137,500         $275,000         │
-│ Chief Compliance Officer      $125,000         $250,000         │
+│ Head of Partnerships          $100,000         $200,000         │
 ├─────────────────────────────────────────────────────────────────┤
-│ TOTAL LEADERSHIP              $843,750       $1,687,500         │
+│ TOTAL LEADERSHIP              $681,250       $1,362,500         │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -83,9 +82,22 @@
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### **Phase 1 Total: 35 employees, $5M for 6 months**
+### **Partnership Team (1 person)**
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     PARTNERSHIP TEAM                           │
+├─────────────────────────────────────────────────────────────────┤
+│ Position                Count  6-Month Cost   Annual Equivalent │
+├─────────────────────────────────────────────────────────────────┤
+│ Partnership Specialist     1      $62,500        $125,000       │
+├─────────────────────────────────────────────────────────────────┤
+│ TOTAL PARTNERSHIPS         1      $62,500        $125,000       │
+└─────────────────────────────────────────────────────────────────┘
+```
 
-## Phase 2: Months 7-12 (Scale to 65 employees)
+### **Phase 1 Total: 36 employees, $5M for 6 months**
+
+## Phase 2: Months 7-12 (Scale to 68 employees)
 **Additional Funding Required: $5M**
 
 ### **Sales Team Expansion (+15 people)**
@@ -94,6 +106,9 @@
 - 2 Sales Engineers: $162.5K (6 months)
 - 3 Customer Success Managers: $206.25K (6 months)
 - 3 Support Engineers: $159.375K (6 months)
+
+### **Partnership Team Expansion (+2 people)**
+- 2 Business Development Managers: $225K (6 months)
 
 ### **Engineering Expansion (+10 people)**
 - 3 Software Engineers: $225K (6 months)
@@ -109,16 +124,17 @@
 - Marketing Director: $93.75K (6 months)
 - Office Manager: $37.5K (6 months)
 
-## Phase 3: Months 13-18 (Scale to 90 employees)
+## Phase 3: Months 13-18 (Scale to 95 employees)
 **Additional Funding Required: $5M**
 
-### **Revenue Generation Focus (+25 people)**
+### **Revenue Generation Focus (+27 people)**
 - 8 Sales Representatives: $600K (6 months)
 - 5 Customer Success Staff: $318.75K (6 months)
 - 4 Marketing Team: $200K (6 months)
 - 3 Compliance Specialists: $225K (6 months)
 - 3 Engineering Staff: $225K (6 months)
 - 2 Operations Staff: $100K (6 months)
+- 2 Partnership Team: $150K (6 months)
 
 ---
 

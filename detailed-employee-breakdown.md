@@ -6,7 +6,7 @@
 # PHASE 1: MONTHS 1-6 (35 EMPLOYEES)
 ## Foundation Team - Core Operations
 
-### **Leadership Team (6 people) - $843,750**
+### **Leadership Team (5 people) - $681,250**
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                        LEADERSHIP TEAM                         │
@@ -17,10 +17,9 @@
 │ CTO                        $250K        $156,250               │
 │ VP Sales                   $200K        $125,000               │
 │ VP Customer Success        $180K        $112,500               │
-│ VP Engineering             $220K        $137,500               │
-│ Chief Compliance Officer   $200K        $125,000               │
+│ Head of Partnerships       $160K        $100,000               │
 ├─────────────────────────────────────────────────────────────────┤
-│ TOTAL LEADERSHIP                       $843,750               │
+│ TOTAL LEADERSHIP                       $681,250               │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -122,14 +121,30 @@
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### **Phase 1 Total: 35 employees, $3.115M staff costs**
+### **Partnership Team (1 person) - $62,500**
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                      PARTNERSHIP TEAM                          │
+├─────────────────────────────────────────────────────────────────┤
+│ Position                Count  Salary    6-Month Cost          │
+├─────────────────────────────────────────────────────────────────┤
+│ Partnership Specialist     1    $100K      $62,500             │
+│ • Integration partner relationship management                   │
+│ • Reseller program development                                 │
+│ • Strategic alliance coordination                              │
+├─────────────────────────────────────────────────────────────────┤
+│ TOTAL PARTNERSHIPS         1              $62,500              │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### **Phase 1 Total: 36 employees, $3.177M staff costs**
 
 ---
 
-# PHASE 2: MONTHS 7-12 (65 EMPLOYEES)
+# PHASE 2: MONTHS 7-12 (68 EMPLOYEES)
 ## Scaling Team - Customer Acquisition Focus
 
-### **Continuing from Phase 1: 35 employees**
+### **Continuing from Phase 1: 36 employees**
 
 ### **Sales Team Expansion (+15 people) - $978,125**
 ```
@@ -239,14 +254,30 @@
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### **Phase 2 Total: 65 employees (35 + 30 new)**
+### **Partnership Team Expansion (+2 people) - $225,000**
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                  PARTNERSHIP TEAM EXPANSION                    │
+├─────────────────────────────────────────────────────────────────┤
+│ Position                Count  Salary    6-Month Cost          │
+├─────────────────────────────────────────────────────────────────┤
+│ Business Development Mgr   2    $150K      $187,500            │
+│ • Channel partner development                                  │
+│ • Strategic alliance management                                │
+│ • Partnership revenue optimization                             │
+├─────────────────────────────────────────────────────────────────┤
+│ TOTAL PARTNERSHIP EXP      2              $225,000             │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### **Phase 2 Total: 68 employees (36 + 32 new)**
 
 ---
 
-# PHASE 3: MONTHS 13-18 (90 EMPLOYEES)
+# PHASE 3: MONTHS 13-18 (95 EMPLOYEES)
 ## Revenue Generation Focus - Path to Break-Even
 
-### **Continuing from Phase 2: 65 employees**
+### **Continuing from Phase 2: 68 employees**
 
 ### **Sales Team Final Expansion (+8 people) - $600,000**
 ```
@@ -409,7 +440,28 @@
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### **Phase 3 Total: 90 employees (65 + 25 new)**
+### **Partnership Team Final Expansion (+2 people) - $150,000**
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                PARTNERSHIP TEAM FINAL EXPANSION                │
+├─────────────────────────────────────────────────────────────────┤
+│ Position                Count  Salary    6-Month Cost          │
+├─────────────────────────────────────────────────────────────────┤
+│ Strategic Alliance Mgr     1    $140K      $87,500             │
+│ • High-level strategic partnerships                            │
+│ • Executive relationship management                            │
+│ • Partnership revenue optimization                             │
+├─────────────────────────────────────────────────────────────────┤
+│ Channel Manager            1    $125K      $78,125             │
+│ • Reseller network management                                  │
+│ • Channel partner enablement                                   │
+│ • Channel conflict resolution                                  │
+├─────────────────────────────────────────────────────────────────┤
+│ TOTAL PARTNERSHIP FINAL    2              $150,000             │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### **Phase 3 Total: 95 employees (68 + 27 new)**
 
 ---
 
@@ -422,26 +474,27 @@
 ├─────────────────────────────────────────────────────────────────┤
 │ Department           Phase 1  Phase 2  Phase 3    Total       │
 ├─────────────────────────────────────────────────────────────────┤
-│ Leadership              6        6        6         6          │
+│ Leadership              5        5        5         5          │
 │ Engineering            12       22       25        25          │
 │ Sales                   5       20       28        28          │
 │ Customer Success        7       10       15        15          │
 │ Compliance              5        5        8         8          │
 │ Marketing               0        1        5         5          │
 │ Operations              0        5        7         7          │
+│ Partnerships            1        3        5         5          │
 ├─────────────────────────────────────────────────────────────────┤
-│ TOTAL EMPLOYEES        35       65       90        90          │
+│ TOTAL EMPLOYEES        36       68       95        95          │
 ├─────────────────────────────────────────────────────────────────┤
-│ Monthly Staff Cost   $621K   $1,083K   $1,500K   $1,500K      │
+│ Monthly Staff Cost   $635K   $1,134K   $1,583K   $1,583K      │
 │ Revenue Target        $50K     $200K   $1,000K   $1,000K      │
 │ Customer Count         10        40       120       120        │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
 ## Break-Even Achievement at Month 18
-- **90 employees** supporting **120 customers**
+- **95 employees** supporting **120 customers**
 - **$1M monthly revenue** = **$12M annual run rate**
-- **$1M monthly costs** = break-even achieved
-- **Self-funding begins** Month 19+
+- **$1.58M monthly costs** = additional funding needed for break-even
+- **Self-funding begins** Month 19+ once revenue exceeds costs
 
 This phased approach ensures efficient capital deployment while building the team needed to reach break-even and scale beyond.
