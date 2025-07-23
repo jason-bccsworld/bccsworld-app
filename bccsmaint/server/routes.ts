@@ -66,8 +66,9 @@ export function registerRoutes(app: Express) {
 
   // Serve React app in production
   if (process.env.NODE_ENV === 'production') {
+    const path = require('path');
     app.get('*', (req, res) => {
-      res.sendFile(join(__dirname, '../dist/public/index.html'));
+      res.sendFile(path.join(__dirname, '../dist/public/index.html'));
     });
   }
 }
