@@ -25,6 +25,7 @@ const navigationItems = [
   { path: "/dashboard", icon: BarChart3, label: "Dashboard" },
   { path: "/far-compliance", icon: CheckCircle, label: "FAR Compliance" },
   { path: "/ai-audit-compliance", icon: Brain, label: "AI Audit Assistant", badge: "AI" },
+  { path: "/document-generation", icon: FileText, label: "Document Generation", badge: "New" },
   { path: "/compliance-checklist", icon: Shield, label: "Part 142 Checklist", badge: "New" },
   { path: "/regulatory-compliance", icon: AlertTriangle, label: "Regulatory Monitor" },
   { path: "/regulatory-alerts", icon: Bell, label: "Regulatory Alerts", badge: "2" },
