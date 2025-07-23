@@ -15,6 +15,7 @@ import { supportChatService } from "./services/support-chat";
 import { auditComplianceAI } from "./services/audit-compliance-ai";
 import { complianceAlertSystem } from "./services/compliance-alerts";
 import { enhancedUpload, batchUploadProcessor } from "./services/enhanced-upload";
+import { registerMaintenanceRoutes } from "./maintenance-routes";
 import { insertDocumentSchema, insertTrainingEventSchema, insertAuditLogSchema } from "@shared/schema";
 import { z } from "zod";
 import { db } from "./db";
@@ -1642,4 +1643,10 @@ async function processDocumentAsync(documentId: string, filePath: string) {
     console.error("Error processing document:", error);
     await storage.updateDocumentStatus(documentId, "error");
   }
+
+  // Register BCCSMaint Predictive Maintenance Routes
+  registerMaintenanceRoutes(app);
+
+  const server = createServer(app);
+  return server;
 }

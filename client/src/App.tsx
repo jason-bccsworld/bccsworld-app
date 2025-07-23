@@ -33,6 +33,7 @@ import TestFARRoute from "@/pages/test-far-route";
 import DebugSidebar from "@/pages/debug-sidebar";
 import AIAuditCompliance from "@/pages/ai-audit-compliance";
 import DocumentGeneration from "@/pages/DocumentGeneration";
+import BCCSMaintDashboard from "@/pages/BCCSMaintDashboard";
 import NotFound from "@/pages/not-found";
 import DashboardLayout from "@/layouts/dashboard-layout";
 import SupportChat from "@/components/support-chat";
@@ -112,6 +113,16 @@ function Router() {
         ) : (
           <DashboardLayout>
             <DocumentGeneration />
+          </DashboardLayout>
+        )}
+      </Route>
+
+      <Route path="/bccsmaint">
+        {!isAuthenticated ? (
+          <Landing />
+        ) : (
+          <DashboardLayout>
+            <BCCSMaintDashboard />
           </DashboardLayout>
         )}
       </Route>
