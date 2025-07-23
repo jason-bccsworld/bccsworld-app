@@ -13,6 +13,8 @@ import { analyticsService } from "./services/analytics";
 import { regulatoryMonitor } from "./services/regulatory-monitor";
 import { supportChatService } from "./services/support-chat";
 import { auditComplianceAI } from "./services/audit-compliance-ai";
+import { complianceAlertSystem } from "./services/compliance-alerts";
+import { enhancedUpload, batchUploadProcessor } from "./services/enhanced-upload";
 import { insertDocumentSchema, insertTrainingEventSchema, insertAuditLogSchema } from "@shared/schema";
 import { z } from "zod";
 import { db } from "./db";
@@ -849,7 +851,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Perform basic audit analysis
       const analysisResults = await auditComplianceAI.performComprehensiveAudit(userId);
       
-      // Comprehensive document generation covering all FAR Part 142 document types
+      // Get existing documents for AI analysis
+      const existingDocuments = await auditComplianceAI.analyzeUploadedDocuments(userId);
+      
+      // Import AI document generator
+      const { aiDocumentGenerator } = await import('./services/ai-document-generator');
+      
+      // Analyze document gaps using AI
+      const documentGaps = await aiDocumentGenerator.analyzeDocumentGaps(existingDocuments, analysisResults);
+      
+      // Generate documents using real AI
+      const documentRequests = documentGaps.canAutoGenerate.map(docType => ({
+        documentType: docType,
+        organizationName: 'Professional Training Center',
+        existingDocuments,
+        complianceGaps: analysisResults.filter(r => r.complianceStatus !== 'COMPLIANT').map(r => r.checklistItem)
+      }));
+      
+      const aiGeneratedDocuments = await aiDocumentGenerator.generateMultipleDocuments(documentRequests);
+      
+      // Fallback mock documents if AI generation fails
       const mockGeneratedDocuments = [
         {
           filename: 'Training_Record_Template_Generated.txt',
@@ -1368,16 +1389,14 @@ This record ensures compliance with FAR 142.53-142.59 instructor requirements.`,
         'Environmental Compliance Documentation'
       ];
       
+      // Use AI-generated documents if available, otherwise fallback to mock
+      const finalGeneratedDocuments = aiGeneratedDocuments.length > 0 ? aiGeneratedDocuments : mockGeneratedDocuments;
+      
       const result = {
         complianceAnalyses: analysisResults,
-        documentGaps: {
-          missingDocuments: ['TRAINING_RECORD_TEMPLATE', 'INSTRUCTOR_QUALIFICATION_MATRIX', 'QA_MANUAL', 'SMS_MANUAL', 'EQUIPMENT_MAINTENANCE_LOG', 'CURRICULUM_OUTLINE', 'STUDENT_RECORDS_TEMPLATE', 'INSTRUCTOR_TRAINING_RECORD'],
-          canAutoGenerate: ['TRAINING_RECORD_TEMPLATE', 'INSTRUCTOR_QUALIFICATION_MATRIX', 'QUALITY_ASSURANCE_MANUAL', 'SMS_MANUAL', 'EQUIPMENT_MAINTENANCE_LOG', 'CURRICULUM_OUTLINE_TEMPLATE', 'STUDENT_RECORDS_TEMPLATE', 'INSTRUCTOR_TRAINING_RECORD'],
-          requiresExternalUpload: mockUploadRequests,
-          generationPriority: 'HIGH' as const
-        },
-        generatedDocuments: mockGeneratedDocuments,
-        uploadRequests: mockUploadRequests,
+        documentGaps,
+        generatedDocuments: finalGeneratedDocuments,
+        uploadRequests: documentGaps.requiresExternalUpload,
         summary: {
           total: analysisResults.length,
           compliant: analysisResults.filter(a => a.complianceStatus === 'COMPLIANT').length,
@@ -1386,14 +1405,26 @@ This record ensures compliance with FAR 142.53-142.59 instructor requirements.`,
           insufficientData: analysisResults.filter(a => a.complianceStatus === 'INSUFFICIENT_DATA').length,
           criticalIssues: analysisResults.filter(a => a.riskLevel === 'CRITICAL').length,
           highRiskIssues: analysisResults.filter(a => a.riskLevel === 'HIGH').length,
-          documentsGenerated: mockGeneratedDocuments.length,
-          documentsNeeded: mockUploadRequests.length
+          documentsGenerated: finalGeneratedDocuments.length,
+          documentsNeeded: documentGaps.requiresExternalUpload.length,
+          aiPowered: aiGeneratedDocuments.length > 0
         }
       };
       
+      // Generate compliance alerts
+      const deadlineAlerts = complianceAlertSystem.generateDeadlineAlerts(existingDocuments);
+      const complianceIssueAlerts = complianceAlertSystem.generateComplianceIssueAlerts(analysisResults);
+      
+      deadlineAlerts.forEach(alert => complianceAlertSystem.addAlert(alert));
+      complianceIssueAlerts.forEach(alert => complianceAlertSystem.addAlert(alert));
+
       res.json({
         success: true,
-        ...result
+        ...result,
+        alerts: {
+          generated: deadlineAlerts.length + complianceIssueAlerts.length,
+          critical: complianceIssueAlerts.filter(a => a.severity === 'CRITICAL').length
+        }
       });
       
     } catch (error) {
@@ -1402,6 +1433,70 @@ This record ensures compliance with FAR 142.53-142.59 instructor requirements.`,
         error: "Failed to perform AI audit with document generation",
         details: error instanceof Error ? error.message : 'Unknown error'
       });
+    }
+  });
+
+  // Enhanced batch upload endpoint
+  app.post("/api/documents/batch-upload", isAuthenticated, enhancedUpload.array('documents', 10), async (req: any, res) => {
+    try {
+      const files = req.files as Express.Multer.File[];
+      
+      if (!files || files.length === 0) {
+        return res.status(400).json({ error: "No files uploaded" });
+      }
+
+      // Validate uploaded files
+      const validation = await batchUploadProcessor.validateFileTypes(files);
+      if (!validation.valid) {
+        return res.status(400).json({ 
+          error: "File validation failed", 
+          details: validation.errors 
+        });
+      }
+
+      // Process uploaded files
+      const results = await batchUploadProcessor.processUploadedFiles(files);
+      
+      res.json({
+        success: true,
+        message: `Successfully processed ${results.filter(r => r.success).length} of ${results.length} files`,
+        results
+      });
+    } catch (error) {
+      console.error("Error in batch upload:", error);
+      res.status(500).json({ 
+        error: "Failed to process batch upload",
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  // Compliance alerts endpoints
+  app.get("/api/alerts", isAuthenticated, async (req: any, res) => {
+    try {
+      const alerts = complianceAlertSystem.getAllActiveAlerts();
+      const summary = complianceAlertSystem.getAlertSummary();
+      
+      res.json({ alerts, summary });
+    } catch (error) {
+      console.error("Error fetching alerts:", error);
+      res.status(500).json({ error: "Failed to fetch alerts" });
+    }
+  });
+
+  app.post("/api/alerts/:alertId/acknowledge", isAuthenticated, async (req: any, res) => {
+    try {
+      const { alertId } = req.params;
+      const success = complianceAlertSystem.acknowledgeAlert(alertId);
+      
+      if (success) {
+        res.json({ success: true, message: "Alert acknowledged" });
+      } else {
+        res.status(404).json({ error: "Alert not found" });
+      }
+    } catch (error) {
+      console.error("Error acknowledging alert:", error);
+      res.status(500).json({ error: "Failed to acknowledge alert" });
     }
   });
 

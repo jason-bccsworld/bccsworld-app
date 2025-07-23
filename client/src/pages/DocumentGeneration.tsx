@@ -5,8 +5,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2, FileText, CheckCircle, AlertCircle, Download } from "lucide-react";
+import { Loader2, FileText, CheckCircle, AlertCircle, Download, Brain, Sparkles } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import DragDropUpload from "@/components/drag-drop-upload";
 
 interface DocumentGap {
   missingDocuments: string[];
@@ -44,6 +45,7 @@ interface AuditResult {
 export default function DocumentGeneration() {
   const [auditResult, setAuditResult] = useState<AuditResult | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -63,9 +65,10 @@ export default function DocumentGeneration() {
     },
     onSuccess: (data) => {
       setAuditResult(data);
+      const aiPowered = data.summary.aiPowered ? " using AI" : "";
       toast({
-        title: "Audit Complete",
-        description: `Generated ${data.summary.documentsGenerated} documents, identified ${data.summary.documentsNeeded} additional needs`,
+        title: "Smart Audit Complete",
+        description: `Generated ${data.summary.documentsGenerated} documents${aiPowered}, identified ${data.summary.documentsNeeded} additional needs`,
       });
       queryClient.invalidateQueries({ queryKey: ['/api/documents'] });
     },
@@ -119,36 +122,63 @@ export default function DocumentGeneration() {
           onClick={handleStartAuditWithGeneration}
           disabled={auditWithGenerationMutation.isPending || isGenerating}
           size="lg"
+          className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
         >
           {auditWithGenerationMutation.isPending ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Analyzing & Generating...
+              AI Processing...
             </>
           ) : (
             <>
-              <FileText className="mr-2 h-4 w-4" />
-              Start Smart Audit
+              <Brain className="mr-2 h-4 w-4" />
+              Start AI-Powered Audit
+              <Sparkles className="ml-2 h-4 w-4" />
             </>
           )}
         </Button>
       </div>
+
+      {/* File Upload Section */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <FileText className="mr-2 h-4 w-4" />
+            Upload Existing Documents (Optional)
+          </CardTitle>
+          <CardDescription>
+            Upload your current compliance documents for AI analysis and personalized document generation
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <DragDropUpload 
+            onFilesUploaded={(files) => {
+              setUploadedFiles(files);
+              toast({
+                title: "Files Ready",
+                description: `${files.length} files uploaded and ready for analysis`,
+              });
+            }}
+            maxFiles={10}
+          />
+        </CardContent>
+      </Card>
 
       {auditWithGenerationMutation.isPending && (
         <Card className="mb-6">
           <CardHeader>
             <CardTitle className="flex items-center">
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Processing Compliance Analysis
+              AI-Powered Compliance Analysis
             </CardTitle>
             <CardDescription>
-              AI is analyzing your documents and generating missing compliance materials...
+              Advanced AI is analyzing your documents and generating personalized compliance materials...
             </CardDescription>
           </CardHeader>
           <CardContent>
             <Progress value={66} className="w-full" />
             <p className="text-sm text-gray-600 dark:text-gray-300 mt-2">
-              Phase 1: Document analysis • Phase 2: Gap identification • Phase 3: Document generation
+              Phase 1: Document analysis • Phase 2: AI gap identification • Phase 3: Intelligent document generation
             </p>
           </CardContent>
         </Card>
@@ -176,13 +206,22 @@ export default function DocumentGeneration() {
 
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-lg">Generated Documents</CardTitle>
+                <CardTitle className="text-lg flex items-center">
+                  Generated Documents
+                  {auditResult.summary.aiPowered && (
+                    <Badge className="ml-2 bg-purple-100 text-purple-800">
+                      AI-Powered
+                    </Badge>
+                  )}
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-blue-600">
                   {auditResult.summary.documentsGenerated}
                 </div>
-                <p className="text-sm text-gray-600">automatically created</p>
+                <p className="text-sm text-gray-600">
+                  {auditResult.summary.aiPowered ? 'intelligently created' : 'automatically created'}
+                </p>
                 <CheckCircle className="h-6 w-6 text-green-500 mt-2" />
               </CardContent>
             </Card>
@@ -275,9 +314,17 @@ export default function DocumentGeneration() {
                   {auditResult.generatedDocuments.map((doc, idx) => (
                     <div key={idx} className="flex items-center justify-between p-4 border rounded-lg">
                       <div className="flex-1">
-                        <div className="font-medium">{doc.filename}</div>
+                        <div className="font-medium flex items-center">
+                          {doc.filename}
+                          {doc.metadata?.aiGenerated && (
+                            <Badge className="ml-2 bg-purple-100 text-purple-800 text-xs">
+                              AI
+                            </Badge>
+                          )}
+                        </div>
                         <div className="text-sm text-gray-600 dark:text-gray-300">
-                          Type: {doc.documentType.replace(/_/g, ' ')} • Auto-generated
+                          Type: {doc.documentType.replace(/_/g, ' ')} • 
+                          {doc.metadata?.aiGenerated ? ' AI-generated' : ' Auto-generated'}
                         </div>
                         {doc.metadata?.regulatoryBasis && (
                           <div className="text-xs text-gray-500 mt-1">

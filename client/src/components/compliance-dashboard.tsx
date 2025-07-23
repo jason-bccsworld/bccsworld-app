@@ -1,290 +1,240 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import { useQuery } from "@tanstack/react-query";
+import React from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { 
-  TrendingUp, 
-  TrendingDown, 
-  Clock, 
+  AlertTriangle, 
   CheckCircle, 
-  AlertTriangle,
+  Clock, 
+  TrendingUp, 
   FileText,
   Users,
-  Calendar
-} from "lucide-react";
-import { format } from "date-fns";
+  Calendar,
+  Shield
+} from 'lucide-react';
 
-interface ComplianceMetric {
-  title: string;
-  value: string | number;
-  trend: {
-    direction: "up" | "down";
-    percentage: number;
-    period: string;
-  };
-  icon: React.ComponentType<any>;
-  color: string;
+interface ComplianceMetrics {
+  overallScore: number;
+  totalRequirements: number;
+  compliantItems: number;
+  nonCompliantItems: number;
+  partialItems: number;
+  criticalIssues: number;
+  upcomingDeadlines: number;
+  documentsProcessed: number;
+  lastAuditDate: string;
 }
 
 export default function ComplianceDashboard() {
-  const { data: stats = {
-    totalRecords: 0,
-    complianceRate: 0,
-    pendingReviews: 0,
-    aiAccuracy: 0,
-  } } = useQuery({
-    queryKey: ["/api/dashboard/stats"],
-  });
-
-  const { data: trainingEvents = [] } = useQuery({
-    queryKey: ["/api/training-events"],
-    select: (data) => data.slice(0, 5), // Show recent events
-  });
-
-  const metrics: ComplianceMetric[] = [
-    {
-      title: "Overall Compliance",
-      value: `${stats.complianceRate?.toFixed(1) || 0}%`,
-      trend: { direction: "up", percentage: 2.1, period: "vs last week" },
-      icon: CheckCircle,
-      color: "text-emerald-500",
-    },
-    {
-      title: "Active Students",
-      value: "247",
-      trend: { direction: "up", percentage: 8.2, period: "vs last month" },
-      icon: Users,
-      color: "text-aviation-blue",
-    },
-    {
-      title: "Training Events",
-      value: stats.totalRecords || 0,
-      trend: { direction: "up", percentage: 12.5, period: "vs last month" },
-      icon: Calendar,
-      color: "text-purple-500",
-    },
-    {
-      title: "Pending Actions",
-      value: stats.pendingReviews || 0,
-      trend: { direction: "down", percentage: 5.3, period: "vs last week" },
-      icon: Clock,
-      color: "text-amber-500",
-    },
-  ];
-
-  const upcomingExpirations = [
-    {
-      id: 1,
-      studentName: "Sarah Johnson",
-      licenseType: "Private Pilot",
-      expirationDate: new Date("2024-02-15"),
-      daysUntilExpiration: 15,
-      severity: "medium" as const,
-    },
-    {
-      id: 2,
-      studentName: "Michael Chen",
-      licenseType: "Flight Review",
-      expirationDate: new Date("2024-01-28"),
-      daysUntilExpiration: 3,
-      severity: "high" as const,
-    },
-    {
-      id: 3,
-      studentName: "Emily Rodriguez",
-      licenseType: "Instrument Rating",
-      expirationDate: new Date("2024-03-10"),
-      daysUntilExpiration: 45,
-      severity: "low" as const,
-    },
-  ];
-
-  const getSeverityColor = (severity: string) => {
-    switch (severity) {
-      case "high":
-        return "bg-red-100 text-red-800 border-red-200";
-      case "medium":
-        return "bg-amber-100 text-amber-800 border-amber-200";
-      case "low":
-        return "bg-emerald-100 text-emerald-800 border-emerald-200";
-      default:
-        return "bg-slate-100 text-slate-800 border-slate-200";
+  const { data: metrics, isLoading } = useQuery({
+    queryKey: ['/api/compliance/metrics'],
+    queryFn: async () => {
+      // Mock data for demonstration - would come from real API
+      const mockMetrics: ComplianceMetrics = {
+        overallScore: 87,
+        totalRequirements: 200,
+        compliantItems: 174,
+        nonCompliantItems: 15,
+        partialItems: 11,
+        criticalIssues: 3,
+        upcomingDeadlines: 5,
+        documentsProcessed: 42,
+        lastAuditDate: new Date().toISOString()
+      };
+      return mockMetrics;
     }
+  });
+
+  if (isLoading) {
+    return <div>Loading compliance dashboard...</div>;
+  }
+
+  if (!metrics) {
+    return <div>Failed to load compliance metrics</div>;
+  }
+
+  const getScoreColor = (score: number) => {
+    if (score >= 90) return 'text-green-600';
+    if (score >= 75) return 'text-yellow-600';
+    return 'text-red-600';
   };
 
-  const getSeverityIcon = (severity: string) => {
-    switch (severity) {
-      case "high":
-        return <AlertTriangle className="w-4 h-4 text-red-500" />;
-      case "medium":
-        return <Clock className="w-4 h-4 text-amber-500" />;
-      case "low":
-        return <CheckCircle className="w-4 h-4 text-emerald-500" />;
-      default:
-        return <Clock className="w-4 h-4 text-slate-500" />;
-    }
+  const getScoreBgColor = (score: number) => {
+    if (score >= 90) return 'bg-green-100';
+    if (score >= 75) return 'bg-yellow-100';
+    return 'bg-red-100';
   };
 
   return (
     <div className="space-y-6">
-      {/* Key Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {metrics.map((metric) => {
-          const Icon = metric.icon;
-          const TrendIcon = metric.trend.direction === "up" ? TrendingUp : TrendingDown;
-          const trendColor = metric.trend.direction === "up" ? "text-emerald-500" : "text-red-500";
-          
-          return (
-            <Card key={metric.title}>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <div className={`w-12 h-12 rounded-lg bg-slate-50 flex items-center justify-center`}>
-                    <Icon className={`w-6 h-6 ${metric.color}`} />
-                  </div>
-                  <div className={`flex items-center space-x-1 text-sm ${trendColor}`}>
-                    <TrendIcon className="w-4 h-4" />
-                    <span>{metric.trend.percentage}%</span>
-                  </div>
-                </div>
-                <div>
-                  <h3 className="text-2xl font-bold text-slate-900">{metric.value}</h3>
-                  <p className="text-sm text-slate-600">{metric.title}</p>
-                  <p className="text-xs text-slate-500 mt-1">{metric.trend.period}</p>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Compliance Progress */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Compliance Progress</CardTitle>
-            <CardDescription>Current compliance status by category</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <div className="flex justify-between mb-2">
-                <span className="text-sm font-medium">Training Records</span>
-                <span className="text-sm text-slate-600">94%</span>
-              </div>
-              <Progress value={94} className="h-2" />
-            </div>
-            <div>
-              <div className="flex justify-between mb-2">
-                <span className="text-sm font-medium">License Renewals</span>
-                <span className="text-sm text-slate-600">87%</span>
-              </div>
-              <Progress value={87} className="h-2" />
-            </div>
-            <div>
-              <div className="flex justify-between mb-2">
-                <span className="text-sm font-medium">Medical Certificates</span>
-                <span className="text-sm text-slate-600">91%</span>
-              </div>
-              <Progress value={91} className="h-2" />
-            </div>
-            <div>
-              <div className="flex justify-between mb-2">
-                <span className="text-sm font-medium">Flight Reviews</span>
-                <span className="text-sm text-slate-600">78%</span>
-              </div>
-              <Progress value={78} className="h-2" />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Upcoming Expirations */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Upcoming Expirations</CardTitle>
-            <CardDescription>Licenses and certifications requiring attention</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {upcomingExpirations.map((item) => (
-                <div
-                  key={item.id}
-                  className={`p-3 rounded-lg border ${getSeverityColor(item.severity)}`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      {getSeverityIcon(item.severity)}
-                      <div>
-                        <p className="font-medium text-sm">{item.studentName}</p>
-                        <p className="text-xs opacity-75">{item.licenseType}</p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-medium">{item.daysUntilExpiration} days</p>
-                      <p className="text-xs opacity-75">
-                        {format(item.expirationDate, "MMM dd")}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <Button variant="outline" className="w-full mt-4">
-              View All Expirations
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Recent Training Events */}
+      {/* Overall Compliance Score */}
       <Card>
         <CardHeader>
-          <CardTitle>Recent Training Events</CardTitle>
-          <CardDescription>Latest completed and pending training activities</CardDescription>
+          <CardTitle className="flex items-center">
+            <Shield className="mr-2 h-5 w-5" />
+            Overall Compliance Score
+          </CardTitle>
         </CardHeader>
         <CardContent>
-          {trainingEvents.length === 0 ? (
-            <div className="text-center py-8 text-slate-500">
-              <FileText className="w-12 h-12 mx-auto mb-4 text-slate-300" />
-              <p>No recent training events</p>
+          <div className="flex items-center justify-between">
+            <div className={`text-4xl font-bold ${getScoreColor(metrics.overallScore)}`}>
+              {metrics.overallScore}%
             </div>
-          ) : (
-            <div className="space-y-4">
-              {trainingEvents.map((event: any) => (
-                <div key={event.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-lg">
-                  <div className="flex items-center space-x-4">
-                    <div className="w-10 h-10 bg-aviation-blue rounded-lg flex items-center justify-center">
-                      <FileText className="w-5 h-5 text-white" />
-                    </div>
-                    <div>
-                      <h4 className="font-medium text-slate-900">{event.studentName}</h4>
-                      <p className="text-sm text-slate-600">{event.eventType}</p>
-                      <p className="text-xs text-slate-500">
-                        {format(new Date(event.eventDate), "MMM dd, yyyy")}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    <Badge 
-                      className={
-                        event.status === "completed"
-                          ? "bg-emerald-100 text-emerald-800"
-                          : event.status === "pending"
-                          ? "bg-amber-100 text-amber-800"
-                          : "bg-slate-100 text-slate-800"
-                      }
-                    >
-                      {event.status}
-                    </Badge>
-                    {event.blockchainHash && (
-                      <code className="text-xs bg-slate-100 px-2 py-1 rounded text-slate-600">
-                        {event.blockchainHash}
-                      </code>
-                    )}
-                  </div>
-                </div>
-              ))}
+            <div className={`px-4 py-2 rounded-full ${getScoreBgColor(metrics.overallScore)}`}>
+              <span className={`font-semibold ${getScoreColor(metrics.overallScore)}`}>
+                {metrics.overallScore >= 90 ? 'Excellent' : 
+                 metrics.overallScore >= 75 ? 'Good' : 'Needs Improvement'}
+              </span>
             </div>
-          )}
+          </div>
+          <Progress value={metrics.overallScore} className="mt-4" />
+          <p className="text-sm text-gray-600 mt-2">
+            Based on {metrics.totalRequirements} FAR Part 142 requirements
+          </p>
+        </CardContent>
+      </Card>
+
+      {/* Key Metrics Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg flex items-center">
+              <CheckCircle className="mr-2 h-4 w-4 text-green-500" />
+              Compliant
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">
+              {metrics.compliantItems}
+            </div>
+            <p className="text-sm text-gray-600">
+              of {metrics.totalRequirements} requirements
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg flex items-center">
+              <AlertTriangle className="mr-2 h-4 w-4 text-red-500" />
+              Critical Issues
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-red-600">
+              {metrics.criticalIssues}
+            </div>
+            <p className="text-sm text-gray-600">require immediate attention</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg flex items-center">
+              <Clock className="mr-2 h-4 w-4 text-yellow-500" />
+              Upcoming Deadlines
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-yellow-600">
+              {metrics.upcomingDeadlines}
+            </div>
+            <p className="text-sm text-gray-600">within 60 days</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg flex items-center">
+              <FileText className="mr-2 h-4 w-4 text-blue-500" />
+              Documents Processed
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-blue-600">
+              {metrics.documentsProcessed}
+            </div>
+            <p className="text-sm text-gray-600">compliance documents</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Compliance Breakdown */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Compliance Status Breakdown</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <div className="w-4 h-4 bg-green-500 rounded mr-3"></div>
+                <span>Compliant</span>
+              </div>
+              <div className="flex items-center">
+                <span className="mr-2 font-semibold">{metrics.compliantItems}</span>
+                <Badge className="bg-green-100 text-green-800">
+                  {Math.round((metrics.compliantItems / metrics.totalRequirements) * 100)}%
+                </Badge>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <div className="w-4 h-4 bg-yellow-500 rounded mr-3"></div>
+                <span>Partial Compliance</span>
+              </div>
+              <div className="flex items-center">
+                <span className="mr-2 font-semibold">{metrics.partialItems}</span>
+                <Badge className="bg-yellow-100 text-yellow-800">
+                  {Math.round((metrics.partialItems / metrics.totalRequirements) * 100)}%
+                </Badge>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <div className="w-4 h-4 bg-red-500 rounded mr-3"></div>
+                <span>Non-Compliant</span>
+              </div>
+              <div className="flex items-center">
+                <span className="mr-2 font-semibold">{metrics.nonCompliantItems}</span>
+                <Badge className="bg-red-100 text-red-800">
+                  {Math.round((metrics.nonCompliantItems / metrics.totalRequirements) * 100)}%
+                </Badge>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Action Items */}
+      {(metrics.criticalIssues > 0 || metrics.upcomingDeadlines > 0) && (
+        <Alert>
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>
+            <strong>Action Required:</strong> You have {metrics.criticalIssues} critical compliance issues and {metrics.upcomingDeadlines} upcoming deadlines that need attention.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Last Audit Information */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <Calendar className="mr-2 h-4 w-4" />
+            Last Audit
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-gray-600">
+            Last comprehensive audit completed on{' '}
+            <span className="font-semibold">
+              {new Date(metrics.lastAuditDate).toLocaleDateString()}
+            </span>
+          </p>
         </CardContent>
       </Card>
     </div>
