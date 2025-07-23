@@ -1,16 +1,17 @@
 import type { Express } from "express";
+import path from "path";
 import { PredictiveMaintenanceEngine } from "./services/predictive-engine";
 
 const engine = new PredictiveMaintenanceEngine();
 
 export function registerRoutes(app: Express) {
   // Health check
-  app.get('/api/health', (req, res) => {
+  app.get('/api/health', (_req, res) => {
     res.json({ status: 'healthy', service: 'BCCSMaint', timestamp: new Date().toISOString() });
   });
 
   // Fleet metrics
-  app.get('/api/fleet/metrics', async (req, res) => {
+  app.get('/api/fleet/metrics', async (_req, res) => {
     try {
       const metrics = await engine.getFleetMetrics();
       res.json(metrics);
@@ -21,7 +22,7 @@ export function registerRoutes(app: Express) {
   });
 
   // Fleet status
-  app.get('/api/fleet/status', async (req, res) => {
+  app.get('/api/fleet/status', async (_req, res) => {
     try {
       const fleetStatus = await engine.getFleetStatus();
       res.json(fleetStatus);
@@ -32,7 +33,7 @@ export function registerRoutes(app: Express) {
   });
 
   // Predictive alerts
-  app.get('/api/alerts', async (req, res) => {
+  app.get('/api/alerts', async (_req, res) => {
     try {
       const alerts = await engine.getPredictiveAlerts();
       res.json(alerts);
@@ -43,7 +44,7 @@ export function registerRoutes(app: Express) {
   });
 
   // Maintenance schedule
-  app.get('/api/maintenance/schedule', async (req, res) => {
+  app.get('/api/maintenance/schedule', async (_req, res) => {
     try {
       const schedule = await engine.getMaintenanceSchedule();
       res.json(schedule);
@@ -54,7 +55,7 @@ export function registerRoutes(app: Express) {
   });
 
   // Cost analysis
-  app.get('/api/analytics/costs', async (req, res) => {
+  app.get('/api/analytics/costs', async (_req, res) => {
     try {
       const costAnalysis = await engine.getCostAnalysis();
       res.json(costAnalysis);
@@ -66,8 +67,7 @@ export function registerRoutes(app: Express) {
 
   // Serve React app in production
   if (process.env.NODE_ENV === 'production') {
-    const path = require('path');
-    app.get('*', (req, res) => {
+    app.get('*', (_req, res) => {
       res.sendFile(path.join(__dirname, '../dist/public/index.html'));
     });
   }
