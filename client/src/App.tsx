@@ -32,6 +32,7 @@ import FARCompliancePage from "@/pages/far-compliance";
 import TestFARRoute from "@/pages/test-far-route";
 import DebugSidebar from "@/pages/debug-sidebar";
 import AIAuditCompliance from "@/pages/ai-audit-compliance";
+import DocumentGeneration from "@/pages/DocumentGeneration";
 import NotFound from "@/pages/not-found";
 import DashboardLayout from "@/layouts/dashboard-layout";
 import SupportChat from "@/components/support-chat";
@@ -101,6 +102,16 @@ function Router() {
         ) : (
           <DashboardLayout>
             <AIAuditCompliance />
+          </DashboardLayout>
+        )}
+      </Route>
+      
+      <Route path="/document-generation">
+        {!isAuthenticated ? (
+          <Landing />
+        ) : (
+          <DashboardLayout>
+            <DocumentGeneration />
           </DashboardLayout>
         )}
       </Route>

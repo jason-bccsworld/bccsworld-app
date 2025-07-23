@@ -60,10 +60,11 @@ export class AuditComplianceAI {
       const documentContents: DocumentContent[] = [];
       
       for (const doc of documents) {
-        if (doc.status === 'processed' && doc.filePath) {
+        if (doc.status === 'processed' && doc.filename) {
           try {
             // Extract text from document
-            const extractedText = await processDocumentOCR(doc.filePath);
+            const filePath = path.join(process.cwd(), 'uploads', doc.filename);
+            const extractedText = await processDocumentOCR(filePath);
             
             // Get extracted data from database
             const extractedData = await storage.getExtractedDataByDocument(doc.id);
@@ -288,6 +289,86 @@ Format as a comprehensive report suitable for training center management and reg
       console.error('Error generating compliance report:', error);
       return 'Error generating compliance report - please try again';
     }
+  }
+
+  async performComprehensiveAuditWithDocumentGeneration(userId: string, organizationId: string): Promise<{
+    complianceAnalyses: ComplianceAnalysis[];
+    documentGaps: any;
+    generatedDocuments: any[];
+    uploadRequests: string[];
+  }> {
+    // Perform initial compliance audit
+    const complianceAnalyses = await this.performComprehensiveAudit(userId);
+    
+    // Identify and fill document gaps
+    const gapAnalysis = await this.identifyAndFillDocumentGaps(
+      userId, 
+      organizationId, 
+      complianceAnalyses
+    );
+    
+    return {
+      complianceAnalyses,
+      documentGaps: gapAnalysis.gaps,
+      generatedDocuments: gapAnalysis.generatedDocuments,
+      uploadRequests: gapAnalysis.uploadRequests
+    };
+  }
+
+  async performComprehensiveAudit(userId: string): Promise<ComplianceAnalysis[]> {
+    // Load all uploaded documents for analysis
+    await this.analyzeUploadedDocuments(userId);
+    
+    const complianceAnalyses: ComplianceAnalysis[] = [];
+    
+    // Analyze each checklist item against available documents
+    for (const item of this.getAuditChecklist()) {
+      try {
+        const analysis = await this.analyzeChecklistItem(item);
+        complianceAnalyses.push(analysis);
+      } catch (error) {
+        console.error(`Error analyzing item ${item.id}:`, error);
+        // Continue with other items even if one fails
+      }
+    }
+    
+    return complianceAnalyses;
+  }
+
+  async identifyAndFillDocumentGaps(
+    userId: string, 
+    organizationId: string,
+    complianceAnalyses: ComplianceAnalysis[]
+  ): Promise<{
+    gaps: any,
+    generatedDocuments: any[],
+    uploadRequests: string[]
+  }> {
+    const { documentGenerator } = await import('./document-generator');
+    
+    // Analyze document gaps from compliance results
+    const checklistItems = this.getAuditChecklist();
+    const existingDocuments = this.documentContents;
+    const organizationData = { name: 'Training Center', type: 'Part 142' }; // Should be fetched from DB
+    
+    const gaps = await documentGenerator.analyzeDocumentGaps(
+      checklistItems,
+      existingDocuments,
+      organizationData
+    );
+    
+    const generatedDocuments = await documentGenerator.autoGenerateComplianceDocuments(
+      userId,
+      organizationId,
+      gaps.canAutoGenerate,
+      { complianceAnalyses, existingDocuments }
+    );
+    
+    return {
+      gaps,
+      generatedDocuments,
+      uploadRequests: gaps.requiresExternalUpload
+    };
   }
 }
 
