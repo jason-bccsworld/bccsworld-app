@@ -114,7 +114,7 @@ export function RegulatoryDashboard() {
         <div className="max-w-7xl mx-auto">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-white">BCCS Regulator</h1>
+              <h1 className="text-3xl font-bold text-white">BCCSREG</h1>
               <p className="text-blue-100 mt-2">Advanced Regulatory Oversight & Analytics Platform</p>
             </div>
             <div className="flex items-center space-x-4">

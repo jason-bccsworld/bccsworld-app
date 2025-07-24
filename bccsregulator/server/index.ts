@@ -25,7 +25,7 @@ app.use(express.urlencoded({ extended: true }));
 
 // Session configuration
 app.use(session({
-  secret: process.env.SESSION_SECRET || "bccs-regulator-dev-secret",
+  secret: process.env.SESSION_SECRET || "bccsreg-dev-secret",
   resave: false,
   saveUninitialized: false,
   cookie: {
@@ -95,7 +95,7 @@ async function startServices() {
     await alertingService.startMonitoring();
     console.log("✓ Alerting service started");
     
-    console.log("🏛️ All regulatory oversight services operational");
+    console.log("🏛️ All BCCSREG oversight services operational");
   } catch (error) {
     console.error("❌ Failed to start services:", error);
   }
@@ -104,13 +104,13 @@ async function startServices() {
 const PORT = process.env.PORT || 5001;
 
 server.listen(PORT, () => {
-  console.log(`🏛️ BCCS Regulator server running on port ${PORT}`);
+  console.log(`🏛️ BCCSREG server running on port ${PORT}`);
   startServices();
 });
 
 // Graceful shutdown
 process.on('SIGTERM', () => {
-  console.log('Shutting down BCCS Regulator server...');
+  console.log('Shutting down BCCSREG server...');
   server.close(() => {
     console.log('Server shut down gracefully');
     process.exit(0);

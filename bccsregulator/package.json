@@ -1,7 +1,7 @@
 {
-  "name": "bccs-regulator",
+  "name": "bccsreg",
   "version": "1.0.0",
-  "description": "BCCS Regulator - Advanced Regulatory Oversight and Analytics Platform",
+  "description": "BCCSREG - Advanced Regulatory Oversight and Analytics Platform",
   "type": "module",
   "scripts": {
     "dev": "concurrently \"npm run server:dev\" \"npm run client:dev\"",

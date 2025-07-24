@@ -15,7 +15,7 @@ export function setupRoutes(app: express.Application, services: {
   app.get("/api/health", (req, res) => {
     res.json({ 
       status: "healthy", 
-      service: "BCCS Regulator",
+      service: "BCCSREG",
       timestamp: new Date().toISOString() 
     });
   });

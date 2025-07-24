@@ -1,10 +1,10 @@
-# BCCS Regulator - Advanced Regulatory Oversight Platform
+# BCCSREG - Advanced Regulatory Oversight Platform
 
 A comprehensive AI-powered platform for real-time compliance monitoring, trend analysis, and predictive risk assessment designed specifically for aviation regulatory authorities worldwide.
 
 ## 🏛️ Overview
 
-BCCS Regulator provides regulatory authorities with unprecedented oversight capabilities through:
+BCCSREG provides regulatory authorities with unprecedented oversight capabilities through:
 
 - **Real-Time Monitoring**: Live compliance tracking across hundreds of Part 142 organizations
 - **AI-Powered Analytics**: Advanced pattern recognition and trend analysis using OpenAI GPT-4o
@@ -65,7 +65,7 @@ BCCS Regulator provides regulatory authorities with unprecedented oversight capa
 
 ```bash
 # Clone repository
-cd bccsregulator
+cd bccsreg
 
 # Install dependencies
 npm install
@@ -84,7 +84,7 @@ npm run dev
 ### Environment Variables
 
 ```env
-DATABASE_URL=postgresql://username:password@localhost:5432/bccsregulator
+DATABASE_URL=postgresql://username:password@localhost:5432/bccsreg
 OPENAI_API_KEY=your_openai_api_key_here
 SESSION_SECRET=your_session_secret_here
 PORT=5001
@@ -237,10 +237,10 @@ Proprietary software. All rights reserved.
 ## 🤝 Contact
 
 For regulatory authority inquiries and technical support:
-- Email: regulator-support@bccs.app
-- Emergency: +1-800-BCCS-REG
-- Documentation: https://docs.bccs.app/regulator
+- Email: regulator-support@bccsreg.app
+- Emergency: +1-800-BCCSREG
+- Documentation: https://docs.bccsreg.app/regulator
 
 ---
 
-**BCCS Regulator** - Transforming regulatory oversight through intelligent automation and real-time compliance analytics.
+**BCCSREG** - Transforming regulatory oversight through intelligent automation and real-time compliance analytics.
