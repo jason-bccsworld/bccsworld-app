@@ -1,0 +1,234 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 220 20% 98%;
+    --foreground: 220 15% 15%;
+    --card: 0 0% 100%;
+    --card-foreground: 220 15% 15%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 15% 15%;
+    --primary: 214 84% 56%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 214 84% 56%;
+    --radius: 0.5rem;
+    
+    /* Regulatory theme colors */
+    --regulatory-blue: 214 84% 56%;
+    --regulatory-slate: 215 20% 65%;
+    --compliance-green: 142 76% 36%;
+    --warning-amber: 38 92% 50%;
+    --critical-red: 0 72% 51%;
+    --trend-purple: 262 83% 58%;
+    
+    /* Chart colors for analytics */
+    --chart-1: 12 76% 61%;
+    --chart-2: 173 58% 39%;
+    --chart-3: 197 37% 24%;
+    --chart-4: 43 74% 66%;
+    --chart-5: 27 87% 67%;
+  }
+
+  .dark {
+    --background: 224 71% 4%;
+    --foreground: 213 31% 91%;
+    --card: 224 71% 4%;
+    --card-foreground: 213 31% 91%;
+    --popover: 224 71% 4%;
+    --popover-foreground: 215 20.2% 65.1%;
+    --primary: 214 84% 56%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 215 27.9% 16.9%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 215 27.9% 16.9%;
+    --muted-foreground: 217.9 10.6% 64.9%;
+    --accent: 215 27.9% 16.9%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 63% 31%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 215 27.9% 16.9%;
+    --input: 215 27.9% 16.9%;
+    --ring: 214 84% 56%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  
+  body {
+    @apply bg-background text-foreground font-sans;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+    font-feature-settings: 'cv03', 'cv04', 'cv11';
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-semibold tracking-tight;
+  }
+}
+
+@layer components {
+  /* Regulatory-specific styles */
+  .regulatory-header {
+    @apply bg-gradient-to-r from-regulatory-blue to-regulatory-slate text-white;
+  }
+  
+  .compliance-badge {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
+  }
+  
+  .compliance-badge.high {
+    @apply bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400;
+  }
+  
+  .compliance-badge.medium {
+    @apply bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400;
+  }
+  
+  .compliance-badge.low {
+    @apply bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400;
+  }
+  
+  .risk-indicator {
+    @apply inline-block w-3 h-3 rounded-full;
+  }
+  
+  .risk-indicator.low {
+    @apply bg-green-500;
+  }
+  
+  .risk-indicator.medium {
+    @apply bg-yellow-500;
+  }
+  
+  .risk-indicator.high {
+    @apply bg-orange-500;
+  }
+  
+  .risk-indicator.critical {
+    @apply bg-red-500;
+  }
+  
+  /* Alert styles */
+  .alert-critical {
+    @apply border-red-200 bg-red-50 text-red-900 dark:border-red-800 dark:bg-red-900/10 dark:text-red-400;
+  }
+  
+  .alert-warning {
+    @apply border-yellow-200 bg-yellow-50 text-yellow-900 dark:border-yellow-800 dark:bg-yellow-900/10 dark:text-yellow-400;
+  }
+  
+  .alert-info {
+    @apply border-blue-200 bg-blue-50 text-blue-900 dark:border-blue-800 dark:bg-blue-900/10 dark:text-blue-400;
+  }
+  
+  /* Chart styles */
+  .chart-container {
+    @apply w-full h-full;
+  }
+  
+  /* Loading states */
+  .skeleton {
+    @apply animate-pulse bg-muted rounded;
+  }
+  
+  /* Regulatory dashboard specific */
+  .dashboard-grid {
+    @apply grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4;
+  }
+  
+  .metric-card {
+    @apply bg-card border rounded-lg p-6 shadow-sm;
+  }
+  
+  .trend-indicator {
+    @apply inline-flex items-center text-sm;
+  }
+  
+  .trend-up {
+    @apply text-green-600 dark:text-green-400;
+  }
+  
+  .trend-down {
+    @apply text-red-600 dark:text-red-400;
+  }
+  
+  .trend-stable {
+    @apply text-gray-600 dark:text-gray-400;
+  }
+}
+
+/* Custom scrollbar for webkit browsers */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground));
+}
+
+/* Focus styles for accessibility */
+.focus-visible:focus-visible {
+  @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+}
+
+/* Animation utilities */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.2s ease-out;
+}
+
+/* Real-time indicator */
+.live-indicator {
+  @apply relative;
+}
+
+.live-indicator::before {
+  content: '';
+  @apply absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full animate-pulse;
+}
+
+/* Status indicators */
+.status-active {
+  @apply text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900/20;
+}
+
+.status-warning {
+  @apply text-yellow-600 bg-yellow-100 dark:text-yellow-400 dark:bg-yellow-900/20;
+}
+
+.status-error {
+  @apply text-red-600 bg-red-100 dark:text-red-400 dark:bg-red-900/20;
+}
+
+.status-inactive {
+  @apply text-gray-600 bg-gray-100 dark:text-gray-400 dark:bg-gray-900/20;
+}
