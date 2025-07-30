@@ -15,7 +15,8 @@ import {
   Bell,
   ExternalLink,
   Brain,
-  Wrench
+  Wrench,
+  Plane
 } from 'lucide-react';
 
 interface DashboardLayoutProps {
@@ -24,6 +25,7 @@ interface DashboardLayoutProps {
 
 const navigationItems = [
   { path: "/dashboard", icon: BarChart3, label: "Dashboard" },
+  { path: "/aircraft-registry", icon: Plane, label: "Aircraft Registry", badge: "New" },
   { path: "/far-compliance", icon: CheckCircle, label: "FAR Compliance" },
   { path: "/ai-audit-compliance", icon: Brain, label: "Audit Assistant", badge: "AA" },
   { path: "/document-generation", icon: FileText, label: "Document Generation", badge: "New" },
@@ -51,11 +53,11 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         <div className="p-6 border-b border-slate-700 bg-blue-600 flex-shrink-0">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-white bg-opacity-20 rounded-lg">
-              <Shield size={24} className="text-white" />
+              <Plane size={24} className="text-white" />
             </div>
             <div>
-              <h1 className="text-xl font-bold">BCCS142</h1>
-              <p className="text-sm text-blue-100">Aviation Compliance</p>
+              <h1 className="text-xl font-bold">BCCS Aircraft Registry</h1>
+              <p className="text-sm text-blue-100">Tokenization Platform</p>
             </div>
           </div>
         </div>

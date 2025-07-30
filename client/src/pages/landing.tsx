@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Shield, Database, Users, FileText, CheckCircle, Clock } from "lucide-react";
-import SupportChat from "@/components/support-chat";
+import { Badge } from "@/components/ui/badge";
+import { Plane, DollarSign, Shield, TrendingUp, Users, Globe, CheckCircle, Star } from "lucide-react";
 
 export default function Landing() {
   return (
@@ -10,10 +10,15 @@ export default function Landing() {
       <nav className="bg-white shadow-sm">
         <div className="container mx-auto px-4 py-4">
           <div className="flex justify-between items-center">
-            <div className="text-2xl font-bold text-aviation-blue">
-              BCCS142
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
+                <Plane className="w-6 h-6 text-white" />
+              </div>
+              <div className="text-2xl font-bold text-blue-600">
+                BCCS Aircraft Registry
+              </div>
             </div>
-            <div className="flex gap-6">
+            <div className="flex gap-4">
               <Button 
                 variant="ghost" 
                 onClick={() => window.location.href = "/pricing"}
@@ -24,10 +29,10 @@ export default function Landing() {
                 variant="ghost"
                 onClick={() => window.location.href = "/tutorials"}
               >
-                Getting Started
+                Documentation
               </Button>
               <Button 
-                className="bg-aviation-blue hover:bg-blue-700"
+                className="bg-blue-600 hover:bg-blue-700"
                 onClick={() => window.location.href = "/api/login"}
               >
                 Sign In
@@ -38,202 +43,356 @@ export default function Landing() {
       </nav>
 
       <div className="container mx-auto px-4 py-16">
-        {/* Header */}
-        <div className="text-center mb-16">
-          <div className="flex justify-center mb-6">
-            <div className="w-16 h-16 bg-aviation-blue rounded-xl flex items-center justify-center">
-              <Shield className="w-8 h-8 text-white" />
-            </div>
-          </div>
-          <h1 className="text-4xl font-bold text-slate-900 mb-4">
-            BCCS142 - Aviation Compliance Platform
+        {/* Hero Section */}
+        <div className="text-center mb-20">
+          <Badge className="mb-6 bg-green-100 text-green-800 border-green-200">
+            Revolutionary Aviation FinTech Platform
+          </Badge>
+          <h1 className="text-5xl font-bold text-slate-900 mb-6">
+            Transform Aircraft Ownership with 
+            <span className="text-blue-600"> Blockchain Tokenization</span>
           </h1>
-          <div className="bg-green-100 border border-green-300 rounded-lg p-2 mb-4 max-w-md mx-auto">
-            <p className="text-sm text-green-700 font-medium">
-              ✅ Landing Page Active - URL: {window.location.href}
-            </p>
-            <p className="text-xs text-green-600 mt-1">
-              If this shows dashboard instead, try: {window.location.origin}/home
-            </p>
-          </div>
-          <div className="bg-aviation-blue/10 border border-aviation-blue/20 rounded-lg p-4 mb-6 max-w-md mx-auto">
-            <p className="text-sm text-aviation-blue font-medium mb-2">
-              🔐 To access the FAR Compliance system and all features:
-            </p>
-            <Button 
-              className="w-full bg-aviation-blue hover:bg-blue-700"
-              onClick={() => window.location.href = "/dashboard?t=" + Date.now()}
-            >
-              Enter BCCS142 Platform
-            </Button>
-            <p className="text-xs text-gray-500 mt-2">
-              Note: Authentication requires using the official Replit domain URL
-            </p>
-          </div>
-          <p className="text-xl text-slate-600 max-w-2xl mx-auto mb-8">
-            Efficient. Transparent. Secure. Aviation compliance tracking with AI-powered document processing.
+          <p className="text-xl text-slate-600 max-w-3xl mx-auto mb-8">
+            The world's first comprehensive aircraft registry with integrated tokenization capabilities. 
+            Register aircraft, enable fractional ownership, and unlock liquidity in the $150-300B aviation market.
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          
+          <div className="flex justify-center gap-4 mb-12">
             <Button 
-              size="lg" 
-              className="bg-aviation-blue hover:bg-blue-700 text-white px-8 py-3"
+              size="lg"
+              className="bg-blue-600 hover:bg-blue-700 px-8 py-4 text-lg"
               onClick={() => window.location.href = "/api/login"}
             >
-              Start Free Trial
+              Access Platform
             </Button>
             <Button 
-              size="lg" 
+              size="lg"
               variant="outline"
-              className="px-8 py-3"
+              className="px-8 py-4 text-lg"
               onClick={() => window.location.href = "/tutorials"}
             >
-              Learn How It Works
+              View Demo
             </Button>
           </div>
+
+          {/* Platform Stats */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-4xl mx-auto">
+            <div className="text-center">
+              <div className="text-3xl font-bold text-blue-600">$16.25B</div>
+              <div className="text-sm text-slate-600">Valuation Target</div>
+            </div>
+            <div className="text-center">
+              <div className="text-3xl font-bold text-green-600">4x</div>
+              <div className="text-sm text-slate-600">FinTech Premium</div>
+            </div>
+            <div className="text-center">
+              <div className="text-3xl font-bold text-purple-600">196</div>
+              <div className="text-sm text-slate-600">Countries Supported</div>
+            </div>
+            <div className="text-center">
+              <div className="text-3xl font-bold text-orange-600">$650M+</div>
+              <div className="text-sm text-slate-600">ARR by Year 5</div>
+            </div>
+          </div>
         </div>
 
-        {/* Features Grid */}
-        <div className="grid md:grid-cols-3 gap-8 mb-16">
-          <Card className="text-center">
-            <CardHeader>
-              <FileText className="w-12 h-12 text-aviation-blue mx-auto mb-4" />
-              <CardTitle>AI-Powered Document Processing</CardTitle>
-              <CardDescription>
-                Automated OCR and NLP extraction from training documents with confidence scoring
-              </CardDescription>
-            </CardHeader>
-          </Card>
-
-          <Card className="text-center">
-            <CardHeader>
-              <Database className="w-12 h-12 text-aviation-blue mx-auto mb-4" />
-              <CardTitle>Immutable Records</CardTitle>
-              <CardDescription>
-                Blockchain-secured training events and compliance records for complete transparency
-              </CardDescription>
-            </CardHeader>
-          </Card>
-
-          <Card className="text-center">
-            <CardHeader>
-              <Users className="w-12 h-12 text-aviation-blue mx-auto mb-4" />
-              <CardTitle>Role-Based Access</CardTitle>
-              <CardDescription>
-                Admin, Instructor, Auditor, and Viewer roles with appropriate permissions
-              </CardDescription>
-            </CardHeader>
-          </Card>
-        </div>
-
-        {/* Benefits Section */}
-        <div className="bg-white rounded-xl shadow-sm p-8 mb-16">
-          <h2 className="text-2xl font-bold text-slate-900 mb-6 text-center">
-            Why Choose BCCS?
+        {/* Core Features */}
+        <div className="mb-20">
+          <h2 className="text-3xl font-bold text-center text-slate-900 mb-12">
+            Complete Aviation Registry & Tokenization Solution
           </h2>
-          <div className="grid md:grid-cols-2 gap-6">
-            <div className="flex items-start space-x-3">
-              <CheckCircle className="w-6 h-6 text-emerald-500 mt-1" />
-              <div>
-                <h3 className="font-semibold text-slate-900">Reduce Audit Prep Time</h3>
-                <p className="text-slate-600">Automated compliance tracking and real-time status monitoring</p>
-              </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <Card className="hover:shadow-lg transition-shadow">
+              <CardHeader>
+                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
+                  <Plane className="w-6 h-6 text-blue-600" />
+                </div>
+                <CardTitle>Aircraft Registry</CardTitle>
+                <CardDescription>
+                  Comprehensive aircraft registration with real-time compliance monitoring
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ul className="space-y-2 text-sm text-slate-600">
+                  <li className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-green-600" />
+                    Complete aircraft database
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-green-600" />
+                    Automated compliance checks
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-green-600" />
+                    Insurance & lien tracking
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-green-600" />
+                    Real-time valuations
+                  </li>
+                </ul>
+              </CardContent>
+            </Card>
+
+            <Card className="hover:shadow-lg transition-shadow">
+              <CardHeader>
+                <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mb-4">
+                  <DollarSign className="w-6 h-6 text-green-600" />
+                </div>
+                <CardTitle>Fractional Tokenization</CardTitle>
+                <CardDescription>
+                  Enable fractional aircraft ownership through blockchain tokenization
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ul className="space-y-2 text-sm text-slate-600">
+                  <li className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-green-600" />
+                    Smart contract integration
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-green-600" />
+                    Accredited investor support
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-green-600" />
+                    Automated compliance
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-green-600" />
+                    Secondary market trading
+                  </li>
+                </ul>
+              </CardContent>
+            </Card>
+
+            <Card className="hover:shadow-lg transition-shadow">
+              <CardHeader>
+                <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mb-4">
+                  <TrendingUp className="w-6 h-6 text-purple-600" />
+                </div>
+                <CardTitle>Registry-as-Broker</CardTitle>
+                <CardDescription>
+                  Aviation authorities earn transaction fees as tokenization brokers
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ul className="space-y-2 text-sm text-slate-600">
+                  <li className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-green-600" />
+                    2-5% transaction fees
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-green-600" />
+                    1-2% management fees
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-green-600" />
+                    $10K-50K platform fees
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-green-600" />
+                    First-mover advantage
+                  </li>
+                </ul>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+
+        {/* Revenue Model */}
+        <div className="mb-20">
+          <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-12 text-white">
+            <div className="text-center mb-12">
+              <h2 className="text-3xl font-bold mb-4">Revolutionary Revenue Model</h2>
+              <p className="text-xl text-blue-100 max-w-3xl mx-auto">
+                Transform from traditional SaaS to financial technology powerhouse with multiple revenue streams
+              </p>
             </div>
-            <div className="flex items-start space-x-3">
-              <CheckCircle className="w-6 h-6 text-emerald-500 mt-1" />
-              <div>
-                <h3 className="font-semibold text-slate-900">Tamper-Proof Records</h3>
-                <p className="text-slate-600">Blockchain technology ensures data integrity and auditability</p>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              <div className="text-center">
+                <div className="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Globe className="w-8 h-8 text-white" />
+                </div>
+                <h3 className="text-xl font-bold mb-2">SaaS Platform</h3>
+                <p className="text-blue-100 mb-4">$25K-200K annually per registry</p>
+                <ul className="text-sm text-blue-100 space-y-1">
+                  <li>• Aircraft registration</li>
+                  <li>• Compliance monitoring</li>
+                  <li>• Analytics dashboard</li>
+                </ul>
               </div>
-            </div>
-            <div className="flex items-start space-x-3">
-              <CheckCircle className="w-6 h-6 text-emerald-500 mt-1" />
-              <div>
-                <h3 className="font-semibold text-slate-900">Smart Document Processing</h3>
-                <p className="text-slate-600">AI extracts key information from PDFs, images, and spreadsheets</p>
+              
+              <div className="text-center">
+                <div className="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <DollarSign className="w-8 h-8 text-white" />
+                </div>
+                <h3 className="text-xl font-bold mb-2">Transaction Fees</h3>
+                <p className="text-blue-100 mb-4">2-5% of tokenization volume</p>
+                <ul className="text-sm text-blue-100 space-y-1">
+                  <li>• Token offerings</li>
+                  <li>• Secondary trading</li>
+                  <li>• Transfer processing</li>
+                </ul>
               </div>
-            </div>
-            <div className="flex items-start space-x-3">
-              <CheckCircle className="w-6 h-6 text-emerald-500 mt-1" />
-              <div>
-                <h3 className="font-semibold text-slate-900">Regulatory Compliance</h3>
-                <p className="text-slate-600">Built for aviation training organizations and regulatory requirements</p>
+              
+              <div className="text-center">
+                <div className="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Users className="w-8 h-8 text-white" />
+                </div>
+                <h3 className="text-xl font-bold mb-2">Management Fees</h3>
+                <p className="text-blue-100 mb-4">1-2% annual management</p>
+                <ul className="text-sm text-blue-100 space-y-1">
+                  <li>• Portfolio management</li>
+                  <li>• Investor services</li>
+                  <li>• Compliance oversight</li>
+                </ul>
               </div>
             </div>
           </div>
         </div>
 
-        {/* User-Friendly Features */}
-        <div className="mb-16">
-          <h2 className="text-2xl font-bold text-slate-900 text-center mb-8">
-            Built for Aviation Professionals, Not IT Experts
+        {/* Market Opportunity */}
+        <div className="mb-20">
+          <h2 className="text-3xl font-bold text-center text-slate-900 mb-12">
+            Massive Market Opportunity
           </h2>
-          <div className="grid md:grid-cols-3 gap-8">
-            <Card className="text-center">
-              <CardHeader>
-                <FileText className="w-12 h-12 text-green-500 mx-auto mb-4" />
-                <CardTitle>No Technical Training Required</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-slate-600">
-                  If you can use email, you can use BCCS142. Simple interface designed for aviation professionals.
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+            <div>
+              <h3 className="text-2xl font-bold text-slate-900 mb-6">$150-300B Addressable Market</h3>
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-3 h-3 bg-blue-600 rounded-full"></div>
+                  <span className="text-slate-700">Commercial aircraft tokenization</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="w-3 h-3 bg-green-600 rounded-full"></div>
+                  <span className="text-slate-700">Private jet fractional ownership</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="w-3 h-3 bg-purple-600 rounded-full"></div>
+                  <span className="text-slate-700">Registry modernization (196 countries)</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="w-3 h-3 bg-orange-600 rounded-full"></div>
+                  <span className="text-slate-700">Aviation finance transformation</span>
+                </div>
+              </div>
+            </div>
+            
+            <Card className="p-8 bg-gradient-to-br from-green-50 to-emerald-50 border-green-200">
+              <div className="text-center">
+                <div className="text-4xl font-bold text-green-600 mb-2">15-25x</div>
+                <div className="text-lg font-medium text-green-800 mb-4">Revenue Multiplier</div>
+                <p className="text-sm text-green-700 mb-6">
+                  FinTech platforms command premium valuations vs traditional SaaS
                 </p>
-              </CardContent>
-            </Card>
-            <Card className="text-center">
-              <CardHeader>
-                <Users className="w-12 h-12 text-blue-500 mx-auto mb-4" />
-                <CardTitle>Free Personal Training</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-slate-600">
-                  Every customer gets a free 15-minute training session to ensure you're comfortable with the system.
-                </p>
-              </CardContent>
-            </Card>
-            <Card className="text-center">
-              <CardHeader>
-                <Clock className="w-12 h-12 text-purple-500 mx-auto mb-4" />
-                <CardTitle>Setup in Minutes</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-slate-600">
-                  No software installation or complex setup. Start processing documents in under 15 minutes.
-                </p>
-              </CardContent>
+                <div className="space-y-3">
+                  <div className="flex justify-between">
+                    <span className="text-sm text-green-700">Traditional SaaS:</span>
+                    <span className="font-medium text-green-800">10-15x</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-green-700">FinTech Platform:</span>
+                    <span className="font-medium text-green-800">15-25x</span>
+                  </div>
+                  <div className="border-t border-green-200 pt-3">
+                    <div className="flex justify-between">
+                      <span className="text-sm font-medium text-green-800">BCCS Valuation:</span>
+                      <span className="font-bold text-green-900">$9.75B-16.25B</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </Card>
           </div>
         </div>
 
-        {/* CTA Section */}
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-slate-900 mb-4">
-            Ready to Transform Your Compliance Process?
-          </h2>
-          <p className="text-slate-600 mb-8">
-            Join leading aviation training organizations using BCCS142 for efficient compliance management.
-            <br />
-            <strong>No technical experience required.</strong> Free training and support included.
+        {/* Call to Action */}
+        <div className="text-center bg-slate-900 rounded-2xl p-12 text-white">
+          <h2 className="text-3xl font-bold mb-4">Ready to Transform Aviation Finance?</h2>
+          <p className="text-xl text-slate-300 mb-8 max-w-2xl mx-auto">
+            Join the revolution in aircraft ownership and unlock the future of aviation finance
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          
+          <div className="flex justify-center gap-4">
             <Button 
-              size="lg" 
-              className="bg-aviation-blue hover:bg-blue-700 text-white px-8 py-3"
+              size="lg"
+              className="bg-blue-600 hover:bg-blue-700 px-8 py-4 text-lg"
               onClick={() => window.location.href = "/api/login"}
             >
-              Start Free Trial
+              Get Started Today
             </Button>
             <Button 
-              size="lg" 
+              size="lg"
               variant="outline"
-              className="px-8 py-3"
-              onClick={() => window.location.href = "/tutorials"}
+              className="px-8 py-4 text-lg border-slate-600 text-slate-300 hover:bg-slate-800"
+              onClick={() => window.location.href = "/pricing"}
             >
-              See How Easy It Is
+              View Pricing
             </Button>
+          </div>
+          
+          <div className="flex justify-center items-center gap-2 mt-8 text-sm text-slate-400">
+            <Star className="w-4 h-4 text-yellow-500 fill-current" />
+            <span>First-mover advantage in $150-300B market</span>
           </div>
         </div>
       </div>
-      <SupportChat />
+
+      {/* Footer */}
+      <footer className="bg-slate-900 text-slate-400 py-12">
+        <div className="container mx-auto px-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+            <div>
+              <div className="flex items-center gap-2 mb-4">
+                <Plane className="w-6 h-6 text-blue-500" />
+                <span className="text-lg font-bold text-white">BCCS Aircraft Registry</span>
+              </div>
+              <p className="text-sm">
+                Revolutionary blockchain-powered aircraft registry and tokenization platform
+              </p>
+            </div>
+            
+            <div>
+              <h3 className="font-medium text-white mb-4">Platform</h3>
+              <ul className="space-y-2 text-sm">
+                <li><a href="/aircraft-registry" className="hover:text-white">Aircraft Registry</a></li>
+                <li><a href="/tokenization" className="hover:text-white">Tokenization</a></li>
+                <li><a href="/compliance" className="hover:text-white">Compliance</a></li>
+                <li><a href="/analytics" className="hover:text-white">Analytics</a></li>
+              </ul>
+            </div>
+            
+            <div>
+              <h3 className="font-medium text-white mb-4">Resources</h3>
+              <ul className="space-y-2 text-sm">
+                <li><a href="/documentation" className="hover:text-white">Documentation</a></li>
+                <li><a href="/api" className="hover:text-white">API Reference</a></li>
+                <li><a href="/tutorials" className="hover:text-white">Tutorials</a></li>
+                <li><a href="/support" className="hover:text-white">Support</a></li>
+              </ul>
+            </div>
+            
+            <div>
+              <h3 className="font-medium text-white mb-4">Company</h3>
+              <ul className="space-y-2 text-sm">
+                <li><a href="/about" className="hover:text-white">About</a></li>
+                <li><a href="/contact" className="hover:text-white">Contact</a></li>
+                <li><a href="/privacy" className="hover:text-white">Privacy</a></li>
+                <li><a href="/terms" className="hover:text-white">Terms</a></li>
+              </ul>
+            </div>
+          </div>
+          
+          <div className="border-t border-slate-800 mt-8 pt-8 text-center text-sm">
+            <p>&copy; 2025 BCCS Aircraft Registry. All rights reserved.</p>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

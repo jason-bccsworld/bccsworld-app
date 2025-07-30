@@ -34,6 +34,7 @@ import DebugSidebar from "@/pages/debug-sidebar";
 import AIAuditCompliance from "@/pages/ai-audit-compliance";
 import DocumentGeneration from "@/pages/DocumentGeneration";
 import BCCSMaintDashboard from "@/pages/BCCSMaintDashboard";
+import AircraftRegistry from "@/pages/AircraftRegistry";
 import NotFound from "@/pages/not-found";
 import DashboardLayout from "@/layouts/dashboard-layout";
 import SupportChat from "@/components/support-chat";
@@ -123,6 +124,16 @@ function Router() {
         ) : (
           <DashboardLayout>
             <BCCSMaintDashboard />
+          </DashboardLayout>
+        )}
+      </Route>
+
+      <Route path="/aircraft-registry">
+        {!isAuthenticated ? (
+          <Landing />
+        ) : (
+          <DashboardLayout>
+            <AircraftRegistry />
           </DashboardLayout>
         )}
       </Route>
