@@ -163,6 +163,132 @@ export const registryAnalytics = pgTable("registry_analytics", {
   recordDate: timestamp("record_date").defaultNow(),
 });
 
+// Insurance Marketplace Tables
+export const insuranceProviders = pgTable("insurance_providers", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  companyName: varchar("company_name", { length: 200 }).notNull(),
+  licenseNumber: varchar("license_number", { length: 100 }),
+  coverageTypes: varchar("coverage_types").array().notNull(),
+  ratingScore: decimal("rating_score", { precision: 3, scale: 2 }),
+  isActive: boolean("is_active").default(true),
+  contactInfo: jsonb("contact_info"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insuranceQuotes = pgTable("insurance_quotes", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  aircraftId: uuid("aircraft_id").references(() => aircraftRegistry.id).notNull(),
+  providerId: uuid("provider_id").references(() => insuranceProviders.id).notNull(),
+  coverageType: varchar("coverage_type").notNull(),
+  coverageAmount: decimal("coverage_amount", { precision: 15, scale: 2 }).notNull(),
+  annualPremium: decimal("annual_premium", { precision: 10, scale: 2 }).notNull(),
+  deductible: decimal("deductible", { precision: 10, scale: 2 }),
+  quoteValidUntil: timestamp("quote_valid_until").notNull(),
+  quotedAt: timestamp("quoted_at").defaultNow(),
+  status: varchar("status").default("active"),
+});
+
+// Maintenance Marketplace Tables
+export const maintenanceProviders = pgTable("maintenance_providers", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  companyName: varchar("company_name", { length: 200 }).notNull(),
+  certificationNumber: varchar("certification_number", { length: 100 }),
+  serviceTypes: varchar("service_types").array().notNull(),
+  location: varchar("location", { length: 200 }),
+  ratingScore: decimal("rating_score", { precision: 3, scale: 2 }),
+  hourlyRate: decimal("hourly_rate", { precision: 8, scale: 2 }),
+  isActive: boolean("is_active").default(true),
+  contactInfo: jsonb("contact_info"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const maintenanceServices = pgTable("maintenance_services", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  aircraftId: uuid("aircraft_id").references(() => aircraftRegistry.id).notNull(),
+  providerId: uuid("provider_id").references(() => maintenanceProviders.id).notNull(),
+  serviceType: varchar("service_type").notNull(),
+  scheduledDate: timestamp("scheduled_date"),
+  completedDate: timestamp("completed_date"),
+  estimatedCost: decimal("estimated_cost", { precision: 10, scale: 2 }),
+  actualCost: decimal("actual_cost", { precision: 10, scale: 2 }),
+  status: varchar("status").default("scheduled"),
+  description: text("description"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Aviation Finance Platform Tables
+export const lenders = pgTable("lenders", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  institutionName: varchar("institution_name", { length: 200 }).notNull(),
+  lenderType: varchar("lender_type").notNull(), // bank, credit_union, private, institutional
+  minimumLoan: decimal("minimum_loan", { precision: 15, scale: 2 }),
+  maximumLoan: decimal("maximum_loan", { precision: 15, scale: 2 }),
+  interestRateRange: varchar("interest_rate_range"),
+  loanTerms: varchar("loan_terms").array(),
+  aircraftTypes: varchar("aircraft_types").array(),
+  ratingScore: decimal("rating_score", { precision: 3, scale: 2 }),
+  isActive: boolean("is_active").default(true),
+  contactInfo: jsonb("contact_info"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const financeApplications = pgTable("finance_applications", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  aircraftId: uuid("aircraft_id").references(() => aircraftRegistry.id).notNull(),
+  lenderId: uuid("lender_id").references(() => lenders.id).notNull(),
+  applicantId: varchar("applicant_id").notNull(),
+  loanAmount: decimal("loan_amount", { precision: 15, scale: 2 }).notNull(),
+  loanTerm: integer("loan_term").notNull(), // months
+  interestRate: decimal("interest_rate", { precision: 5, scale: 3 }),
+  downPayment: decimal("down_payment", { precision: 15, scale: 2 }),
+  applicationStatus: varchar("application_status").default("pending"),
+  creditScore: integer("credit_score"),
+  annualIncome: decimal("annual_income", { precision: 15, scale: 2 }),
+  appliedAt: timestamp("applied_at").defaultNow(),
+  approvedAt: timestamp("approved_at"),
+});
+
+// Data Analytics Platform Tables
+export const marketAnalytics = pgTable("market_analytics", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  analysisType: varchar("analysis_type").notNull(), // valuation, demand, pricing, trends
+  aircraftCategory: varchar("aircraft_category"),
+  manufacturer: varchar("manufacturer"),
+  model: varchar("model"),
+  metricName: varchar("metric_name").notNull(),
+  metricValue: decimal("metric_value", { precision: 15, scale: 4 }).notNull(),
+  timeframe: varchar("timeframe").notNull(),
+  confidence: decimal("confidence", { precision: 3, scale: 2 }),
+  analysisDate: timestamp("analysis_date").defaultNow(),
+  dataSource: varchar("data_source"),
+});
+
+export const subscriptionTiers = pgTable("subscription_tiers", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  tierName: varchar("tier_name", { length: 100 }).notNull(),
+  monthlyPrice: decimal("monthly_price", { precision: 10, scale: 2 }).notNull(),
+  annualPrice: decimal("annual_price", { precision: 10, scale: 2 }),
+  features: varchar("features").array().notNull(),
+  analyticsAccess: varchar("analytics_access").array(),
+  dataRetention: integer("data_retention"), // days
+  apiCallLimit: integer("api_call_limit"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const customerSubscriptions = pgTable("customer_subscriptions", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  customerId: varchar("customer_id").notNull(),
+  tierId: uuid("tier_id").references(() => subscriptionTiers.id).notNull(),
+  startDate: timestamp("start_date").defaultNow(),
+  endDate: timestamp("end_date"),
+  status: varchar("status").default("active"),
+  paymentMethod: varchar("payment_method"),
+  lastPayment: timestamp("last_payment"),
+  nextBilling: timestamp("next_billing"),
+  autoRenew: boolean("auto_renew").default(true),
+});
+
 // Relations
 export const aircraftRegistryRelations = relations(aircraftRegistry, ({ many, one }) => ({
   ownership: many(aircraftOwnership),

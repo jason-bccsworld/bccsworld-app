@@ -35,6 +35,9 @@ import AIAuditCompliance from "@/pages/ai-audit-compliance";
 import DocumentGeneration from "@/pages/DocumentGeneration";
 import BCCSMaintDashboard from "@/pages/BCCSMaintDashboard";
 import AircraftRegistry from "@/pages/AircraftRegistry";
+import InsuranceMarketplace from "@/pages/InsuranceMarketplace";
+import MaintenanceMarketplace from "@/pages/MaintenanceMarketplace";
+import FinanceMarketplace from "@/pages/FinanceMarketplace";
 import NotFound from "@/pages/not-found";
 import DashboardLayout from "@/layouts/dashboard-layout";
 import SupportChat from "@/components/support-chat";
@@ -134,6 +137,36 @@ function Router() {
         ) : (
           <DashboardLayout>
             <AircraftRegistry />
+          </DashboardLayout>
+        )}
+      </Route>
+
+      <Route path="/insurance-marketplace">
+        {!isAuthenticated ? (
+          <Landing />
+        ) : (
+          <DashboardLayout>
+            <InsuranceMarketplace />
+          </DashboardLayout>
+        )}
+      </Route>
+
+      <Route path="/maintenance-marketplace">
+        {!isAuthenticated ? (
+          <Landing />
+        ) : (
+          <DashboardLayout>
+            <MaintenanceMarketplace />
+          </DashboardLayout>
+        )}
+      </Route>
+
+      <Route path="/finance-marketplace">
+        {!isAuthenticated ? (
+          <Landing />
+        ) : (
+          <DashboardLayout>
+            <FinanceMarketplace />
           </DashboardLayout>
         )}
       </Route>
