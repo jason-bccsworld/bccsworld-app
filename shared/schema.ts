@@ -166,14 +166,50 @@ export const registryAnalytics = pgTable("registry_analytics", {
 // Audit log table for regulatory monitoring and compliance tracking
 export const auditLogs = pgTable("audit_logs", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  eventType: varchar("event_type").notNull(), // regulatory_check, link_check, compliance_alert, system_error
+  eventType: varchar("event_type").notNull(), // regulatory_check, link_check, compliance_alert, system_error, crypto_payment
   severity: varchar("severity").notNull(), // info, warning, error, critical
   message: text("message").notNull(),
   details: jsonb("details"),
-  sourceSystem: varchar("source_system"), // regulatory_monitor, link_monitor, compliance_engine
+  sourceSystem: varchar("source_system"), // regulatory_monitor, link_monitor, compliance_engine, crypto_service
   userId: varchar("user_id"),
   aircraftId: uuid("aircraft_id"),
   timestamp: timestamp("timestamp").defaultNow(),
+});
+
+// Crypto payment transactions table
+export const cryptoPayments = pgTable("crypto_payments", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  subscriptionId: uuid("subscription_id").references(() => customerSubscriptions.id).notNull(),
+  transactionHash: varchar("transaction_hash", { length: 100 }).unique(),
+  blockNumber: integer("block_number"),
+  fromAddress: varchar("from_address", { length: 50 }).notNull(),
+  toAddress: varchar("to_address", { length: 50 }).notNull(),
+  amount: decimal("amount", { precision: 18, scale: 6 }).notNull(),
+  stableCoin: varchar("stable_coin").notNull(), // USDC, USDT, DAI
+  chainId: integer("chain_id").notNull(),
+  gasUsed: integer("gas_used"),
+  gasFee: decimal("gas_fee", { precision: 18, scale: 6 }),
+  status: varchar("status").default("pending"), // pending, confirmed, failed, cancelled
+  paymentType: varchar("payment_type").notNull(), // subscription_renewal, setup_fee, upgrade
+  periodCovered: varchar("period_covered"), // 2024-01, 2024-Q1, 2024
+  confirmedAt: timestamp("confirmed_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Smart contract subscriptions management
+export const smartContracts = pgTable("smart_contracts", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  contractAddress: varchar("contract_address", { length: 50 }).notNull().unique(),
+  chainId: integer("chain_id").notNull(),
+  contractType: varchar("contract_type").notNull(), // subscription_manager, payment_processor
+  version: varchar("version").notNull(),
+  deployedAt: timestamp("deployed_at").defaultNow(),
+  isActive: boolean("is_active").default(true),
+  supportedStableCoins: varchar("supported_stable_coins").array().notNull(),
+  minimumPayment: decimal("minimum_payment", { precision: 18, scale: 6 }),
+  maximumPayment: decimal("maximum_payment", { precision: 18, scale: 6 }),
+  gasLimit: integer("gas_limit"),
+  abi: jsonb("abi"), // Contract ABI for interaction
 });
 
 // Insurance Marketplace Tables
@@ -295,11 +331,18 @@ export const customerSubscriptions = pgTable("customer_subscriptions", {
   tierId: uuid("tier_id").references(() => subscriptionTiers.id).notNull(),
   startDate: timestamp("start_date").defaultNow(),
   endDate: timestamp("end_date"),
-  status: varchar("status").default("active"),
-  paymentMethod: varchar("payment_method"),
+  status: varchar("status").default("active"), // active, paused, cancelled, expired
+  paymentMethod: varchar("payment_method"), // traditional, crypto
   lastPayment: timestamp("last_payment"),
   nextBilling: timestamp("next_billing"),
   autoRenew: boolean("auto_renew").default(true),
+  // Crypto payment fields
+  walletAddress: varchar("wallet_address"),
+  smartContractAddress: varchar("smart_contract_address"),
+  stableCoin: varchar("stable_coin"), // USDC, USDT, DAI
+  chainId: integer("chain_id"), // 1 for Ethereum, 137 for Polygon, etc.
+  allowanceAmount: decimal("allowance_amount", { precision: 18, scale: 6 }),
+  lastBlockChecked: integer("last_block_checked"),
 });
 
 // Relations
@@ -341,6 +384,9 @@ export const insertTokenOfferingSchema = createInsertSchema(tokenOfferings);
 export const insertTokenHolderSchema = createInsertSchema(tokenHolders);
 export const insertTokenTransactionSchema = createInsertSchema(tokenTransactions);
 export const insertAuditLogSchema = createInsertSchema(auditLogs);
+export const insertCryptoPaymentSchema = createInsertSchema(cryptoPayments);
+export const insertSmartContractSchema = createInsertSchema(smartContracts);
+export const insertCustomerSubscriptionSchema = createInsertSchema(customerSubscriptions);
 
 // Types
 export type User = typeof users.$inferSelect;
@@ -358,3 +404,9 @@ export type InsertTokenTransaction = z.infer<typeof insertTokenTransactionSchema
 export type ComplianceCheck = typeof complianceChecks.$inferSelect;
 export type AuditLog = typeof auditLogs.$inferSelect;
 export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
+export type CryptoPayment = typeof cryptoPayments.$inferSelect;
+export type InsertCryptoPayment = z.infer<typeof insertCryptoPaymentSchema>;
+export type SmartContract = typeof smartContracts.$inferSelect;
+export type InsertSmartContract = z.infer<typeof insertSmartContractSchema>;
+export type CustomerSubscription = typeof customerSubscriptions.$inferSelect;
+export type InsertCustomerSubscription = z.infer<typeof insertCustomerSubscriptionSchema>;

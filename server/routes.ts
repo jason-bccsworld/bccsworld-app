@@ -219,6 +219,100 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Subscription Tiers Route
+  app.get('/api/subscription-tiers', async (req, res) => {
+    try {
+      const tiers = await storage.getAllSubscriptionTiers();
+      res.json({ success: true, data: tiers });
+    } catch (error) {
+      console.error("Error fetching subscription tiers:", error);
+      res.status(500).json({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
+    }
+  });
+
+  // Crypto Subscription Routes
+  app.post('/api/crypto/subscriptions/setup', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { tierId, walletAddress, stableCoin, chainId, billingPeriod } = req.body;
+      
+      // Validate wallet address format
+      if (!/^0x[a-fA-F0-9]{40}$/.test(walletAddress)) {
+        return res.status(400).json({ success: false, error: 'Invalid wallet address format' });
+      }
+
+      // Create crypto subscription setup
+      const subscription = await storage.createCustomerSubscription({
+        customerId: userId,
+        tierId,
+        paymentMethod: 'crypto',
+        walletAddress,
+        stableCoin,
+        chainId,
+        nextBilling: new Date(Date.now() + (billingPeriod === 'monthly' ? 30 : 365) * 24 * 60 * 60 * 1000)
+      });
+
+      await storage.createAuditLog({
+        eventType: 'crypto_subscription_setup',
+        severity: 'info',
+        message: `Crypto subscription setup for user ${userId}`,
+        details: { subscriptionId: subscription.id, stableCoin, chainId },
+        sourceSystem: 'crypto_service',
+        userId
+      });
+
+      res.json({
+        success: true,
+        data: {
+          subscriptionId: subscription.id,
+          message: 'Crypto subscription setup successfully'
+        }
+      });
+    } catch (error) {
+      console.error("Crypto subscription setup error:", error);
+      res.status(400).json({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
+    }
+  });
+
+  app.get('/api/crypto/subscriptions', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const subscriptions = await storage.getCustomerSubscriptionsByUser(userId);
+      res.json({ success: true, data: subscriptions });
+    } catch (error) {
+      console.error("Get user subscriptions error:", error);
+      res.status(500).json({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
+    }
+  });
+
+  app.get('/api/crypto/config', async (req, res) => {
+    try {
+      const config = {
+        supportedChains: [
+          { id: 1, name: 'Ethereum' },
+          { id: 137, name: 'Polygon' }
+        ],
+        supportedStableCoins: ['USDC', 'USDT', 'DAI'],
+        contractAddresses: {
+          1: {
+            USDC: '0xA0b86a33E6A1B6b9eC8e3b0c8eDe8cE2E15dF9cA',
+            USDT: '0xdAC17F958D2ee523a2206206994597C13D831ec7',
+            DAI: '0x6B175474E89094C44Da98b954EedeAC495271d0F'
+          },
+          137: {
+            USDC: '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174',
+            USDT: '0xc2132D05D31c914a87C6611C10748AEb04B58e8F',
+            DAI: '0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063'
+          }
+        }
+      };
+      res.json({ success: true, data: config });
+    } catch (error) {
+      console.error("Get crypto config error:", error);
+      res.status(500).json({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

@@ -38,6 +38,7 @@ import AircraftRegistry from "@/pages/AircraftRegistry";
 import InsuranceMarketplace from "@/pages/InsuranceMarketplace";
 import MaintenanceMarketplace from "@/pages/MaintenanceMarketplace";
 import FinanceMarketplace from "@/pages/FinanceMarketplace";
+import CryptoSubscriptions from "@/pages/CryptoSubscriptions";
 import NotFound from "@/pages/not-found";
 import DashboardLayout from "@/layouts/dashboard-layout";
 import SupportChat from "@/components/support-chat";
@@ -167,6 +168,16 @@ function Router() {
         ) : (
           <DashboardLayout>
             <FinanceMarketplace />
+          </DashboardLayout>
+        )}
+      </Route>
+
+      <Route path="/crypto-subscriptions">
+        {!isAuthenticated ? (
+          <Landing />
+        ) : (
+          <DashboardLayout>
+            <CryptoSubscriptions />
           </DashboardLayout>
         )}
       </Route>

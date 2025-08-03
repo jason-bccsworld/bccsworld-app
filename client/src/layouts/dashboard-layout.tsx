@@ -31,6 +31,7 @@ const navigationItems = [
   { path: "/insurance-marketplace", icon: Shield, label: "Insurance Marketplace", badge: "New" },
   { path: "/maintenance-marketplace", icon: Wrench, label: "Maintenance Services", badge: "New" },
   { path: "/finance-marketplace", icon: CreditCard, label: "Finance Platform", badge: "New" },
+  { path: "/crypto-subscriptions", icon: DollarSign, label: "Crypto Subscriptions", badge: "New" },
   { path: "/far-compliance", icon: CheckCircle, label: "FAR Compliance" },
   { path: "/ai-audit-compliance", icon: Brain, label: "Audit Assistant", badge: "AA" },
   { path: "/document-generation", icon: FileText, label: "Document Generation", badge: "New" },

@@ -24,6 +24,15 @@ IP Strategy: Comprehensive patent strategy analysis completed identifying 8 key 
 ### Architectural Decisions and Design Patterns
 The platform is designed as a full-stack application with a clear separation of concerns between frontend and backend. It leverages modern web technologies for performance and scalability. A key design pattern is the Data Processing Pipeline, which automates the ingestion, analysis, and validation of regulatory documents. Blockchain technology is integrated for immutable record-keeping and audit trail integrity. The system also supports a mobile PWA for field operations.
 
+### Smart Contract Subscription System (August 2025)
+Implemented comprehensive cryptocurrency subscription management as a core leveraged asset strategy:
+- **Automated Renewals**: Smart contracts handle subscription renewals using stablecoin allowances (USDC, USDT, DAI)
+- **Multi-Chain Support**: Ethereum and Polygon networks for global accessibility and cost efficiency
+- **Subscription Tiers**: Basic ($99/month), Professional ($299/month), Enterprise ($999/month) with crypto payment options
+- **Real-time Monitoring**: Blockchain event monitoring for payment confirmations and subscription status
+- **Global Payment Processing**: Eliminates traditional banking friction for international customers
+- **Transparent Audit Trail**: All transactions recorded on blockchain for compliance and transparency
+
 ### Frontend Architecture
 - **Framework**: React with TypeScript
 - **Build Tool**: Vite

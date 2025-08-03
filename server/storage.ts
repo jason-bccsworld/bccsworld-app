@@ -7,6 +7,10 @@ import {
   tokenTransactions,
   complianceChecks,
   auditLogs,
+  cryptoPayments,
+  smartContracts,
+  customerSubscriptions,
+  subscriptionTiers,
   type User,
   type UpsertUser,
   type AircraftRegistry,
@@ -20,6 +24,12 @@ import {
   type ComplianceCheck,
   type AuditLog,
   type InsertAuditLog,
+  type CryptoPayment,
+  type InsertCryptoPayment,
+  type SmartContract,
+  type InsertSmartContract,
+  type CustomerSubscription,
+  type InsertCustomerSubscription,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, like, and, count, sql } from "drizzle-orm";
@@ -69,6 +79,23 @@ export interface IStorage {
   // Audit logging
   createAuditLog(auditLog: InsertAuditLog): Promise<AuditLog>;
   getAuditLogs(filters?: { eventType?: string; severity?: string; limit?: number }): Promise<AuditLog[]>;
+
+  // Crypto payments and subscriptions
+  createCryptoPayment(payment: InsertCryptoPayment): Promise<CryptoPayment>;
+  getCryptoPaymentsBySubscription(subscriptionId: string): Promise<CryptoPayment[]>;
+  updateCryptoPayment(id: string, payment: Partial<CryptoPayment>): Promise<void>;
+
+  // Smart contracts
+  createSmartContract(contract: InsertSmartContract): Promise<SmartContract>;
+  getSmartContractByChain(chainId: number): Promise<SmartContract | undefined>;
+  getSmartContractsByChain(chainId: number): Promise<SmartContract[]>;
+  updateSmartContract(id: string, contract: Partial<SmartContract>): Promise<void>;
+
+  // Customer subscriptions
+  createCustomerSubscription(subscription: InsertCustomerSubscription): Promise<CustomerSubscription>;
+  getCustomerSubscription(id: string): Promise<CustomerSubscription | undefined>;
+  updateCustomerSubscription(id: string, subscription: Partial<CustomerSubscription>): Promise<void>;
+  getSubscriptionTier(id: string): Promise<any>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -295,6 +322,101 @@ export class DatabaseStorage implements IStorage {
     }
     
     return await query;
+  }
+
+  // Crypto payments operations
+  async createCryptoPayment(paymentData: InsertCryptoPayment): Promise<CryptoPayment> {
+    const [payment] = await db.insert(cryptoPayments).values(paymentData).returning();
+    return payment;
+  }
+
+  async getCryptoPaymentsBySubscription(subscriptionId: string): Promise<CryptoPayment[]> {
+    return await db
+      .select()
+      .from(cryptoPayments)
+      .where(eq(cryptoPayments.subscriptionId, subscriptionId))
+      .orderBy(desc(cryptoPayments.createdAt));
+  }
+
+  async updateCryptoPayment(id: string, paymentData: Partial<CryptoPayment>): Promise<void> {
+    await db
+      .update(cryptoPayments)
+      .set(paymentData)
+      .where(eq(cryptoPayments.id, id));
+  }
+
+  // Smart contracts operations
+  async createSmartContract(contractData: InsertSmartContract): Promise<SmartContract> {
+    const [contract] = await db.insert(smartContracts).values(contractData).returning();
+    return contract;
+  }
+
+  async getSmartContractByChain(chainId: number): Promise<SmartContract | undefined> {
+    const [contract] = await db
+      .select()
+      .from(smartContracts)
+      .where(and(eq(smartContracts.chainId, chainId), eq(smartContracts.isActive, true)))
+      .limit(1);
+    return contract;
+  }
+
+  async getSmartContractsByChain(chainId: number): Promise<SmartContract[]> {
+    return await db
+      .select()
+      .from(smartContracts)
+      .where(and(eq(smartContracts.chainId, chainId), eq(smartContracts.isActive, true)));
+  }
+
+  async updateSmartContract(id: string, contractData: Partial<SmartContract>): Promise<void> {
+    await db
+      .update(smartContracts)
+      .set(contractData)
+      .where(eq(smartContracts.id, id));
+  }
+
+  // Customer subscriptions operations
+  async createCustomerSubscription(subscriptionData: InsertCustomerSubscription): Promise<CustomerSubscription> {
+    const [subscription] = await db.insert(customerSubscriptions).values(subscriptionData).returning();
+    return subscription;
+  }
+
+  async getCustomerSubscription(id: string): Promise<CustomerSubscription | undefined> {
+    const [subscription] = await db
+      .select()
+      .from(customerSubscriptions)
+      .where(eq(customerSubscriptions.id, id));
+    return subscription;
+  }
+
+  async updateCustomerSubscription(id: string, subscriptionData: Partial<CustomerSubscription>): Promise<void> {
+    await db
+      .update(customerSubscriptions)
+      .set(subscriptionData)
+      .where(eq(customerSubscriptions.id, id));
+  }
+
+  async getSubscriptionTier(id: string): Promise<any> {
+    const [tier] = await db
+      .select()
+      .from(subscriptionTiers)
+      .where(eq(subscriptionTiers.id, id));
+    return tier;
+  }
+
+  async getCustomerSubscriptionsByUser(userId: string): Promise<CustomerSubscription[]> {
+    return await db
+      .select()
+      .from(customerSubscriptions)
+      .where(eq(customerSubscriptions.customerId, userId))
+      .orderBy(desc(customerSubscriptions.startDate));
+  }
+
+  async getAllSubscriptionTiers(): Promise<any[]> {
+    return await db
+      .select()
+      .from(subscriptionTiers)
+      .where(eq(subscriptionTiers.isActive, true))
+      .orderBy(subscriptionTiers.monthlyPrice);
   }
 }
 
