@@ -6,6 +6,7 @@ import {
   tokenHolders,
   tokenTransactions,
   complianceChecks,
+  auditLogs,
   type User,
   type UpsertUser,
   type AircraftRegistry,
@@ -17,6 +18,8 @@ import {
   type TokenTransaction,
   type InsertTokenTransaction,
   type ComplianceCheck,
+  type AuditLog,
+  type InsertAuditLog,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, like, and, count, sql } from "drizzle-orm";
@@ -62,6 +65,10 @@ export interface IStorage {
     totalTokenVolume: number;
     activeInvestors: number;
   }>;
+
+  // Audit logging
+  createAuditLog(auditLog: InsertAuditLog): Promise<AuditLog>;
+  getAuditLogs(filters?: { eventType?: string; severity?: string; limit?: number }): Promise<AuditLog[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -256,6 +263,38 @@ export class DatabaseStorage implements IStorage {
       totalTokenVolume: Number(totalTokenVolumeResult[0]?.sum || 0),
       activeInvestors: Number(activeInvestorsResult[0]?.count || 0),
     };
+  }
+
+  // Audit logging operations
+  async createAuditLog(auditLogData: InsertAuditLog): Promise<AuditLog> {
+    const [auditLog] = await db.insert(auditLogs).values(auditLogData).returning();
+    return auditLog;
+  }
+
+  async getAuditLogs(filters?: { eventType?: string; severity?: string; limit?: number }): Promise<AuditLog[]> {
+    const conditions = [];
+    
+    if (filters?.eventType) {
+      conditions.push(eq(auditLogs.eventType, filters.eventType));
+    }
+    
+    if (filters?.severity) {
+      conditions.push(eq(auditLogs.severity, filters.severity));
+    }
+    
+    let query = db.select().from(auditLogs);
+    
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions));
+    }
+    
+    query = query.orderBy(desc(auditLogs.timestamp));
+    
+    if (filters?.limit) {
+      query = query.limit(filters.limit);
+    }
+    
+    return await query;
   }
 }
 

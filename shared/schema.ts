@@ -163,6 +163,19 @@ export const registryAnalytics = pgTable("registry_analytics", {
   recordDate: timestamp("record_date").defaultNow(),
 });
 
+// Audit log table for regulatory monitoring and compliance tracking
+export const auditLogs = pgTable("audit_logs", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  eventType: varchar("event_type").notNull(), // regulatory_check, link_check, compliance_alert, system_error
+  severity: varchar("severity").notNull(), // info, warning, error, critical
+  message: text("message").notNull(),
+  details: jsonb("details"),
+  sourceSystem: varchar("source_system"), // regulatory_monitor, link_monitor, compliance_engine
+  userId: varchar("user_id"),
+  aircraftId: uuid("aircraft_id"),
+  timestamp: timestamp("timestamp").defaultNow(),
+});
+
 // Insurance Marketplace Tables
 export const insuranceProviders = pgTable("insurance_providers", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -327,6 +340,7 @@ export const insertAircraftOwnershipSchema = createInsertSchema(aircraftOwnershi
 export const insertTokenOfferingSchema = createInsertSchema(tokenOfferings);
 export const insertTokenHolderSchema = createInsertSchema(tokenHolders);
 export const insertTokenTransactionSchema = createInsertSchema(tokenTransactions);
+export const insertAuditLogSchema = createInsertSchema(auditLogs);
 
 // Types
 export type User = typeof users.$inferSelect;
@@ -342,3 +356,5 @@ export type InsertTokenHolder = z.infer<typeof insertTokenHolderSchema>;
 export type TokenTransaction = typeof tokenTransactions.$inferSelect;
 export type InsertTokenTransaction = z.infer<typeof insertTokenTransactionSchema>;
 export type ComplianceCheck = typeof complianceChecks.$inferSelect;
+export type AuditLog = typeof auditLogs.$inferSelect;
+export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
