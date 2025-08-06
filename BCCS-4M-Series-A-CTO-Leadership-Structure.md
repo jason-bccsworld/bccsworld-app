@@ -49,12 +49,18 @@ The introduction of Universal Blockchain Key Management across our expanding app
 - Revenue milestone achievement
 - Customer satisfaction scores
 
-### ExO Staff-on-Demand Integration
-**Flexible Team Model:**
-- Authority to hire 60% contractors, 40% full-time employees
-- Global talent access for specialized blockchain expertise
-- Performance-based compensation for development team
-- Rapid scaling capability during high-growth periods
+### ExO Staff-on-Demand Global Operations
+**CTO as Operations Commander:**
+- **Application Deployment & Management**: Global team of DevOps specialists managing 4+ platforms
+- **Customer Technical Support**: 24/7 worldwide support technicians with aviation expertise
+- **Key Recovery Authority**: Specialized identity verification and blockchain recovery teams
+- **Performance-Based Scaling**: Instant team expansion during high-demand periods
+
+**Global Talent Leverage:**
+- 70% contractors, 30% core full-time team for maximum flexibility
+- Follow-the-sun support model across Americas, Europe, Asia-Pacific
+- Specialized expertise pools: blockchain engineers, aviation regulatory experts, customer success
+- Real-time scaling: 10x team size increase within 48 hours for major deployments
 
 ## Revised $4M Series A Allocation
 
