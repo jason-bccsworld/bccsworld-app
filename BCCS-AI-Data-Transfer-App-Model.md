@@ -190,4 +190,43 @@ Before app activation, pilot must digitally sign comprehensive legal agreement:
 - Integration with broader BCCS Professional Identity ecosystem
 - Enhanced professional credibility through blockchain verification
 
-This dual-revenue model creates powerful incentives for training centers to promote both the app and the blockchain transfer service, while giving pilots unprecedented control over their professional credentials. Perfect alignment of ExO principles with market demand for secure, portable professional records.
+## Affiliate Marketing System
+
+### Multi-Channel Distribution Network
+**Affiliate Partners:**
+- **Individual Pilots**: $25 commission per app sale referred
+- **Training Centers**: $45 commission per app sale + processing fee revenue
+- **Pilot Shops**: $35 commission per app sale (online and airport locations)
+- **Flight Instructors**: $30 commission per app sale referred
+- **Aviation Influencers**: $40 commission per app sale + performance bonuses
+
+### Viral Growth Mechanics
+**Network Effects:**
+- Pilots refer other pilots from their airlines/networks
+- Training centers promote to alumni and industry contacts
+- Airport pilot shops reach transient pilot traffic
+- Online aviation retailers access global pilot communities
+- Social media aviation influencers create viral content
+
+**Marketing Materials Provided:**
+- Professional marketing assets and landing pages
+- QR codes for easy referral tracking
+- Email templates and social media content
+- Video demonstrations and pilot testimonials
+- Technical specifications for aviation professionals
+
+### Revenue Amplification
+**Total Addressable Market Expansion:**
+- **Direct Sales**: Professional pilot networks and word-of-mouth
+- **Training Center Channel**: 100,000+ existing graduates
+- **Retail Channel**: 500+ pilot shops at airports nationwide
+- **Online Channel**: Major aviation e-commerce platforms
+- **Influencer Channel**: Aviation YouTube, Instagram, TikTok creators
+
+**Commission Structure Impact:**
+- 100,000 app sales × $149 = $14.9M total revenue
+- Average commission: $35 per sale = $3.5M in affiliate payments
+- **Net Revenue**: $11.4M with viral distribution achieved
+- **Cost of Customer Acquisition**: 23% (industry leading efficiency)
+
+This multi-channel affiliate system transforms every pilot, training center, and aviation business into a BCCS distribution partner, creating exponential market penetration while maintaining exceptional profit margins. Perfect ExO strategy leveraging existing aviation networks for viral growth.

@@ -62,6 +62,29 @@
 - 50% commission paid after 6 months of active subscription
 - Ongoing 10% commission for subscription renewals after year one
 
+## Affiliate Marketing Network
+
+### Multi-Channel Distribution Strategy
+**Affiliate Commission Structure:**
+- **Individual Pilots**: $25 per AI app referral
+- **Training Centers**: $45 per AI app referral + processing fees
+- **Pilot Shops** (airport/online): $35 per AI app referral
+- **Flight Instructors**: $30 per AI app referral
+- **Aviation Influencers**: $40 per AI app referral + performance bonuses
+
+**Viral Growth Potential:**
+- 500+ pilot shops at airports nationwide
+- 100+ training centers with alumni networks
+- 1,000+ individual pilot affiliates
+- 50+ aviation influencers and content creators
+- Major online aviation retailers (Sporty's, Aircraft Spruce, etc.)
+
+**Revenue Impact:**
+- Traditional sales: Limited to direct marketing reach
+- **Affiliate network**: Access to entire aviation ecosystem
+- **Customer acquisition cost**: 23% vs industry average 40-60%
+- **Viral coefficient**: Each satisfied pilot likely refers 2-3 others
+
 ## Market Dynamics and Incentives
 
 ### Training Organization Benefits
