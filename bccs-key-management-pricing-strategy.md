@@ -18,12 +18,24 @@
 
 ## Legacy Pilot Conversion Strategy
 
-### Individual Legacy Pilot Packages
-**BCCS Professional Identity Conversion**:
+### Individual Legacy Pilot Options
+
+**Option 1: BCCS AI Data Transfer App** (Self-Service)
+- **LogBook Transfer AI**: $149 one-time (3-month license)
+- **Extended License**: $49 for additional 3 months
+- **Professional Integration**: $199 for direct BCCS Professional Identity connection
+
+**Self-Service Benefits:**
+- Complete pilot control over data transfer process
+- AI-powered OCR and data extraction
+- No BCCS liability for data accuracy
+- Immediate availability, no waiting for verification
+
+**Option 2: Full-Service Conversion** (Staff-on-Demand)
 - **Standard Package**: $199 one-time setup + $19.99/month ongoing
 - **Premium Package**: $399 one-time setup + $39.99/month ongoing
 
-**Setup Includes:**
+**Full-Service Includes:**
 - Complete training history verification and blockchain migration
 - Professional key generation tied to licenses (ATP, Commercial, Private)
 - Historical logbook digitization and blockchain storage
