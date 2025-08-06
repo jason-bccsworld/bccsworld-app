@@ -42,11 +42,20 @@
 - Multi-organization training record aggregation
 - Career timeline reconstruction and verification
 
-### Training Center Commission Structure
+### Training Center Revenue Opportunities
 
-**Legacy Student Conversion Commission**: 30% of first-year subscription revenue
-- Standard Package: $199 setup + ($19.99 × 12) = $439.88 total → **$131.96 commission**
-- Premium Package: $399 setup + ($39.99 × 12) = $878.88 total → **$263.66 commission**
+**BCCS Integration Commissions:**
+- 30% commission on all pilot conversions to BCCS Professional Identity
+- $45 commission per AI Data Transfer App sale ($149 → $45)
+- $60 commission per Standard Package conversion ($199 → $60)
+- $120 commission per Premium Package conversion ($399 → $120)
+- Recurring monthly commission: 20% of ongoing subscription fees
+
+**Blockchain Record Processing Fees:**
+- $50-150 processing fee per pilot for blockchain record preparation
+- 80%+ profit margin on digital credentialing service
+- Enhanced value proposition for graduates seeking career portability
+- Competitive differentiation through blockchain professional records
 
 **Commission Payment Structure:**
 - 50% commission paid upon successful conversion and setup completion

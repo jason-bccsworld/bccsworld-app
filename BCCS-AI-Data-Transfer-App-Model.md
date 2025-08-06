@@ -23,6 +23,7 @@
 - Data formatted for BCCS blockchain storage
 - Personal key generation and secure storage
 - Multi-signature preparation for future flight entries
+- **Legacy Record Securing**: Transfer training center blockchain records to pilot private key ownership
 - Export capability for BCCS Professional Identity integration
 
 ## Legal Framework
@@ -55,6 +56,7 @@ Before app activation, pilot must digitally sign comprehensive legal agreement:
 - **Extended License**: $49 for additional 3 months
 - **Premium Support**: $99 for phone/video assistance
 - **Professional Integration**: $199 for direct BCCS Professional Identity connection
+- **Legacy Record Transfer**: $99 for securing existing training center blockchain records under pilot private key
 
 ## Revenue and Cost Analysis
 
@@ -146,8 +148,17 @@ Before app activation, pilot must digitally sign comprehensive legal agreement:
 **Seamless Pathway:**
 - App generates data compatible with BCCS Professional Identity
 - One-click export to BCCS blockchain system
+- **Legacy Record Transfer**: Training center blockchain records moved to pilot private key control
 - Automatic integration with ongoing flight logging
 - Training center commission still applies for graduates who purchase
+
+### Revolutionary Legacy Record Securing
+**From Training Center to Pilot Ownership:**
+- Training center blockchain records transferred to pilot's private key
+- Complete ownership and control of training history
+- Immutable career-portable professional records
+- Multi-organization training aggregation under single pilot identity
+- Permanent connection between pilot and training achievements
 
 ### Cross-Platform Benefits
 **Universal Data Format:**
@@ -156,4 +167,27 @@ Before app activation, pilot must digitally sign comprehensive legal agreement:
 - ATC controllers for facility and rating records
 - Standardized blockchain data format
 
-This self-service model perfectly aligns with ExO principles - maximum leverage with minimal operational overhead while creating a valuable revenue stream and user pathway into the broader BCCS ecosystem.
+## Training Center Revenue Opportunity
+
+### Blockchain Record Processing Fees
+**New Revenue Stream for Training Centers:**
+- **Processing Fee**: $50-150 per pilot for blockchain record preparation and transfer
+- **Value Proposition**: Professional blockchain credentialing service
+- **Market Positioning**: Premium service for career-serious pilots
+- **Profit Margin**: 80%+ margin on digital processing service
+
+**Training Center Benefits:**
+- Additional revenue from existing graduates
+- Enhanced value proposition for new students
+- Competitive differentiation through blockchain credentialing
+- Long-term relationship building with pilot alumni
+- Commission opportunity on BCCS app sales ($45 per $149 app)
+
+**Pilot Value Proposition:**
+- Complete ownership of training records under personal private key
+- Career-portable credentials across all future employers
+- Immutable proof of training achievements
+- Integration with broader BCCS Professional Identity ecosystem
+- Enhanced professional credibility through blockchain verification
+
+This dual-revenue model creates powerful incentives for training centers to promote both the app and the blockchain transfer service, while giving pilots unprecedented control over their professional credentials. Perfect alignment of ExO principles with market demand for secure, portable professional records.
