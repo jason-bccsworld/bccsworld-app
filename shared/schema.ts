@@ -312,6 +312,104 @@ export const marketAnalytics = pgTable("market_analytics", {
   dataSource: varchar("data_source"),
 });
 
+// Universal Blockchain Key Management System Tables
+
+// Training Organizations - Each training center gets master keys
+export const trainingOrganizations = pgTable("training_organizations", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationName: varchar("organization_name", { length: 200 }).notNull(),
+  organizationType: varchar("organization_type").notNull(), // part_142, part_141, part_121, part_135, mro, atc
+  certificateNumber: varchar("certificate_number", { length: 100 }),
+  regulatoryAuthority: varchar("regulatory_authority").notNull(), // faa, easa, transport_canada, casa
+  masterPublicKey: varchar("master_public_key", { length: 100 }).unique().notNull(),
+  keyGenerationDate: timestamp("key_generation_date").defaultNow(),
+  isActive: boolean("is_active").default(true),
+  contactInfo: jsonb("contact_info"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Professional Credentials - Individual pilots, mechanics, controllers, etc.
+export const professionalCredentials = pgTable("professional_credentials", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  credentialType: varchar("credential_type").notNull(), // pilot_license, atp, mechanic_license, controller_license
+  licenseNumber: varchar("license_number", { length: 100 }).notNull(),
+  regulatoryAuthority: varchar("regulatory_authority").notNull(), // faa, easa, transport_canada, casa
+  masterPrivateKeyHash: varchar("master_private_key_hash", { length: 100 }).unique().notNull(),
+  publicKeyDerivationPath: varchar("public_key_derivation_path", { length: 200 }),
+  holderFirstName: varchar("holder_first_name", { length: 100 }).notNull(),
+  holderLastName: varchar("holder_last_name", { length: 100 }).notNull(),
+  holderEmail: varchar("holder_email", { length: 200 }),
+  dateOfBirth: timestamp("date_of_birth"),
+  issueDate: timestamp("issue_date").notNull(),
+  expirationDate: timestamp("expiration_date"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Organization Members - Links professionals to organizations with role-based keys
+export const organizationMembers = pgTable("organization_members", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: uuid("organization_id").references(() => trainingOrganizations.id).notNull(),
+  credentialId: uuid("credential_id").references(() => professionalCredentials.id).notNull(),
+  memberRole: varchar("member_role").notNull(), // instructor, admin, compliance_officer, student
+  organizationPrivateKeyHash: varchar("organization_private_key_hash", { length: 100 }).notNull(),
+  delegatedAuthority: jsonb("delegated_authority"), // what they can sign/approve
+  startDate: timestamp("start_date").defaultNow(),
+  endDate: timestamp("end_date"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Training Records - Multi-signature blockchain records
+export const blockchainTrainingRecords = pgTable("blockchain_training_records", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  studentCredentialId: uuid("student_credential_id").references(() => professionalCredentials.id).notNull(),
+  organizationId: uuid("organization_id").references(() => trainingOrganizations.id).notNull(),
+  instructorCredentialId: uuid("instructor_credential_id").references(() => professionalCredentials.id).notNull(),
+  trainingType: varchar("training_type").notNull(), // initial, recurrent, checkride, proficiency
+  trainingDetails: jsonb("training_details").notNull(),
+  studentSignature: varchar("student_signature", { length: 200 }).notNull(),
+  instructorSignature: varchar("instructor_signature", { length: 200 }).notNull(),
+  organizationSignature: varchar("organization_signature", { length: 200 }).notNull(),
+  blockchainHash: varchar("blockchain_hash", { length: 100 }).unique().notNull(),
+  transactionHash: varchar("transaction_hash", { length: 100 }),
+  blockNumber: integer("block_number"),
+  completionDate: timestamp("completion_date").notNull(),
+  recordedAt: timestamp("recorded_at").defaultNow(),
+});
+
+// Key Recovery Requests - BCCS as recovery authority
+export const keyRecoveryRequests = pgTable("key_recovery_requests", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  credentialId: uuid("credential_id").references(() => professionalCredentials.id).notNull(),
+  requestType: varchar("request_type").notNull(), // lost_key, compromise, career_transfer
+  requestReason: text("request_reason").notNull(),
+  identityVerificationData: jsonb("identity_verification_data"), // documents, biometrics
+  employmentVerificationData: jsonb("employment_verification_data"), // current employer confirmation
+  historicalRecordMatches: jsonb("historical_record_matches"), // cross-reference validation
+  verificationStatus: varchar("verification_status").default("pending"), // pending, verified, rejected
+  requestStatus: varchar("request_status").default("pending"), // pending, processing, completed, rejected
+  newMasterPrivateKeyHash: varchar("new_master_private_key_hash", { length: 100 }),
+  recoveryCompletedAt: timestamp("recovery_completed_at"),
+  emergencyFlag: boolean("emergency_flag").default(false),
+  requestedAt: timestamp("requested_at").defaultNow(),
+  processedBy: varchar("processed_by"), // BCCS admin who handled recovery
+});
+
+// Cross-Platform Verification Log - Universal credential verification
+export const crossPlatformVerifications = pgTable("cross_platform_verifications", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  credentialId: uuid("credential_id").references(() => professionalCredentials.id).notNull(),
+  platformType: varchar("platform_type").notNull(), // bccs142, bccsmaint, bccsatc, bccsreg, bccsregistry
+  verificationPurpose: varchar("verification_purpose").notNull(), // training_entry, maintenance_sign_off, atc_certification
+  verifyingOrganizationId: uuid("verifying_organization_id").references(() => trainingOrganizations.id),
+  verificationResult: varchar("verification_result").notNull(), // verified, failed, expired
+  verificationData: jsonb("verification_data"),
+  verifiedAt: timestamp("verified_at").defaultNow(),
+});
+
 export const subscriptionTiers = pgTable("subscription_tiers", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
   tierName: varchar("tier_name", { length: 100 }).notNull(),
@@ -388,9 +486,36 @@ export const insertCryptoPaymentSchema = createInsertSchema(cryptoPayments);
 export const insertSmartContractSchema = createInsertSchema(smartContracts);
 export const insertCustomerSubscriptionSchema = createInsertSchema(customerSubscriptions);
 
+// Universal Blockchain Key Management Zod schemas
+export const insertTrainingOrganizationSchema = createInsertSchema(trainingOrganizations);
+export const insertProfessionalCredentialSchema = createInsertSchema(professionalCredentials);
+export const insertOrganizationMemberSchema = createInsertSchema(organizationMembers);
+export const insertBlockchainTrainingRecordSchema = createInsertSchema(blockchainTrainingRecords);
+export const insertKeyRecoveryRequestSchema = createInsertSchema(keyRecoveryRequests);
+export const insertCrossPlatformVerificationSchema = createInsertSchema(crossPlatformVerifications);
+
 // Types
 export type User = typeof users.$inferSelect;
 export type UpsertUser = typeof users.$inferInsert;
+
+// Universal Blockchain Key Management Types
+export type TrainingOrganization = typeof trainingOrganizations.$inferSelect;
+export type InsertTrainingOrganization = typeof trainingOrganizations.$inferInsert;
+
+export type ProfessionalCredential = typeof professionalCredentials.$inferSelect;
+export type InsertProfessionalCredential = typeof professionalCredentials.$inferInsert;
+
+export type OrganizationMember = typeof organizationMembers.$inferSelect;
+export type InsertOrganizationMember = typeof organizationMembers.$inferInsert;
+
+export type BlockchainTrainingRecord = typeof blockchainTrainingRecords.$inferSelect;
+export type InsertBlockchainTrainingRecord = typeof blockchainTrainingRecords.$inferInsert;
+
+export type KeyRecoveryRequest = typeof keyRecoveryRequests.$inferSelect;
+export type InsertKeyRecoveryRequest = typeof keyRecoveryRequests.$inferInsert;
+
+export type CrossPlatformVerification = typeof crossPlatformVerifications.$inferSelect;
+export type InsertCrossPlatformVerification = typeof crossPlatformVerifications.$inferInsert;
 export type AircraftRegistry = typeof aircraftRegistry.$inferSelect;
 export type InsertAircraftRegistry = z.infer<typeof insertAircraftRegistrySchema>;
 export type AircraftOwnership = typeof aircraftOwnership.$inferSelect;

@@ -39,6 +39,8 @@ import InsuranceMarketplace from "@/pages/InsuranceMarketplace";
 import MaintenanceMarketplace from "@/pages/MaintenanceMarketplace";
 import FinanceMarketplace from "@/pages/FinanceMarketplace";
 import CryptoSubscriptions from "@/pages/CryptoSubscriptions";
+import { KeyManagement } from "@/pages/KeyManagement";
+import { KeyManagementDashboard } from "@/pages/KeyManagementDashboard";
 import NotFound from "@/pages/not-found";
 import DashboardLayout from "@/layouts/dashboard-layout";
 import SupportChat from "@/components/support-chat";
@@ -178,6 +180,26 @@ function Router() {
         ) : (
           <DashboardLayout>
             <CryptoSubscriptions />
+          </DashboardLayout>
+        )}
+      </Route>
+
+      <Route path="/key-management">
+        {!isAuthenticated ? (
+          <Landing />
+        ) : (
+          <DashboardLayout>
+            <KeyManagement />
+          </DashboardLayout>
+        )}
+      </Route>
+
+      <Route path="/key-management-dashboard">
+        {!isAuthenticated ? (
+          <Landing />
+        ) : (
+          <DashboardLayout>
+            <KeyManagementDashboard />
           </DashboardLayout>
         )}
       </Route>

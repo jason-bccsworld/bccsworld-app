@@ -9,6 +9,7 @@ import {
   insertTokenTransactionSchema 
 } from "@shared/schema";
 import { z } from "zod";
+import { registerBlockchainKeyManagementRoutes } from "./routes/blockchain-key-management";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -312,6 +313,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
     }
   });
+
+  // Universal Blockchain Key Management Routes
+  registerBlockchainKeyManagementRoutes(app);
 
   const httpServer = createServer(app);
   return httpServer;

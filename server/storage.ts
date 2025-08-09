@@ -11,6 +11,12 @@ import {
   smartContracts,
   customerSubscriptions,
   subscriptionTiers,
+  trainingOrganizations,
+  professionalCredentials,
+  organizationMembers,
+  blockchainTrainingRecords,
+  keyRecoveryRequests,
+  crossPlatformVerifications,
   type User,
   type UpsertUser,
   type AircraftRegistry,
@@ -30,6 +36,18 @@ import {
   type InsertSmartContract,
   type CustomerSubscription,
   type InsertCustomerSubscription,
+  type TrainingOrganization,
+  type InsertTrainingOrganization,
+  type ProfessionalCredential,
+  type InsertProfessionalCredential,
+  type OrganizationMember,
+  type InsertOrganizationMember,
+  type BlockchainTrainingRecord,
+  type InsertBlockchainTrainingRecord,
+  type KeyRecoveryRequest,
+  type InsertKeyRecoveryRequest,
+  type CrossPlatformVerification,
+  type InsertCrossPlatformVerification,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, like, and, count, sql } from "drizzle-orm";
@@ -96,6 +114,28 @@ export interface IStorage {
   getCustomerSubscription(id: string): Promise<CustomerSubscription | undefined>;
   updateCustomerSubscription(id: string, subscription: Partial<CustomerSubscription>): Promise<void>;
   getSubscriptionTier(id: string): Promise<any>;
+
+  // Universal Blockchain Key Management operations
+  createTrainingOrganization(org: InsertTrainingOrganization): Promise<TrainingOrganization>;
+  getTrainingOrganization(id: string): Promise<TrainingOrganization | undefined>;
+  getTrainingOrganizationByPublicKey(publicKey: string): Promise<TrainingOrganization | undefined>;
+  
+  createProfessionalCredential(credential: InsertProfessionalCredential): Promise<ProfessionalCredential>;
+  getProfessionalCredential(id: string): Promise<ProfessionalCredential | undefined>;
+  getProfessionalCredentialByLicense(licenseNumber: string, authority: string): Promise<ProfessionalCredential | undefined>;
+  
+  createOrganizationMember(member: InsertOrganizationMember): Promise<OrganizationMember>;
+  getOrganizationMembers(organizationId: string): Promise<OrganizationMember[]>;
+  
+  createBlockchainTrainingRecord(record: InsertBlockchainTrainingRecord): Promise<BlockchainTrainingRecord>;
+  getTrainingRecordsByCredential(credentialId: string): Promise<BlockchainTrainingRecord[]>;
+  
+  createKeyRecoveryRequest(request: InsertKeyRecoveryRequest): Promise<KeyRecoveryRequest>;
+  getKeyRecoveryRequest(id: string): Promise<KeyRecoveryRequest | undefined>;
+  updateKeyRecoveryRequest(id: string, updates: Partial<KeyRecoveryRequest>): Promise<void>;
+  
+  createCrossPlatformVerification(verification: InsertCrossPlatformVerification): Promise<CrossPlatformVerification>;
+  getVerificationHistory(credentialId: string): Promise<CrossPlatformVerification[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -417,6 +457,91 @@ export class DatabaseStorage implements IStorage {
       .from(subscriptionTiers)
       .where(eq(subscriptionTiers.isActive, true))
       .orderBy(subscriptionTiers.monthlyPrice);
+  }
+
+  // Universal Blockchain Key Management implementations
+  async createTrainingOrganization(orgData: InsertTrainingOrganization): Promise<TrainingOrganization> {
+    const [organization] = await db.insert(trainingOrganizations).values(orgData).returning();
+    return organization;
+  }
+
+  async getTrainingOrganization(id: string): Promise<TrainingOrganization | undefined> {
+    const [organization] = await db.select().from(trainingOrganizations).where(eq(trainingOrganizations.id, id));
+    return organization;
+  }
+
+  async getTrainingOrganizationByPublicKey(publicKey: string): Promise<TrainingOrganization | undefined> {
+    const [organization] = await db.select().from(trainingOrganizations).where(eq(trainingOrganizations.masterPublicKey, publicKey));
+    return organization;
+  }
+
+  async createProfessionalCredential(credentialData: InsertProfessionalCredential): Promise<ProfessionalCredential> {
+    const [credential] = await db.insert(professionalCredentials).values(credentialData).returning();
+    return credential;
+  }
+
+  async getProfessionalCredential(id: string): Promise<ProfessionalCredential | undefined> {
+    const [credential] = await db.select().from(professionalCredentials).where(eq(professionalCredentials.id, id));
+    return credential;
+  }
+
+  async getProfessionalCredentialByLicense(licenseNumber: string, authority: string): Promise<ProfessionalCredential | undefined> {
+    const [credential] = await db.select().from(professionalCredentials)
+      .where(and(
+        eq(professionalCredentials.licenseNumber, licenseNumber),
+        eq(professionalCredentials.regulatoryAuthority, authority)
+      ));
+    return credential;
+  }
+
+  async createOrganizationMember(memberData: InsertOrganizationMember): Promise<OrganizationMember> {
+    const [member] = await db.insert(organizationMembers).values(memberData).returning();
+    return member;
+  }
+
+  async getOrganizationMembers(organizationId: string): Promise<OrganizationMember[]> {
+    return await db.select().from(organizationMembers)
+      .where(and(
+        eq(organizationMembers.organizationId, organizationId),
+        eq(organizationMembers.isActive, true)
+      ))
+      .orderBy(organizationMembers.startDate);
+  }
+
+  async createBlockchainTrainingRecord(recordData: InsertBlockchainTrainingRecord): Promise<BlockchainTrainingRecord> {
+    const [record] = await db.insert(blockchainTrainingRecords).values(recordData).returning();
+    return record;
+  }
+
+  async getTrainingRecordsByCredential(credentialId: string): Promise<BlockchainTrainingRecord[]> {
+    return await db.select().from(blockchainTrainingRecords)
+      .where(eq(blockchainTrainingRecords.studentCredentialId, credentialId))
+      .orderBy(desc(blockchainTrainingRecords.completionDate));
+  }
+
+  async createKeyRecoveryRequest(requestData: InsertKeyRecoveryRequest): Promise<KeyRecoveryRequest> {
+    const [request] = await db.insert(keyRecoveryRequests).values(requestData).returning();
+    return request;
+  }
+
+  async getKeyRecoveryRequest(id: string): Promise<KeyRecoveryRequest | undefined> {
+    const [request] = await db.select().from(keyRecoveryRequests).where(eq(keyRecoveryRequests.id, id));
+    return request;
+  }
+
+  async updateKeyRecoveryRequest(id: string, updates: Partial<KeyRecoveryRequest>): Promise<void> {
+    await db.update(keyRecoveryRequests).set(updates).where(eq(keyRecoveryRequests.id, id));
+  }
+
+  async createCrossPlatformVerification(verificationData: InsertCrossPlatformVerification): Promise<CrossPlatformVerification> {
+    const [verification] = await db.insert(crossPlatformVerifications).values(verificationData).returning();
+    return verification;
+  }
+
+  async getVerificationHistory(credentialId: string): Promise<CrossPlatformVerification[]> {
+    return await db.select().from(crossPlatformVerifications)
+      .where(eq(crossPlatformVerifications.credentialId, credentialId))
+      .orderBy(desc(crossPlatformVerifications.verifiedAt));
   }
 }
 
