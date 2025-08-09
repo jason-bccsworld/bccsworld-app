@@ -18,7 +18,8 @@ import {
   Wrench,
   Plane,
   DollarSign,
-  CreditCard
+  CreditCard,
+  Lock
 } from 'lucide-react';
 
 interface DashboardLayoutProps {
@@ -33,6 +34,7 @@ const navigationItems = [
   { path: "/finance-marketplace", icon: CreditCard, label: "Finance Platform", badge: "New" },
   { path: "/crypto-subscriptions", icon: DollarSign, label: "Crypto Subscriptions", badge: "New" },
   { path: "/key-management", icon: Shield, label: "Key Management", badge: "New" },
+  { path: "/advanced-key-recovery", icon: Lock, label: "Key Recovery", badge: "New" },
   { path: "/far-compliance", icon: CheckCircle, label: "FAR Compliance" },
   { path: "/ai-audit-compliance", icon: Brain, label: "Audit Assistant", badge: "AA" },
   { path: "/document-generation", icon: FileText, label: "Document Generation", badge: "New" },

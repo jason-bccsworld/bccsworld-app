@@ -316,6 +316,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Universal Blockchain Key Management Routes
   registerBlockchainKeyManagementRoutes(app);
+  
+  // Advanced Key Recovery Routes
+  const { registerAdvancedKeyRecoveryRoutes } = await import('./routes/advanced-key-recovery');
+  registerAdvancedKeyRecoveryRoutes(app);
 
   const httpServer = createServer(app);
   return httpServer;

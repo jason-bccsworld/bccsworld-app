@@ -41,6 +41,7 @@ import FinanceMarketplace from "@/pages/FinanceMarketplace";
 import CryptoSubscriptions from "@/pages/CryptoSubscriptions";
 import { KeyManagement } from "@/pages/KeyManagement";
 import { KeyManagementDashboard } from "@/pages/KeyManagementDashboard";
+import { AdvancedKeyRecovery } from "@/pages/AdvancedKeyRecovery";
 import NotFound from "@/pages/not-found";
 import DashboardLayout from "@/layouts/dashboard-layout";
 import SupportChat from "@/components/support-chat";
@@ -200,6 +201,16 @@ function Router() {
         ) : (
           <DashboardLayout>
             <KeyManagementDashboard />
+          </DashboardLayout>
+        )}
+      </Route>
+
+      <Route path="/advanced-key-recovery">
+        {!isAuthenticated ? (
+          <Landing />
+        ) : (
+          <DashboardLayout>
+            <AdvancedKeyRecovery />
           </DashboardLayout>
         )}
       </Route>
