@@ -43,6 +43,7 @@ import { KeyManagement } from "@/pages/KeyManagement";
 import { KeyManagementDashboard } from "@/pages/KeyManagementDashboard";
 import { AdvancedKeyRecovery } from "@/pages/AdvancedKeyRecovery";
 import LegacyDataTransfer from "@/pages/LegacyDataTransfer";
+import MultiPlatformIntegration from "@/pages/MultiPlatformIntegration";
 import NotFound from "@/pages/not-found";
 import DashboardLayout from "@/layouts/dashboard-layout";
 import SupportChat from "@/components/support-chat";
@@ -222,6 +223,16 @@ function Router() {
         ) : (
           <DashboardLayout>
             <LegacyDataTransfer />
+          </DashboardLayout>
+        )}
+      </Route>
+
+      <Route path="/multi-platform-integration">
+        {!isAuthenticated ? (
+          <Landing />
+        ) : (
+          <DashboardLayout>
+            <MultiPlatformIntegration />
           </DashboardLayout>
         )}
       </Route>

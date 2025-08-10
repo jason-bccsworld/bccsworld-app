@@ -325,6 +325,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Legacy Data Transfer Routes
   app.use('/api/legacy-data-transfer', legacyDataTransferRoutes);
 
+  // Multi-Platform Integration Routes
+  const multiPlatformIntegrationRoutes = await import('./routes/multi-platform-integration');
+  app.use('/api/multi-platform-integration', multiPlatformIntegrationRoutes.default);
+
   const httpServer = createServer(app);
   return httpServer;
 }
