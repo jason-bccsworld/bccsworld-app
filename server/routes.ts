@@ -10,6 +10,7 @@ import {
 } from "@shared/schema";
 import { z } from "zod";
 import { registerBlockchainKeyManagementRoutes } from "./routes/blockchain-key-management";
+import legacyDataTransferRoutes from "./routes/legacy-data-transfer";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -320,6 +321,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Advanced Key Recovery Routes
   const { registerAdvancedKeyRecoveryRoutes } = await import('./routes/advanced-key-recovery');
   registerAdvancedKeyRecoveryRoutes(app);
+
+  // Legacy Data Transfer Routes
+  app.use('/api/legacy-data-transfer', legacyDataTransferRoutes);
 
   const httpServer = createServer(app);
   return httpServer;

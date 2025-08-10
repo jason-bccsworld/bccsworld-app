@@ -19,7 +19,8 @@ import {
   Plane,
   DollarSign,
   CreditCard,
-  Lock
+  Lock,
+  Database
 } from 'lucide-react';
 
 interface DashboardLayoutProps {
@@ -35,6 +36,7 @@ const navigationItems = [
   { path: "/crypto-subscriptions", icon: DollarSign, label: "Crypto Subscriptions", badge: "New" },
   { path: "/key-management", icon: Shield, label: "Key Management", badge: "New" },
   { path: "/advanced-key-recovery", icon: Lock, label: "Key Recovery", badge: "New" },
+  { path: "/legacy-data-transfer", icon: Database, label: "AI Data Transfer", badge: "$149" },
   { path: "/far-compliance", icon: CheckCircle, label: "FAR Compliance" },
   { path: "/ai-audit-compliance", icon: Brain, label: "Audit Assistant", badge: "AA" },
   { path: "/document-generation", icon: FileText, label: "Document Generation", badge: "New" },

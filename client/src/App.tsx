@@ -42,6 +42,7 @@ import CryptoSubscriptions from "@/pages/CryptoSubscriptions";
 import { KeyManagement } from "@/pages/KeyManagement";
 import { KeyManagementDashboard } from "@/pages/KeyManagementDashboard";
 import { AdvancedKeyRecovery } from "@/pages/AdvancedKeyRecovery";
+import LegacyDataTransfer from "@/pages/LegacyDataTransfer";
 import NotFound from "@/pages/not-found";
 import DashboardLayout from "@/layouts/dashboard-layout";
 import SupportChat from "@/components/support-chat";
@@ -211,6 +212,16 @@ function Router() {
         ) : (
           <DashboardLayout>
             <AdvancedKeyRecovery />
+          </DashboardLayout>
+        )}
+      </Route>
+
+      <Route path="/legacy-data-transfer">
+        {!isAuthenticated ? (
+          <Landing />
+        ) : (
+          <DashboardLayout>
+            <LegacyDataTransfer />
           </DashboardLayout>
         )}
       </Route>
