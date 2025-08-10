@@ -3,14 +3,14 @@
 
 **Location:** Remote-First Global Position  
 **Compensation:** $380K-650K annually (5-year total: $2.48M)  
-**Equity:** Optional performance-based pool (5-8%) if $6.5B market cap achieved  
+**Structure:** Guaranteed market-rate+ compensation, performance bonuses  
 **Start Date:** Immediate  
 
 ---
 
 ## Company Overview
 
-BCCS is revolutionizing aviation compliance through blockchain-secured professional credential management and AI-powered regulatory monitoring. We're building the universal standard for aviation training compliance, targeting $354M Year 5 revenue and $6.5B market cap through revenue-based financing that maintains 100% founder equity.
+BCCS is revolutionizing aviation compliance through blockchain-secured professional credential management and AI-powered regulatory monitoring. We're building the universal standard for aviation training compliance, targeting $354M Year 5 revenue and $6.5B market cap through revenue-based financing.
 
 **Strategic Vision:** Aviation-first domination (Years 1-5) expanding to universal compliance platform across healthcare, financial services, manufacturing, maritime, construction, and retail inventory management.
 
@@ -20,7 +20,7 @@ BCCS is revolutionizing aviation compliance through blockchain-secured professio
 
 The CTO/COO role combines strategic technology leadership with operational excellence, managing global expansion from US launch through international markets. You'll oversee a $3.13M customer tech support network, lead beta testing programs with 50-500 training centers and up to 50,000 pilots, and ensure 99.5%+ deployment success across diverse technological environments.
 
-**Unique Opportunity:** Lead revolutionary blockchain credential management technology with proven revenue model, guaranteed market-rate compensation, and optional equity upside without traditional startup equity risks.
+**Unique Opportunity:** Lead revolutionary blockchain credential management technology with proven revenue model and guaranteed market-rate+ compensation with significant performance bonuses.
 
 ---
 
@@ -118,13 +118,8 @@ The CTO/COO role combines strategic technology leadership with operational excel
 ### Guaranteed Compensation
 - **Base Salary:** $380K-650K annually (market-rate+)
 - **5-Year Total:** $2.48M guaranteed compensation
-- **Performance Bonuses:** Additional 10-20% based on KPI achievement
+- **Performance Bonuses:** Additional 15-25% based on KPI achievement
 - **Benefits:** Full health, dental, vision, 401k matching
-
-### Optional Equity Upside
-- **Performance-Based Pool:** 5-8% equity if $6.5B market cap achieved
-- **No Equity Required:** Guaranteed compensation ensures financial security
-- **Upside Participation:** Share in success without traditional startup risks
 
 ### Investment in Your Success
 - **$3.13M Customer Tech Support Network** budget under your management
@@ -139,7 +134,7 @@ The CTO/COO role combines strategic technology leadership with operational excel
 ### Competitive Advantages
 - **Proven Revenue Model:** $4.79M Year 1 with break-even Month 10
 - **Market Leadership:** First-mover advantage in aviation blockchain compliance
-- **Financial Security:** Revenue-based financing eliminates traditional startup risks
+- **Financial Security:** Guaranteed market-rate+ compensation with substantial performance bonuses
 - **Global Impact:** Revolutionary technology affecting millions of aviation professionals
 
 ### Career Growth
@@ -152,7 +147,7 @@ The CTO/COO role combines strategic technology leadership with operational excel
 - **Aviation Safety:** Improve compliance accuracy and professional credential integrity
 - **Global Standardization:** Create universal professional identity management
 - **Technology Innovation:** Advance blockchain applications in regulated industries
-- **Economic Impact:** Generate $354M+ revenue while maintaining founder equity
+- **Economic Impact:** Generate $354M+ revenue through revolutionary technology
 
 ---
 
