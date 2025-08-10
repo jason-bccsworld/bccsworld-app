@@ -169,10 +169,16 @@ export default function LegacyDataTransfer() {
   return (
     <div className="max-w-6xl mx-auto p-6">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold">AI-Powered Legacy Data Transfer</h1>
+        <h1 className="text-3xl font-bold">BCCS Pilot Logbook - Legacy Data Transfer</h1>
         <p className="text-muted-foreground mt-2">
-          Transform your legacy aviation records into BCCS blockchain-verified digital format
+          Secure your pilot career records forever. Transform your paper logbooks and legacy flight data into blockchain-verified, career-portable digital format.
         </p>
+        <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <p className="text-blue-800 text-sm">
+            <strong>For Individual Pilots:</strong> Protect decades of flight experience with military-grade blockchain verification. 
+            Your logbook data becomes permanently verifiable and portable across airlines, training centers, and regulatory authorities worldwide.
+          </p>
+        </div>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -205,10 +211,11 @@ export default function LegacyDataTransfer() {
                       name="organizationName"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Organization Name</FormLabel>
+                          <FormLabel>Pilot Name / Organization</FormLabel>
                           <FormControl>
-                            <Input placeholder="e.g., Skyward Flight Training" {...field} />
+                            <Input placeholder="e.g., Captain John Smith" {...field} />
                           </FormControl>
+                          <FormDescription>Your name or current airline/organization</FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -219,10 +226,11 @@ export default function LegacyDataTransfer() {
                       name="contactEmail"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Contact Email</FormLabel>
+                          <FormLabel>Pilot Email</FormLabel>
                           <FormControl>
-                            <Input type="email" placeholder="admin@organization.com" {...field} />
+                            <Input type="email" placeholder="pilot@email.com" {...field} />
                           </FormControl>
+                          <FormDescription>Where to send your blockchain verification certificate</FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -244,11 +252,10 @@ export default function LegacyDataTransfer() {
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              <SelectItem value="pilot_logbooks">Pilot Logbooks</SelectItem>
-                              <SelectItem value="training_records">Training Records</SelectItem>
-                              <SelectItem value="maintenance_logs">Maintenance Logs</SelectItem>
-                              <SelectItem value="regulatory_documents">Regulatory Documents</SelectItem>
-                              <SelectItem value="mixed_aviation_data">Mixed Aviation Data</SelectItem>
+                              <SelectItem value="pilot_logbooks">Personal Pilot Logbooks</SelectItem>
+                              <SelectItem value="training_records">Training Certificates & Records</SelectItem>
+                              <SelectItem value="regulatory_documents">Licenses & Medical Certificates</SelectItem>
+                              <SelectItem value="mixed_aviation_data">Complete Pilot Career Records</SelectItem>
                             </SelectContent>
                           </Select>
                           <FormMessage />
@@ -261,11 +268,11 @@ export default function LegacyDataTransfer() {
                       name="estimatedRecords"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Estimated Records</FormLabel>
+                          <FormLabel>Flight Hours / Records</FormLabel>
                           <FormControl>
-                            <Input placeholder="e.g., 1500" {...field} />
+                            <Input placeholder="e.g., 1500 hours or 350 entries" {...field} />
                           </FormControl>
-                          <FormDescription>Approximate number of records/entries</FormDescription>
+                          <FormDescription>Total flight hours or logbook entries to transfer</FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -300,14 +307,14 @@ export default function LegacyDataTransfer() {
                     name="legacySystemType"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Legacy System Type</FormLabel>
+                        <FormLabel>Current Logbook Format</FormLabel>
                         <FormControl>
                           <Input 
-                            placeholder="e.g., Paper logbooks, Excel spreadsheets, PDF documents, Legacy training software" 
+                            placeholder="e.g., Paper logbooks, Jeppesen logbooks, ForeFlight logbooks, LogTen Pro, Excel spreadsheets" 
                             {...field} 
                           />
                         </FormControl>
-                        <FormDescription>Describe your current data format</FormDescription>
+                        <FormDescription>What format are your flight records currently in?</FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -325,13 +332,13 @@ export default function LegacyDataTransfer() {
                               <Upload className="mx-auto h-12 w-12 text-gray-400" />
                               <div className="mt-4">
                                 <Textarea
-                                  placeholder="In production, this would be a drag-and-drop file upload interface supporting PDF, images, Excel, Word documents, etc."
+                                  placeholder="Upload your logbook pages, certificates, and flight records. In production, this supports drag-and-drop for photos of logbook pages, scanned PDFs, ForeFlight exports, etc."
                                   className="min-h-[100px]"
                                   {...field}
                                 />
                               </div>
                               <p className="mt-2 text-sm text-gray-500">
-                                Supported formats: PDF, JPG, PNG, DOC, DOCX, XLS, XLSX (Max 100MB per file)
+                                Supported: Logbook photos (JPG/PNG), ForeFlight exports (PDF), Excel logbooks (XLS/XLSX), scanned documents (Max 100MB per file)
                               </p>
                             </div>
                           </div>
@@ -349,11 +356,12 @@ export default function LegacyDataTransfer() {
                         <FormLabel>Special Instructions (Optional)</FormLabel>
                         <FormControl>
                           <Textarea 
-                            placeholder="Any specific requirements, data field mapping, or processing instructions..."
+                            placeholder="e.g., 'Include instructor endorsements', 'Focus on turbine time', 'Military flight records included', 'International flights need ICAO airports'..."
                             className="min-h-[80px]"
                             {...field} 
                           />
                         </FormControl>
+                        <FormDescription>Any specific details about your flight records that will help our AI process them accurately</FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -381,7 +389,7 @@ export default function LegacyDataTransfer() {
                 AI Processing Configuration
               </CardTitle>
               <CardDescription>
-                Configure how our AI system processes your legacy data
+                Configure how our AI system processes your flight records for blockchain verification
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -748,7 +756,7 @@ export default function LegacyDataTransfer() {
                   <Alert>
                     <CheckCircle className="h-4 w-4" />
                     <AlertDescription>
-                      Your legacy data has been successfully converted to BCCS format with blockchain verification.
+                      Your pilot logbook data has been successfully secured with blockchain verification. Your flight records are now career-portable and permanently verifiable by any airline or training organization worldwide.
                     </AlertDescription>
                   </Alert>
 
