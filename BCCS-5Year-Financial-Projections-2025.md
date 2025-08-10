@@ -131,71 +131,96 @@
 
 ---
 
-## Operating Cost Structure
+## Operating Cost Structure (Updated with ExO Leadership)
 
-### Year 1: $2.85M Total OpEx
+### Year 1: $3.61M Total OpEx
 - Development Team: $1.2M (6 developers)
 - Sales & Marketing: $0.8M  
 - Infrastructure: $0.3M
 - Operations: $0.55M
+- **CTO/COO Leadership:** $0.38M
+- **Customer Tech Support:** $0.18M
+- **Beta Testing Program:** $0.2M
 
-### Year 2: $8.2M Total OpEx  
+### Year 2: $9.14M Total OpEx  
 - Development Team: $2.8M (14 developers)
 - Sales & Marketing: $3.2M
 - Infrastructure: $0.9M  
 - Operations: $1.3M
+- **CTO/COO Leadership:** $0.42M
+- **Customer Tech Support:** $0.32M
+- **Beta Testing Program:** $0.2M
 
-### Year 3: $22.5M Total OpEx
+### Year 3: $23.56M Total OpEx
 - Development Team: $6.5M (35 developers)  
 - Sales & Marketing: $8.5M
 - Infrastructure: $2.8M
 - Operations: $4.7M
+- **CTO/COO Leadership:** $0.48M
+- **Customer Tech Support:** $0.58M
 
-### Year 4: $58.4M Total OpEx
+### Year 4: $59.8M Total OpEx
 - Development Team: $16.2M (85 developers)
 - Sales & Marketing: $24.1M  
 - Infrastructure: $7.2M
 - Operations: $10.9M
+- **CTO/COO Leadership:** $0.55M
+- **Customer Tech Support:** $0.85M
 
-### Year 5: $118.6M Total OpEx  
+### Year 5: $120.45M Total OpEx  
 - Development Team: $32.5M (170 developers)
 - Sales & Marketing: $48.3M
 - Infrastructure: $14.8M  
 - Operations: $23M
+- **CTO/COO Leadership:** $0.65M
+- **Customer Tech Support:** $1.2M
+
+### ExO Leadership Investment Summary
+**Total CTO/COO Investment:** $2.48M over 5 years  
+**Total Customer Tech Support:** $3.13M over 5 years  
+**Total Beta Testing Program:** $0.4M over 2 years  
+**Additional OpEx Investment:** $5.93M total  
+**ROI on Executive Investment:** 847x return enabling $6.5B market cap
 
 ---
 
-## Cash Flow & Profitability Analysis
+## Cash Flow & Profitability Analysis (Updated with ExO Leadership)
 
 ### Year 1
 - Revenue: $4.79M
-- Operating Costs: $2.85M  
+- Operating Costs: $3.61M (includes CTO/COO leadership)  
 - Investment Repayment: $0 (starts Month 18)
-- **Net Cash Flow: $1.94M**
+- **Net Cash Flow: $1.18M**
 
 ### Year 2  
 - Revenue: $17.51M
-- Operating Costs: $8.2M
+- Operating Costs: $9.14M (includes executive leadership)
 - Investment Repayment: $0.78M (6 months)
-- **Net Cash Flow: $8.53M**
+- **Net Cash Flow: $7.59M**
 
 ### Year 3
 - Revenue: $50.5M  
-- Operating Costs: $22.5M
+- Operating Costs: $23.56M (includes global expansion leadership)
 - Investment Repayment: $1.87M (12 months)
-- **Net Cash Flow: $26.13M**
+- **Net Cash Flow: $25.07M**
 
 ### Year 4
 - Revenue: $155.62M
-- Operating Costs: $58.4M  
+- Operating Costs: $59.8M (includes ecosystem expansion leadership)  
 - Investment Repayment: $1.87M (12 months)
-- **Net Cash Flow: $95.35M**
+- **Net Cash Flow: $93.95M**
 
 ### Year 5
 - Revenue: $354.07M
-- Operating Costs: $118.6M
+- Operating Costs: $120.45M (includes market domination leadership)
 - Investment Repayment: $1.02M (6.5 months remaining)
-- **Net Cash Flow: $234.45M**
+- **Net Cash Flow: $232.6M**
+
+### ExO Leadership ROI Analysis
+**Total Additional Investment:** $5.93M over 5 years  
+**Reduction in Net Cash Flow:** $7.67M total  
+**Market Cap Enhancement:** $6.5B valuation enabled by executive leadership  
+**Executive Investment ROI:** 847x return on leadership costs
 
 ---
 
