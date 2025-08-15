@@ -9,20 +9,21 @@
 
 ## Monthly Payment Calculations
 
-### Year 1 (Months 1-12)
-**Monthly Revenue:** $666,667  
-**Payment (18%):** $120,000  
-**Annual Payments:** $1,440,000  
-**Remaining Balance:** $5,600,000 - $1,440,000 = $4,160,000
+### Months 1-18: No Payments (Grace Period)
+**Debt Service Begins:** Month 19 as originally planned  
+**Remaining Balance:** $5,600,000 (no payments made yet)
 
-### Year 2 (Months 13-24) 
+### Months 19-24 (Year 2)
 **Monthly Revenue:** $3,167,000  
 **Payment (18%):** $570,060  
-**Annual Payments:** $6,840,720  
+**Payments in Year 2:** 6 months × $570,060 = $3,420,360  
+**Remaining Balance:** $5,600,000 - $3,420,360 = $2,179,640
 
-**Balance Check:** $4,160,000 remaining at start of Year 2  
-**Payoff Month:** Month 20 (July Year 2)  
-**Final Payment:** $4,160,000 ÷ $570,060 = 7.3 months into Year 2
+### Months 25-30 (Year 3 start)
+**Monthly Revenue:** $10,833,000  
+**Payment (18%):** $1,950,000  
+**Payoff Month:** Month 26 (February Year 3)  
+**Final Payment:** $2,179,640 ÷ $1,950,000 = 1.1 months into Year 3
 
 ---
 
@@ -32,35 +33,30 @@
 
 | Period | Monthly Revenue | 18% Payment | Cumulative Paid | Balance Remaining |
 |--------|----------------|-------------|-----------------|-------------------|
-| **Year 1** | | | | |
-| Months 1-12 | $666,667 | $120,000 | $1,440,000 | $4,160,000 |
-| **Year 2** | | | | |
-| Month 13 | $3,167,000 | $570,060 | $2,010,060 | $3,589,940 |
-| Month 14 | $3,167,000 | $570,060 | $2,580,120 | $3,019,880 |
-| Month 15 | $3,167,000 | $570,060 | $3,150,180 | $2,449,820 |
-| Month 16 | $3,167,000 | $570,060 | $3,720,240 | $1,879,760 |
-| Month 17 | $3,167,000 | $570,060 | $4,290,300 | $1,309,700 |
-| Month 18 | $3,167,000 | $570,060 | $4,860,360 | $739,640 |
-| Month 19 | $3,167,000 | $570,060 | $5,430,420 | $169,580 |
-| **Month 20** | $3,167,000 | **$169,580** | **$5,600,000** | **$0** |
+| **Months 1-18** | | | | |
+| Grace Period | Various | $0 | $0 | $5,600,000 |
+| **Year 2 (Months 19-24)** | | | | |
+| Month 19 | $3,167,000 | $570,060 | $570,060 | $5,029,940 |
+| Month 20 | $3,167,000 | $570,060 | $1,140,120 | $4,459,880 |
+| Month 21 | $3,167,000 | $570,060 | $1,710,180 | $3,889,820 |
+| Month 22 | $3,167,000 | $570,060 | $2,280,240 | $3,319,760 |
+| Month 23 | $3,167,000 | $570,060 | $2,850,300 | $2,749,700 |
+| Month 24 | $3,167,000 | $570,060 | $3,420,360 | $2,179,640 |
+| **Year 3 (Months 25+)** | | | | |
+| Month 25 | $10,833,000 | $1,950,000 | $5,370,360 | $229,640 |
+| **Month 26** | $10,833,000 | **$229,640** | **$5,600,000** | **$0** |
 
-**DEBT COMPLETELY PAID OFF: Month 20 (August Year 2)**
+**DEBT COMPLETELY PAID OFF: Month 26 (February Year 3)**
 
 ---
 
 ## Cash Flow Analysis After Debt Payoff
 
-### Year 2 (Months 21-24) - Debt Free
-**Monthly Revenue:** $3,167,000  
-**No Debt Payments:** $0  
-**Additional Monthly Cash Flow:** $570,060  
-**Additional Annual Cash Flow:** $2,280,240 (4 months)
-
-### Year 3 - Completely Debt Free
+### Year 3 (Months 27-36) - Debt Free  
 **Monthly Revenue:** $10,833,000  
 **No Debt Payments:** $0  
 **Additional Monthly Cash Flow:** $1,950,000 (18% that would have been paid)
-**Additional Annual Cash Flow:** $23,400,000
+**Additional Annual Cash Flow:** $19,500,000 (10 months)
 
 ### Years 4-5 - Maximum Cash Generation
 **Year 4 Monthly Revenue:** $32,667,000  
