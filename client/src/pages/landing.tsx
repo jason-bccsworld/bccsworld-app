@@ -15,7 +15,7 @@ export default function Landing() {
                 <Plane className="w-6 h-6 text-white" />
               </div>
               <div className="text-2xl font-bold text-blue-600">
-                BCCS Aircraft Registry
+                BCCS142
               </div>
             </div>
             <div className="flex gap-4">
@@ -108,7 +108,7 @@ export default function Landing() {
                 <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
                   <Plane className="w-6 h-6 text-blue-600" />
                 </div>
-                <CardTitle>Aircraft Registry</CardTitle>
+                <CardTitle>BCCS142 Compliance</CardTitle>
                 <CardDescription>
                   Comprehensive aircraft registration with real-time compliance monitoring
                 </CardDescription>
@@ -350,7 +350,7 @@ export default function Landing() {
             <div>
               <div className="flex items-center gap-2 mb-4">
                 <Plane className="w-6 h-6 text-blue-500" />
-                <span className="text-lg font-bold text-white">BCCS Aircraft Registry</span>
+                <span className="text-lg font-bold text-white">BCCS142</span>
               </div>
               <p className="text-sm">
                 Revolutionary blockchain-powered aircraft registry and tokenization platform
@@ -389,7 +389,7 @@ export default function Landing() {
           </div>
           
           <div className="border-t border-slate-800 mt-8 pt-8 text-center text-sm">
-            <p>&copy; 2025 BCCS Aircraft Registry. All rights reserved.</p>
+            <p>&copy; 2025 BCCS142. All rights reserved.</p>
           </div>
         </div>
       </footer>
