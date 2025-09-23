@@ -254,55 +254,55 @@ export default function Landing() {
           </div>
         </div>
 
-        {/* Market Opportunity */}
+        {/* Industry Impact */}
         <div className="mb-20">
           <h2 className="text-3xl font-bold text-center text-slate-900 mb-12">
-            Massive Market Opportunity
+            Transforming Aviation Training Compliance
           </h2>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
             <div>
-              <h3 className="text-2xl font-bold text-slate-900 mb-6">$150-300B Addressable Market</h3>
+              <h3 className="text-2xl font-bold text-slate-900 mb-6">Global Aviation Training Industry</h3>
               <div className="space-y-4">
                 <div className="flex items-center gap-3">
                   <div className="w-3 h-3 bg-blue-600 rounded-full"></div>
-                  <span className="text-slate-700">FAR Part 142 compliance monitoring</span>
+                  <span className="text-slate-700">Part 142 training centers worldwide</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="w-3 h-3 bg-green-600 rounded-full"></div>
-                  <span className="text-slate-700">Private jet fractional ownership</span>
+                  <span className="text-slate-700">Instructor qualification tracking</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="w-3 h-3 bg-purple-600 rounded-full"></div>
-                  <span className="text-slate-700">Registry modernization (196 countries)</span>
+                  <span className="text-slate-700">Student record management</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="w-3 h-3 bg-orange-600 rounded-full"></div>
-                  <span className="text-slate-700">Aviation finance transformation</span>
+                  <span className="text-slate-700">Regulatory audit compliance</span>
                 </div>
               </div>
             </div>
             
-            <Card className="p-8 bg-gradient-to-br from-green-50 to-emerald-50 border-green-200">
+            <Card className="p-8 bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200">
               <div className="text-center">
-                <div className="text-4xl font-bold text-green-600 mb-2">15-25x</div>
-                <div className="text-lg font-medium text-green-800 mb-4">Revenue Multiplier</div>
-                <p className="text-sm text-green-700 mb-6">
-                  FinTech platforms command premium valuations vs traditional SaaS
+                <div className="text-4xl font-bold text-blue-600 mb-2">78%</div>
+                <div className="text-lg font-medium text-blue-800 mb-4">Global Pilot Penetration</div>
+                <p className="text-sm text-blue-700 mb-6">
+                  Target market penetration across international aviation training
                 </p>
                 <div className="space-y-3">
                   <div className="flex justify-between">
-                    <span className="text-sm text-green-700">Traditional SaaS:</span>
-                    <span className="font-medium text-green-800">10-15x</span>
+                    <span className="text-sm text-blue-700">Training Centers:</span>
+                    <span className="font-medium text-blue-800">12,000+</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-sm text-green-700">FinTech Platform:</span>
-                    <span className="font-medium text-green-800">15-25x</span>
+                    <span className="text-sm text-blue-700">Active Pilots:</span>
+                    <span className="font-medium text-blue-800">200,000+</span>
                   </div>
-                  <div className="border-t border-green-200 pt-3">
+                  <div className="border-t border-blue-200 pt-3">
                     <div className="flex justify-between">
-                      <span className="text-sm font-medium text-green-800">BCCS Valuation:</span>
-                      <span className="font-bold text-green-900">$9.75B-16.25B</span>
+                      <span className="text-sm font-medium text-blue-800">Market Coverage:</span>
+                      <span className="font-bold text-blue-900">196 Countries</span>
                     </div>
                   </div>
                 </div>
@@ -360,10 +360,10 @@ export default function Landing() {
             <div>
               <h3 className="font-medium text-white mb-4">Platform</h3>
               <ul className="space-y-2 text-sm">
-                <li><a href="/aircraft-registry" className="hover:text-white">Aircraft Registry</a></li>
-                <li><a href="/tokenization" className="hover:text-white">Tokenization</a></li>
-                <li><a href="/compliance" className="hover:text-white">Compliance</a></li>
-                <li><a href="/analytics" className="hover:text-white">Analytics</a></li>
+                <li><a href="/compliance-checklist" className="hover:text-white">Part 142 Checklist</a></li>
+                <li><a href="/document-import" className="hover:text-white">Document Import</a></li>
+                <li><a href="/regulatory-compliance" className="hover:text-white">Regulatory Monitor</a></li>
+                <li><a href="/compliance-records" className="hover:text-white">Training Records</a></li>
               </ul>
             </div>
             
