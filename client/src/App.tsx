@@ -34,11 +34,6 @@ import DebugSidebar from "@/pages/debug-sidebar";
 import AIAuditCompliance from "@/pages/ai-audit-compliance";
 import DocumentGeneration from "@/pages/DocumentGeneration";
 import BCCSMaintDashboard from "@/pages/BCCSMaintDashboard";
-import AircraftRegistry from "@/pages/AircraftRegistry";
-import InsuranceMarketplace from "@/pages/InsuranceMarketplace";
-import MaintenanceMarketplace from "@/pages/MaintenanceMarketplace";
-import FinanceMarketplace from "@/pages/FinanceMarketplace";
-import CryptoSubscriptions from "@/pages/CryptoSubscriptions";
 import { KeyManagement } from "@/pages/KeyManagement";
 import { KeyManagementDashboard } from "@/pages/KeyManagementDashboard";
 import { AdvancedKeyRecovery } from "@/pages/AdvancedKeyRecovery";
@@ -137,52 +132,13 @@ function Router() {
         )}
       </Route>
 
+      {/* Redirect old aircraft registry routes to dashboard */}
       <Route path="/aircraft-registry">
         {!isAuthenticated ? (
           <Landing />
         ) : (
           <DashboardLayout>
-            <AircraftRegistry />
-          </DashboardLayout>
-        )}
-      </Route>
-
-      <Route path="/insurance-marketplace">
-        {!isAuthenticated ? (
-          <Landing />
-        ) : (
-          <DashboardLayout>
-            <InsuranceMarketplace />
-          </DashboardLayout>
-        )}
-      </Route>
-
-      <Route path="/maintenance-marketplace">
-        {!isAuthenticated ? (
-          <Landing />
-        ) : (
-          <DashboardLayout>
-            <MaintenanceMarketplace />
-          </DashboardLayout>
-        )}
-      </Route>
-
-      <Route path="/finance-marketplace">
-        {!isAuthenticated ? (
-          <Landing />
-        ) : (
-          <DashboardLayout>
-            <FinanceMarketplace />
-          </DashboardLayout>
-        )}
-      </Route>
-
-      <Route path="/crypto-subscriptions">
-        {!isAuthenticated ? (
-          <Landing />
-        ) : (
-          <DashboardLayout>
-            <CryptoSubscriptions />
+            <Dashboard />
           </DashboardLayout>
         )}
       </Route>
