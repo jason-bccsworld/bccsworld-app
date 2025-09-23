@@ -232,7 +232,7 @@ export default function AircraftRegistry() {
         <TabsContent value="tokenization" className="space-y-4">
           <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
             {tokenOfferings.map((offering: TokenOffering & { aircraft?: AircraftRegistry }) => {
-              const aircraft = aircraft.find((a: AircraftRegistry) => a.id === offering.aircraftId);
+              const relatedAircraft = aircraft.find((a: AircraftRegistry) => a.id === offering.aircraftId);
               const soldPercentage = (offering.tokensSold / offering.totalTokens) * 100;
               
               return (
@@ -240,14 +240,14 @@ export default function AircraftRegistry() {
                   <CardHeader className="pb-3">
                     <div className="flex items-center justify-between">
                       <CardTitle className="text-lg">
-                        {aircraft?.tailNumber || 'Unknown Aircraft'}
+                        {relatedAircraft?.tailNumber || 'Unknown Aircraft'}
                       </CardTitle>
                       <Badge variant={offering.status === 'active' ? 'default' : 'secondary'}>
                         {offering.status}
                       </Badge>
                     </div>
                     <CardDescription>
-                      {aircraft?.manufacturer} {aircraft?.model} ({aircraft?.year})
+                      {relatedAircraft?.manufacturer} {relatedAircraft?.model} ({relatedAircraft?.year})
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
