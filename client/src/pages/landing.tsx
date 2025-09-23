@@ -78,20 +78,20 @@ export default function Landing() {
           {/* Platform Stats */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-4xl mx-auto">
             <div className="text-center">
-              <div className="text-3xl font-bold text-blue-600">$16.25B</div>
-              <div className="text-sm text-slate-600">Valuation Target</div>
+              <div className="text-3xl font-bold text-blue-600">98.5%</div>
+              <div className="text-sm text-slate-600">AI Accuracy Rate</div>
             </div>
             <div className="text-center">
-              <div className="text-3xl font-bold text-green-600">4x</div>
-              <div className="text-sm text-slate-600">FinTech Premium</div>
+              <div className="text-3xl font-bold text-green-600">24/7</div>
+              <div className="text-sm text-slate-600">Compliance Monitoring</div>
             </div>
             <div className="text-center">
-              <div className="text-3xl font-bold text-purple-600">196</div>
-              <div className="text-sm text-slate-600">Countries Supported</div>
+              <div className="text-3xl font-bold text-purple-600">100%</div>
+              <div className="text-sm text-slate-600">Tamper-proof Records</div>
             </div>
             <div className="text-center">
-              <div className="text-3xl font-bold text-orange-600">$650M+</div>
-              <div className="text-sm text-slate-600">ARR by Year 5</div>
+              <div className="text-3xl font-bold text-orange-600">12 Weeks</div>
+              <div className="text-sm text-slate-600">Implementation Time</div>
             </div>
           </div>
         </div>
@@ -99,7 +99,7 @@ export default function Landing() {
         {/* Core Features */}
         <div className="mb-20">
           <h2 className="text-3xl font-bold text-center text-slate-900 mb-12">
-            Complete Aviation Registry & Tokenization Solution
+            Complete Aviation Compliance Platform
           </h2>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -121,15 +121,15 @@ export default function Landing() {
                   </li>
                   <li className="flex items-center gap-2">
                     <CheckCircle className="w-4 h-4 text-green-600" />
-                    Automated compliance checks
+                    Blockchain audit trails
                   </li>
                   <li className="flex items-center gap-2">
                     <CheckCircle className="w-4 h-4 text-green-600" />
-                    Insurance & lien tracking
+                    FAR compliance monitoring
                   </li>
                   <li className="flex items-center gap-2">
                     <CheckCircle className="w-4 h-4 text-green-600" />
-                    Real-time valuations
+                    Role-based access control
                   </li>
                 </ul>
               </CardContent>
@@ -138,9 +138,9 @@ export default function Landing() {
             <Card className="hover:shadow-lg transition-shadow">
               <CardHeader>
                 <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mb-4">
-                  <DollarSign className="w-6 h-6 text-green-600" />
+                  <FileText className="w-6 h-6 text-green-600" />
                 </div>
-                <CardTitle>Fractional Tokenization</CardTitle>
+                <CardTitle>AI Document Processing</CardTitle>
                 <CardDescription>
                   AI-powered document import with OCR and NLP validation
                 </CardDescription>
@@ -149,19 +149,19 @@ export default function Landing() {
                 <ul className="space-y-2 text-sm text-slate-600">
                   <li className="flex items-center gap-2">
                     <CheckCircle className="w-4 h-4 text-green-600" />
-                    Smart contract integration
+                    OCR text extraction
                   </li>
                   <li className="flex items-center gap-2">
                     <CheckCircle className="w-4 h-4 text-green-600" />
-                    Accredited investor support
+                    NLP data validation
                   </li>
                   <li className="flex items-center gap-2">
                     <CheckCircle className="w-4 h-4 text-green-600" />
-                    Automated compliance
+                    Automated field mapping
                   </li>
                   <li className="flex items-center gap-2">
                     <CheckCircle className="w-4 h-4 text-green-600" />
-                    Secondary market trading
+                    Multi-format support
                   </li>
                 </ul>
               </CardContent>
@@ -170,30 +170,30 @@ export default function Landing() {
             <Card className="hover:shadow-lg transition-shadow">
               <CardHeader>
                 <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mb-4">
-                  <TrendingUp className="w-6 h-6 text-purple-600" />
+                  <Shield className="w-6 h-6 text-purple-600" />
                 </div>
-                <CardTitle>Registry-as-Broker</CardTitle>
+                <CardTitle>Regulatory Monitoring</CardTitle>
                 <CardDescription>
-                  Aviation authorities earn transaction fees as tokenization brokers
+                  Automated monitoring of regulatory changes and compliance alerts
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <ul className="space-y-2 text-sm text-slate-600">
                   <li className="flex items-center gap-2">
                     <CheckCircle className="w-4 h-4 text-green-600" />
-                    2-5% transaction fees
+                    FAR regulation tracking
                   </li>
                   <li className="flex items-center gap-2">
                     <CheckCircle className="w-4 h-4 text-green-600" />
-                    1-2% management fees
+                    Real-time compliance alerts
                   </li>
                   <li className="flex items-center gap-2">
                     <CheckCircle className="w-4 h-4 text-green-600" />
-                    $10K-50K platform fees
+                    Link health monitoring
                   </li>
                   <li className="flex items-center gap-2">
                     <CheckCircle className="w-4 h-4 text-green-600" />
-                    First-mover advantage
+                    Impact assessments
                   </li>
                 </ul>
               </CardContent>
@@ -201,53 +201,53 @@ export default function Landing() {
           </div>
         </div>
 
-        {/* Revenue Model */}
+        {/* Platform Benefits */}
         <div className="mb-20">
           <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-12 text-white">
             <div className="text-center mb-12">
-              <h2 className="text-3xl font-bold mb-4">Revolutionary Revenue Model</h2>
+              <h2 className="text-3xl font-bold mb-4">Complete Compliance Solution</h2>
               <p className="text-xl text-blue-100 max-w-3xl mx-auto">
-                Transform from traditional SaaS to financial technology powerhouse with multiple revenue streams
+                Streamline aviation training compliance with blockchain technology and AI automation
               </p>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               <div className="text-center">
                 <div className="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Globe className="w-8 h-8 text-white" />
-                </div>
-                <h3 className="text-xl font-bold mb-2">SaaS Platform</h3>
-                <p className="text-blue-100 mb-4">$25K-200K annually per registry</p>
-                <ul className="text-sm text-blue-100 space-y-1">
-                  <li>• Training event logging</li>
-                  <li>• Compliance monitoring</li>
-                  <li>• Analytics dashboard</li>
-                </ul>
-              </div>
-              
-              <div className="text-center">
-                <div className="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <DollarSign className="w-8 h-8 text-white" />
-                </div>
-                <h3 className="text-xl font-bold mb-2">Transaction Fees</h3>
-                <p className="text-blue-100 mb-4">2-5% of tokenization volume</p>
-                <ul className="text-sm text-blue-100 space-y-1">
-                  <li>• Token offerings</li>
-                  <li>• Secondary trading</li>
-                  <li>• Transfer processing</li>
-                </ul>
-              </div>
-              
-              <div className="text-center">
-                <div className="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center mx-auto mb-4">
                   <Users className="w-8 h-8 text-white" />
                 </div>
-                <h3 className="text-xl font-bold mb-2">Management Fees</h3>
-                <p className="text-blue-100 mb-4">1-2% annual management</p>
+                <h3 className="text-xl font-bold mb-2">Training Organizations</h3>
+                <p className="text-blue-100 mb-4">Comprehensive compliance tracking</p>
                 <ul className="text-sm text-blue-100 space-y-1">
-                  <li>• Portfolio management</li>
-                  <li>• Investor services</li>
-                  <li>• Compliance oversight</li>
+                  <li>• Training event logging</li>
+                  <li>• Student record management</li>
+                  <li>• Instructor qualifications</li>
+                </ul>
+              </div>
+              
+              <div className="text-center">
+                <div className="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Shield className="w-8 h-8 text-white" />
+                </div>
+                <h3 className="text-xl font-bold mb-2">Regulators</h3>
+                <p className="text-blue-100 mb-4">Real-time oversight capabilities</p>
+                <ul className="text-sm text-blue-100 space-y-1">
+                  <li>• Audit trail transparency</li>
+                  <li>• Compliance verification</li>
+                  <li>• Risk assessment tools</li>
+                </ul>
+              </div>
+              
+              <div className="text-center">
+                <div className="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Plane className="w-8 h-8 text-white" />
+                </div>
+                <h3 className="text-xl font-bold mb-2">Pilots</h3>
+                <p className="text-blue-100 mb-4">Portable career credentials</p>
+                <ul className="text-sm text-blue-100 space-y-1">
+                  <li>• Blockchain certificates</li>
+                  <li>• Training verification</li>
+                  <li>• Career progression</li>
                 </ul>
               </div>
             </div>
