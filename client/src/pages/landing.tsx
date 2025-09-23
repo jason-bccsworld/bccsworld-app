@@ -46,15 +46,15 @@ export default function Landing() {
         {/* Hero Section */}
         <div className="text-center mb-20">
           <Badge className="mb-6 bg-green-100 text-green-800 border-green-200">
-            Revolutionary Aviation FinTech Platform
+            Aviation Compliance Platform
           </Badge>
           <h1 className="text-5xl font-bold text-slate-900 mb-6">
-            Transform Aircraft Ownership with 
-            <span className="text-blue-600"> Blockchain Tokenization</span>
+            Blockchain-Based Compliance Tracking for 
+            <span className="text-blue-600"> Aviation Training</span>
           </h1>
           <p className="text-xl text-slate-600 max-w-3xl mx-auto mb-8">
-            The world's first comprehensive aircraft registry with integrated tokenization capabilities. 
-            Register aircraft, enable fractional ownership, and unlock liquidity in the $150-300B aviation market.
+            BCCS142 provides immutable training event logging and AI-powered compliance monitoring for aviation training organizations. 
+            Streamline regulatory compliance with tamper-proof records and automated audit trails.
           </p>
           
           <div className="flex justify-center gap-4 mb-12">
@@ -110,14 +110,14 @@ export default function Landing() {
                 </div>
                 <CardTitle>BCCS142 Compliance</CardTitle>
                 <CardDescription>
-                  Comprehensive aircraft registration with real-time compliance monitoring
+                  AI-powered document processing and blockchain-secured compliance records
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <ul className="space-y-2 text-sm text-slate-600">
                   <li className="flex items-center gap-2">
                     <CheckCircle className="w-4 h-4 text-green-600" />
-                    Complete aircraft database
+                    Immutable training records
                   </li>
                   <li className="flex items-center gap-2">
                     <CheckCircle className="w-4 h-4 text-green-600" />
@@ -142,7 +142,7 @@ export default function Landing() {
                 </div>
                 <CardTitle>Fractional Tokenization</CardTitle>
                 <CardDescription>
-                  Enable fractional aircraft ownership through blockchain tokenization
+                  AI-powered document import with OCR and NLP validation
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -219,7 +219,7 @@ export default function Landing() {
                 <h3 className="text-xl font-bold mb-2">SaaS Platform</h3>
                 <p className="text-blue-100 mb-4">$25K-200K annually per registry</p>
                 <ul className="text-sm text-blue-100 space-y-1">
-                  <li>• Aircraft registration</li>
+                  <li>• Training event logging</li>
                   <li>• Compliance monitoring</li>
                   <li>• Analytics dashboard</li>
                 </ul>
@@ -266,7 +266,7 @@ export default function Landing() {
               <div className="space-y-4">
                 <div className="flex items-center gap-3">
                   <div className="w-3 h-3 bg-blue-600 rounded-full"></div>
-                  <span className="text-slate-700">Commercial aircraft tokenization</span>
+                  <span className="text-slate-700">FAR Part 142 compliance monitoring</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="w-3 h-3 bg-green-600 rounded-full"></div>
@@ -315,7 +315,7 @@ export default function Landing() {
         <div className="text-center bg-slate-900 rounded-2xl p-12 text-white">
           <h2 className="text-3xl font-bold mb-4">Ready to Transform Aviation Finance?</h2>
           <p className="text-xl text-slate-300 mb-8 max-w-2xl mx-auto">
-            Join the revolution in aircraft ownership and unlock the future of aviation finance
+            Join the revolution in aviation compliance and ensure regulatory adherence with blockchain technology
           </p>
           
           <div className="flex justify-center gap-4">
@@ -353,7 +353,7 @@ export default function Landing() {
                 <span className="text-lg font-bold text-white">BCCS142</span>
               </div>
               <p className="text-sm">
-                Revolutionary blockchain-powered aircraft registry and tokenization platform
+                Revolutionary blockchain-powered compliance platform for aviation training organizations
               </p>
             </div>
             
