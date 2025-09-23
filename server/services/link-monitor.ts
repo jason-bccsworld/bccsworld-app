@@ -267,17 +267,15 @@ export class LinkMonitoringService {
   private async storeAlert(alert: LinkMonitorAlert): Promise<void> {
     // Store in audit logs for tracking
     await storage.createAuditLog({
-      action: 'link_monitor_alert',
-      entityType: 'regulatory_link',
-      entityId: alert.url,
+      eventType: 'link_check',
+      severity: alert.severity,
+      message: alert.message,
+      sourceSystem: 'link_monitor',
       details: {
+        url: alert.url,
         alertType: alert.alertType,
-        severity: alert.severity,
-        message: alert.message,
         suggestedAction: alert.suggestedAction,
       },
-      userId: null,
-      userEmail: 'link-monitor@bccs142.com',
     });
   }
 
@@ -342,12 +340,11 @@ export class LinkMonitoringService {
   async resolveAlert(alertId: string): Promise<void> {
     // Mark alert as resolved in database
     await storage.createAuditLog({
-      action: 'link_monitor_alert_resolved',
-      entityType: 'regulatory_link',
-      entityId: alertId,
-      details: { resolved: true },
-      userId: null,
-      userEmail: 'admin@bccs142.com',
+      eventType: 'link_check',
+      severity: 'info',
+      message: `Link monitoring alert resolved: ${alertId}`,
+      sourceSystem: 'link_monitor',
+      details: { resolved: true, alertId },
     });
   }
 }
