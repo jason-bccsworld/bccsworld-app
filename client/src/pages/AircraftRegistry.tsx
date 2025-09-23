@@ -51,7 +51,7 @@ export default function AircraftRegistry() {
     return (
       <div className="p-6 space-y-6">
         <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold">Aircraft Registry & Tokenization</h1>
+          <h1 className="text-3xl font-bold">BCCS142 Compliance Dashboard</h1>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {[...Array(4)].map((_, i) => (
@@ -72,9 +72,9 @@ export default function AircraftRegistry() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Aircraft Registry & Tokenization</h1>
+          <h1 className="text-3xl font-bold">BCCS142 Compliance Dashboard</h1>
           <p className="text-gray-600 mt-1">
-            Comprehensive aircraft registration with blockchain tokenization capabilities
+            Blockchain-based compliance tracking for aviation training organizations
           </p>
         </div>
         <Button className="flex items-center gap-2">

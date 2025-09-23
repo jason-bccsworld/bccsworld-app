@@ -69,8 +69,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               <Plane size={24} className="text-white" />
             </div>
             <div>
-              <h1 className="text-xl font-bold">BCCS Aircraft Registry</h1>
-              <p className="text-sm text-blue-100">Tokenization Platform</p>
+              <h1 className="text-xl font-bold">BCCS142</h1>
+              <p className="text-sm text-blue-100">Aviation Compliance Platform</p>
             </div>
           </div>
         </div>
