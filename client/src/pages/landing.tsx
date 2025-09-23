@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plane, DollarSign, Shield, TrendingUp, Users, Globe, CheckCircle, Star } from "lucide-react";
+import { Plane, DollarSign, Shield, TrendingUp, Users, Globe, CheckCircle, Star, FileText } from "lucide-react";
 
 export default function Landing() {
   return (
