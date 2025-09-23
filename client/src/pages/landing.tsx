@@ -313,7 +313,7 @@ export default function Landing() {
 
         {/* Call to Action */}
         <div className="text-center bg-slate-900 rounded-2xl p-12 text-white">
-          <h2 className="text-3xl font-bold mb-4">Ready to Transform Aviation Finance?</h2>
+          <h2 className="text-3xl font-bold mb-4">Ready to Streamline Aviation Compliance?</h2>
           <p className="text-xl text-slate-300 mb-8 max-w-2xl mx-auto">
             Join the revolution in aviation compliance and ensure regulatory adherence with blockchain technology
           </p>
@@ -332,13 +332,13 @@ export default function Landing() {
               className="px-8 py-4 text-lg border-slate-600 text-slate-300 hover:bg-slate-800"
               onClick={() => window.location.href = "/pricing"}
             >
-              View Pricing
+              View Demo
             </Button>
           </div>
           
           <div className="flex justify-center items-center gap-2 mt-8 text-sm text-slate-400">
             <Star className="w-4 h-4 text-yellow-500 fill-current" />
-            <span>First-mover advantage in $150-300B market</span>
+            <span>Trusted by training organizations worldwide</span>
           </div>
         </div>
       </div>
