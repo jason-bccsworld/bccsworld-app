@@ -80,11 +80,10 @@ export class RegulatoryMonitorService {
           
           // Log compliance check
           await storage.createAuditLog({
-            action: "regulatory_compliance_check",
-            entityType: "regulation",
-            entityId: regulation,
-            userId: null,
-            userEmail: "system@bccs.ai",
+            eventType: "regulatory_check",
+            severity: "info",
+            message: `Compliance check completed for ${regulation}`,
+            sourceSystem: "regulatory_monitor",
             details: {
               source: source.name,
               regulation,
@@ -97,11 +96,10 @@ export class RegulatoryMonitorService {
           console.error(`Failed to check compliance for ${regulation}:`, error);
           
           await storage.createAuditLog({
-            action: "regulatory_compliance_error",
-            entityType: "regulation",
-            entityId: regulation,
-            userId: null,
-            userEmail: "system@bccs.ai",
+            eventType: "system_error",
+            severity: "error",
+            message: `Failed to check compliance for ${regulation}: ${error instanceof Error ? error.message : String(error)}`,
+            sourceSystem: "regulatory_monitor",
             details: {
               source: source.name,
               regulation,
@@ -200,11 +198,10 @@ export class RegulatoryMonitorService {
     
     // Log the change processing
     await storage.createAuditLog({
-      action: "regulatory_change_processed",
-      entityType: "regulation",
-      entityId: change.id,
-      userId: null,
-      userEmail: "system@bccs.ai",
+      eventType: "regulatory_check",
+      severity: "info",
+      message: `Regulatory change processed for ${change.regulation}`,
+      sourceSystem: "regulatory_monitor",
       details: {
         regulation: change.regulation,
         changeType: change.changeType,
