@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useQuery } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Eye, Download, FileText, Clock, CheckCircle, AlertCircle } from "lucide-react";
+import { Eye, Download, FileText, Clock, CheckCircle, AlertCircle, BookOpen } from "lucide-react";
 import { format } from "date-fns";
 
 export default function DocumentImport() {
@@ -84,6 +84,18 @@ export default function DocumentImport() {
       />
       
       <main className="flex-1 overflow-y-auto p-6 space-y-6">
+        <div className="flex justify-end">
+          <Button
+            variant="outline"
+            onClick={() => {
+              window.open('/api/document-import/tutorial/download', '_blank');
+            }}
+            data-testid="download-tutorial-btn"
+          >
+            <BookOpen className="h-4 w-4 mr-2" />
+            Download Tutorial
+          </Button>
+        </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <DocumentUpload />
           
