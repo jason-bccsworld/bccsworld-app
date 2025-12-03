@@ -262,19 +262,19 @@ export default function Landing() {
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
             <div>
-              <h3 className="text-2xl font-bold text-slate-900 mb-6">Global Aviation Training Industry</h3>
+              <h3 className="text-2xl font-bold text-slate-900 mb-6">Global Aviation Industry</h3>
               <div className="space-y-4">
                 <div className="flex items-center gap-3">
                   <div className="w-3 h-3 bg-blue-600 rounded-full"></div>
-                  <span className="text-slate-700">Part 142 training centers worldwide</span>
+                  <span className="text-slate-700">ATOs & TRTOs worldwide</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="w-3 h-3 bg-green-600 rounded-full"></div>
-                  <span className="text-slate-700">Instructor qualification tracking</span>
+                  <span className="text-slate-700">Aviation personnel qualification tracking</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="w-3 h-3 bg-purple-600 rounded-full"></div>
-                  <span className="text-slate-700">Student record management</span>
+                  <span className="text-slate-700">Personnel record management</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="w-3 h-3 bg-orange-600 rounded-full"></div>
