@@ -50,7 +50,7 @@ export default function Landing() {
           </Badge>
           <h1 className="text-5xl font-bold text-slate-900 mb-6">
             Blockchain-Based Compliance Tracking for 
-            <span className="text-blue-600"> Aviation Training</span>
+            <span className="text-blue-600"> Aviation Organizations</span>
           </h1>
           <p className="text-xl text-slate-600 max-w-3xl mx-auto mb-8">
             BCCS-US provides immutable training event logging and AI-powered compliance monitoring for aviation training organizations. 
