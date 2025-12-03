@@ -30,6 +30,7 @@ interface DashboardLayoutProps {
 
 const navigationItems = [
   { path: "/dashboard", icon: BarChart3, label: "Compliance Dashboard" },
+  { path: "/adaptive-compliance", icon: Database, label: "Adaptive Compliance", badge: "P4" },
   { path: "/document-import", icon: FileText, label: "AI Document Import", badge: "AI" },
   { path: "/compliance-records", icon: Clock, label: "Training Records" },
   { path: "/compliance-checklist", icon: CheckCircle, label: "Part 142 Checklist" },
@@ -83,7 +84,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               </div>
               {item.badge && (
                 <span className={`text-white text-xs px-2 py-1 rounded-full ${
-                  item.badge === 'AI' ? 'bg-purple-500' : 'bg-red-500'
+                  item.badge === 'AI' ? 'bg-purple-500' : 
+                  item.badge === 'P4' ? 'bg-blue-500' : 'bg-red-500'
                 }`}>
                   {item.badge}
                 </span>

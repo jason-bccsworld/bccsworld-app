@@ -39,6 +39,7 @@ import { KeyManagementDashboard } from "@/pages/KeyManagementDashboard";
 import { AdvancedKeyRecovery } from "@/pages/AdvancedKeyRecovery";
 import LegacyDataTransfer from "@/pages/LegacyDataTransfer";
 import MultiPlatformIntegration from "@/pages/MultiPlatformIntegration";
+import AdaptiveCompliance from "@/pages/adaptive-compliance";
 import NotFound from "@/pages/not-found";
 import DashboardLayout from "@/layouts/dashboard-layout";
 import SupportChat from "@/components/support-chat";
@@ -189,6 +190,16 @@ function Router() {
         ) : (
           <DashboardLayout>
             <MultiPlatformIntegration />
+          </DashboardLayout>
+        )}
+      </Route>
+
+      <Route path="/adaptive-compliance">
+        {!isAuthenticated ? (
+          <Landing />
+        ) : (
+          <DashboardLayout>
+            <AdaptiveCompliance />
           </DashboardLayout>
         )}
       </Route>
