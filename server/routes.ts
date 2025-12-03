@@ -11,6 +11,7 @@ import {
 import { z } from "zod";
 import { registerBlockchainKeyManagementRoutes } from "./routes/blockchain-key-management";
 import legacyDataTransferRoutes from "./routes/legacy-data-transfer";
+import adaptiveComplianceRoutes from "./routes/adaptive-compliance";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -328,6 +329,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Multi-Platform Integration Routes
   const multiPlatformIntegrationRoutes = await import('./routes/multi-platform-integration');
   app.use('/api/multi-platform-integration', multiPlatformIntegrationRoutes.default);
+
+  // Patent 4/4B: Adaptive Compliance Architecture Routes
+  app.use('/api/adaptive-compliance', adaptiveComplianceRoutes);
 
   const httpServer = createServer(app);
   return httpServer;

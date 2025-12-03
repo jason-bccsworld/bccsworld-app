@@ -1,0 +1,361 @@
+import { Router, Request, Response } from "express";
+import { regulatorySpineService } from "../services/regulatory-spine";
+import { checklistHarmonizationEngine } from "../services/checklist-harmonization";
+import { inspectorPreferenceEngine } from "../services/inspector-preference";
+import { evidenceIndexingService } from "../services/evidence-indexing";
+import { auditPacketGenerator } from "../services/audit-packet-generator";
+import { isAuthenticated } from "../replitAuth";
+
+const router = Router();
+
+router.get("/frameworks", async (req: Request, res: Response) => {
+  try {
+    const frameworks = await regulatorySpineService.getAllActiveFrameworks();
+    res.json(frameworks);
+  } catch (error: any) {
+    console.error("Error fetching frameworks:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get("/frameworks/spine", async (req: Request, res: Response) => {
+  try {
+    const spine = await regulatorySpineService.getSpineFramework();
+    res.json(spine);
+  } catch (error: any) {
+    console.error("Error fetching spine:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get("/frameworks/hierarchy/:organizationId", async (req: Request, res: Response) => {
+  try {
+    const hierarchy = await regulatorySpineService.getComplianceFrameworkHierarchy(
+      req.params.organizationId
+    );
+    res.json(hierarchy);
+  } catch (error: any) {
+    console.error("Error fetching hierarchy:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post("/frameworks/initialize", isAuthenticated, async (req: Request, res: Response) => {
+  try {
+    await regulatorySpineService.initializeRegulatorySpine();
+    res.json({ message: "Regulatory spine initialized successfully" });
+  } catch (error: any) {
+    console.error("Error initializing spine:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get("/checklists", async (req: Request, res: Response) => {
+  try {
+    const schemas = await checklistHarmonizationEngine.getAllSchemas();
+    res.json(schemas);
+  } catch (error: any) {
+    console.error("Error fetching checklists:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get("/checklists/:schemaId/items", async (req: Request, res: Response) => {
+  try {
+    const items = await checklistHarmonizationEngine.getSchemaItems(req.params.schemaId);
+    res.json(items);
+  } catch (error: any) {
+    console.error("Error fetching checklist items:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post("/checklists/ingest", isAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const { schemaName, schemaSource, items, frameworkId, version, isCanonical } = req.body;
+    
+    const schema = await checklistHarmonizationEngine.ingestChecklist(
+      schemaName,
+      schemaSource,
+      items,
+      frameworkId,
+      version,
+      isCanonical
+    );
+    
+    res.json(schema);
+  } catch (error: any) {
+    console.error("Error ingesting checklist:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post("/checklists/harmonize", isAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const { baseSchemaId, comparedSchemaId } = req.body;
+    
+    const report = await checklistHarmonizationEngine.harmonizeChecklists(
+      baseSchemaId,
+      comparedSchemaId
+    );
+    
+    res.json(report);
+  } catch (error: any) {
+    console.error("Error harmonizing checklists:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get("/checklists/deltas/:baseSchemaId/:comparedSchemaId", async (req: Request, res: Response) => {
+  try {
+    const report = await checklistHarmonizationEngine.generateDeltaReport(
+      req.params.baseSchemaId,
+      req.params.comparedSchemaId
+    );
+    res.json(report);
+  } catch (error: any) {
+    console.error("Error generating delta report:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get("/inspectors", async (req: Request, res: Response) => {
+  try {
+    const inspectors = await inspectorPreferenceEngine.getAllInspectors();
+    res.json(inspectors);
+  } catch (error: any) {
+    console.error("Error fetching inspectors:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get("/inspectors/:inspectorId", async (req: Request, res: Response) => {
+  try {
+    const inspector = await inspectorPreferenceEngine.getInspectorProfile(req.params.inspectorId);
+    if (!inspector) {
+      return res.status(404).json({ error: "Inspector not found" });
+    }
+    res.json(inspector);
+  } catch (error: any) {
+    console.error("Error fetching inspector:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post("/inspectors", isAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const profile = await inspectorPreferenceEngine.createInspectorProfile(req.body);
+    res.json(profile);
+  } catch (error: any) {
+    console.error("Error creating inspector:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post("/inspectors/:inspectorId/behavior", isAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const { organizationId, ...behaviorData } = req.body;
+    
+    const behavior = await inspectorPreferenceEngine.recordAuditBehavior(
+      req.params.inspectorId,
+      organizationId,
+      behaviorData
+    );
+    
+    res.json(behavior);
+  } catch (error: any) {
+    console.error("Error recording behavior:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get("/inspectors/:inspectorId/prediction", async (req: Request, res: Response) => {
+  try {
+    const prediction = await inspectorPreferenceEngine.predictInspectorBehavior(
+      req.params.inspectorId
+    );
+    res.json(prediction);
+  } catch (error: any) {
+    console.error("Error predicting behavior:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get("/inspectors/:inspectorId/preparation/:organizationId", async (req: Request, res: Response) => {
+  try {
+    const strategy = await inspectorPreferenceEngine.generateAuditPreparationStrategy(
+      req.params.inspectorId,
+      req.params.organizationId
+    );
+    res.json(strategy);
+  } catch (error: any) {
+    console.error("Error generating strategy:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get("/evidence", async (req: Request, res: Response) => {
+  try {
+    const { checklist_item_id, framework_code, regulatory_reference } = req.query;
+    
+    if (checklist_item_id) {
+      const evidence = await evidenceIndexingService.getEvidenceByChecklistItem(
+        checklist_item_id as string
+      );
+      return res.json(evidence);
+    }
+    
+    if (framework_code && regulatory_reference) {
+      const evidence = await evidenceIndexingService.getEvidenceByRegulatoryReference(
+        framework_code as string,
+        regulatory_reference as string
+      );
+      return res.json(evidence);
+    }
+    
+    res.status(400).json({ 
+      error: "Either checklist_item_id or (framework_code + regulatory_reference) required" 
+    });
+  } catch (error: any) {
+    console.error("Error fetching evidence:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get("/evidence/:evidenceId", async (req: Request, res: Response) => {
+  try {
+    const evidence = await evidenceIndexingService.getEvidenceById(req.params.evidenceId);
+    if (!evidence) {
+      return res.status(404).json({ error: "Evidence not found" });
+    }
+    res.json(evidence);
+  } catch (error: any) {
+    console.error("Error fetching evidence:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post("/evidence", isAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const { organizationId, ...evidenceData } = req.body;
+    
+    const evidence = await evidenceIndexingService.indexEvidence(organizationId, evidenceData);
+    res.json(evidence);
+  } catch (error: any) {
+    console.error("Error indexing evidence:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post("/evidence/:evidenceId/map-checklist", isAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const { checklistItemId, ...mappingData } = req.body;
+    
+    const mapping = await evidenceIndexingService.mapEvidenceToChecklistItem(
+      req.params.evidenceId,
+      checklistItemId,
+      mappingData
+    );
+    
+    res.json(mapping);
+  } catch (error: any) {
+    console.error("Error mapping evidence:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post("/evidence/:evidenceId/verify", isAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const result = await evidenceIndexingService.verifyEvidenceBlockchain(req.params.evidenceId);
+    res.json(result);
+  } catch (error: any) {
+    console.error("Error verifying evidence:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post("/evidence/:evidenceId/auto-map", isAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const { organizationId } = req.body;
+    
+    const result = await evidenceIndexingService.autoMapEvidenceToChecklists(
+      req.params.evidenceId,
+      organizationId
+    );
+    
+    res.json(result);
+  } catch (error: any) {
+    console.error("Error auto-mapping evidence:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post("/audit-packets/generate", isAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const config = req.body;
+    const packet = await auditPacketGenerator.generateAuditPacket(config);
+    res.json(packet);
+  } catch (error: any) {
+    console.error("Error generating audit packet:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get("/audit-packets/:packetId", async (req: Request, res: Response) => {
+  try {
+    const packet = await auditPacketGenerator.getPacketById(req.params.packetId);
+    if (!packet) {
+      return res.status(404).json({ error: "Packet not found" });
+    }
+    res.json(packet);
+  } catch (error: any) {
+    console.error("Error fetching packet:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get("/audit-packets/:packetId/json", async (req: Request, res: Response) => {
+  try {
+    const packetJson = await auditPacketGenerator.generatePacketJSON(req.params.packetId);
+    res.json(packetJson);
+  } catch (error: any) {
+    console.error("Error generating packet JSON:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get("/audit-packets/organization/:organizationId", async (req: Request, res: Response) => {
+  try {
+    const packets = await auditPacketGenerator.getPacketsForOrganization(req.params.organizationId);
+    res.json(packets);
+  } catch (error: any) {
+    console.error("Error fetching organization packets:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.put("/audit-packets/:packetId/status", isAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const { status } = req.body;
+    await auditPacketGenerator.updatePacketStatus(req.params.packetId, status);
+    res.json({ message: "Status updated successfully" });
+  } catch (error: any) {
+    console.error("Error updating packet status:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get("/coverage/:organizationId/:frameworkId", async (req: Request, res: Response) => {
+  try {
+    const coverage = await auditPacketGenerator.calculateRegulatoryCoverage(
+      req.params.organizationId,
+      req.params.frameworkId
+    );
+    res.json(coverage);
+  } catch (error: any) {
+    console.error("Error calculating coverage:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+export default router;
