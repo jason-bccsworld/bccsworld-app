@@ -30,7 +30,7 @@ interface DashboardLayoutProps {
 
 const navigationItems = [
   { path: "/dashboard", icon: BarChart3, label: "Compliance Dashboard" },
-  { path: "/adaptive-compliance", icon: Database, label: "Adaptive Compliance", badge: "P4" },
+  { path: "/adaptive-compliance", icon: Database, label: "Adaptive Compliance" },
   { path: "/document-import", icon: FileText, label: "AI Document Import", badge: "AI" },
   { path: "/compliance-records", icon: Clock, label: "Training Records" },
   { path: "/compliance-checklist", icon: CheckCircle, label: "Part 142 Checklist" },
