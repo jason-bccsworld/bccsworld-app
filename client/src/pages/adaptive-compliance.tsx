@@ -201,14 +201,26 @@ export default function AdaptiveCompliance() {
             Regulatory Spine Architecture with Inspector Preference Modeling
           </p>
         </div>
-        <Button 
-          onClick={() => initSpineMutation.mutate()} 
-          disabled={initSpineMutation.isPending}
-          data-testid="initialize-spine-btn"
-        >
-          <RefreshCw className={`h-4 w-4 mr-2 ${initSpineMutation.isPending ? 'animate-spin' : ''}`} />
-          Initialize Regulatory Spine
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button 
+            variant="outline"
+            onClick={() => {
+              window.open('/api/adaptive-compliance/tutorial/download', '_blank');
+            }}
+            data-testid="download-tutorial-btn"
+          >
+            <FileText className="h-4 w-4 mr-2" />
+            Download Tutorial
+          </Button>
+          <Button 
+            onClick={() => initSpineMutation.mutate()} 
+            disabled={initSpineMutation.isPending}
+            data-testid="initialize-spine-btn"
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${initSpineMutation.isPending ? 'animate-spin' : ''}`} />
+            Initialize Regulatory Spine
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

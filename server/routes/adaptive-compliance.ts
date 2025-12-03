@@ -358,4 +358,19 @@ router.get("/coverage/:organizationId/:frameworkId", isAuthenticated, async (req
   }
 });
 
+router.get("/tutorial/download", isAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const { generateAdaptiveComplianceTutorial } = await import("../generate-tutorial-doc");
+    const buffer = await generateAdaptiveComplianceTutorial();
+    
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+    res.setHeader("Content-Disposition", "attachment; filename=Adaptive_Compliance_Tutorial.docx");
+    res.setHeader("Content-Length", buffer.length);
+    res.send(buffer);
+  } catch (error: any) {
+    console.error("Error generating tutorial document:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;
