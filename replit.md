@@ -37,6 +37,47 @@ Core architectural components include:
 - **Automated Regulatory Monitoring**: Tracks changes in regulations with alerts and impact assessments.
 - **AI-powered Regulatory Link Monitoring**: Ensures accessibility and currency of regulatory references.
 
+### Universal FAR Ingestion System (Patent Pending)
+The platform now features a universal regulatory ingestion system capable of supporting any FAR Part/Subpart:
+
+**Supported FAR Parts (18 total):**
+- Part 21 (Certification Procedures), Part 43 (Maintenance)
+- Part 61 (Pilot Certification), Part 63 (Flight Crewmembers)
+- Part 65 (Airmen), Part 91 (General Operating Rules)
+- Part 91K (Fractional Ownership), Part 107 (sUAS)
+- Part 119 (Air Carrier Certification), Part 121 (Airline Operations)
+- Part 125 (Large Aircraft), Part 129 (Foreign Air Carriers)
+- Part 135 (Commuter/On-Demand), Part 137 (Agricultural)
+- Part 141 (Pilot Schools), Part 142 (Training Centers)
+- Part 145 (Repair Stations), Part 147 (AMT Schools)
+
+**FAA Order Integration (16 Volumes):**
+- FAA Order 8900.1 Volumes 1-16 covering inspector guidance, certification, technical administration, equipment authorization, airman certification, surveillance, investigation, designees, flight standards programs, safety assurance, flight technologies, international aviation, commercial space, compliance/enforcement, designated representatives, and UAS.
+
+**Policy Document Types:**
+- SAFO (Safety Alerts for Operators)
+- InFO (Information for Operators)
+- Policy Notices
+- Advisory Circulars
+- Legal Interpretations
+- FAA Orders
+
+**Database Tables:**
+- `faa_policy_documents`: Stores SAFOs, InFOs, notices with affected parts linking
+- `multi_part_configurations`: Multi-part regulatory compliance configurations
+- `regulatory_update_tracking`: Change detection and monitoring
+- `regulatory_part_sections`: Granular section-level tracking
+- `regulatory_cross_references`: Inter-regulation linking
+- `regulatory_ingestion_logs`: Audit trail for ingestion events
+
+**API Endpoints:**
+- `GET /api/adaptive-compliance/far-parts` - Available FAR Parts
+- `GET /api/adaptive-compliance/frameworks/spines` - Available spine frameworks
+- `POST /api/adaptive-compliance/frameworks/select-spine` - Select primary spine
+- `POST /api/adaptive-compliance/policy-documents/ingest` - Ingest policy documents
+- `GET /api/adaptive-compliance/regulatory-updates` - Recent regulatory changes
+- `POST /api/adaptive-compliance/multi-part-config` - Create multi-part configurations
+
 ### Frontend Architecture
 - **Framework**: React with TypeScript
 - **Build Tool**: Vite
