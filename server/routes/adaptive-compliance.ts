@@ -373,4 +373,154 @@ router.get("/tutorial/download", isAuthenticated, async (req: Request, res: Resp
   }
 });
 
+// ============================================================================
+// UNIVERSAL FAR INGESTION ENDPOINTS
+// ============================================================================
+
+router.get("/far-parts", isAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const parts = await regulatorySpineService.getUniversalFARParts();
+    res.json(parts);
+  } catch (error: any) {
+    console.error("Error fetching FAR parts:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get("/frameworks/spines", isAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const spines = await regulatorySpineService.getAvailableSpines();
+    res.json(spines);
+  } catch (error: any) {
+    console.error("Error fetching available spines:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post("/frameworks/select-spine", isAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const { organizationId, frameworkCode } = req.body;
+    const spine = await regulatorySpineService.selectPrimarySpine(organizationId, frameworkCode);
+    if (!spine) {
+      return res.status(404).json({ error: "Framework not found" });
+    }
+    res.json(spine);
+  } catch (error: any) {
+    console.error("Error selecting spine:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get("/frameworks/by-part/:partNumber", isAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const frameworks = await regulatorySpineService.getFrameworksByPart(req.params.partNumber);
+    res.json(frameworks);
+  } catch (error: any) {
+    console.error("Error fetching frameworks by part:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get("/frameworks/:frameworkId/related", isAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const related = await regulatorySpineService.getRelatedFrameworks(req.params.frameworkId);
+    res.json(related);
+  } catch (error: any) {
+    console.error("Error fetching related frameworks:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get("/frameworks/:frameworkCode/impact", isAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const assessment = await regulatorySpineService.generateRegulatoryImpactAssessment(
+      req.params.frameworkCode
+    );
+    res.json(assessment);
+  } catch (error: any) {
+    console.error("Error generating impact assessment:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post("/multi-part-config", isAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const config = await regulatorySpineService.createMultiPartConfiguration(req.body);
+    res.json(config);
+  } catch (error: any) {
+    console.error("Error creating multi-part config:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get("/multi-part-config/:configId", isAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const compliance = await regulatorySpineService.getMultiPartConfiguration(req.params.configId);
+    if (!compliance) {
+      return res.status(404).json({ error: "Configuration not found" });
+    }
+    res.json(compliance);
+  } catch (error: any) {
+    console.error("Error fetching multi-part config:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post("/policy-documents/ingest", isAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const document = await regulatorySpineService.ingestFAAPolicyDocument(req.body);
+    res.json(document);
+  } catch (error: any) {
+    console.error("Error ingesting policy document:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get("/policy-documents", isAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const { documentType, affectedPart } = req.query;
+    const documents = await regulatorySpineService.getActivePolicyDocuments({
+      documentType: documentType as string,
+      affectedPart: affectedPart as string
+    });
+    res.json(documents);
+  } catch (error: any) {
+    console.error("Error fetching policy documents:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get("/regulatory-updates", isAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const limit = parseInt(req.query.limit as string) || 50;
+    const updates = await regulatorySpineService.getRecentRegulatoryUpdates(limit);
+    res.json(updates);
+  } catch (error: any) {
+    console.error("Error fetching regulatory updates:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get("/organization/:organizationId/regulatory-profile", isAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const profile = await regulatorySpineService.getOrganizationRegulatoryProfile(
+      req.params.organizationId
+    );
+    res.json(profile);
+  } catch (error: any) {
+    console.error("Error fetching regulatory profile:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post("/frameworks/initialize-universal", isAuthenticated, async (req: Request, res: Response) => {
+  try {
+    await regulatorySpineService.initializeUniversalRegulatorySpine();
+    res.json({ message: "Universal regulatory spine initialized with all FAR Parts" });
+  } catch (error: any) {
+    console.error("Error initializing universal spine:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;
