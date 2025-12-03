@@ -353,7 +353,7 @@ export default function Landing() {
                 <span className="text-lg font-bold text-white">BCCS-US</span>
               </div>
               <p className="text-sm">
-                Revolutionary blockchain-powered compliance platform for aviation training organizations
+                Revolutionary blockchain-powered compliance platform for aviation organizations
               </p>
             </div>
             
