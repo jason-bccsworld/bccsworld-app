@@ -407,7 +407,7 @@ export default function AdaptiveCompliance() {
             <CardHeader>
               <CardTitle>Regulatory Hierarchy Visualization</CardTitle>
               <CardDescription>
-                Patent 4B Architecture: Spine + Attachments Model
+                Spine + Attachments Architecture Model
               </CardDescription>
             </CardHeader>
             <CardContent>
