@@ -207,7 +207,7 @@ export default function Landing() {
             <div className="text-center mb-12">
               <h2 className="text-3xl font-bold mb-4">Complete Compliance Solution</h2>
               <p className="text-xl text-blue-100 max-w-3xl mx-auto">
-                Streamline aviation training compliance with blockchain technology and AI automation
+                Streamline compliance with blockchain technology and AI automation
               </p>
             </div>
             
