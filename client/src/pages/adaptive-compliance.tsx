@@ -7,6 +7,11 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { 
   Shield, 
   FileText, 
@@ -23,7 +28,9 @@ import {
   ArrowRight,
   TrendingUp,
   Database,
-  RefreshCw
+  RefreshCw,
+  Plus,
+  Upload
 } from "lucide-react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -74,6 +81,15 @@ interface AuditPacket {
 export default function AdaptiveCompliance() {
   const { toast } = useToast();
   const [selectedTab, setSelectedTab] = useState("spine");
+  const [checklistDialogOpen, setChecklistDialogOpen] = useState(false);
+  const [checklistForm, setChecklistForm] = useState({
+    schemaName: "",
+    schemaSource: "FAA",
+    version: "1.0",
+    frameworkId: "",
+    isCanonical: false,
+    items: ""
+  });
 
   const { data: frameworks = [], isLoading: frameworksLoading } = useQuery<RegulatoryFramework[]>({
     queryKey: ['/api/adaptive-compliance/frameworks'],
@@ -102,6 +118,63 @@ export default function AdaptiveCompliance() {
       toast({
         title: "Initialization Error",
         description: "Failed to initialize regulatory spine.",
+        variant: "destructive"
+      });
+    }
+  });
+
+  const importChecklistMutation = useMutation({
+    mutationFn: async (data: typeof checklistForm) => {
+      const parsedItems = data.items.split('\n')
+        .filter(line => line.trim())
+        .map((line, index) => {
+          const parts = line.split('|').map(p => p.trim());
+          return {
+            itemNumber: parts[0] || `ITEM-${index + 1}`,
+            description: parts[1] || line,
+            regulatoryReference: parts[2] || null,
+            categoryName: parts[3] || 'General',
+            itemOrder: index + 1
+          };
+        });
+
+      const sourceMap: Record<string, string> = {
+        'FAA': 'faa_official',
+        'TCPM': 'tcpm_custom',
+        'Regional FSDO': 'regional',
+        'Operator': 'operator',
+        'Industry': 'operator'
+      };
+
+      return apiRequest('POST', '/api/adaptive-compliance/checklists/ingest', {
+        schemaName: data.schemaName,
+        schemaSource: sourceMap[data.schemaSource] || 'operator',
+        version: data.version,
+        frameworkId: data.frameworkId || null,
+        isCanonical: data.isCanonical,
+        items: parsedItems
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/adaptive-compliance/checklists'] });
+      setChecklistDialogOpen(false);
+      setChecklistForm({
+        schemaName: "",
+        schemaSource: "FAA",
+        version: "1.0",
+        frameworkId: "",
+        isCanonical: false,
+        items: ""
+      });
+      toast({
+        title: "Checklist Imported",
+        description: "The checklist has been successfully ingested and is ready for harmonization."
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Import Error",
+        description: error.message || "Failed to import checklist.",
         variant: "destructive"
       });
     }
@@ -379,14 +452,25 @@ export default function AdaptiveCompliance() {
 
         <TabsContent value="checklists" className="space-y-4" data-testid="checklists-content">
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <ClipboardCheck className="h-5 w-5 text-green-600" />
-                Checklist Harmonization Engine
-              </CardTitle>
-              <CardDescription>
-                Compare and harmonize FAA, TCPM, regional, and operator checklists
-              </CardDescription>
+            <CardHeader className="flex flex-row items-start justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <ClipboardCheck className="h-5 w-5 text-green-600" />
+                  Checklist Harmonization Engine
+                </CardTitle>
+                <CardDescription>
+                  Compare and harmonize FAA, TCPM, regional, and operator checklists
+                </CardDescription>
+              </div>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setChecklistDialogOpen(true)}
+                data-testid="import-checklist-header-btn"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Import Checklist
+              </Button>
             </CardHeader>
             <CardContent>
               {checklistsLoading ? (
@@ -433,7 +517,13 @@ export default function AdaptiveCompliance() {
                   <ClipboardCheck className="h-12 w-12 mx-auto mb-4 opacity-50" />
                   <p className="mb-2">No checklists ingested yet</p>
                   <p className="text-sm">Import checklists to start harmonization</p>
-                  <Button variant="outline" className="mt-4">
+                  <Button 
+                    variant="outline" 
+                    className="mt-4"
+                    onClick={() => setChecklistDialogOpen(true)}
+                    data-testid="import-checklist-btn"
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
                     Import Checklist
                   </Button>
                 </div>
@@ -731,6 +821,143 @@ export default function AdaptiveCompliance() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <Dialog open={checklistDialogOpen} onOpenChange={setChecklistDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Import Checklist</DialogTitle>
+            <DialogDescription>
+              Import a checklist from FAA, TCPM, regional FSDO, or operator sources for harmonization analysis.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="schemaName">Checklist Name</Label>
+                <Input
+                  id="schemaName"
+                  placeholder="e.g., FAA Part 142 Master Checklist"
+                  value={checklistForm.schemaName}
+                  onChange={(e) => setChecklistForm(prev => ({ ...prev, schemaName: e.target.value }))}
+                  data-testid="input-checklist-name"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="version">Version</Label>
+                <Input
+                  id="version"
+                  placeholder="e.g., 1.0"
+                  value={checklistForm.version}
+                  onChange={(e) => setChecklistForm(prev => ({ ...prev, version: e.target.value }))}
+                  data-testid="input-checklist-version"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="schemaSource">Source</Label>
+                <Select 
+                  value={checklistForm.schemaSource} 
+                  onValueChange={(value) => setChecklistForm(prev => ({ ...prev, schemaSource: value }))}
+                >
+                  <SelectTrigger data-testid="select-checklist-source">
+                    <SelectValue placeholder="Select source" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="FAA">FAA Official</SelectItem>
+                    <SelectItem value="TCPM">TCPM</SelectItem>
+                    <SelectItem value="Regional FSDO">Regional FSDO</SelectItem>
+                    <SelectItem value="Operator">Operator Custom</SelectItem>
+                    <SelectItem value="Industry">Industry Standard</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="frameworkId">Associated Framework (Optional)</Label>
+                <Select 
+                  value={checklistForm.frameworkId || "none"} 
+                  onValueChange={(value) => setChecklistForm(prev => ({ ...prev, frameworkId: value === "none" ? "" : value }))}
+                >
+                  <SelectTrigger data-testid="select-checklist-framework">
+                    <SelectValue placeholder="Select framework" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    {frameworks.map((fw) => (
+                      <SelectItem key={fw.id} value={fw.id}>
+                        {fw.frameworkCode} - {fw.frameworkName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="items">Checklist Items</Label>
+              <p className="text-sm text-muted-foreground">
+                Enter one item per line. Format: ItemCode | ItemText | RegulatoryRef | Category
+              </p>
+              <Textarea
+                id="items"
+                placeholder="142.53(a)(1) | Training syllabus approved by Administrator | 14 CFR 142.53 | Training Program
+142.53(a)(2) | Curriculum approved for each rating | 14 CFR 142.53 | Training Program
+142.55 | Training conducted per approved course | 14 CFR 142.55 | Operations"
+                rows={8}
+                value={checklistForm.items}
+                onChange={(e) => setChecklistForm(prev => ({ ...prev, items: e.target.value }))}
+                className="font-mono text-sm"
+                data-testid="textarea-checklist-items"
+              />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="isCanonical"
+                checked={checklistForm.isCanonical}
+                onChange={(e) => setChecklistForm(prev => ({ ...prev, isCanonical: e.target.checked }))}
+                className="h-4 w-4"
+                data-testid="checkbox-canonical"
+              />
+              <Label htmlFor="isCanonical" className="text-sm font-normal">
+                Mark as canonical (authoritative source for harmonization)
+              </Label>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setChecklistDialogOpen(false)}
+              data-testid="btn-cancel-import"
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={() => importChecklistMutation.mutate(checklistForm)}
+              disabled={importChecklistMutation.isPending || !checklistForm.schemaName || !checklistForm.items}
+              data-testid="btn-confirm-import"
+            >
+              {importChecklistMutation.isPending ? (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  Importing...
+                </>
+              ) : (
+                <>
+                  <Upload className="h-4 w-4 mr-2" />
+                  Import Checklist
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
