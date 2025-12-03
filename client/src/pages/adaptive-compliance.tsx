@@ -198,7 +198,7 @@ export default function AdaptiveCompliance() {
             Adaptive Compliance Intelligence
           </h1>
           <p className="text-muted-foreground mt-1">
-            Patent 4/4B Regulatory Spine + Inspector Preference Engine
+            Regulatory Spine Architecture with Inspector Preference Modeling
           </p>
         </div>
         <Button 
