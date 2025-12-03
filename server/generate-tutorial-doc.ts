@@ -61,6 +61,24 @@ export async function generateAdaptiveComplianceTutorial(): Promise<Buffer> {
               })
             ]
           }),
+          new Paragraph({
+            spacing: { after: 200 },
+            children: [
+              new TextRun({
+                text: "Version 2.0 introduces the revolutionary ",
+                size: 22
+              }),
+              new TextRun({
+                text: "Checklist Automation System",
+                bold: true,
+                size: 22
+              }),
+              new TextRun({
+                text: " (Section 7) with automated FAA checklist retrieval, intelligent priority ranking, version monitoring, and evidence-on-demand mapping with blockchain verification.",
+                size: 22
+              })
+            ]
+          }),
 
           new Paragraph({
             text: "What Makes This System Universal",
@@ -97,6 +115,11 @@ export async function generateAdaptiveComplianceTutorial(): Promise<Buffer> {
           }),
           new Paragraph({
             text: "Blockchain Verification - Immutable audit trails for all compliance evidence",
+            bullet: { level: 0 },
+            spacing: { after: 50 }
+          }),
+          new Paragraph({
+            text: "Automated Checklist Management - Auto-fetch, version monitoring, and intelligent prioritization",
             bullet: { level: 0 },
             spacing: { after: 200 }
           }),
@@ -270,7 +293,16 @@ export async function generateAdaptiveComplianceTutorial(): Promise<Buffer> {
           }),
           new Paragraph({
             text: "4. Click \"Select as Spine\" to establish your regulatory foundation",
-            spacing: { after: 200 }
+            spacing: { after: 50 }
+          }),
+          new Paragraph({
+            spacing: { after: 200 },
+            children: [
+              new TextRun({
+                text: "5. The system will automatically fetch core FAA checklists for your selected spine",
+                bold: true
+              })
+            ]
           }),
           new Paragraph({
             spacing: { after: 200 },
@@ -416,7 +448,359 @@ export async function generateAdaptiveComplianceTutorial(): Promise<Buffer> {
           }),
 
           new Paragraph({
-            text: "The Six Tabs",
+            text: "Section 7: Checklist Automation System",
+            heading: HeadingLevel.HEADING_1,
+            spacing: { before: 400, after: 100 }
+          }),
+          new Paragraph({
+            alignment: AlignmentType.LEFT,
+            spacing: { after: 200 },
+            children: [
+              new TextRun({
+                text: "PATENT PENDING",
+                bold: true,
+                color: "B91C1C",
+                size: 20
+              })
+            ]
+          }),
+          new Paragraph({
+            spacing: { after: 200 },
+            children: [
+              new TextRun({
+                text: "The Checklist Automation System revolutionizes compliance management with intelligent automation, eliminating manual checklist tracking and ensuring you always have the most current regulatory requirements."
+              })
+            ]
+          }),
+
+          new Paragraph({
+            text: "Auto-Fetch Core FAA Checklists",
+            heading: HeadingLevel.HEADING_2,
+            spacing: { before: 200, after: 100 }
+          }),
+          new Paragraph({
+            spacing: { after: 100 },
+            children: [
+              new TextRun({
+                text: "When you select a regulatory spine, the system automatically retrieves the core FAA checklists for that FAR Part. You can also manually trigger auto-fetch:"
+              })
+            ]
+          }),
+          new Paragraph({
+            text: "1. Navigate to the Checklists tab",
+            spacing: { after: 50 }
+          }),
+          new Paragraph({
+            text: "2. Find the \"Auto-Fetch Core Checklists\" card",
+            spacing: { after: 50 }
+          }),
+          new Paragraph({
+            text: "3. Select the FAR Part from the dropdown",
+            spacing: { after: 50 }
+          }),
+          new Paragraph({
+            text: "4. Click \"Auto-Fetch\" to retrieve the core FAA checklists",
+            spacing: { after: 200 }
+          }),
+          new Paragraph({
+            spacing: { after: 200 },
+            children: [
+              new TextRun({
+                text: "Supported FAR Parts for Auto-Fetch: ",
+                bold: true
+              }),
+              new TextRun({
+                text: "Part 121, Part 135, Part 141, Part 142, Part 145, Part 147"
+              })
+            ]
+          }),
+
+          new Paragraph({
+            text: "Priority Levels (P1-P5)",
+            heading: HeadingLevel.HEADING_2,
+            spacing: { before: 200, after: 100 }
+          }),
+          new Paragraph({
+            spacing: { after: 100 },
+            children: [
+              new TextRun({
+                text: "Checklists are automatically organized by a 5-level priority system that ensures you focus on the most critical requirements first:"
+              })
+            ]
+          }),
+          new Table({
+            width: { size: 100, type: WidthType.PERCENTAGE },
+            rows: [
+              new TableRow({
+                children: [
+                  new TableCell({
+                    children: [new Paragraph({ children: [new TextRun({ text: "Priority", bold: true })] })],
+                    width: { size: 15, type: WidthType.PERCENTAGE }
+                  }),
+                  new TableCell({
+                    children: [new Paragraph({ children: [new TextRun({ text: "Level Name", bold: true })] })],
+                    width: { size: 30, type: WidthType.PERCENTAGE }
+                  }),
+                  new TableCell({
+                    children: [new Paragraph({ children: [new TextRun({ text: "Description", bold: true })] })],
+                    width: { size: 55, type: WidthType.PERCENTAGE }
+                  })
+                ]
+              }),
+              new TableRow({
+                children: [
+                  new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "P1", bold: true, color: "DC2626" })] })] }),
+                  new TableCell({ children: [new Paragraph("FAA Standard Checklists")] }),
+                  new TableCell({ children: [new Paragraph("Primary regulatory checklists from official FAA sources. These take precedence over all others.")] })
+                ]
+              }),
+              new TableRow({
+                children: [
+                  new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "P2", bold: true, color: "EA580C" })] })] }),
+                  new TableCell({ children: [new Paragraph("Certificate-Specific")] }),
+                  new TableCell({ children: [new Paragraph("Requirements specific to your organization's certificate type and authorizations.")] })
+                ]
+              }),
+              new TableRow({
+                children: [
+                  new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "P3", bold: true, color: "CA8A04" })] })] }),
+                  new TableCell({ children: [new Paragraph("Inspector Supplemental")] }),
+                  new TableCell({ children: [new Paragraph("Additional items typically requested by FAA inspectors during audits.")] })
+                ]
+              }),
+              new TableRow({
+                children: [
+                  new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "P4", bold: true, color: "2563EB" })] })] }),
+                  new TableCell({ children: [new Paragraph("Operator-Required")] }),
+                  new TableCell({ children: [new Paragraph("Custom additions specific to your operation beyond regulatory minimums.")] })
+                ]
+              }),
+              new TableRow({
+                children: [
+                  new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "P5", bold: true, color: "6B7280" })] })] }),
+                  new TableCell({ children: [new Paragraph("Archived Legacy")] }),
+                  new TableCell({ children: [new Paragraph("Historical reference only. Hidden by default but accessible when needed.")] })
+                ]
+              })
+            ]
+          }),
+          new Paragraph({
+            spacing: { before: 100, after: 200 },
+            children: [
+              new TextRun({
+                text: "Tip: ",
+                bold: true,
+                italics: true
+              }),
+              new TextRun({
+                text: "Always complete P1 (FAA Standard) items first, as these are the primary regulatory requirements that inspectors will verify."
+              })
+            ]
+          }),
+
+          new Paragraph({
+            text: "Version Monitoring & Update Detection",
+            heading: HeadingLevel.HEADING_2,
+            spacing: { before: 200, after: 100 }
+          }),
+          new Paragraph({
+            spacing: { after: 100 },
+            children: [
+              new TextRun({
+                text: "The system continuously monitors for regulatory updates and notifies you when checklist versions change:"
+              })
+            ]
+          }),
+          new Paragraph({
+            spacing: { after: 50 },
+            children: [
+              new TextRun({
+                text: "FAA 8900.1 Orders",
+                bold: true
+              }),
+              new TextRun({
+                text: " - Inspector guidance and procedures"
+              })
+            ]
+          }),
+          new Paragraph({
+            spacing: { after: 50 },
+            children: [
+              new TextRun({
+                text: "eCFR Sections",
+                bold: true
+              }),
+              new TextRun({
+                text: " - Electronic Code of Federal Regulations updates"
+              })
+            ]
+          }),
+          new Paragraph({
+            spacing: { after: 50 },
+            children: [
+              new TextRun({
+                text: "SAFOs & InFOs",
+                bold: true
+              }),
+              new TextRun({
+                text: " - Safety alerts and information notices"
+              })
+            ]
+          }),
+          new Paragraph({
+            spacing: { after: 200 },
+            children: [
+              new TextRun({
+                text: "Advisory Circulars",
+                bold: true
+              }),
+              new TextRun({
+                text: " - Compliance guidance updates"
+              })
+            ]
+          }),
+          new Paragraph({
+            spacing: { after: 100 },
+            children: [
+              new TextRun({
+                text: "To check for updates:",
+                bold: true
+              })
+            ]
+          }),
+          new Paragraph({
+            text: "1. Click the \"Check Updates\" button in the Checklists tab header",
+            spacing: { after: 50 }
+          }),
+          new Paragraph({
+            text: "2. Review any version changes detected",
+            spacing: { after: 50 }
+          }),
+          new Paragraph({
+            text: "3. Outdated checklists are automatically flagged with an \"Outdated\" badge",
+            spacing: { after: 200 }
+          }),
+
+          new Paragraph({
+            text: "Version History",
+            heading: HeadingLevel.HEADING_2,
+            spacing: { before: 200, after: 100 }
+          }),
+          new Paragraph({
+            spacing: { after: 100 },
+            children: [
+              new TextRun({
+                text: "Track the complete history of any checklist with the History feature:"
+              })
+            ]
+          }),
+          new Paragraph({
+            text: "1. Click the \"History\" button on any checklist card",
+            spacing: { after: 50 }
+          }),
+          new Paragraph({
+            text: "2. View all version changes with timestamps",
+            spacing: { after: 50 }
+          }),
+          new Paragraph({
+            text: "3. See change summaries explaining what was modified",
+            spacing: { after: 50 }
+          }),
+          new Paragraph({
+            text: "4. Access source URLs for each version",
+            spacing: { after: 50 }
+          }),
+          new Paragraph({
+            text: "5. Review evidence coverage statistics for each version",
+            spacing: { after: 200 }
+          }),
+
+          new Paragraph({
+            text: "Suppress & Unlock Controls",
+            heading: HeadingLevel.HEADING_2,
+            spacing: { before: 200, after: 100 }
+          }),
+          new Paragraph({
+            spacing: { after: 100 },
+            children: [
+              new TextRun({
+                text: "Manage checklist lifecycle with suppress and unlock controls:"
+              })
+            ]
+          }),
+          new Paragraph({
+            spacing: { after: 50 },
+            children: [
+              new TextRun({
+                text: "Suppress",
+                bold: true
+              }),
+              new TextRun({
+                text: " - Hide outdated checklists from active view while preserving them for historical reference. Suppressed checklists move to Priority 5 (Archived Legacy)."
+              })
+            ]
+          }),
+          new Paragraph({
+            spacing: { after: 200 },
+            children: [
+              new TextRun({
+                text: "Unlock",
+                bold: true
+              }),
+              new TextRun({
+                text: " - Restore archived checklists to active status when needed for reference or if suppression was accidental."
+              })
+            ]
+          }),
+
+          new Paragraph({
+            text: "Evidence Mapping",
+            heading: HeadingLevel.HEADING_2,
+            spacing: { before: 200, after: 100 }
+          }),
+          new Paragraph({
+            spacing: { after: 100 },
+            children: [
+              new TextRun({
+                text: "Link compliance evidence directly to checklist items with multi-schema indexing and blockchain verification:"
+              })
+            ]
+          }),
+          new Paragraph({
+            text: "Evidence can be mapped to items across multiple checklists simultaneously",
+            bullet: { level: 0 },
+            spacing: { after: 50 }
+          }),
+          new Paragraph({
+            text: "Each mapping is blockchain-verified for audit integrity",
+            bullet: { level: 0 },
+            spacing: { after: 50 }
+          }),
+          new Paragraph({
+            text: "Evidence coverage statistics show percentage of items with linked evidence",
+            bullet: { level: 0 },
+            spacing: { after: 50 }
+          }),
+          new Paragraph({
+            text: "Evidence-on-demand retrieval instantly pulls relevant documentation",
+            bullet: { level: 0 },
+            spacing: { after: 200 }
+          }),
+          new Paragraph({
+            spacing: { after: 200 },
+            children: [
+              new TextRun({
+                text: "Evidence Stats Display: ",
+                bold: true
+              }),
+              new TextRun({
+                text: "Each checklist shows total items, mapped items, and coverage percentage. Blockchain verification count indicates items with immutable evidence trails."
+              })
+            ]
+          }),
+
+          new Paragraph({
+            text: "The Seven Tabs",
             heading: HeadingLevel.HEADING_1,
             spacing: { before: 400, after: 200 }
           }),
@@ -492,7 +876,67 @@ export async function generateAdaptiveComplianceTutorial(): Promise<Buffer> {
             spacing: { after: 100 },
             children: [
               new TextRun({
-                text: "Manage compliance checklists from various sources. The system now supports checklists from any FAR Part."
+                text: "Manage compliance checklists with automation features:"
+              })
+            ]
+          }),
+          new Paragraph({
+            spacing: { after: 50 },
+            children: [
+              new TextRun({
+                text: "Auto-Fetch Core Checklists",
+                bold: true
+              }),
+              new TextRun({
+                text: " - Automatically retrieve FAA standard checklists for any supported FAR Part"
+              })
+            ]
+          }),
+          new Paragraph({
+            spacing: { after: 50 },
+            children: [
+              new TextRun({
+                text: "Priority Sorting",
+                bold: true
+              }),
+              new TextRun({
+                text: " - Checklists organized by P1-P5 priority levels"
+              })
+            ]
+          }),
+          new Paragraph({
+            spacing: { after: 50 },
+            children: [
+              new TextRun({
+                text: "Version Monitoring",
+                bold: true
+              }),
+              new TextRun({
+                text: " - Check for updates and view version history"
+              })
+            ]
+          }),
+          new Paragraph({
+            spacing: { after: 50 },
+            children: [
+              new TextRun({
+                text: "Evidence Coverage",
+                bold: true
+              }),
+              new TextRun({
+                text: " - Track evidence mapping percentage for each checklist"
+              })
+            ]
+          }),
+          new Paragraph({
+            spacing: { after: 200 },
+            children: [
+              new TextRun({
+                text: "Suppress/Unlock Controls",
+                bold: true
+              }),
+              new TextRun({
+                text: " - Manage checklist lifecycle and archival"
               })
             ]
           }),
@@ -500,7 +944,7 @@ export async function generateAdaptiveComplianceTutorial(): Promise<Buffer> {
             spacing: { after: 100 },
             children: [
               new TextRun({
-                text: "To Import a Checklist:",
+                text: "To Import a Checklist Manually:",
                 bold: true
               })
             ]
@@ -594,6 +1038,18 @@ export async function generateAdaptiveComplianceTutorial(): Promise<Buffer> {
             ]
           }),
           new Paragraph({
+            spacing: { after: 50 },
+            children: [
+              new TextRun({
+                text: "Multi-Schema Indexing",
+                bold: true
+              }),
+              new TextRun({
+                text: " - Evidence linked across multiple checklists simultaneously"
+              })
+            ]
+          }),
+          new Paragraph({
             spacing: { after: 200 },
             children: [
               new TextRun({
@@ -645,7 +1101,7 @@ export async function generateAdaptiveComplianceTutorial(): Promise<Buffer> {
           }),
 
           new Paragraph({
-            text: "6. Regulatory Updates Tab (NEW)",
+            text: "6. Regulatory Updates Tab",
             heading: HeadingLevel.HEADING_2,
             spacing: { before: 300, after: 100 }
           }),
@@ -653,7 +1109,7 @@ export async function generateAdaptiveComplianceTutorial(): Promise<Buffer> {
             spacing: { after: 100 },
             children: [
               new TextRun({
-                text: "Monitor changes across all your configured FAR Parts:"
+                text: "Monitor regulatory changes affecting your operations:"
               })
             ]
           }),
@@ -661,11 +1117,11 @@ export async function generateAdaptiveComplianceTutorial(): Promise<Buffer> {
             spacing: { after: 50 },
             children: [
               new TextRun({
-                text: "Change Detection",
+                text: "CFR Updates",
                 bold: true
               }),
               new TextRun({
-                text: " - Automatic monitoring for CFR amendments"
+                text: " - Changes to Title 14 regulations"
               })
             ]
           }),
@@ -690,6 +1146,56 @@ export async function generateAdaptiveComplianceTutorial(): Promise<Buffer> {
               }),
               new TextRun({
                 text: " - Analysis of how changes affect your compliance posture"
+              })
+            ]
+          }),
+
+          new Paragraph({
+            text: "7. Link Monitor Tab",
+            heading: HeadingLevel.HEADING_2,
+            spacing: { before: 300, after: 100 }
+          }),
+          new Paragraph({
+            spacing: { after: 100 },
+            children: [
+              new TextRun({
+                text: "AI-powered monitoring of regulatory reference links:"
+              })
+            ]
+          }),
+          new Paragraph({
+            spacing: { after: 50 },
+            children: [
+              new TextRun({
+                text: "Link Status",
+                bold: true
+              }),
+              new TextRun({
+                text: " - Real-time verification of regulatory URLs"
+              })
+            ]
+          }),
+          new Paragraph({
+            spacing: { after: 50 },
+            children: [
+              new TextRun({
+                text: "Redirect Detection",
+                bold: true
+              }),
+              new TextRun({
+                text: " - Alerts when regulatory links change location"
+              })
+            ]
+          }),
+          new Paragraph({
+            spacing: { after: 200 },
+            children: [
+              new TextRun({
+                text: "Currency Verification",
+                bold: true
+              }),
+              new TextRun({
+                text: " - Ensures referenced regulations are current versions"
               })
             ]
           }),
@@ -868,11 +1374,11 @@ export async function generateAdaptiveComplianceTutorial(): Promise<Buffer> {
             spacing: { after: 100 },
             children: [
               new TextRun({
-                text: "2. Initialize related parts",
+                text: "2. Use auto-fetch for core checklists",
                 bold: true
               }),
               new TextRun({
-                text: " - Add FAR Parts that commonly intersect with your operations"
+                text: " - Let the system retrieve FAA standard checklists automatically"
               })
             ]
           }),
@@ -880,11 +1386,11 @@ export async function generateAdaptiveComplianceTutorial(): Promise<Buffer> {
             spacing: { after: 100 },
             children: [
               new TextRun({
-                text: "3. Ingest policy documents regularly",
+                text: "3. Check for updates regularly",
                 bold: true
               }),
               new TextRun({
-                text: " - Keep up with SAFOs, InFOs, and Advisory Circulars"
+                text: " - Use the Check Updates button to ensure checklists reflect current regulations"
               })
             ]
           }),
@@ -892,11 +1398,11 @@ export async function generateAdaptiveComplianceTutorial(): Promise<Buffer> {
             spacing: { after: 100 },
             children: [
               new TextRun({
-                text: "4. Monitor regulatory updates",
+                text: "4. Prioritize P1 items",
                 bold: true
               }),
               new TextRun({
-                text: " - Check the Regulatory Updates panel for changes affecting your operations"
+                text: " - Always complete FAA Standard (P1) checklist items first"
               })
             ]
           }),
@@ -904,11 +1410,11 @@ export async function generateAdaptiveComplianceTutorial(): Promise<Buffer> {
             spacing: { after: 100 },
             children: [
               new TextRun({
-                text: "5. Link evidence to regulations",
+                text: "5. Map evidence proactively",
                 bold: true
               }),
               new TextRun({
-                text: " - Index compliance evidence as events occur, not before audits"
+                text: " - Link compliance evidence to checklist items as events occur, not before audits"
               })
             ]
           }),
@@ -925,10 +1431,46 @@ export async function generateAdaptiveComplianceTutorial(): Promise<Buffer> {
             ]
           }),
           new Paragraph({
+            spacing: { after: 100 },
+            children: [
+              new TextRun({
+                text: "7. Suppress outdated checklists",
+                bold: true
+              }),
+              new TextRun({
+                text: " - Archive superseded versions to maintain clean, current compliance view"
+              })
+            ]
+          }),
+          new Paragraph({
+            spacing: { after: 100 },
+            children: [
+              new TextRun({
+                text: "8. Review version history",
+                bold: true
+              }),
+              new TextRun({
+                text: " - Understand what changed between checklist versions"
+              })
+            ]
+          }),
+          new Paragraph({
+            spacing: { after: 100 },
+            children: [
+              new TextRun({
+                text: "9. Ingest policy documents regularly",
+                bold: true
+              }),
+              new TextRun({
+                text: " - Keep up with SAFOs, InFOs, and Advisory Circulars"
+              })
+            ]
+          }),
+          new Paragraph({
             spacing: { after: 200 },
             children: [
               new TextRun({
-                text: "7. Generate audit packets regularly",
+                text: "10. Generate audit packets regularly",
                 bold: true
               }),
               new TextRun({
@@ -973,6 +1515,11 @@ export async function generateAdaptiveComplianceTutorial(): Promise<Buffer> {
           new Paragraph({
             text: "Policy Documents - Number of ingested SAFOs, InFOs, and ACs",
             bullet: { level: 0 },
+            spacing: { after: 50 }
+          }),
+          new Paragraph({
+            text: "Evidence Coverage - Percentage of checklist items with mapped evidence",
+            bullet: { level: 0 },
             spacing: { after: 200 }
           }),
 
@@ -986,6 +1533,16 @@ export async function generateAdaptiveComplianceTutorial(): Promise<Buffer> {
             children: [
               new TextRun({
                 text: "For system integrators, the following API endpoints are available:"
+              })
+            ]
+          }),
+
+          new Paragraph({
+            spacing: { after: 100 },
+            children: [
+              new TextRun({
+                text: "Core Regulatory APIs:",
+                bold: true
               })
             ]
           }),
@@ -1075,6 +1632,142 @@ export async function generateAdaptiveComplianceTutorial(): Promise<Buffer> {
           }),
 
           new Paragraph({
+            spacing: { after: 100 },
+            children: [
+              new TextRun({
+                text: "Checklist Automation APIs (Section 7):",
+                bold: true
+              })
+            ]
+          }),
+          new Paragraph({
+            spacing: { after: 50 },
+            indent: { left: 360 },
+            children: [
+              new TextRun({
+                text: "POST /api/adaptive-compliance/checklists/auto-fetch/:farPartCode",
+                font: "Courier New",
+                size: 20
+              }),
+              new TextRun({
+                text: " - Auto-fetch core checklist for FAR Part"
+              })
+            ]
+          }),
+          new Paragraph({
+            spacing: { after: 50 },
+            indent: { left: 360 },
+            children: [
+              new TextRun({
+                text: "GET /api/adaptive-compliance/checklists/by-priority",
+                font: "Courier New",
+                size: 20
+              }),
+              new TextRun({
+                text: " - Get checklists sorted by priority level"
+              })
+            ]
+          }),
+          new Paragraph({
+            spacing: { after: 50 },
+            indent: { left: 360 },
+            children: [
+              new TextRun({
+                text: "GET /api/adaptive-compliance/checklists/version-check",
+                font: "Courier New",
+                size: 20
+              }),
+              new TextRun({
+                text: " - Check for version updates"
+              })
+            ]
+          }),
+          new Paragraph({
+            spacing: { after: 50 },
+            indent: { left: 360 },
+            children: [
+              new TextRun({
+                text: "GET /api/adaptive-compliance/checklists/:schemaId/version-history",
+                font: "Courier New",
+                size: 20
+              }),
+              new TextRun({
+                text: " - Get version history for a checklist"
+              })
+            ]
+          }),
+          new Paragraph({
+            spacing: { after: 50 },
+            indent: { left: 360 },
+            children: [
+              new TextRun({
+                text: "POST /api/adaptive-compliance/checklists/:schemaId/suppress",
+                font: "Courier New",
+                size: 20
+              }),
+              new TextRun({
+                text: " - Suppress outdated checklist"
+              })
+            ]
+          }),
+          new Paragraph({
+            spacing: { after: 50 },
+            indent: { left: 360 },
+            children: [
+              new TextRun({
+                text: "POST /api/adaptive-compliance/checklists/:schemaId/unlock",
+                font: "Courier New",
+                size: 20
+              }),
+              new TextRun({
+                text: " - Unlock archived checklist"
+              })
+            ]
+          }),
+          new Paragraph({
+            spacing: { after: 50 },
+            indent: { left: 360 },
+            children: [
+              new TextRun({
+                text: "GET /api/adaptive-compliance/checklists/:schemaId/evidence-stats",
+                font: "Courier New",
+                size: 20
+              }),
+              new TextRun({
+                text: " - Get evidence mapping statistics"
+              })
+            ]
+          }),
+          new Paragraph({
+            spacing: { after: 50 },
+            indent: { left: 360 },
+            children: [
+              new TextRun({
+                text: "POST /api/adaptive-compliance/checklists/evidence-mapping",
+                font: "Courier New",
+                size: 20
+              }),
+              new TextRun({
+                text: " - Map evidence to checklist item"
+              })
+            ]
+          }),
+          new Paragraph({
+            spacing: { after: 200 },
+            indent: { left: 360 },
+            children: [
+              new TextRun({
+                text: "GET /api/adaptive-compliance/checklists/supported-parts",
+                font: "Courier New",
+                size: 20
+              }),
+              new TextRun({
+                text: " - Get all supported FAR Parts with checklist definitions"
+              })
+            ]
+          }),
+
+          new Paragraph({
             spacing: { before: 600 },
             alignment: AlignmentType.CENTER,
             border: {
@@ -1092,8 +1785,19 @@ export async function generateAdaptiveComplianceTutorial(): Promise<Buffer> {
             alignment: AlignmentType.CENTER,
             children: [
               new TextRun({
-                text: "Patent Pending",
+                text: "Universal FAR Ingestion System with Section 7 Checklist Automation",
                 italics: true,
+                size: 20
+              })
+            ]
+          }),
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            spacing: { before: 100 },
+            children: [
+              new TextRun({
+                text: "Patent Pending",
+                bold: true,
                 color: "B91C1C",
                 size: 20
               })
