@@ -8,7 +8,7 @@ import { isAuthenticated } from "../replitAuth";
 
 const router = Router();
 
-router.get("/frameworks", async (req: Request, res: Response) => {
+router.get("/frameworks", isAuthenticated, async (req: Request, res: Response) => {
   try {
     const frameworks = await regulatorySpineService.getAllActiveFrameworks();
     res.json(frameworks);
@@ -18,7 +18,7 @@ router.get("/frameworks", async (req: Request, res: Response) => {
   }
 });
 
-router.get("/frameworks/spine", async (req: Request, res: Response) => {
+router.get("/frameworks/spine", isAuthenticated, async (req: Request, res: Response) => {
   try {
     const spine = await regulatorySpineService.getSpineFramework();
     res.json(spine);
@@ -28,7 +28,7 @@ router.get("/frameworks/spine", async (req: Request, res: Response) => {
   }
 });
 
-router.get("/frameworks/hierarchy/:organizationId", async (req: Request, res: Response) => {
+router.get("/frameworks/hierarchy/:organizationId", isAuthenticated, async (req: Request, res: Response) => {
   try {
     const hierarchy = await regulatorySpineService.getComplianceFrameworkHierarchy(
       req.params.organizationId
@@ -50,7 +50,7 @@ router.post("/frameworks/initialize", isAuthenticated, async (req: Request, res:
   }
 });
 
-router.get("/checklists", async (req: Request, res: Response) => {
+router.get("/checklists", isAuthenticated, async (req: Request, res: Response) => {
   try {
     const schemas = await checklistHarmonizationEngine.getAllSchemas();
     res.json(schemas);
@@ -60,7 +60,7 @@ router.get("/checklists", async (req: Request, res: Response) => {
   }
 });
 
-router.get("/checklists/:schemaId/items", async (req: Request, res: Response) => {
+router.get("/checklists/:schemaId/items", isAuthenticated, async (req: Request, res: Response) => {
   try {
     const items = await checklistHarmonizationEngine.getSchemaItems(req.params.schemaId);
     res.json(items);
@@ -106,7 +106,7 @@ router.post("/checklists/harmonize", isAuthenticated, async (req: Request, res: 
   }
 });
 
-router.get("/checklists/deltas/:baseSchemaId/:comparedSchemaId", async (req: Request, res: Response) => {
+router.get("/checklists/deltas/:baseSchemaId/:comparedSchemaId", isAuthenticated, async (req: Request, res: Response) => {
   try {
     const report = await checklistHarmonizationEngine.generateDeltaReport(
       req.params.baseSchemaId,
@@ -119,7 +119,7 @@ router.get("/checklists/deltas/:baseSchemaId/:comparedSchemaId", async (req: Req
   }
 });
 
-router.get("/inspectors", async (req: Request, res: Response) => {
+router.get("/inspectors", isAuthenticated, async (req: Request, res: Response) => {
   try {
     const inspectors = await inspectorPreferenceEngine.getAllInspectors();
     res.json(inspectors);
@@ -129,7 +129,7 @@ router.get("/inspectors", async (req: Request, res: Response) => {
   }
 });
 
-router.get("/inspectors/:inspectorId", async (req: Request, res: Response) => {
+router.get("/inspectors/:inspectorId", isAuthenticated, async (req: Request, res: Response) => {
   try {
     const inspector = await inspectorPreferenceEngine.getInspectorProfile(req.params.inspectorId);
     if (!inspector) {
@@ -169,7 +169,7 @@ router.post("/inspectors/:inspectorId/behavior", isAuthenticated, async (req: Re
   }
 });
 
-router.get("/inspectors/:inspectorId/prediction", async (req: Request, res: Response) => {
+router.get("/inspectors/:inspectorId/prediction", isAuthenticated, async (req: Request, res: Response) => {
   try {
     const prediction = await inspectorPreferenceEngine.predictInspectorBehavior(
       req.params.inspectorId
@@ -181,7 +181,7 @@ router.get("/inspectors/:inspectorId/prediction", async (req: Request, res: Resp
   }
 });
 
-router.get("/inspectors/:inspectorId/preparation/:organizationId", async (req: Request, res: Response) => {
+router.get("/inspectors/:inspectorId/preparation/:organizationId", isAuthenticated, async (req: Request, res: Response) => {
   try {
     const strategy = await inspectorPreferenceEngine.generateAuditPreparationStrategy(
       req.params.inspectorId,
@@ -194,7 +194,7 @@ router.get("/inspectors/:inspectorId/preparation/:organizationId", async (req: R
   }
 });
 
-router.get("/evidence", async (req: Request, res: Response) => {
+router.get("/evidence", isAuthenticated, async (req: Request, res: Response) => {
   try {
     const { checklist_item_id, framework_code, regulatory_reference } = req.query;
     
@@ -222,7 +222,7 @@ router.get("/evidence", async (req: Request, res: Response) => {
   }
 });
 
-router.get("/evidence/:evidenceId", async (req: Request, res: Response) => {
+router.get("/evidence/:evidenceId", isAuthenticated, async (req: Request, res: Response) => {
   try {
     const evidence = await evidenceIndexingService.getEvidenceById(req.params.evidenceId);
     if (!evidence) {
@@ -301,7 +301,7 @@ router.post("/audit-packets/generate", isAuthenticated, async (req: Request, res
   }
 });
 
-router.get("/audit-packets/:packetId", async (req: Request, res: Response) => {
+router.get("/audit-packets/:packetId", isAuthenticated, async (req: Request, res: Response) => {
   try {
     const packet = await auditPacketGenerator.getPacketById(req.params.packetId);
     if (!packet) {
@@ -314,7 +314,7 @@ router.get("/audit-packets/:packetId", async (req: Request, res: Response) => {
   }
 });
 
-router.get("/audit-packets/:packetId/json", async (req: Request, res: Response) => {
+router.get("/audit-packets/:packetId/json", isAuthenticated, async (req: Request, res: Response) => {
   try {
     const packetJson = await auditPacketGenerator.generatePacketJSON(req.params.packetId);
     res.json(packetJson);
@@ -324,7 +324,7 @@ router.get("/audit-packets/:packetId/json", async (req: Request, res: Response) 
   }
 });
 
-router.get("/audit-packets/organization/:organizationId", async (req: Request, res: Response) => {
+router.get("/audit-packets/organization/:organizationId", isAuthenticated, async (req: Request, res: Response) => {
   try {
     const packets = await auditPacketGenerator.getPacketsForOrganization(req.params.organizationId);
     res.json(packets);
@@ -345,7 +345,7 @@ router.put("/audit-packets/:packetId/status", isAuthenticated, async (req: Reque
   }
 });
 
-router.get("/coverage/:organizationId/:frameworkId", async (req: Request, res: Response) => {
+router.get("/coverage/:organizationId/:frameworkId", isAuthenticated, async (req: Request, res: Response) => {
   try {
     const coverage = await auditPacketGenerator.calculateRegulatoryCoverage(
       req.params.organizationId,
