@@ -25,12 +25,12 @@ export async function generateAdaptiveComplianceTutorial(): Promise<Buffer> {
             spacing: { after: 400 }
           }),
           new Paragraph({
-            text: "BCCS142 Aviation Compliance Platform",
+            text: "BCCS-US Aviation Compliance Platform",
             alignment: AlignmentType.CENTER,
             spacing: { after: 600 },
             children: [
               new TextRun({
-                text: "BCCS142 Aviation Compliance Platform",
+                text: "BCCS-US Aviation Compliance Platform",
                 italics: true,
                 color: "666666"
               })
@@ -529,7 +529,7 @@ export async function generateAdaptiveComplianceTutorial(): Promise<Buffer> {
             alignment: AlignmentType.CENTER,
             children: [
               new TextRun({
-                text: "© BCCS142 Aviation Compliance Platform",
+                text: "© BCCS-US Aviation Compliance Platform",
                 italics: true,
                 color: "999999",
                 size: 20

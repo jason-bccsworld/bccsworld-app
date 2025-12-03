@@ -8,7 +8,7 @@ export default function Support() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-gray-900">Support Center</h1>
-        <p className="text-gray-600 mt-2">Get help with BCCS142 Aviation Compliance Platform</p>
+        <p className="text-gray-600 mt-2">Get help with BCCS-US Aviation Compliance Platform</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -43,7 +43,7 @@ export default function Support() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="font-semibold text-lg">1-800-BCCS142</p>
+            <p className="font-semibold text-lg">1-800-BCCS-US</p>
             <p className="text-sm text-gray-600">
               <Clock className="inline h-4 w-4 mr-1" />
               24/7 Emergency Support

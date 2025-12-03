@@ -57,7 +57,7 @@ export function KeyManagementDashboard() {
 
   const platformIntegrations = [
     {
-      name: 'BCCS142',
+      name: 'BCCS-US',
       description: 'Training Platform',
       status: 'active',
       verifications: 15234,

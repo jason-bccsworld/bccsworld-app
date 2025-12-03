@@ -70,7 +70,7 @@ export class LinkMonitoringService {
       const response = await fetch(url, {
         method: 'HEAD',
         headers: {
-          'User-Agent': 'BCCS142-LinkMonitor/1.0 (Aviation Compliance Platform)',
+          'User-Agent': 'BCCS-US-LinkMonitor/1.0 (Aviation Compliance Platform)',
         },
         signal: controller.signal,
       });
@@ -131,7 +131,7 @@ export class LinkMonitoringService {
       // Get page content for analysis
       const response = await fetch(url, {
         headers: {
-          'User-Agent': 'BCCS142-LinkMonitor/1.0 (Aviation Compliance Platform)',
+          'User-Agent': 'BCCS-US-LinkMonitor/1.0 (Aviation Compliance Platform)',
         },
       });
 

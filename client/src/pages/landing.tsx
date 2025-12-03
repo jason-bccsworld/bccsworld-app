@@ -15,7 +15,7 @@ export default function Landing() {
                 <Plane className="w-6 h-6 text-white" />
               </div>
               <div className="text-2xl font-bold text-blue-600">
-                BCCS142
+                BCCS-US
               </div>
             </div>
             <div className="flex gap-4">
@@ -53,7 +53,7 @@ export default function Landing() {
             <span className="text-blue-600"> Aviation Training</span>
           </h1>
           <p className="text-xl text-slate-600 max-w-3xl mx-auto mb-8">
-            BCCS142 provides immutable training event logging and AI-powered compliance monitoring for aviation training organizations. 
+            BCCS-US provides immutable training event logging and AI-powered compliance monitoring for aviation training organizations. 
             Streamline regulatory compliance with tamper-proof records and automated audit trails.
           </p>
           
@@ -108,7 +108,7 @@ export default function Landing() {
                 <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
                   <Plane className="w-6 h-6 text-blue-600" />
                 </div>
-                <CardTitle>BCCS142 Compliance</CardTitle>
+                <CardTitle>BCCS-US Compliance</CardTitle>
                 <CardDescription>
                   AI-powered document processing and blockchain-secured compliance records
                 </CardDescription>
@@ -350,7 +350,7 @@ export default function Landing() {
             <div>
               <div className="flex items-center gap-2 mb-4">
                 <Plane className="w-6 h-6 text-blue-500" />
-                <span className="text-lg font-bold text-white">BCCS142</span>
+                <span className="text-lg font-bold text-white">BCCS-US</span>
               </div>
               <p className="text-sm">
                 Revolutionary blockchain-powered compliance platform for aviation training organizations
@@ -389,7 +389,7 @@ export default function Landing() {
           </div>
           
           <div className="border-t border-slate-800 mt-8 pt-8 text-center text-sm">
-            <p>&copy; 2025 BCCS142. All rights reserved.</p>
+            <p>&copy; 2025 BCCS-US. All rights reserved.</p>
           </div>
         </div>
       </footer>

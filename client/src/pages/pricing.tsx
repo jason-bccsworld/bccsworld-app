@@ -9,7 +9,7 @@ const pricingTiers = [
     name: "Free Trial",
     price: 0,
     period: "30 days",
-    description: "Perfect for evaluating BCCS142",
+    description: "Perfect for evaluating BCCS-US",
     userLimit: "5 users",
     documentLimit: "100 documents",
     features: [
@@ -165,7 +165,7 @@ export default function Pricing() {
         {/* Value Proposition */}
         <div className="mt-16 text-center">
           <h2 className="text-2xl font-bold text-slate-900 mb-4">
-            Why Choose BCCS142?
+            Why Choose BCCS-US?
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
             <div className="text-center">
@@ -196,7 +196,7 @@ export default function Pricing() {
               </div>
               <h3 className="font-semibold text-slate-900 mb-2">Instant Deployment</h3>
               <p className="text-sm text-slate-600">
-                Start using BCCS142 in hours, not months. 
+                Start using BCCS-US in hours, not months. 
                 No lengthy implementation projects required.
               </p>
             </div>

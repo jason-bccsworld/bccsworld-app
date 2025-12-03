@@ -21,9 +21,9 @@ export interface ChatResponse {
   needsHumanSupport?: boolean;
 }
 
-const SYSTEM_PROMPT = `You are a helpful support assistant for BCCS142, an aviation compliance platform. 
+const SYSTEM_PROMPT = `You are a helpful support assistant for BCCS-US, an aviation compliance platform. 
 
-Key facts about BCCS142:
+Key facts about BCCS-US:
 - Aviation training organization compliance platform
 - AI-powered document processing (OCR/NLP)
 - Supports Part 142 training centers
@@ -59,7 +59,7 @@ const escalationKeywords = [
 
 const quickResponses = {
   greeting: {
-    content: "Hi! I'm here to help you with BCCS142. I can assist with document processing, user management, compliance reports, and more. What can I help you with today?",
+    content: "Hi! I'm here to help you with BCCS-US. I can assist with document processing, user management, compliance reports, and more. What can I help you with today?",
     options: [
       { text: "How do I upload documents?", action: "upload-help" },
       { text: "User management help", action: "users-help" },
@@ -68,7 +68,7 @@ const quickResponses = {
     ]
   },
   upload: {
-    content: "To upload documents in BCCS142:\n\n1. Go to 'Document Import' in the left menu\n2. Click 'Choose File' or drag and drop\n3. Supported formats: PDF, JPG, PNG, DOCX\n4. Wait for processing (usually 30-60 seconds)\n5. Review the extracted data\n\nTip: Clear, high-quality scans work best for accuracy.",
+    content: "To upload documents in BCCS-US:\n\n1. Go to 'Document Import' in the left menu\n2. Click 'Choose File' or drag and drop\n3. Supported formats: PDF, JPG, PNG, DOCX\n4. Wait for processing (usually 30-60 seconds)\n5. Review the extracted data\n\nTip: Clear, high-quality scans work best for accuracy.",
     options: [
       { text: "Document not processing?", action: "processing-issues" },
       { text: "Mobile document scanning", action: "mobile-upload" },
@@ -76,7 +76,7 @@ const quickResponses = {
     ]
   },
   users: {
-    content: "To manage users in BCCS142:\n\n1. Go to 'Admin Dashboard' (Admin role required)\n2. Click 'Manage Users'\n3. Click 'Add User' for new members\n4. Enter email and select role:\n   • Admin: Full access\n   • Instructor: Upload & view\n   • Auditor: View-only all records\n   • Viewer: Limited access\n\nUsers get email invitations automatically.",
+    content: "To manage users in BCCS-US:\n\n1. Go to 'Admin Dashboard' (Admin role required)\n2. Click 'Manage Users'\n3. Click 'Add User' for new members\n4. Enter email and select role:\n   • Admin: Full access\n   • Instructor: Upload & view\n   • Auditor: View-only all records\n   • Viewer: Limited access\n\nUsers get email invitations automatically.",
     options: [
       { text: "I don't see Admin Dashboard", action: "admin-access" },
       { text: "Role permissions explained", action: "role-permissions" },

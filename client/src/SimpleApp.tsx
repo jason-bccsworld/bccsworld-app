@@ -50,7 +50,7 @@ export default function SimpleApp() {
 
   return (
     <div style={{ padding: "20px", textAlign: "center", fontFamily: "Arial, sans-serif" }}>
-      <h1 style={{ color: "green" }}>✅ BCCS142 PLATFORM ACTIVE</h1>
+      <h1 style={{ color: "green" }}>✅ BCCS-US PLATFORM ACTIVE</h1>
       <p>Current URL: {window.location.href}</p>
       <p>React application is loading correctly.</p>
       <div style={{ margin: "30px 0" }}>

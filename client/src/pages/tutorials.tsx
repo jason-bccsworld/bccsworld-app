@@ -21,7 +21,7 @@ import {
 const tutorialVideos = [
   {
     id: "getting-started",
-    title: "Getting Started with BCCS142",
+    title: "Getting Started with BCCS-US",
     duration: "5 min",
     description: "Complete walkthrough of your first login and dashboard overview",
     thumbnail: "/api/placeholder/320/180",
@@ -39,7 +39,7 @@ const tutorialVideos = [
   },
   {
     id: "mobile-app",
-    title: "Using BCCS142 on Mobile",
+    title: "Using BCCS-US on Mobile",
     duration: "7 min",
     description: "Field operations with camera scanning and offline capabilities",
     thumbnail: "/api/placeholder/320/180",
@@ -112,7 +112,7 @@ const faqItems = [
     questions: [
       {
         q: "Do I need any special software installed?",
-        a: "No! BCCS142 works entirely in your web browser. Just visit the website and sign in. For mobile use, you can add it to your home screen like an app."
+        a: "No! BCCS-US works entirely in your web browser. Just visit the website and sign in. For mobile use, you can add it to your home screen like an app."
       },
       {
         q: "What documents can I upload?",
@@ -150,7 +150,7 @@ const faqItems = [
       },
       {
         q: "Does this meet FAA requirements?",
-        a: "BCCS142 is designed for full Part 142 compliance and includes all required recordkeeping features for training centers."
+        a: "BCCS-US is designed for full Part 142 compliance and includes all required recordkeeping features for training centers."
       },
       {
         q: "Can I export my data?",
@@ -186,10 +186,10 @@ export default function Tutorials() {
         {/* Header */}
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold text-slate-900 mb-4">
-            Getting Started with BCCS142
+            Getting Started with BCCS-US
           </h1>
           <p className="text-xl text-slate-600 max-w-2xl mx-auto">
-            Everything you need to know to start using BCCS142 for your aviation compliance needs.
+            Everything you need to know to start using BCCS-US for your aviation compliance needs.
             No technical experience required!
           </p>
         </div>
@@ -435,7 +435,7 @@ export default function Tutorials() {
             className="bg-aviation-blue hover:bg-blue-700"
             onClick={() => window.location.href = "/"}
           >
-            Back to BCCS142
+            Back to BCCS-US
           </Button>
         </div>
       </div>

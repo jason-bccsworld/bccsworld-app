@@ -894,7 +894,7 @@ export function KeyManagement() {
                   <div className="flex items-center gap-2">
                     <Shield className="h-5 w-5 text-blue-600" />
                     <div>
-                      <p className="font-semibold">BCCS142</p>
+                      <p className="font-semibold">BCCS-US</p>
                       <p className="text-sm text-gray-600">Training Platform</p>
                     </div>
                   </div>

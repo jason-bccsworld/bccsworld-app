@@ -229,7 +229,7 @@ const FIELD_MAPPINGS: FieldMapping[] = [
     required: true,
     dataType: "Alphanumeric",
     extractionMethod: "Pattern Recognition",
-    sampleValue: "BCCS142TC",
+    sampleValue: "BCCS-USTC",
     retentionPeriod: "Current plus 1 year"
   },
   {
@@ -289,7 +289,7 @@ export default function FieldMapping() {
         <Database className="h-4 w-4" />
         <AlertDescription>
           <strong>Regulatory Compliance:</strong> All fields listed below are required by FAR 142.73 
-          for Part 142 training centers. BCCS142 automatically extracts these fields from your documents 
+          for Part 142 training centers. BCCS-US automatically extracts these fields from your documents 
           and stores them in blockchain-secured records for audit purposes.
         </AlertDescription>
       </Alert>

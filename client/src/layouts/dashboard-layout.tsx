@@ -60,7 +60,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               <Plane size={24} className="text-white" />
             </div>
             <div>
-              <h1 className="text-xl font-bold">BCCS142</h1>
+              <h1 className="text-xl font-bold">BCCS-US</h1>
               <p className="text-sm text-blue-100">Aviation Compliance Platform</p>
             </div>
           </div>

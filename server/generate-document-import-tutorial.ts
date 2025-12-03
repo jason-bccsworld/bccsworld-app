@@ -24,7 +24,7 @@ export async function generateDocumentImportTutorial(): Promise<Buffer> {
             spacing: { after: 600 },
             children: [
               new TextRun({
-                text: "BCCS142 Aviation Compliance Platform",
+                text: "BCCS-US Aviation Compliance Platform",
                 italics: true,
                 color: "666666"
               })
@@ -625,7 +625,7 @@ export async function generateDocumentImportTutorial(): Promise<Buffer> {
             spacing: { after: 100 },
             children: [
               new TextRun({
-                text: "Documents processed through AI Document Import integrate with other BCCS142 features:"
+                text: "Documents processed through AI Document Import integrate with other BCCS-US features:"
               })
             ]
           }),
@@ -749,7 +749,7 @@ export async function generateDocumentImportTutorial(): Promise<Buffer> {
             alignment: AlignmentType.CENTER,
             children: [
               new TextRun({
-                text: "© BCCS142 Aviation Compliance Platform",
+                text: "© BCCS-US Aviation Compliance Platform",
                 italics: true,
                 color: "999999",
                 size: 20

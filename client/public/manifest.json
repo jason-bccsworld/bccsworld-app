@@ -1,6 +1,6 @@
 {
-  "name": "BCCS142 - Aviation Compliance Platform",
-  "short_name": "BCCS142",
+  "name": "BCCS-US - Aviation Compliance Platform",
+  "short_name": "BCCS-US",
   "description": "Aviation compliance tracking for field operations",
   "start_url": "/",
   "display": "standalone",

@@ -63,7 +63,7 @@ const responses = {
     ]
   },
   "roles-help": {
-    content: "User roles in BCCS142:\n\n• **Admin**: Full access, manage users, settings\n• **Instructor**: Upload documents, view student records\n• **Auditor**: View-only access to all records\n• **Viewer**: Limited access to assigned records\n\nNeed to change someone's role?",
+    content: "User roles in BCCS-US:\n\n• **Admin**: Full access, manage users, settings\n• **Instructor**: Upload documents, view student records\n• **Auditor**: View-only access to all records\n• **Viewer**: Limited access to assigned records\n\nNeed to change someone's role?",
     options: [
       { text: "How to change user roles", action: "change-roles" },
       { text: "I need custom permissions", action: "escalate" }
@@ -107,7 +107,7 @@ export default function SupportChat() {
     {
       id: '1',
       type: 'bot',
-      content: "Hi! I'm your BCCS142 support assistant. I can help you with common questions or connect you with our team. What can I help you with today?",
+      content: "Hi! I'm your BCCS-US support assistant. I can help you with common questions or connect you with our team. What can I help you with today?",
       timestamp: new Date(),
       options: quickHelp
     }
@@ -249,7 +249,7 @@ export default function SupportChat() {
     }
 
     if (action === 'external-email') {
-      window.location.href = 'mailto:support@bccs142.com?subject=BCCS142 Support Request&body=Please describe your issue in detail. Include screenshots if possible.';
+      window.location.href = 'mailto:support@bccs142.com?subject=BCCS-US Support Request&body=Please describe your issue in detail. Include screenshots if possible.';
       return;
     }
 
@@ -293,7 +293,7 @@ export default function SupportChat() {
         <div className="flex justify-between items-center">
           <CardTitle className="text-sm font-medium flex items-center gap-2">
             <Bot className="w-4 h-4" />
-            BCCS142 Support
+            BCCS-US Support
             <Badge variant="secondary" className="text-xs bg-green-100 text-green-800">
               Online
             </Badge>
