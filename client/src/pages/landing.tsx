@@ -257,7 +257,7 @@ export default function Landing() {
         {/* Industry Impact */}
         <div className="mb-20">
           <h2 className="text-3xl font-bold text-center text-slate-900 mb-12">
-            Transforming Aviation Training Compliance
+            Transforming Aviation Compliance
           </h2>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
