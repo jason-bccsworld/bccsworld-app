@@ -410,6 +410,244 @@ export const crossPlatformVerifications = pgTable("cross_platform_verifications"
   verifiedAt: timestamp("verified_at").defaultNow(),
 });
 
+// ============================================================================
+// PATENT 4/4B: ADAPTIVE COMPLIANCE ARCHITECTURE TABLES
+// ============================================================================
+
+// REGULATORY SPINE + ATTACHMENTS MODEL
+// Core regulatory frameworks that form the "spine" of compliance
+export const regulatoryFrameworks = pgTable("regulatory_frameworks", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  frameworkCode: varchar("framework_code", { length: 50 }).notNull().unique(), // e.g., "14-CFR-142", "FAA-8900.1-VOL3"
+  frameworkName: varchar("framework_name", { length: 200 }).notNull(),
+  frameworkType: varchar("framework_type").notNull(), // spine, attachment
+  regulatoryAuthority: varchar("regulatory_authority").notNull(), // faa, easa, transport_canada, casa
+  effectiveDate: timestamp("effective_date").notNull(),
+  version: varchar("version", { length: 50 }).notNull(),
+  parentFrameworkId: uuid("parent_framework_id"), // For attachments, references the spine
+  hierarchyLevel: integer("hierarchy_level").default(1), // 1=spine, 2+=attachments
+  applicabilityRules: jsonb("applicability_rules"), // Conditions when this framework applies
+  sourceUrl: text("source_url"),
+  fullText: text("full_text"), // Full regulation text for indexing
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Dynamic attachment mappings based on training center authorizations
+export const organizationAuthorizations = pgTable("organization_authorizations", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: uuid("organization_id").references(() => trainingOrganizations.id).notNull(),
+  frameworkId: uuid("framework_id").references(() => regulatoryFrameworks.id).notNull(),
+  authorizationType: varchar("authorization_type").notNull(), // primary, supplementary, conditional
+  authorizationNumber: varchar("authorization_number", { length: 100 }),
+  grantedDate: timestamp("granted_date").notNull(),
+  expirationDate: timestamp("expiration_date"),
+  conditions: jsonb("conditions"), // Specific conditions or limitations
+  operatorClients: jsonb("operator_clients"), // Array of operator client IDs (121, 135, 91K operators)
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// CHECKLIST HARMONIZATION ENGINE
+// Master checklist schemas from different sources
+export const checklistSchemas = pgTable("checklist_schemas", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  schemaName: varchar("schema_name", { length: 200 }).notNull(),
+  schemaSource: varchar("schema_source").notNull(), // faa_official, tcpm_custom, regional, operator
+  frameworkId: uuid("framework_id").references(() => regulatoryFrameworks.id),
+  version: varchar("version", { length: 50 }).notNull(),
+  effectiveDate: timestamp("effective_date").notNull(),
+  totalItems: integer("total_items").notNull(),
+  structureHash: varchar("structure_hash", { length: 100 }), // Hash for change detection
+  metadata: jsonb("metadata"), // Additional schema metadata
+  isCanonical: boolean("is_canonical").default(false), // Is this the authoritative version?
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Individual checklist items within schemas
+export const checklistItems = pgTable("checklist_items", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  schemaId: uuid("schema_id").references(() => checklistSchemas.id).notNull(),
+  itemNumber: varchar("item_number", { length: 20 }).notNull(),
+  itemOrder: integer("item_order").notNull(),
+  categoryId: varchar("category_id", { length: 50 }),
+  categoryName: varchar("category_name", { length: 200 }),
+  description: text("description").notNull(),
+  regulatoryReference: varchar("regulatory_reference", { length: 100 }), // e.g., "142.5(a)"
+  requiredEvidence: jsonb("required_evidence"), // Types of evidence needed
+  complianceCriteria: jsonb("compliance_criteria"), // What constitutes compliance
+  riskWeight: decimal("risk_weight", { precision: 3, scale: 2 }).default("1.00"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Cross-mapping between different checklist schemas
+export const checklistMappings = pgTable("checklist_mappings", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  sourceSchemaId: uuid("source_schema_id").references(() => checklistSchemas.id).notNull(),
+  targetSchemaId: uuid("target_schema_id").references(() => checklistSchemas.id).notNull(),
+  sourceItemId: uuid("source_item_id").references(() => checklistItems.id).notNull(),
+  targetItemId: uuid("target_item_id").references(() => checklistItems.id),
+  mappingType: varchar("mapping_type").notNull(), // exact, partial, expanded, missing
+  mappingConfidence: decimal("mapping_confidence", { precision: 3, scale: 2 }),
+  mappingNotes: text("mapping_notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Delta reports between checklist versions
+export const harmonizationDeltas = pgTable("harmonization_deltas", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  baseSchemaId: uuid("base_schema_id").references(() => checklistSchemas.id).notNull(),
+  comparedSchemaId: uuid("compared_schema_id").references(() => checklistSchemas.id).notNull(),
+  deltaType: varchar("delta_type").notNull(), // added, removed, modified, reordered
+  affectedItemId: uuid("affected_item_id").references(() => checklistItems.id),
+  baseItemNumber: varchar("base_item_number", { length: 20 }),
+  comparedItemNumber: varchar("compared_item_number", { length: 20 }),
+  changeDescription: text("change_description").notNull(),
+  complianceImpact: varchar("compliance_impact"), // none, minor, major, critical
+  generatedAt: timestamp("generated_at").defaultNow(),
+});
+
+// INSPECTOR PREFERENCE ENGINE
+// Individual inspector profiles
+export const inspectorProfiles = pgTable("inspector_profiles", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  inspectorName: varchar("inspector_name", { length: 200 }),
+  inspectorId: varchar("inspector_id", { length: 100 }), // TCPM ID or FAA identifier
+  region: varchar("region", { length: 100 }),
+  office: varchar("office", { length: 200 }),
+  preferredChecklistId: uuid("preferred_checklist_id").references(() => checklistSchemas.id),
+  preferredItemOrdering: jsonb("preferred_item_ordering"), // Custom ordering preferences
+  commonExtraQuestions: jsonb("common_extra_questions"), // Questions they typically add
+  focusAreas: jsonb("focus_areas"), // Categories they emphasize
+  averageAuditDuration: integer("average_audit_duration"), // In hours
+  strictnessScore: decimal("strictness_score", { precision: 3, scale: 2 }), // 0-1 scale
+  lastAuditDate: timestamp("last_audit_date"),
+  totalAuditsTracked: integer("total_audits_tracked").default(0),
+  predictionConfidence: decimal("prediction_confidence", { precision: 3, scale: 2 }),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Tracked inspector behaviors for machine learning
+export const inspectorBehaviors = pgTable("inspector_behaviors", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  inspectorId: uuid("inspector_id").references(() => inspectorProfiles.id).notNull(),
+  organizationId: uuid("organization_id").references(() => trainingOrganizations.id).notNull(),
+  auditDate: timestamp("audit_date").notNull(),
+  checklistSchemaUsed: uuid("checklist_schema_used").references(() => checklistSchemas.id),
+  itemsReordered: jsonb("items_reordered"), // Which items they reordered
+  additionalQuestions: jsonb("additional_questions"), // Extra questions asked
+  skippedItems: jsonb("skipped_items"), // Items they skipped
+  emphasisAreas: jsonb("emphasis_areas"), // Areas they spent extra time on
+  findingsCount: integer("findings_count"),
+  auditOutcome: varchar("audit_outcome"), // passed, conditional, failed
+  auditDuration: integer("audit_duration"), // In minutes
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// MULTI-SCHEMA EVIDENCE INDEXING
+// Evidence records with blockchain verification
+export const evidenceRecords = pgTable("evidence_records", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: uuid("organization_id").references(() => trainingOrganizations.id).notNull(),
+  evidenceType: varchar("evidence_type").notNull(), // document, training_record, certificate, log, procedure
+  evidenceTitle: varchar("evidence_title", { length: 300 }).notNull(),
+  evidenceDescription: text("evidence_description"),
+  filePath: text("file_path"),
+  fileHash: varchar("file_hash", { length: 100 }), // SHA-256 hash of content
+  extractedText: text("extracted_text"), // OCR/parsed text for indexing
+  metadata: jsonb("metadata"), // Document metadata
+  blockchainTrainingRecordId: uuid("blockchain_training_record_id").references(() => blockchainTrainingRecords.id),
+  blockchainVerificationHash: varchar("blockchain_verification_hash", { length: 100 }),
+  verificationStatus: varchar("verification_status").default("pending"), // pending, verified, failed
+  verifiedAt: timestamp("verified_at"),
+  expirationDate: timestamp("expiration_date"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Evidence to checklist item mappings (multi-schema)
+export const evidenceChecklistMappings = pgTable("evidence_checklist_mappings", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  evidenceId: uuid("evidence_id").references(() => evidenceRecords.id).notNull(),
+  checklistItemId: uuid("checklist_item_id").references(() => checklistItems.id).notNull(),
+  mappingConfidence: decimal("mapping_confidence", { precision: 3, scale: 2 }).default("1.00"),
+  mappingSource: varchar("mapping_source").notNull(), // manual, ai_suggested, auto_matched
+  evidenceRelevance: varchar("evidence_relevance").notNull(), // primary, supporting, contextual
+  notes: text("notes"),
+  createdBy: varchar("created_by"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Evidence to regulatory reference mappings
+export const evidenceRegulatoryMappings = pgTable("evidence_regulatory_mappings", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  evidenceId: uuid("evidence_id").references(() => evidenceRecords.id).notNull(),
+  frameworkId: uuid("framework_id").references(() => regulatoryFrameworks.id).notNull(),
+  regulatoryReference: varchar("regulatory_reference", { length: 100 }).notNull(), // e.g., "142.5(a)"
+  referenceType: varchar("reference_type").notNull(), // direct_compliance, supporting, cross_reference
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// AUTOMATED AUDIT PACKET GENERATOR
+// Generated audit packets
+export const auditPackets = pgTable("audit_packets", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: uuid("organization_id").references(() => trainingOrganizations.id).notNull(),
+  packetName: varchar("packet_name", { length: 300 }).notNull(),
+  packetType: varchar("packet_type").notNull(), // regulation_sorted, checklist_sorted, comprehensive
+  targetInspectorId: uuid("target_inspector_id").references(() => inspectorProfiles.id),
+  checklistSchemaId: uuid("checklist_schema_id").references(() => checklistSchemas.id).notNull(),
+  generatedBy: varchar("generated_by"),
+  generatedAt: timestamp("generated_at").defaultNow(),
+  totalItems: integer("total_items").notNull(),
+  itemsWithEvidence: integer("items_with_evidence").notNull(),
+  blockchainVerifiedCount: integer("blockchain_verified_count").notNull(),
+  complianceScore: decimal("compliance_score", { precision: 5, scale: 2 }),
+  filePath: text("file_path"), // Generated PDF/document path
+  packetHash: varchar("packet_hash", { length: 100 }), // Hash for integrity
+  status: varchar("status").default("generated"), // generated, reviewed, submitted
+  metadata: jsonb("metadata"),
+});
+
+// Audit packet items with evidence links
+export const auditPacketItems = pgTable("audit_packet_items", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  packetId: uuid("packet_id").references(() => auditPackets.id).notNull(),
+  checklistItemId: uuid("checklist_item_id").references(() => checklistItems.id).notNull(),
+  itemOrder: integer("item_order").notNull(),
+  regulatorySection: varchar("regulatory_section", { length: 100 }), // For regulation-sorted packets
+  evidenceIds: uuid("evidence_ids").array(), // Array of linked evidence
+  complianceStatus: varchar("compliance_status").notNull(), // compliant, partial, non_compliant, pending
+  blockchainVerified: boolean("blockchain_verified").default(false),
+  verificationDetails: jsonb("verification_details"),
+  notes: text("notes"),
+});
+
+// Regulatory coverage matrix
+export const regulatoryCoverageMatrix = pgTable("regulatory_coverage_matrix", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: uuid("organization_id").references(() => trainingOrganizations.id).notNull(),
+  frameworkId: uuid("framework_id").references(() => regulatoryFrameworks.id).notNull(),
+  totalRequirements: integer("total_requirements").notNull(),
+  evidencedRequirements: integer("evidenced_requirements").notNull(),
+  blockchainVerifiedRequirements: integer("blockchain_verified_requirements").notNull(),
+  coveragePercentage: decimal("coverage_percentage", { precision: 5, scale: 2 }).notNull(),
+  lastCalculatedAt: timestamp("last_calculated_at").defaultNow(),
+  gapAnalysis: jsonb("gap_analysis"), // Detailed gap information
+});
+
+// ============================================================================
+// END PATENT 4/4B TABLES
+// ============================================================================
+
 export const subscriptionTiers = pgTable("subscription_tiers", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
   tierName: varchar("tier_name", { length: 100 }).notNull(),
@@ -535,3 +773,66 @@ export type SmartContract = typeof smartContracts.$inferSelect;
 export type InsertSmartContract = z.infer<typeof insertSmartContractSchema>;
 export type CustomerSubscription = typeof customerSubscriptions.$inferSelect;
 export type InsertCustomerSubscription = z.infer<typeof insertCustomerSubscriptionSchema>;
+
+// ============================================================================
+// PATENT 4/4B: ADAPTIVE COMPLIANCE ARCHITECTURE SCHEMAS & TYPES
+// ============================================================================
+
+// Zod schemas for validation
+export const insertRegulatoryFrameworkSchema = createInsertSchema(regulatoryFrameworks);
+export const insertOrganizationAuthorizationSchema = createInsertSchema(organizationAuthorizations);
+export const insertChecklistSchemaSchema = createInsertSchema(checklistSchemas);
+export const insertChecklistItemSchema = createInsertSchema(checklistItems);
+export const insertChecklistMappingSchema = createInsertSchema(checklistMappings);
+export const insertHarmonizationDeltaSchema = createInsertSchema(harmonizationDeltas);
+export const insertInspectorProfileSchema = createInsertSchema(inspectorProfiles);
+export const insertInspectorBehaviorSchema = createInsertSchema(inspectorBehaviors);
+export const insertEvidenceRecordSchema = createInsertSchema(evidenceRecords);
+export const insertEvidenceChecklistMappingSchema = createInsertSchema(evidenceChecklistMappings);
+export const insertEvidenceRegulatoryMappingSchema = createInsertSchema(evidenceRegulatoryMappings);
+export const insertAuditPacketSchema = createInsertSchema(auditPackets);
+export const insertAuditPacketItemSchema = createInsertSchema(auditPacketItems);
+export const insertRegulatoryCoverageMatrixSchema = createInsertSchema(regulatoryCoverageMatrix);
+
+// Types
+export type RegulatoryFramework = typeof regulatoryFrameworks.$inferSelect;
+export type InsertRegulatoryFramework = z.infer<typeof insertRegulatoryFrameworkSchema>;
+
+export type OrganizationAuthorization = typeof organizationAuthorizations.$inferSelect;
+export type InsertOrganizationAuthorization = z.infer<typeof insertOrganizationAuthorizationSchema>;
+
+export type ChecklistSchema = typeof checklistSchemas.$inferSelect;
+export type InsertChecklistSchema = z.infer<typeof insertChecklistSchemaSchema>;
+
+export type ChecklistItem = typeof checklistItems.$inferSelect;
+export type InsertChecklistItem = z.infer<typeof insertChecklistItemSchema>;
+
+export type ChecklistMapping = typeof checklistMappings.$inferSelect;
+export type InsertChecklistMapping = z.infer<typeof insertChecklistMappingSchema>;
+
+export type HarmonizationDelta = typeof harmonizationDeltas.$inferSelect;
+export type InsertHarmonizationDelta = z.infer<typeof insertHarmonizationDeltaSchema>;
+
+export type InspectorProfile = typeof inspectorProfiles.$inferSelect;
+export type InsertInspectorProfile = z.infer<typeof insertInspectorProfileSchema>;
+
+export type InspectorBehavior = typeof inspectorBehaviors.$inferSelect;
+export type InsertInspectorBehavior = z.infer<typeof insertInspectorBehaviorSchema>;
+
+export type EvidenceRecord = typeof evidenceRecords.$inferSelect;
+export type InsertEvidenceRecord = z.infer<typeof insertEvidenceRecordSchema>;
+
+export type EvidenceChecklistMapping = typeof evidenceChecklistMappings.$inferSelect;
+export type InsertEvidenceChecklistMapping = z.infer<typeof insertEvidenceChecklistMappingSchema>;
+
+export type EvidenceRegulatoryMapping = typeof evidenceRegulatoryMappings.$inferSelect;
+export type InsertEvidenceRegulatoryMapping = z.infer<typeof insertEvidenceRegulatoryMappingSchema>;
+
+export type AuditPacket = typeof auditPackets.$inferSelect;
+export type InsertAuditPacket = z.infer<typeof insertAuditPacketSchema>;
+
+export type AuditPacketItem = typeof auditPacketItems.$inferSelect;
+export type InsertAuditPacketItem = z.infer<typeof insertAuditPacketItemSchema>;
+
+export type RegulatoryCoverageMatrix = typeof regulatoryCoverageMatrix.$inferSelect;
+export type InsertRegulatoryCoverageMatrix = z.infer<typeof insertRegulatoryCoverageMatrixSchema>;
