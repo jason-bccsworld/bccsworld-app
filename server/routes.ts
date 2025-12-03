@@ -333,6 +333,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Patent 4/4B: Adaptive Compliance Architecture Routes
   app.use('/api/adaptive-compliance', adaptiveComplianceRoutes);
 
+  // Document Import Tutorial Download
+  app.get('/api/document-import/tutorial/download', isAuthenticated, async (req, res) => {
+    try {
+      const { generateDocumentImportTutorial } = await import('./generate-document-import-tutorial');
+      const buffer = await generateDocumentImportTutorial();
+      
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+      res.setHeader('Content-Disposition', 'attachment; filename=AI_Document_Import_Tutorial.docx');
+      res.setHeader('Content-Length', buffer.length);
+      res.send(buffer);
+    } catch (error) {
+      console.error('Error generating document import tutorial:', error);
+      res.status(500).json({ message: 'Failed to generate tutorial document' });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
