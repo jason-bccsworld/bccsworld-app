@@ -645,6 +645,130 @@ export const regulatoryCoverageMatrix = pgTable("regulatory_coverage_matrix", {
 });
 
 // ============================================================================
+// UNIVERSAL FAR INGESTION SYSTEM TABLES
+// ============================================================================
+
+// FAA Policy Documents - SAFOs, InFOs, Notices, Bulletins, AFS Directives
+export const faaPolicyDocuments = pgTable("faa_policy_documents", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  documentType: varchar("document_type").notNull(), // safo, info, notice, bulletin, afs_directive, order
+  documentNumber: varchar("document_number", { length: 100 }).notNull().unique(),
+  title: varchar("title", { length: 500 }).notNull(),
+  subject: text("subject"),
+  issuanceDate: timestamp("issuance_date").notNull(),
+  effectiveDate: timestamp("effective_date"),
+  expirationDate: timestamp("expiration_date"),
+  affectedParts: varchar("affected_parts").array(), // Array of affected FAR Parts
+  applicability: jsonb("applicability"), // Who/what this applies to
+  content: text("content"), // Full document text
+  sourceUrl: text("source_url"),
+  contentHash: varchar("content_hash", { length: 100 }), // For change detection
+  linkedFrameworks: uuid("linked_frameworks").array(), // References to regulatoryFrameworks
+  supersedes: varchar("supersedes", { length: 100 }), // Previous document replaced
+  supersededBy: varchar("superseded_by", { length: 100 }), // Document that replaces this
+  status: varchar("status").default("active"), // active, superseded, cancelled, expired
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Multi-Part Regulatory Configurations - Simultaneous application of multiple FAR parts
+export const multiPartConfigurations = pgTable("multi_part_configurations", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  configName: varchar("config_name", { length: 200 }).notNull(),
+  description: text("description"),
+  primarySpineId: uuid("primary_spine_id").references(() => regulatoryFrameworks.id).notNull(),
+  secondarySpines: uuid("secondary_spines").array(), // Additional FAR Parts for multi-domain operations
+  coreAttachmentIds: uuid("core_attachment_ids").array(), // FAA Orders, etc.
+  dynamicAttachmentIds: uuid("dynamic_attachment_ids").array(), // Conditional attachments
+  applicableOperationTypes: varchar("applicable_operation_types").array(), // 121_training, 135_training, 145_maintenance
+  applicableAuthorizations: jsonb("applicable_authorizations"), // OpSpecs, LOAs, TCOs, AQP approvals
+  isDefault: boolean("is_default").default(false),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Regulatory Update Tracking - Automatic monitoring and change detection
+export const regulatoryUpdateTracking = pgTable("regulatory_update_tracking", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  sourceType: varchar("source_type").notNull(), // ecfr, faa_order, safo, info, notice
+  sourceIdentifier: varchar("source_identifier", { length: 200 }).notNull(), // e.g., "14-CFR-142", "SAFO-24001"
+  sourceUrl: text("source_url"),
+  lastCheckedAt: timestamp("last_checked_at").notNull(),
+  lastContentHash: varchar("last_content_hash", { length: 100 }),
+  currentContentHash: varchar("current_content_hash", { length: 100 }),
+  changeDetected: boolean("change_detected").default(false),
+  changeType: varchar("change_type"), // new, modified, deleted, superseded
+  changeSummary: text("change_summary"),
+  affectedFrameworkId: uuid("affected_framework_id").references(() => regulatoryFrameworks.id),
+  affectedPolicyDocId: uuid("affected_policy_doc_id").references(() => faaPolicyDocuments.id),
+  notificationSent: boolean("notification_sent").default(false),
+  processedAt: timestamp("processed_at"),
+  impactAssessment: jsonb("impact_assessment"), // AI-generated impact analysis
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Regulatory Graph Links - Cross-references between regulations, orders, and policies
+export const regulatoryGraphLinks = pgTable("regulatory_graph_links", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  sourceType: varchar("source_type").notNull(), // framework, policy_document, checklist_item
+  sourceId: uuid("source_id").notNull(),
+  targetType: varchar("target_type").notNull(),
+  targetId: uuid("target_id").notNull(),
+  linkType: varchar("link_type").notNull(), // references, implements, supplements, supersedes, cross_references
+  linkStrength: decimal("link_strength", { precision: 3, scale: 2 }).default("1.00"), // 0-1 confidence
+  description: text("description"),
+  regulatorySection: varchar("regulatory_section", { length: 100 }), // Specific section reference
+  isAutoGenerated: boolean("is_auto_generated").default(false),
+  isVerified: boolean("is_verified").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// OpSpecs, LOAs, TCOs - Operator Specific Authorizations
+export const operatorAuthorizations = pgTable("operator_authorizations", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: uuid("organization_id").references(() => trainingOrganizations.id).notNull(),
+  authorizationType: varchar("authorization_type").notNull(), // opspecs, loa, tco, aqp, training_program
+  authorizationNumber: varchar("authorization_number", { length: 100 }).notNull(),
+  title: varchar("title", { length: 300 }),
+  issuingAuthority: varchar("issuing_authority", { length: 100 }), // FSDO, CHDO, CMO
+  issuingOffice: varchar("issuing_office", { length: 200 }),
+  issuedDate: timestamp("issued_date").notNull(),
+  effectiveDate: timestamp("effective_date"),
+  expirationDate: timestamp("expiration_date"),
+  applicableParts: varchar("applicable_parts").array(), // FAR Parts this authorization relates to
+  conditions: jsonb("conditions"), // Specific conditions/limitations
+  privileges: jsonb("privileges"), // What operations are authorized
+  documentPath: text("document_path"),
+  documentHash: varchar("document_hash", { length: 100 }),
+  linkedFrameworkIds: uuid("linked_framework_ids").array(),
+  status: varchar("status").default("active"), // active, amended, revoked, expired
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Regional/FSDO Supplemental Requirements
+export const regionalSupplements = pgTable("regional_supplements", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  region: varchar("region", { length: 100 }).notNull(), // e.g., "Southwest", "Great Lakes"
+  officeType: varchar("office_type").notNull(), // fsdo, chdo, cmo
+  officeIdentifier: varchar("office_identifier", { length: 100 }),
+  officeName: varchar("office_name", { length: 200 }),
+  supplementType: varchar("supplement_type").notNull(), // checklist_variant, additional_requirement, interpretation
+  applicableFrameworkId: uuid("applicable_framework_id").references(() => regulatoryFrameworks.id),
+  supplementTitle: varchar("supplement_title", { length: 300 }).notNull(),
+  supplementContent: text("supplement_content"),
+  effectiveDate: timestamp("effective_date"),
+  additionalRequirements: jsonb("additional_requirements"),
+  modifiedChecklistItems: jsonb("modified_checklist_items"), // Items added/modified for this region
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// ============================================================================
 // END PATENT 4/4B TABLES
 // ============================================================================
 
@@ -836,3 +960,34 @@ export type InsertAuditPacketItem = z.infer<typeof insertAuditPacketItemSchema>;
 
 export type RegulatoryCoverageMatrix = typeof regulatoryCoverageMatrix.$inferSelect;
 export type InsertRegulatoryCoverageMatrix = z.infer<typeof insertRegulatoryCoverageMatrixSchema>;
+
+// ============================================================================
+// UNIVERSAL FAR INGESTION SYSTEM SCHEMAS & TYPES
+// ============================================================================
+
+// Zod schemas for validation
+export const insertFaaPolicyDocumentSchema = createInsertSchema(faaPolicyDocuments);
+export const insertMultiPartConfigurationSchema = createInsertSchema(multiPartConfigurations);
+export const insertRegulatoryUpdateTrackingSchema = createInsertSchema(regulatoryUpdateTracking);
+export const insertRegulatoryGraphLinkSchema = createInsertSchema(regulatoryGraphLinks);
+export const insertOperatorAuthorizationSchema = createInsertSchema(operatorAuthorizations);
+export const insertRegionalSupplementSchema = createInsertSchema(regionalSupplements);
+
+// Types
+export type FaaPolicyDocument = typeof faaPolicyDocuments.$inferSelect;
+export type InsertFaaPolicyDocument = z.infer<typeof insertFaaPolicyDocumentSchema>;
+
+export type MultiPartConfiguration = typeof multiPartConfigurations.$inferSelect;
+export type InsertMultiPartConfiguration = z.infer<typeof insertMultiPartConfigurationSchema>;
+
+export type RegulatoryUpdateTracking = typeof regulatoryUpdateTracking.$inferSelect;
+export type InsertRegulatoryUpdateTracking = z.infer<typeof insertRegulatoryUpdateTrackingSchema>;
+
+export type RegulatoryGraphLink = typeof regulatoryGraphLinks.$inferSelect;
+export type InsertRegulatoryGraphLink = z.infer<typeof insertRegulatoryGraphLinkSchema>;
+
+export type OperatorAuthorization = typeof operatorAuthorizations.$inferSelect;
+export type InsertOperatorAuthorization = z.infer<typeof insertOperatorAuthorizationSchema>;
+
+export type RegionalSupplement = typeof regionalSupplements.$inferSelect;
+export type InsertRegionalSupplement = z.infer<typeof insertRegionalSupplementSchema>;
