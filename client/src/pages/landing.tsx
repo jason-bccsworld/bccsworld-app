@@ -53,7 +53,7 @@ export default function Landing() {
             <span className="text-blue-600"> Aviation Organizations</span>
           </h1>
           <p className="text-xl text-slate-600 max-w-3xl mx-auto mb-8">
-            BCCS-US provides immutable training event logging and AI-powered compliance monitoring for aviation training organizations. 
+            BCCS-US provides immutable document and records logging and AI-powered compliance monitoring for aviation organizations. 
             Streamline regulatory compliance with tamper-proof records and automated audit trails.
           </p>
           
