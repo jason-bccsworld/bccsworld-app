@@ -97,6 +97,39 @@ interface ChecklistSchema {
   version: string;
   totalItems: number;
   isCanonical: boolean;
+  priorityLevel?: number;
+  autoFetched?: boolean;
+  sourceUrl?: string;
+  lastVersionCheck?: string;
+  isOutdated?: boolean;
+  isHidden?: boolean;
+}
+
+interface VersionHistoryEntry {
+  id: string;
+  schemaId: string;
+  previousVersion?: string;
+  newVersion: string;
+  changesSummary?: any;
+  sourceUrl?: string;
+  detectedAt: string;
+}
+
+interface EvidenceMappingStats {
+  totalItems: number;
+  mappedItems: number;
+  unmappedItems: number;
+  coveragePercentage: number;
+}
+
+interface SupportedFARPart {
+  code: string;
+  definition?: {
+    schemaName: string;
+    sourceUrl: string;
+    formNumber: string;
+    relatedOrderVolume: string;
+  };
 }
 
 interface InspectorProfile {
@@ -160,12 +193,97 @@ export default function AdaptiveCompliance() {
     queryKey: ['/api/adaptive-compliance/regulatory-updates'],
   });
 
-  const { data: checklists = [], isLoading: checklistsLoading } = useQuery<ChecklistSchema[]>({
+  const { data: checklists = [], isLoading: checklistsLoading, refetch: refetchChecklists } = useQuery<ChecklistSchema[]>({
     queryKey: ['/api/adaptive-compliance/checklists'],
+  });
+
+  const { data: checklistsByPriority = [], isLoading: priorityChecklistsLoading } = useQuery<ChecklistSchema[]>({
+    queryKey: ['/api/adaptive-compliance/checklists/by-priority'],
+  });
+
+  const { data: supportedParts = [] } = useQuery<SupportedFARPart[]>({
+    queryKey: ['/api/adaptive-compliance/checklists/supported-parts'],
   });
 
   const { data: inspectors = [], isLoading: inspectorsLoading } = useQuery<InspectorProfile[]>({
     queryKey: ['/api/adaptive-compliance/inspectors'],
+  });
+
+  const [selectedSchemaId, setSelectedSchemaId] = useState<string | null>(null);
+  const [versionHistoryOpen, setVersionHistoryOpen] = useState(false);
+
+  const { data: versionHistory = [], refetch: refetchVersionHistory } = useQuery<VersionHistoryEntry[]>({
+    queryKey: ['/api/adaptive-compliance/checklists', selectedSchemaId, 'version-history'],
+    enabled: !!selectedSchemaId && versionHistoryOpen,
+  });
+
+  const { data: evidenceStats, refetch: refetchEvidenceStats } = useQuery<EvidenceMappingStats>({
+    queryKey: ['/api/adaptive-compliance/checklists', selectedSchemaId, 'evidence-stats'],
+    enabled: !!selectedSchemaId && versionHistoryOpen,
+  });
+
+  const [autoFetchPart, setAutoFetchPart] = useState<string>("");
+
+  const autoFetchChecklistMutation = useMutation({
+    mutationFn: async (farPartCode: string) => {
+      return apiRequest('POST', `/api/adaptive-compliance/checklists/auto-fetch/${farPartCode}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/adaptive-compliance/checklists'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/adaptive-compliance/checklists/by-priority'] });
+      toast({
+        title: "Checklist Auto-Fetched",
+        description: "Core FAA checklist has been automatically retrieved for this FAR Part."
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Auto-Fetch Error",
+        description: error.message || "Failed to auto-fetch checklist.",
+        variant: "destructive"
+      });
+    }
+  });
+
+  const versionCheckMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest('GET', '/api/adaptive-compliance/checklists/version-check');
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/adaptive-compliance/checklists'] });
+      toast({
+        title: "Version Check Complete",
+        description: `Checked ${data.results?.length || 0} checklists for updates.`
+      });
+    }
+  });
+
+  const suppressChecklistMutation = useMutation({
+    mutationFn: async (schemaId: string) => {
+      return apiRequest('POST', `/api/adaptive-compliance/checklists/${schemaId}/suppress`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/adaptive-compliance/checklists'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/adaptive-compliance/checklists/by-priority'] });
+      toast({
+        title: "Checklist Suppressed",
+        description: "Outdated checklist has been hidden from active view."
+      });
+    }
+  });
+
+  const unlockChecklistMutation = useMutation({
+    mutationFn: async (schemaId: string) => {
+      return apiRequest('POST', `/api/adaptive-compliance/checklists/${schemaId}/unlock`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/adaptive-compliance/checklists'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/adaptive-compliance/checklists/by-priority'] });
+      toast({
+        title: "Checklist Unlocked",
+        description: "Archived checklist is now visible for reference."
+      });
+    }
   });
 
   const initUniversalSpineMutation = useMutation({
@@ -811,22 +929,57 @@ export default function AdaptiveCompliance() {
                 <CardTitle className="flex items-center gap-2">
                   <ClipboardCheck className="h-5 w-5 text-green-600" />
                   Checklist Harmonization Engine
+                  <Badge variant="secondary" className="text-xs">Patent Pending</Badge>
                 </CardTitle>
                 <CardDescription>
-                  Compare and harmonize FAA, TCPM, regional, and operator checklists
+                  Automated checklist retrieval, version monitoring, and multi-schema harmonization
                 </CardDescription>
               </div>
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={() => setChecklistDialogOpen(true)}
-                data-testid="import-checklist-header-btn"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Import Checklist
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => versionCheckMutation.mutate()}
+                  disabled={versionCheckMutation.isPending}
+                  data-testid="version-check-btn"
+                >
+                  <RefreshCw className={`h-4 w-4 mr-2 ${versionCheckMutation.isPending ? 'animate-spin' : ''}`} />
+                  Check Updates
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => setChecklistDialogOpen(true)}
+                  data-testid="import-checklist-header-btn"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Import Checklist
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
+              <div className="mb-6 grid grid-cols-5 gap-3">
+                <div className="p-3 bg-green-50 border border-green-200 rounded-lg text-center">
+                  <div className="text-xs font-medium text-green-800 mb-1">FAA Standard</div>
+                  <Badge variant="outline" className="bg-green-100">Priority 1</Badge>
+                </div>
+                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-center">
+                  <div className="text-xs font-medium text-blue-800 mb-1">Certificate</div>
+                  <Badge variant="outline" className="bg-blue-100">Priority 2</Badge>
+                </div>
+                <div className="p-3 bg-purple-50 border border-purple-200 rounded-lg text-center">
+                  <div className="text-xs font-medium text-purple-800 mb-1">Inspector</div>
+                  <Badge variant="outline" className="bg-purple-100">Priority 3</Badge>
+                </div>
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-center">
+                  <div className="text-xs font-medium text-amber-800 mb-1">Operator</div>
+                  <Badge variant="outline" className="bg-amber-100">Priority 4</Badge>
+                </div>
+                <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-center">
+                  <div className="text-xs font-medium text-slate-800 mb-1">Archived</div>
+                  <Badge variant="outline" className="bg-slate-100">Priority 5</Badge>
+                </div>
+              </div>
               {checklistsLoading ? (
                 <div className="space-y-2">
                   {[1, 2, 3].map(i => (
@@ -835,15 +988,23 @@ export default function AdaptiveCompliance() {
                 </div>
               ) : checklists.length > 0 ? (
                 <div className="space-y-3">
-                  {checklists.map((schema) => (
+                  {checklists.map((schema: any) => (
                     <div
                       key={schema.id}
-                      className="p-4 border rounded-lg hover:border-blue-300 transition-colors"
+                      className={`p-4 border rounded-lg hover:border-blue-300 transition-colors ${schema.isHidden ? 'opacity-50 bg-slate-50' : ''} ${schema.isOutdated ? 'border-amber-300 bg-amber-50/30' : ''}`}
                       data-testid={`checklist-${schema.id}`}
                     >
                       <div className="flex items-center justify-between">
                         <div>
-                          <h3 className="font-medium">{schema.schemaName}</h3>
+                          <h3 className="font-medium flex items-center gap-2">
+                            {schema.schemaName}
+                            {schema.autoFetched && (
+                              <Badge variant="outline" className="text-xs bg-blue-50">Auto-Fetched</Badge>
+                            )}
+                            {schema.isOutdated && (
+                              <Badge variant="destructive" className="text-xs">Outdated</Badge>
+                            )}
+                          </h3>
                           <div className="flex items-center gap-2 mt-1">
                             <Badge variant="outline">{schema.schemaSource}</Badge>
                             <span className="text-sm text-muted-foreground">
@@ -852,15 +1013,57 @@ export default function AdaptiveCompliance() {
                             <span className="text-sm text-muted-foreground">
                               v{schema.version}
                             </span>
+                            {schema.priorityLevel && (
+                              <Badge variant="secondary" className="text-xs">
+                                P{schema.priorityLevel}
+                              </Badge>
+                            )}
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
                           {schema.isCanonical && (
                             <Badge variant="default">Canonical</Badge>
                           )}
-                          <Button variant="outline" size="sm">
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => {
+                              setSelectedSchemaId(schema.id);
+                              setVersionHistoryOpen(true);
+                            }}
+                            data-testid={`view-history-${schema.id}`}
+                          >
+                            History
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            data-testid={`view-items-${schema.id}`}
+                          >
                             View Items
                           </Button>
+                          {schema.isOutdated && !schema.isHidden && (
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => suppressChecklistMutation.mutate(schema.id)}
+                              disabled={suppressChecklistMutation.isPending}
+                              data-testid={`suppress-${schema.id}`}
+                            >
+                              Suppress
+                            </Button>
+                          )}
+                          {schema.isHidden && (
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => unlockChecklistMutation.mutate(schema.id)}
+                              disabled={unlockChecklistMutation.isPending}
+                              data-testid={`unlock-${schema.id}`}
+                            >
+                              Unlock
+                            </Button>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -870,7 +1073,7 @@ export default function AdaptiveCompliance() {
                 <div className="text-center py-12 text-muted-foreground">
                   <ClipboardCheck className="h-12 w-12 mx-auto mb-4 opacity-50" />
                   <p className="mb-2">No checklists ingested yet</p>
-                  <p className="text-sm">Import checklists to start harmonization</p>
+                  <p className="text-sm">Select a spine to auto-fetch core FAA checklists or import manually</p>
                   <Button 
                     variant="outline" 
                     className="mt-4"
@@ -885,34 +1088,175 @@ export default function AdaptiveCompliance() {
             </CardContent>
           </Card>
 
+          <div className="grid grid-cols-2 gap-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Version Monitoring</CardTitle>
+                <CardDescription>Auto-detect updates from FAA sources</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between p-2 bg-slate-50 rounded">
+                    <div className="flex items-center gap-2">
+                      <FileSearch className="h-4 w-4 text-slate-500" />
+                      <span className="text-sm">FAA 8900.1 Orders</span>
+                    </div>
+                    <Badge variant="outline" className="text-xs">Monitored</Badge>
+                  </div>
+                  <div className="flex items-center justify-between p-2 bg-slate-50 rounded">
+                    <div className="flex items-center gap-2">
+                      <FileSearch className="h-4 w-4 text-slate-500" />
+                      <span className="text-sm">eCFR Sections</span>
+                    </div>
+                    <Badge variant="outline" className="text-xs">Monitored</Badge>
+                  </div>
+                  <div className="flex items-center justify-between p-2 bg-slate-50 rounded">
+                    <div className="flex items-center gap-2">
+                      <FileSearch className="h-4 w-4 text-slate-500" />
+                      <span className="text-sm">SAFO/InFO Updates</span>
+                    </div>
+                    <Badge variant="outline" className="text-xs">Monitored</Badge>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Delta Reporting</CardTitle>
+                <CardDescription>Compare checklists to identify differences</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 gap-3 text-center">
+                  <div className="p-3 bg-green-50 rounded-lg border border-green-200">
+                    <CheckCircle2 className="h-6 w-6 mx-auto text-green-600 mb-1" />
+                    <p className="text-xl font-bold text-green-600">0</p>
+                    <p className="text-xs text-muted-foreground">Added</p>
+                  </div>
+                  <div className="p-3 bg-red-50 rounded-lg border border-red-200">
+                    <AlertTriangle className="h-6 w-6 mx-auto text-red-600 mb-1" />
+                    <p className="text-xl font-bold text-red-600">0</p>
+                    <p className="text-xs text-muted-foreground">Removed</p>
+                  </div>
+                  <div className="p-3 bg-amber-50 rounded-lg border border-amber-200">
+                    <FileText className="h-6 w-6 mx-auto text-amber-600 mb-1" />
+                    <p className="text-xl font-bold text-amber-600">0</p>
+                    <p className="text-xs text-muted-foreground">Modified</p>
+                  </div>
+                  <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                    <Layers className="h-6 w-6 mx-auto text-blue-600 mb-1" />
+                    <p className="text-xl font-bold text-blue-600">0</p>
+                    <p className="text-xs text-muted-foreground">Reordered</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
           <Card>
             <CardHeader>
-              <CardTitle>Delta Reporting</CardTitle>
-              <CardDescription>Compare two checklists to identify differences</CardDescription>
+              <CardTitle className="text-base">Evidence-on-Demand Retrieval</CardTitle>
+              <CardDescription>Multi-schema indexing with blockchain verification</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-4 gap-4 text-center">
-                <div className="p-4 bg-green-50 rounded-lg border border-green-200">
-                  <CheckCircle2 className="h-8 w-8 mx-auto text-green-600 mb-2" />
-                  <p className="text-2xl font-bold text-green-600">0</p>
-                  <p className="text-sm text-muted-foreground">Added Items</p>
+                <div className="p-4 border rounded-lg">
+                  <Database className="h-8 w-8 mx-auto text-blue-600 mb-2" />
+                  <p className="text-sm font-medium">Multi-Schema Index</p>
+                  <p className="text-xs text-muted-foreground mt-1">Cross-reference evidence</p>
                 </div>
-                <div className="p-4 bg-red-50 rounded-lg border border-red-200">
-                  <AlertTriangle className="h-8 w-8 mx-auto text-red-600 mb-2" />
-                  <p className="text-2xl font-bold text-red-600">0</p>
-                  <p className="text-sm text-muted-foreground">Removed Items</p>
+                <div className="p-4 border rounded-lg">
+                  <Shield className="h-8 w-8 mx-auto text-green-600 mb-2" />
+                  <p className="text-sm font-medium">Blockchain Verified</p>
+                  <p className="text-xs text-muted-foreground mt-1">Immutable audit trail</p>
                 </div>
-                <div className="p-4 bg-amber-50 rounded-lg border border-amber-200">
-                  <FileText className="h-8 w-8 mx-auto text-amber-600 mb-2" />
-                  <p className="text-2xl font-bold text-amber-600">0</p>
-                  <p className="text-sm text-muted-foreground">Modified Items</p>
+                <div className="p-4 border rounded-lg">
+                  <TrendingUp className="h-8 w-8 mx-auto text-purple-600 mb-2" />
+                  <p className="text-sm font-medium">Priority Scoring</p>
+                  <p className="text-xs text-muted-foreground mt-1">Intelligent ranking</p>
                 </div>
-                <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-                  <Layers className="h-8 w-8 mx-auto text-blue-600 mb-2" />
-                  <p className="text-2xl font-bold text-blue-600">0</p>
-                  <p className="text-sm text-muted-foreground">Reordered Items</p>
+                <div className="p-4 border rounded-lg">
+                  <Zap className="h-8 w-8 mx-auto text-amber-600 mb-2" />
+                  <p className="text-sm font-medium">Instant Retrieval</p>
+                  <p className="text-xs text-muted-foreground mt-1">On-demand access</p>
                 </div>
               </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Zap className="h-5 w-5 text-blue-600" />
+                Auto-Fetch Core Checklists
+              </CardTitle>
+              <CardDescription>
+                Automatically retrieve FAA standard checklists for supported FAR Parts
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-4 mb-4">
+                <Select 
+                  value={autoFetchPart} 
+                  onValueChange={setAutoFetchPart}
+                >
+                  <SelectTrigger className="w-[300px]" data-testid="select-auto-fetch-part">
+                    <SelectValue placeholder="Select FAR Part to auto-fetch" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {supportedParts.filter(p => p.definition).map((part) => (
+                      <SelectItem key={part.code} value={part.code}>
+                        {part.code} - {part.definition?.schemaName || 'Core Checklist'}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  onClick={() => {
+                    if (autoFetchPart) {
+                      autoFetchChecklistMutation.mutate(autoFetchPart);
+                      setAutoFetchPart("");
+                    }
+                  }}
+                  disabled={!autoFetchPart || autoFetchChecklistMutation.isPending}
+                  data-testid="btn-auto-fetch"
+                >
+                  {autoFetchChecklistMutation.isPending ? (
+                    <>
+                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                      Fetching...
+                    </>
+                  ) : (
+                    <>
+                      <Zap className="h-4 w-4 mr-2" />
+                      Auto-Fetch
+                    </>
+                  )}
+                </Button>
+              </div>
+              {supportedParts.length > 0 && (
+                <div className="grid grid-cols-3 gap-2">
+                  {supportedParts.slice(0, 9).map((part) => (
+                    <div 
+                      key={part.code} 
+                      className={`p-2 rounded border text-center text-sm cursor-pointer hover:border-blue-400 transition-colors ${
+                        part.definition ? 'bg-green-50 border-green-200' : 'bg-slate-50 border-slate-200'
+                      }`}
+                      onClick={() => {
+                        if (part.definition) {
+                          setAutoFetchPart(part.code);
+                        }
+                      }}
+                      data-testid={`part-${part.code}`}
+                    >
+                      <span className="font-medium">{part.code}</span>
+                      {part.definition && (
+                        <Badge variant="outline" className="ml-2 text-xs bg-green-100">Available</Badge>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -1466,6 +1810,103 @@ export default function AdaptiveCompliance() {
                   Ingest Document
                 </>
               )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={versionHistoryOpen} onOpenChange={setVersionHistoryOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Version History</DialogTitle>
+            <DialogDescription>
+              Track changes and updates to this checklist over time.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="py-4">
+            {selectedSchemaId && evidenceStats && (
+              <div className="mb-4 p-4 bg-slate-50 rounded-lg">
+                <h4 className="font-medium mb-2">Evidence Mapping Coverage</h4>
+                <div className="grid grid-cols-4 gap-4 text-center text-sm">
+                  <div>
+                    <p className="text-lg font-bold text-blue-600">{evidenceStats.totalItems}</p>
+                    <p className="text-muted-foreground">Total Items</p>
+                  </div>
+                  <div>
+                    <p className="text-lg font-bold text-green-600">{evidenceStats.mappedItems}</p>
+                    <p className="text-muted-foreground">Mapped</p>
+                  </div>
+                  <div>
+                    <p className="text-lg font-bold text-amber-600">{evidenceStats.unmappedItems}</p>
+                    <p className="text-muted-foreground">Unmapped</p>
+                  </div>
+                  <div>
+                    <p className="text-lg font-bold text-purple-600">{evidenceStats.coveragePercentage.toFixed(1)}%</p>
+                    <p className="text-muted-foreground">Coverage</p>
+                  </div>
+                </div>
+                <Progress value={evidenceStats.coveragePercentage} className="h-2 mt-3" />
+              </div>
+            )}
+
+            <h4 className="font-medium mb-3">Change History</h4>
+            {versionHistory.length > 0 ? (
+              <ScrollArea className="h-[300px]">
+                <div className="space-y-3">
+                  {versionHistory.map((entry) => (
+                    <div key={entry.id} className="p-3 border rounded-lg">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline">
+                            {entry.previousVersion ? `v${entry.previousVersion}` : 'Initial'} → v{entry.newVersion}
+                          </Badge>
+                          {entry.sourceUrl && (
+                            <a 
+                              href={entry.sourceUrl} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:underline text-sm flex items-center gap-1"
+                            >
+                              <ExternalLink className="h-3 w-3" />
+                              Source
+                            </a>
+                          )}
+                        </div>
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(entry.detectedAt).toLocaleDateString()}
+                        </span>
+                      </div>
+                      {entry.changesSummary && (
+                        <p className="text-sm text-muted-foreground">
+                          {typeof entry.changesSummary === 'string' 
+                            ? entry.changesSummary 
+                            : JSON.stringify(entry.changesSummary)}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <FileSearch className="h-10 w-10 mx-auto mb-3 opacity-50" />
+                <p>No version history recorded yet</p>
+                <p className="text-sm mt-1">Changes will be tracked automatically when detected.</p>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setVersionHistoryOpen(false);
+                setSelectedSchemaId(null);
+              }}
+              data-testid="btn-close-history"
+            >
+              Close
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -48,13 +48,13 @@ export class LinkMonitoringService {
   }
 
   private extractRegulatoryLinks(): string[] {
-    // Known regulatory base URLs that we monitor
+    // Known regulatory base URLs that we monitor (updated to current redirected URLs)
     const regulatoryDomains = [
-      'https://www.ecfr.gov/current/title-14/chapter-I/subchapter-H/part-142',
-      'https://www.faa.gov/regulations_policies/orders_notices/index.cfm/go/document.information/documentID/1034161',
+      'https://www.ecfr.gov/current/title-14/part-142',
+      'https://www.faa.gov/regulations_policies/orders_notices',
       'https://www.ecfr.gov/current/title-14',
-      'https://www.faa.gov/regulations_policies/',
-      'https://www.gpo.gov/fdsys/pkg/CFR-2023-title14',
+      'https://www.faa.gov/regulations_policies',
+      'https://www.govinfo.gov/app/collection/cfr/2024/title14',
     ];
 
     return regulatoryDomains;

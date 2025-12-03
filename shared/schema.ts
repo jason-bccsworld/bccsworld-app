@@ -454,7 +454,7 @@ export const organizationAuthorizations = pgTable("organization_authorizations",
 export const checklistSchemas = pgTable("checklist_schemas", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
   schemaName: varchar("schema_name", { length: 200 }).notNull(),
-  schemaSource: varchar("schema_source").notNull(), // faa_official, tcpm_custom, regional, operator
+  schemaSource: varchar("schema_source").notNull(), // faa_standard, certificate_job_aid, inspector_supplemental, operator_required, archived_legacy
   frameworkId: uuid("framework_id").references(() => regulatoryFrameworks.id),
   version: varchar("version", { length: 50 }).notNull(),
   effectiveDate: timestamp("effective_date").notNull(),
@@ -462,6 +462,13 @@ export const checklistSchemas = pgTable("checklist_schemas", {
   structureHash: varchar("structure_hash", { length: 100 }), // Hash for change detection
   metadata: jsonb("metadata"), // Additional schema metadata
   isCanonical: boolean("is_canonical").default(false), // Is this the authoritative version?
+  priorityLevel: integer("priority_level").default(5), // 1=FAA Standard, 2=Certificate Job Aid, 3=Inspector Supplemental, 4=Operator Required, 5=Archived Legacy
+  autoFetched: boolean("auto_fetched").default(false), // Was this auto-fetched when spine was selected?
+  sourceUrl: text("source_url"), // FAA source URL for version monitoring
+  lastVersionCheck: timestamp("last_version_check"), // When was version last verified
+  isOutdated: boolean("is_outdated").default(false), // Has a newer version been detected?
+  supersededById: uuid("superseded_by_id"), // Reference to newer version if outdated
+  isHidden: boolean("is_hidden").default(false), // Hidden from normal view (archived/legacy)
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -508,6 +515,38 @@ export const harmonizationDeltas = pgTable("harmonization_deltas", {
   changeDescription: text("change_description").notNull(),
   complianceImpact: varchar("compliance_impact"), // none, minor, major, critical
   generatedAt: timestamp("generated_at").defaultNow(),
+});
+
+// CHECKLIST AUTOMATION - Version monitoring and auto-fetch tracking
+export const checklistVersionHistory = pgTable("checklist_version_history", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  schemaId: uuid("schema_id").references(() => checklistSchemas.id).notNull(),
+  previousVersion: varchar("previous_version", { length: 50 }),
+  newVersion: varchar("new_version", { length: 50 }).notNull(),
+  changeType: varchar("change_type").notNull(), // new_version, amendment, correction, superseded
+  changeSummary: text("change_summary"),
+  sourceReference: text("source_reference"), // FAA document number/reference
+  detectedAt: timestamp("detected_at").defaultNow(),
+  appliedAt: timestamp("applied_at"),
+  appliedBy: uuid("applied_by").references(() => users.id),
+  isAcknowledged: boolean("is_acknowledged").default(false),
+});
+
+// Core FAA checklists for each FAR Part (auto-fetched when spine selected)
+export const faaCoreForms = pgTable("faa_core_forms", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  farPart: varchar("far_part", { length: 20 }).notNull(), // e.g., "142", "141", "145"
+  formNumber: varchar("form_number", { length: 50 }).notNull(), // e.g., "8610-2", "8900.1 Vol 3"
+  formTitle: varchar("form_title", { length: 300 }).notNull(),
+  formType: varchar("form_type").notNull(), // audit_checklist, job_aid, inspector_guide, application
+  currentVersion: varchar("current_version", { length: 50 }),
+  effectiveDate: timestamp("effective_date"),
+  sourceUrl: text("source_url"),
+  pdfUrl: text("pdf_url"),
+  relatedOrderVolume: varchar("related_order_volume", { length: 50 }), // e.g., "8900.1 Vol 3"
+  isActive: boolean("is_active").default(true),
+  lastCheckedAt: timestamp("last_checked_at"),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
 // INSPECTOR PREFERENCE ENGINE
@@ -909,6 +948,8 @@ export const insertChecklistSchemaSchema = createInsertSchema(checklistSchemas);
 export const insertChecklistItemSchema = createInsertSchema(checklistItems);
 export const insertChecklistMappingSchema = createInsertSchema(checklistMappings);
 export const insertHarmonizationDeltaSchema = createInsertSchema(harmonizationDeltas);
+export const insertChecklistVersionHistorySchema = createInsertSchema(checklistVersionHistory);
+export const insertFaaCoreFormSchema = createInsertSchema(faaCoreForms);
 export const insertInspectorProfileSchema = createInsertSchema(inspectorProfiles);
 export const insertInspectorBehaviorSchema = createInsertSchema(inspectorBehaviors);
 export const insertEvidenceRecordSchema = createInsertSchema(evidenceRecords);
@@ -936,6 +977,12 @@ export type InsertChecklistMapping = z.infer<typeof insertChecklistMappingSchema
 
 export type HarmonizationDelta = typeof harmonizationDeltas.$inferSelect;
 export type InsertHarmonizationDelta = z.infer<typeof insertHarmonizationDeltaSchema>;
+
+export type ChecklistVersionHistory = typeof checklistVersionHistory.$inferSelect;
+export type InsertChecklistVersionHistory = z.infer<typeof insertChecklistVersionHistorySchema>;
+
+export type FaaCoreForm = typeof faaCoreForms.$inferSelect;
+export type InsertFaaCoreForm = z.infer<typeof insertFaaCoreFormSchema>;
 
 export type InspectorProfile = typeof inspectorProfiles.$inferSelect;
 export type InsertInspectorProfile = z.infer<typeof insertInspectorProfileSchema>;

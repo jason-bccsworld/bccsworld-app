@@ -119,6 +119,123 @@ router.get("/checklists/deltas/:baseSchemaId/:comparedSchemaId", isAuthenticated
   }
 });
 
+// ============================================================================
+// CHECKLIST AUTOMATION ENDPOINTS (Section 7)
+// ============================================================================
+
+router.post("/checklists/auto-fetch/:farPartCode", isAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const schema = await checklistHarmonizationEngine.autoFetchCoreChecklist(req.params.farPartCode);
+    if (!schema) {
+      return res.status(404).json({ 
+        error: "Core checklist not found for FAR Part", 
+        farPartCode: req.params.farPartCode 
+      });
+    }
+    res.json({
+      message: "Core checklist auto-fetched successfully",
+      schema
+    });
+  } catch (error: any) {
+    console.error("Error auto-fetching checklist:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get("/checklists/by-priority", isAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const schemas = await checklistHarmonizationEngine.getSchemasByPriority();
+    res.json(schemas);
+  } catch (error: any) {
+    console.error("Error fetching checklists by priority:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get("/checklists/version-check", isAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const results = await checklistHarmonizationEngine.checkForVersionUpdates();
+    res.json({
+      message: "Version check completed",
+      checkedAt: new Date().toISOString(),
+      results
+    });
+  } catch (error: any) {
+    console.error("Error checking versions:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get("/checklists/:schemaId/version-history", isAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const history = await checklistHarmonizationEngine.getVersionHistory(req.params.schemaId);
+    res.json(history);
+  } catch (error: any) {
+    console.error("Error fetching version history:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post("/checklists/:schemaId/suppress", isAuthenticated, async (req: Request, res: Response) => {
+  try {
+    await checklistHarmonizationEngine.suppressOutdatedChecklist(req.params.schemaId);
+    res.json({ message: "Checklist suppressed successfully" });
+  } catch (error: any) {
+    console.error("Error suppressing checklist:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post("/checklists/:schemaId/unlock", isAuthenticated, async (req: Request, res: Response) => {
+  try {
+    await checklistHarmonizationEngine.unlockArchivedChecklist(req.params.schemaId);
+    res.json({ message: "Archived checklist unlocked successfully" });
+  } catch (error: any) {
+    console.error("Error unlocking checklist:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get("/checklists/:schemaId/evidence-stats", isAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const stats = await checklistHarmonizationEngine.getEvidenceMappingStats(req.params.schemaId);
+    res.json(stats);
+  } catch (error: any) {
+    console.error("Error fetching evidence stats:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post("/checklists/evidence-mapping", isAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const { evidenceId, checklistItemId, mappingStrength, notes } = req.body;
+    await checklistHarmonizationEngine.mapEvidenceToChecklistItem(
+      evidenceId,
+      checklistItemId,
+      mappingStrength,
+      notes
+    );
+    res.json({ message: "Evidence mapped to checklist item successfully" });
+  } catch (error: any) {
+    console.error("Error mapping evidence:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get("/checklists/supported-parts", isAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const parts = checklistHarmonizationEngine.getSupportedFARParts();
+    const definitions = parts.map(p => ({
+      code: p,
+      definition: checklistHarmonizationEngine.getCoreChecklistDefinition(p)
+    }));
+    res.json(definitions);
+  } catch (error: any) {
+    console.error("Error fetching supported parts:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 router.get("/inspectors", isAuthenticated, async (req: Request, res: Response) => {
   try {
     const inspectors = await inspectorPreferenceEngine.getAllInspectors();

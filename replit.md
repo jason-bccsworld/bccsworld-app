@@ -78,6 +78,39 @@ The platform now features a universal regulatory ingestion system capable of sup
 - `GET /api/adaptive-compliance/regulatory-updates` - Recent regulatory changes
 - `POST /api/adaptive-compliance/multi-part-config` - Create multi-part configurations
 
+**Checklist Automation API Endpoints (Section 7):**
+- `POST /api/adaptive-compliance/checklists/auto-fetch/:farPartCode` - Auto-fetch core checklist for FAR Part
+- `GET /api/adaptive-compliance/checklists/by-priority` - Get checklists sorted by priority level
+- `GET /api/adaptive-compliance/checklists/version-check` - Check for version updates across all checklists
+- `GET /api/adaptive-compliance/checklists/:schemaId/version-history` - Get version history for a checklist
+- `POST /api/adaptive-compliance/checklists/:schemaId/suppress` - Suppress outdated checklist
+- `POST /api/adaptive-compliance/checklists/:schemaId/unlock` - Unlock archived checklist
+- `GET /api/adaptive-compliance/checklists/:schemaId/evidence-stats` - Get evidence mapping statistics
+- `POST /api/adaptive-compliance/checklists/evidence-mapping` - Map evidence to checklist item
+- `GET /api/adaptive-compliance/checklists/supported-parts` - Get all supported FAR Parts with checklist definitions
+
+### Checklist Automation System (Patent Pending)
+Intelligent checklist management with automated retrieval, version monitoring, and evidence mapping:
+
+**Priority Levels:**
+1. FAA Standard Checklists (Priority 1) - Primary regulatory checklists from FAA sources
+2. Certificate-specific Checklists (Priority 2) - Organization certificate requirements
+3. Inspector Supplemental Checklists (Priority 3) - Additional inspector-specific items
+4. Operator-required Checklists (Priority 4) - Custom operator additions
+5. Archived Legacy Checklists (Priority 5) - Historical reference only, hidden by default
+
+**Key Features:**
+- Auto-fetch core FAA checklists when regulatory spine selected
+- Version monitoring for FAA 8900.1 Orders, eCFR sections, and SAFO/InFO updates
+- Automatic outdated version suppression with unlock capability for archived access
+- Evidence-on-demand retrieval with multi-schema indexing
+- Blockchain verification for evidence integrity
+- Delta reporting for checklist comparison (added/removed/modified/reordered items)
+
+**Database Tables:**
+- `checklist_version_history`: Tracks version changes with source URLs and change summaries
+- Enhanced `checklist_schemas`: Now includes priority_level, auto_fetched, source_url, last_version_check, is_outdated, is_hidden fields
+
 ### Frontend Architecture
 - **Framework**: React with TypeScript
 - **Build Tool**: Vite
