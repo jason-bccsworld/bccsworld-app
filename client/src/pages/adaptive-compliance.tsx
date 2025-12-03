@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { 
   Shield, 
   FileText, 
@@ -30,7 +30,16 @@ import {
   Database,
   RefreshCw,
   Plus,
-  Upload
+  Upload,
+  BookOpen,
+  Bell,
+  Globe,
+  Zap,
+  Search,
+  ExternalLink,
+  AlertCircle,
+  Building2,
+  Scale
 } from "lucide-react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -39,10 +48,46 @@ interface RegulatoryFramework {
   id: string;
   frameworkCode: string;
   frameworkName: string;
-  frameworkType: 'spine' | 'attachment';
+  frameworkType: 'spine' | 'attachment' | 'order';
   regulatoryAuthority: string;
   version: string;
   isActive: boolean;
+  sourceUrl?: string;
+  applicabilityRules?: any;
+}
+
+interface UniversalFARPart {
+  partNumber: string;
+  partName: string;
+  subchapter: string;
+  applicableTo: string[];
+  canBeSpine: boolean;
+  relatedParts: string[];
+  ecfrUrl: string;
+}
+
+interface FaaPolicyDocument {
+  id: string;
+  documentType: string;
+  documentNumber: string;
+  title: string;
+  subject?: string;
+  issuanceDate: string;
+  effectiveDate?: string;
+  expirationDate?: string;
+  affectedParts: string[];
+  status: string;
+  isActive: boolean;
+}
+
+interface RegulatoryUpdate {
+  id: string;
+  sourceType: string;
+  sourceIdentifier: string;
+  lastCheckedAt: string;
+  changeDetected: boolean;
+  changeType?: string;
+  changeSummary?: string;
 }
 
 interface ChecklistSchema {
@@ -66,22 +111,14 @@ interface InspectorProfile {
   focusAreas: string[];
 }
 
-interface AuditPacket {
-  id: string;
-  packetName: string;
-  packetType: string;
-  totalItems: number;
-  itemsWithEvidence: number;
-  blockchainVerifiedCount: number;
-  complianceScore: string;
-  status: string;
-  generatedAt: string;
-}
-
 export default function AdaptiveCompliance() {
   const { toast } = useToast();
   const [selectedTab, setSelectedTab] = useState("spine");
   const [checklistDialogOpen, setChecklistDialogOpen] = useState(false);
+  const [policyDialogOpen, setPolicyDialogOpen] = useState(false);
+  const [selectedSpine, setSelectedSpine] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  
   const [checklistForm, setChecklistForm] = useState({
     schemaName: "",
     schemaSource: "FAA",
@@ -91,8 +128,36 @@ export default function AdaptiveCompliance() {
     items: ""
   });
 
+  const [policyForm, setPolicyForm] = useState({
+    documentType: "safo",
+    documentNumber: "",
+    title: "",
+    subject: "",
+    issuanceDate: "",
+    effectiveDate: "",
+    affectedParts: "",
+    content: "",
+    sourceUrl: ""
+  });
+
   const { data: frameworks = [], isLoading: frameworksLoading } = useQuery<RegulatoryFramework[]>({
     queryKey: ['/api/adaptive-compliance/frameworks'],
+  });
+
+  const { data: farParts = [] } = useQuery<UniversalFARPart[]>({
+    queryKey: ['/api/adaptive-compliance/far-parts'],
+  });
+
+  const { data: availableSpines = [] } = useQuery<RegulatoryFramework[]>({
+    queryKey: ['/api/adaptive-compliance/frameworks/spines'],
+  });
+
+  const { data: policyDocuments = [] } = useQuery<FaaPolicyDocument[]>({
+    queryKey: ['/api/adaptive-compliance/policy-documents'],
+  });
+
+  const { data: regulatoryUpdates = [] } = useQuery<RegulatoryUpdate[]>({
+    queryKey: ['/api/adaptive-compliance/regulatory-updates'],
   });
 
   const { data: checklists = [], isLoading: checklistsLoading } = useQuery<ChecklistSchema[]>({
@@ -103,21 +168,65 @@ export default function AdaptiveCompliance() {
     queryKey: ['/api/adaptive-compliance/inspectors'],
   });
 
-  const initSpineMutation = useMutation({
+  const initUniversalSpineMutation = useMutation({
     mutationFn: async () => {
-      return apiRequest('POST', '/api/adaptive-compliance/frameworks/initialize');
+      return apiRequest('POST', '/api/adaptive-compliance/frameworks/initialize-universal');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/adaptive-compliance/frameworks'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/adaptive-compliance/frameworks/spines'] });
       toast({
-        title: "Regulatory Spine Initialized",
-        description: "14 CFR Part 142 spine and FAA attachments are now active."
+        title: "Universal Regulatory Spine Initialized",
+        description: "All FAR Parts and FAA Orders are now available for selection."
       });
     },
     onError: () => {
       toast({
         title: "Initialization Error",
-        description: "Failed to initialize regulatory spine.",
+        description: "Failed to initialize universal regulatory spine.",
+        variant: "destructive"
+      });
+    }
+  });
+
+  const ingestPolicyMutation = useMutation({
+    mutationFn: async (data: typeof policyForm) => {
+      return apiRequest('POST', '/api/adaptive-compliance/policy-documents/ingest', {
+        documentType: data.documentType,
+        documentNumber: data.documentNumber,
+        title: data.title,
+        subject: data.subject,
+        issuanceDate: new Date(data.issuanceDate),
+        effectiveDate: data.effectiveDate ? new Date(data.effectiveDate) : undefined,
+        affectedParts: data.affectedParts.split(',').map(p => p.trim()),
+        content: data.content,
+        sourceUrl: data.sourceUrl
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/adaptive-compliance/policy-documents'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/adaptive-compliance/regulatory-updates'] });
+      setPolicyDialogOpen(false);
+      setPolicyForm({
+        documentType: "safo",
+        documentNumber: "",
+        title: "",
+        subject: "",
+        issuanceDate: "",
+        effectiveDate: "",
+        affectedParts: "",
+        content: "",
+        sourceUrl: ""
+      });
+      toast({
+        title: "Policy Document Ingested",
+        description: "The FAA policy document has been successfully added to the system."
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Ingestion Error",
+        description: error.message || "Failed to ingest policy document.",
         variant: "destructive"
       });
     }
@@ -180,69 +289,105 @@ export default function AdaptiveCompliance() {
     }
   });
 
-  const spineFramework = frameworks.find(f => f.frameworkType === 'spine');
+  const spineFrameworks = frameworks.filter(f => f.frameworkType === 'spine');
   const attachmentFrameworks = frameworks.filter(f => f.frameworkType === 'attachment');
+  const orderFrameworks = frameworks.filter(f => f.frameworkType === 'order');
+
+  const filteredFARParts = farParts.filter(part => 
+    searchQuery === "" || 
+    part.partNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    part.partName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    part.applicableTo.some(a => a.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
 
   const stats = {
     totalFrameworks: frameworks.length,
     activeChecklists: checklists.length,
     trackedInspectors: inspectors.length,
+    policyDocuments: policyDocuments.length,
+    pendingUpdates: regulatoryUpdates.filter(u => u.changeDetected).length,
     complianceScore: 87
+  };
+
+  const getDocumentTypeBadge = (type: string) => {
+    const colors: Record<string, string> = {
+      safo: "bg-red-100 text-red-800 border-red-200",
+      info: "bg-blue-100 text-blue-800 border-blue-200",
+      notice: "bg-amber-100 text-amber-800 border-amber-200",
+      order: "bg-purple-100 text-purple-800 border-purple-200",
+      bulletin: "bg-green-100 text-green-800 border-green-200"
+    };
+    return colors[type] || "bg-gray-100 text-gray-800";
   };
 
   return (
     <div className="p-6 space-y-6" data-testid="adaptive-compliance-page">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight" data-testid="page-title">
-            Adaptive Compliance Intelligence
+          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2" data-testid="page-title">
+            Universal Regulatory Compliance
+            <Badge variant="outline" className="text-xs font-normal ml-2">Patent Pending</Badge>
           </h1>
           <p className="text-muted-foreground mt-1">
-            Regulatory Spine Architecture with Inspector Preference Modeling
+            Dynamic FAR Part Selection • Multi-Part Compliance • Evidence On-Demand
           </p>
         </div>
         <div className="flex items-center gap-2">
           <Button 
             variant="outline"
-            onClick={() => {
-              window.open('/api/adaptive-compliance/tutorial/download', '_blank');
-            }}
+            onClick={() => window.open('/api/adaptive-compliance/tutorial/download', '_blank')}
             data-testid="download-tutorial-btn"
           >
             <FileText className="h-4 w-4 mr-2" />
-            Download Tutorial
+            Tutorial
           </Button>
           <Button 
-            onClick={() => initSpineMutation.mutate()} 
-            disabled={initSpineMutation.isPending}
-            data-testid="initialize-spine-btn"
+            variant="outline"
+            onClick={() => setPolicyDialogOpen(true)}
+            data-testid="ingest-policy-btn"
           >
-            <RefreshCw className={`h-4 w-4 mr-2 ${initSpineMutation.isPending ? 'animate-spin' : ''}`} />
-            Initialize Regulatory Spine
+            <BookOpen className="h-4 w-4 mr-2" />
+            Ingest Policy
+          </Button>
+          <Button 
+            onClick={() => initUniversalSpineMutation.mutate()} 
+            disabled={initUniversalSpineMutation.isPending}
+            data-testid="initialize-universal-btn"
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${initUniversalSpineMutation.isPending ? 'animate-spin' : ''}`} />
+            Initialize All FAR Parts
           </Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
         <Card data-testid="stat-frameworks">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Active Frameworks
-            </CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">FAR Parts</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2">
-              <Layers className="h-5 w-5 text-blue-500" />
+              <Scale className="h-5 w-5 text-blue-500" />
               <span className="text-2xl font-bold">{stats.totalFrameworks}</span>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card data-testid="stat-policies">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Policy Documents</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-2">
+              <BookOpen className="h-5 w-5 text-purple-500" />
+              <span className="text-2xl font-bold">{stats.policyDocuments}</span>
             </div>
           </CardContent>
         </Card>
 
         <Card data-testid="stat-checklists">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Harmonized Checklists
-            </CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Checklists</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2">
@@ -254,23 +399,31 @@ export default function AdaptiveCompliance() {
 
         <Card data-testid="stat-inspectors">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Tracked Inspectors
-            </CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Inspectors</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2">
-              <Users className="h-5 w-5 text-purple-500" />
+              <Users className="h-5 w-5 text-indigo-500" />
               <span className="text-2xl font-bold">{stats.trackedInspectors}</span>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card data-testid="stat-updates">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Pending Updates</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-2">
+              <Bell className="h-5 w-5 text-amber-500" />
+              <span className="text-2xl font-bold">{stats.pendingUpdates}</span>
             </div>
           </CardContent>
         </Card>
 
         <Card data-testid="stat-compliance">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Compliance Score
-            </CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Compliance</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2">
@@ -282,10 +435,14 @@ export default function AdaptiveCompliance() {
       </div>
 
       <Tabs value={selectedTab} onValueChange={setSelectedTab} className="space-y-4">
-        <TabsList className="grid grid-cols-5 w-full max-w-3xl" data-testid="compliance-tabs">
+        <TabsList className="grid grid-cols-6 w-full max-w-4xl" data-testid="compliance-tabs">
           <TabsTrigger value="spine" data-testid="tab-spine">
-            <Layers className="h-4 w-4 mr-2" />
-            Regulatory Spine
+            <Scale className="h-4 w-4 mr-2" />
+            FAR Selection
+          </TabsTrigger>
+          <TabsTrigger value="policies" data-testid="tab-policies">
+            <BookOpen className="h-4 w-4 mr-2" />
+            Policies
           </TabsTrigger>
           <TabsTrigger value="checklists" data-testid="tab-checklists">
             <ClipboardCheck className="h-4 w-4 mr-2" />
@@ -301,158 +458,189 @@ export default function AdaptiveCompliance() {
           </TabsTrigger>
           <TabsTrigger value="packets" data-testid="tab-packets">
             <Package className="h-4 w-4 mr-2" />
-            Audit Packets
+            Packets
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="spine" className="space-y-4" data-testid="spine-content">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <Card className="lg:col-span-2">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Shield className="h-5 w-5 text-blue-600" />
-                  Primary Regulatory Spine
+                  <Globe className="h-5 w-5 text-blue-600" />
+                  Universal FAR Part Selector
                 </CardTitle>
                 <CardDescription>
-                  Core regulatory framework - 14 CFR Part 142
+                  Select any FAR Part as your primary regulatory spine
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {frameworksLoading ? (
-                  <div className="space-y-2">
-                    <div className="h-4 bg-slate-200 rounded animate-pulse" />
-                    <div className="h-4 bg-slate-200 rounded animate-pulse w-3/4" />
+                <div className="space-y-4">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search FAR Parts (e.g., 121, training, maintenance...)"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-10"
+                      data-testid="far-search-input"
+                    />
                   </div>
-                ) : spineFramework ? (
-                  <div className="space-y-4">
-                    <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <h3 className="font-semibold text-lg" data-testid="spine-framework-name">
-                            {spineFramework.frameworkName}
-                          </h3>
-                          <p className="text-sm text-muted-foreground">
-                            {spineFramework.frameworkCode}
-                          </p>
-                        </div>
-                        <Badge variant="default" data-testid="spine-status">
-                          {spineFramework.isActive ? 'Active' : 'Inactive'}
-                        </Badge>
-                      </div>
-                      <div className="mt-3 flex items-center gap-4 text-sm">
-                        <span className="flex items-center gap-1">
-                          <FileText className="h-4 w-4" />
-                          Version: {spineFramework.version}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Shield className="h-4 w-4" />
-                          {spineFramework.regulatoryAuthority.toUpperCase()}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <Shield className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p>No regulatory spine configured</p>
-                    <p className="text-sm">Click "Initialize Regulatory Spine" to set up</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <LinkIcon className="h-5 w-5 text-green-600" />
-                  Dynamic Attachments
-                </CardTitle>
-                <CardDescription>
-                  Regulatory frameworks attached based on authorizations
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {frameworksLoading ? (
-                  <div className="space-y-2">
-                    {[1, 2, 3].map(i => (
-                      <div key={i} className="h-12 bg-slate-200 rounded animate-pulse" />
-                    ))}
-                  </div>
-                ) : attachmentFrameworks.length > 0 ? (
-                  <ScrollArea className="h-[300px]">
+                  
+                  <ScrollArea className="h-[400px]">
                     <div className="space-y-2">
-                      {attachmentFrameworks.map((framework) => (
+                      {filteredFARParts.map((part) => (
                         <div
-                          key={framework.id}
-                          className="p-3 border rounded-lg hover:bg-slate-50 transition-colors"
-                          data-testid={`attachment-${framework.frameworkCode}`}
+                          key={part.partNumber}
+                          className={`p-4 border rounded-lg cursor-pointer transition-all hover:border-blue-400 ${
+                            selectedSpine === part.partNumber ? 'border-blue-500 bg-blue-50' : ''
+                          }`}
+                          onClick={() => setSelectedSpine(part.partNumber)}
+                          data-testid={`far-part-${part.partNumber}`}
                         >
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                              <div>
-                                <p className="font-medium text-sm">{framework.frameworkCode}</p>
-                                <p className="text-xs text-muted-foreground line-clamp-1">
-                                  {framework.frameworkName}
-                                </p>
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <h3 className="font-semibold">{part.partNumber}</h3>
+                                {part.canBeSpine && (
+                                  <Badge variant="default" className="text-xs">Primary Spine</Badge>
+                                )}
+                              </div>
+                              <p className="text-sm text-muted-foreground mt-1 line-clamp-1">
+                                {part.partName}
+                              </p>
+                              <div className="flex items-center gap-2 mt-2">
+                                <Badge variant="outline" className="text-xs">
+                                  Subchapter {part.subchapter}
+                                </Badge>
+                                {part.applicableTo.slice(0, 2).map((app, i) => (
+                                  <Badge key={i} variant="secondary" className="text-xs">
+                                    {app.replace(/_/g, ' ')}
+                                  </Badge>
+                                ))}
                               </div>
                             </div>
-                            <Badge variant={framework.isActive ? "default" : "secondary"} className="text-xs">
-                              {framework.isActive ? "Active" : "Inactive"}
-                            </Badge>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                window.open(part.ecfrUrl, '_blank');
+                              }}
+                            >
+                              <ExternalLink className="h-4 w-4" />
+                            </Button>
                           </div>
                         </div>
                       ))}
                     </div>
                   </ScrollArea>
-                ) : (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <LinkIcon className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p>No attachments configured</p>
-                  </div>
-                )}
+                </div>
               </CardContent>
             </Card>
+
+            <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Shield className="h-5 w-5 text-green-600" />
+                    Active Spines
+                  </CardTitle>
+                  <CardDescription>Currently configured regulatory spines</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {frameworksLoading ? (
+                    <div className="space-y-2">
+                      {[1, 2, 3].map(i => (
+                        <div key={i} className="h-12 bg-slate-200 rounded animate-pulse" />
+                      ))}
+                    </div>
+                  ) : spineFrameworks.length > 0 ? (
+                    <div className="space-y-2">
+                      {spineFrameworks.slice(0, 5).map((fw) => (
+                        <div key={fw.id} className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                          <p className="font-medium text-sm">{fw.frameworkCode}</p>
+                          <p className="text-xs text-muted-foreground line-clamp-1">{fw.frameworkName}</p>
+                        </div>
+                      ))}
+                      {spineFrameworks.length > 5 && (
+                        <p className="text-sm text-muted-foreground text-center">
+                          +{spineFrameworks.length - 5} more
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="text-center py-6 text-muted-foreground">
+                      <Shield className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                      <p className="text-sm">No spines initialized</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Layers className="h-5 w-5 text-purple-600" />
+                    FAA Orders
+                  </CardTitle>
+                  <CardDescription>8900.1 Volumes and other orders</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {orderFrameworks.length > 0 ? (
+                    <ScrollArea className="h-[200px]">
+                      <div className="space-y-2">
+                        {orderFrameworks.map((fw) => (
+                          <div key={fw.id} className="p-2 border rounded-lg text-sm">
+                            <p className="font-medium">{fw.frameworkCode}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  ) : (
+                    <div className="text-center py-4 text-muted-foreground">
+                      <p className="text-sm">Initialize to load FAA Orders</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
           </div>
 
           <Card>
             <CardHeader>
-              <CardTitle>Regulatory Hierarchy Visualization</CardTitle>
-              <CardDescription>
-                Spine + Attachments Architecture Model
-              </CardDescription>
+              <CardTitle>Regulatory Architecture Visualization</CardTitle>
+              <CardDescription>Multi-Part Compliance Structure</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="flex flex-col items-center py-8">
-                <div className="w-64 p-4 bg-blue-600 text-white rounded-lg text-center shadow-lg">
-                  <Shield className="h-6 w-6 mx-auto mb-2" />
-                  <p className="font-bold">14 CFR Part 142</p>
-                  <p className="text-sm opacity-90">Primary Spine</p>
+                <div className="w-80 p-4 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg text-center shadow-lg">
+                  <Scale className="h-6 w-6 mx-auto mb-2" />
+                  <p className="font-bold">Selected Primary Spine</p>
+                  <p className="text-sm opacity-90">{selectedSpine || "No FAR Part Selected"}</p>
                 </div>
                 
                 <div className="flex items-center gap-2 my-4">
                   <ArrowRight className="h-6 w-6 text-blue-400 rotate-90" />
                 </div>
                 
-                <div className="grid grid-cols-2 gap-4 max-w-2xl">
-                  <div className="p-3 bg-green-100 border border-green-300 rounded-lg text-center">
-                    <p className="font-medium text-sm">FAA Order 8900.1 Vol 3</p>
-                    <p className="text-xs text-muted-foreground">Core Attachment</p>
-                  </div>
-                  <div className="p-3 bg-green-100 border border-green-300 rounded-lg text-center">
-                    <p className="font-medium text-sm">FAA Order 8900.1 Vol 6</p>
-                    <p className="text-xs text-muted-foreground">Core Attachment</p>
-                  </div>
+                <div className="grid grid-cols-4 gap-4 max-w-4xl">
+                  {orderFrameworks.slice(0, 4).map((order) => (
+                    <div key={order.id} className="p-3 bg-purple-50 border border-purple-200 rounded-lg text-center">
+                      <p className="font-medium text-xs">{order.frameworkCode.replace('FAA-', '')}</p>
+                      <p className="text-xs text-muted-foreground">Order</p>
+                    </div>
+                  ))}
                 </div>
 
                 <div className="flex items-center gap-2 my-4">
-                  <ArrowRight className="h-6 w-6 text-green-400 rotate-90" />
+                  <ArrowRight className="h-6 w-6 text-purple-400 rotate-90" />
                 </div>
 
-                <div className="grid grid-cols-4 gap-3 max-w-4xl">
-                  {['14 CFR Part 61', '14 CFR Part 91', '14 CFR Part 121', '14 CFR Part 135'].map((part) => (
+                <div className="grid grid-cols-6 gap-3 max-w-5xl">
+                  {['61', '91', '121', '135', '141', '145'].map((part) => (
                     <div key={part} className="p-2 bg-amber-50 border border-amber-200 rounded text-center">
-                      <p className="font-medium text-xs">{part}</p>
+                      <p className="font-medium text-xs">Part {part}</p>
                       <p className="text-xs text-muted-foreground">Dynamic</p>
                     </div>
                   ))}
@@ -460,6 +648,160 @@ export default function AdaptiveCompliance() {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="policies" className="space-y-4" data-testid="policies-content">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <Card className="lg:col-span-2">
+              <CardHeader className="flex flex-row items-start justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <BookOpen className="h-5 w-5 text-purple-600" />
+                    FAA Policy Documents
+                  </CardTitle>
+                  <CardDescription>
+                    SAFOs, InFOs, Policy Notices, and Bulletins
+                  </CardDescription>
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => setPolicyDialogOpen(true)}
+                  data-testid="ingest-policy-header-btn"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Ingest Document
+                </Button>
+              </CardHeader>
+              <CardContent>
+                {policyDocuments.length > 0 ? (
+                  <ScrollArea className="h-[400px]">
+                    <div className="space-y-3">
+                      {policyDocuments.map((doc) => (
+                        <div
+                          key={doc.id}
+                          className="p-4 border rounded-lg hover:border-purple-300 transition-colors"
+                          data-testid={`policy-${doc.documentNumber}`}
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <Badge className={getDocumentTypeBadge(doc.documentType)}>
+                                  {doc.documentType.toUpperCase()}
+                                </Badge>
+                                <span className="font-medium">{doc.documentNumber}</span>
+                              </div>
+                              <h3 className="font-medium mt-2">{doc.title}</h3>
+                              {doc.subject && (
+                                <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+                                  {doc.subject}
+                                </p>
+                              )}
+                              <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
+                                <span>Issued: {new Date(doc.issuanceDate).toLocaleDateString()}</span>
+                                {doc.affectedParts?.length > 0 && (
+                                  <span>Affects: {doc.affectedParts.join(', ')}</span>
+                                )}
+                              </div>
+                            </div>
+                            <Badge variant={doc.isActive ? "default" : "secondary"}>
+                              {doc.status}
+                            </Badge>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                ) : (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <BookOpen className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p className="mb-2">No policy documents ingested</p>
+                    <p className="text-sm">Ingest SAFOs, InFOs, and other FAA policy documents</p>
+                    <Button 
+                      variant="outline" 
+                      className="mt-4"
+                      onClick={() => setPolicyDialogOpen(true)}
+                    >
+                      <Upload className="h-4 w-4 mr-2" />
+                      Ingest First Document
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Bell className="h-5 w-5 text-amber-600" />
+                    Regulatory Updates
+                  </CardTitle>
+                  <CardDescription>Recent changes and alerts</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {regulatoryUpdates.length > 0 ? (
+                    <ScrollArea className="h-[200px]">
+                      <div className="space-y-2">
+                        {regulatoryUpdates.slice(0, 10).map((update) => (
+                          <div 
+                            key={update.id} 
+                            className={`p-3 border rounded-lg ${
+                              update.changeDetected ? 'border-amber-300 bg-amber-50' : ''
+                            }`}
+                          >
+                            <div className="flex items-center gap-2">
+                              {update.changeDetected && (
+                                <AlertCircle className="h-4 w-4 text-amber-600" />
+                              )}
+                              <p className="font-medium text-sm">{update.sourceIdentifier}</p>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              {update.sourceType} • {new Date(update.lastCheckedAt).toLocaleDateString()}
+                            </p>
+                            {update.changeSummary && (
+                              <p className="text-xs mt-1">{update.changeSummary}</p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  ) : (
+                    <div className="text-center py-6 text-muted-foreground">
+                      <Bell className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                      <p className="text-sm">No recent updates</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm font-medium">Document Types</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between p-2 bg-red-50 rounded">
+                      <span className="text-sm font-medium">SAFO</span>
+                      <span className="text-xs text-muted-foreground">Safety Alerts</span>
+                    </div>
+                    <div className="flex items-center justify-between p-2 bg-blue-50 rounded">
+                      <span className="text-sm font-medium">InFO</span>
+                      <span className="text-xs text-muted-foreground">Information Notices</span>
+                    </div>
+                    <div className="flex items-center justify-between p-2 bg-amber-50 rounded">
+                      <span className="text-sm font-medium">Notice</span>
+                      <span className="text-xs text-muted-foreground">Policy Notices</span>
+                    </div>
+                    <div className="flex items-center justify-between p-2 bg-purple-50 rounded">
+                      <span className="text-sm font-medium">Order</span>
+                      <span className="text-xs text-muted-foreground">FAA Orders</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
         </TabsContent>
 
         <TabsContent value="checklists" className="space-y-4" data-testid="checklists-content">
@@ -546,9 +888,7 @@ export default function AdaptiveCompliance() {
           <Card>
             <CardHeader>
               <CardTitle>Delta Reporting</CardTitle>
-              <CardDescription>
-                Compare two checklists to identify differences
-              </CardDescription>
+              <CardDescription>Compare two checklists to identify differences</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-4 gap-4 text-center">
@@ -656,9 +996,7 @@ export default function AdaptiveCompliance() {
           <Card>
             <CardHeader>
               <CardTitle>Prediction Accuracy</CardTitle>
-              <CardDescription>
-                Inspector behavior prediction performance
-              </CardDescription>
+              <CardDescription>Inspector behavior prediction performance</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
@@ -693,10 +1031,10 @@ export default function AdaptiveCompliance() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <FileSearch className="h-5 w-5 text-orange-600" />
-                Multi-Schema Evidence Indexing
+                Evidence On-Demand Retrieval
               </CardTitle>
               <CardDescription>
-                Evidence linked to checklist items with blockchain verification
+                Instant evidence retrieval by checklist item or regulatory reference
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -739,9 +1077,12 @@ export default function AdaptiveCompliance() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Evidence-On-Demand API</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <Zap className="h-5 w-5 text-yellow-600" />
+                Evidence-On-Demand API
+              </CardTitle>
               <CardDescription>
-                Retrieve evidence by checklist item or regulatory reference
+                Retrieve evidence instantly by checklist item or regulatory reference
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -751,6 +1092,14 @@ export default function AdaptiveCompliance() {
                   <div className="space-y-1 text-sm text-muted-foreground">
                     <p>?checklist_item_id=XYZ - Retrieve evidence for checklist item</p>
                     <p>?framework_code=14-CFR-142&regulatory_reference=142.3 - By regulation</p>
+                  </div>
+                </div>
+                <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                  <p className="font-medium text-sm mb-2">Supported FAR Parts for Evidence Lookup:</p>
+                  <div className="flex flex-wrap gap-2">
+                    {['21', '43', '61', '65', '91', '107', '119', '121', '125', '135', '141', '142', '145', '147'].map(part => (
+                      <Badge key={part} variant="outline">Part {part}</Badge>
+                    ))}
                   </div>
                 </div>
               </div>
@@ -815,9 +1164,7 @@ export default function AdaptiveCompliance() {
           <Card>
             <CardHeader>
               <CardTitle>Packet Integrity</CardTitle>
-              <CardDescription>
-                Blockchain-verified audit packet contents
-              </CardDescription>
+              <CardDescription>Blockchain-verified audit packet contents</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-lg">
@@ -964,6 +1311,159 @@ export default function AdaptiveCompliance() {
                 <>
                   <Upload className="h-4 w-4 mr-2" />
                   Import Checklist
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={policyDialogOpen} onOpenChange={setPolicyDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Ingest FAA Policy Document</DialogTitle>
+            <DialogDescription>
+              Add SAFOs, InFOs, Policy Notices, or other FAA policy documents to the compliance system.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="documentType">Document Type</Label>
+                <Select 
+                  value={policyForm.documentType} 
+                  onValueChange={(value) => setPolicyForm(prev => ({ ...prev, documentType: value }))}
+                >
+                  <SelectTrigger data-testid="select-policy-type">
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="safo">SAFO - Safety Alert</SelectItem>
+                    <SelectItem value="info">InFO - Information Notice</SelectItem>
+                    <SelectItem value="notice">Policy Notice</SelectItem>
+                    <SelectItem value="bulletin">Bulletin</SelectItem>
+                    <SelectItem value="order">FAA Order</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="documentNumber">Document Number</Label>
+                <Input
+                  id="documentNumber"
+                  placeholder="e.g., SAFO 24001"
+                  value={policyForm.documentNumber}
+                  onChange={(e) => setPolicyForm(prev => ({ ...prev, documentNumber: e.target.value }))}
+                  data-testid="input-policy-number"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="title">Title</Label>
+              <Input
+                id="title"
+                placeholder="Document title"
+                value={policyForm.title}
+                onChange={(e) => setPolicyForm(prev => ({ ...prev, title: e.target.value }))}
+                data-testid="input-policy-title"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="subject">Subject</Label>
+              <Textarea
+                id="subject"
+                placeholder="Brief subject description"
+                rows={2}
+                value={policyForm.subject}
+                onChange={(e) => setPolicyForm(prev => ({ ...prev, subject: e.target.value }))}
+                data-testid="textarea-policy-subject"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="issuanceDate">Issuance Date</Label>
+                <Input
+                  id="issuanceDate"
+                  type="date"
+                  value={policyForm.issuanceDate}
+                  onChange={(e) => setPolicyForm(prev => ({ ...prev, issuanceDate: e.target.value }))}
+                  data-testid="input-policy-issuance"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="effectiveDate">Effective Date (Optional)</Label>
+                <Input
+                  id="effectiveDate"
+                  type="date"
+                  value={policyForm.effectiveDate}
+                  onChange={(e) => setPolicyForm(prev => ({ ...prev, effectiveDate: e.target.value }))}
+                  data-testid="input-policy-effective"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="affectedParts">Affected FAR Parts</Label>
+              <Input
+                id="affectedParts"
+                placeholder="e.g., 121, 135, 142 (comma-separated)"
+                value={policyForm.affectedParts}
+                onChange={(e) => setPolicyForm(prev => ({ ...prev, affectedParts: e.target.value }))}
+                data-testid="input-policy-parts"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="sourceUrl">Source URL (Optional)</Label>
+              <Input
+                id="sourceUrl"
+                placeholder="https://www.faa.gov/..."
+                value={policyForm.sourceUrl}
+                onChange={(e) => setPolicyForm(prev => ({ ...prev, sourceUrl: e.target.value }))}
+                data-testid="input-policy-url"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="content">Document Content (Optional)</Label>
+              <Textarea
+                id="content"
+                placeholder="Full document text for AI analysis"
+                rows={4}
+                value={policyForm.content}
+                onChange={(e) => setPolicyForm(prev => ({ ...prev, content: e.target.value }))}
+                data-testid="textarea-policy-content"
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setPolicyDialogOpen(false)}
+              data-testid="btn-cancel-policy"
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={() => ingestPolicyMutation.mutate(policyForm)}
+              disabled={ingestPolicyMutation.isPending || !policyForm.documentNumber || !policyForm.title || !policyForm.issuanceDate}
+              data-testid="btn-confirm-policy"
+            >
+              {ingestPolicyMutation.isPending ? (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  Ingesting...
+                </>
+              ) : (
+                <>
+                  <Upload className="h-4 w-4 mr-2" />
+                  Ingest Document
                 </>
               )}
             </Button>
