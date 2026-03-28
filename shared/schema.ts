@@ -529,7 +529,7 @@ export const checklistVersionHistory = pgTable("checklist_version_history", {
   sourceReference: text("source_reference"), // FAA document number/reference
   detectedAt: timestamp("detected_at").defaultNow(),
   appliedAt: timestamp("applied_at"),
-  appliedBy: uuid("applied_by").references(() => users.id),
+  appliedBy: varchar("applied_by").references(() => users.id),
   isAcknowledged: boolean("is_acknowledged").default(false),
 });
 
