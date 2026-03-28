@@ -12,6 +12,9 @@ import { z } from "zod";
 import { registerBlockchainKeyManagementRoutes } from "./routes/blockchain-key-management";
 import legacyDataTransferRoutes from "./routes/legacy-data-transfer";
 import adaptiveComplianceRoutes from "./routes/adaptive-compliance";
+import { registerAdvancedKeyRecoveryRoutes } from "./routes/advanced-key-recovery";
+import multiPlatformIntegrationRoutes from "./routes/multi-platform-integration";
+import { generateDocumentImportTutorial } from "./generate-document-import-tutorial";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -322,15 +325,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   registerBlockchainKeyManagementRoutes(app);
   
   // Advanced Key Recovery Routes
-  const { registerAdvancedKeyRecoveryRoutes } = await import('./routes/advanced-key-recovery');
   registerAdvancedKeyRecoveryRoutes(app);
 
   // Legacy Data Transfer Routes
   app.use('/api/legacy-data-transfer', legacyDataTransferRoutes);
 
   // Multi-Platform Integration Routes
-  const multiPlatformIntegrationRoutes = await import('./routes/multi-platform-integration');
-  app.use('/api/multi-platform-integration', multiPlatformIntegrationRoutes.default);
+  app.use('/api/multi-platform-integration', multiPlatformIntegrationRoutes);
 
   // Patent 4/4B: Adaptive Compliance Architecture Routes
   app.use('/api/adaptive-compliance', adaptiveComplianceRoutes);
@@ -338,7 +339,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Document Import Tutorial Download
   app.get('/api/document-import/tutorial/download', isAuthenticated, async (req, res) => {
     try {
-      const { generateDocumentImportTutorial } = await import('./generate-document-import-tutorial');
       const buffer = await generateDocumentImportTutorial();
       
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');

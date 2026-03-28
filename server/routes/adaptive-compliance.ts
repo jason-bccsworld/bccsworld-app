@@ -5,6 +5,7 @@ import { inspectorPreferenceEngine } from "../services/inspector-preference";
 import { evidenceIndexingService } from "../services/evidence-indexing";
 import { auditPacketGenerator } from "../services/audit-packet-generator";
 import { isAuthenticated } from "../replitAuth";
+import { generateAdaptiveComplianceTutorial } from "../generate-tutorial-doc";
 
 const router = Router();
 
@@ -477,7 +478,6 @@ router.get("/coverage/:organizationId/:frameworkId", isAuthenticated, async (req
 
 router.get("/tutorial/download", isAuthenticated, async (req: Request, res: Response) => {
   try {
-    const { generateAdaptiveComplianceTutorial } = await import("../generate-tutorial-doc");
     const buffer = await generateAdaptiveComplianceTutorial();
     
     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.wordprocessingml.document");

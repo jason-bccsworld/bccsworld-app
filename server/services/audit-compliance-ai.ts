@@ -3,6 +3,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { storage } from "../storage";
 import { processDocumentOCR } from "./ocr";
+import { documentGenerator } from "./document-generator";
 
 // Load environment variables
 const envPath = path.join(process.cwd(), '.env');
@@ -344,8 +345,6 @@ Format as a comprehensive report suitable for training center management and reg
     generatedDocuments: any[],
     uploadRequests: string[]
   }> {
-    const { documentGenerator } = await import('./document-generator');
-    
     // Analyze document gaps from compliance results
     const checklistItems = this.getAuditChecklist();
     const existingDocuments = this.documentContents;
