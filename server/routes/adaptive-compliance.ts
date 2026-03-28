@@ -4,7 +4,7 @@ import { checklistHarmonizationEngine } from "../services/checklist-harmonizatio
 import { inspectorPreferenceEngine } from "../services/inspector-preference";
 import { evidenceIndexingService } from "../services/evidence-indexing";
 import { auditPacketGenerator } from "../services/audit-packet-generator";
-import { isAuthenticated } from "../replitAuth";
+import { isAuthenticated } from "../localAuth";
 import { generateAdaptiveComplianceTutorial } from "../generate-tutorial-doc";
 
 const router = Router();

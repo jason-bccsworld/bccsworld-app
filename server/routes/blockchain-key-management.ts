@@ -1,7 +1,7 @@
 import type { Express } from 'express';
 import { z } from 'zod';
 import { blockchainKeyService } from '../services/blockchain-key-management';
-import { isAuthenticated } from '../replitAuth';
+import { isAuthenticated } from '../localAuth';
 import { storage } from '../storage';
 
 // Validation schemas

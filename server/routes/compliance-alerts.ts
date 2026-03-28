@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { complianceAlertSystem } from '../services/compliance-alerts';
-import { isAuthenticated } from '../replitAuth';
+import { isAuthenticated } from '../localAuth';
 
 const router = Router();
 

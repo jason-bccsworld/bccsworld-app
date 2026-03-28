@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { z } from "zod";
 import { cryptoSubscriptionService } from "../services/crypto-subscriptions";
-import { isAuthenticated } from "../replitAuth";
+import { isAuthenticated } from "../localAuth";
 import { storage } from "../storage";
 
 const setupCryptoSubscriptionSchema = z.object({
