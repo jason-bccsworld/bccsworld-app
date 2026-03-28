@@ -330,7 +330,7 @@ export class BlockchainKeyManagementService {
         credentialId: credential.id,
         requestType: params.requestType,
         emergencyFlag: params.emergencyFlag,
-        historicalRecordMatches
+        historicalMatches
       },
       sourceSystem: 'blockchain_key_management'
     });
@@ -441,7 +441,7 @@ export class BlockchainKeyManagementService {
     });
     
     return {
-      verified: isActive,
+      verified: isActive ?? false,
       verificationData
     };
   }

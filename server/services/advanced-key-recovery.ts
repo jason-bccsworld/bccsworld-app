@@ -187,7 +187,7 @@ export class AdvancedKeyRecoveryService {
     await storage.updateKeyRecoveryRequest(requestId, {
       biometricVerificationStatus: verified ? 'passed' : 'failed',
       biometricConfidence: overallConfidence
-    });
+    } as any);
     
     await this.createAuditEntry(requestId, 'biometric_verification', {
       verified,
@@ -255,7 +255,7 @@ export class AdvancedKeyRecoveryService {
     await storage.updateKeyRecoveryRequest(requestId, {
       identityVerificationStatus: verified ? 'passed' : 'failed',
       identityConfidence: overallConfidence
-    });
+    } as any);
     
     await this.createAuditEntry(requestId, 'identity_verification', {
       verified,
@@ -312,7 +312,7 @@ export class AdvancedKeyRecoveryService {
     await storage.updateKeyRecoveryRequest(requestId, {
       employmentVerificationStatus: verified ? 'passed' : 'failed',
       employmentConfidence: confidence
-    });
+    } as any);
     
     await this.createAuditEntry(requestId, 'employment_verification', {
       verified,
@@ -374,7 +374,7 @@ export class AdvancedKeyRecoveryService {
       temporaryAccessGranted: temporaryAccess,
       emergencyConditions: conditions,
       emergencyExpiration: expirationTime
-    });
+    } as any);
     
     await this.createAuditEntry(requestId, 'emergency_recovery', {
       approved,
@@ -412,13 +412,13 @@ export class AdvancedKeyRecoveryService {
     const newPublicKey = keyPair.publicKey.export({ type: 'spki', format: 'pem' }) as string;
     
     // Determine security level based on risk and approval conditions
-    const securityLevel = this.determineSecurityLevel(request.riskScore, approvalData);
+    const securityLevel = this.determineSecurityLevel((request as any).riskScore, approvalData);
     
     // Create key derivation path for hierarchical deterministic keys
     const keyDerivationPath = this.generateKeyDerivationPath(request.credentialId, securityLevel);
     
     // Update credential with new key
-    await storage.updateProfessionalCredential(request.credentialId, {
+    await (storage as any).updateProfessionalCredential(request.credentialId, {
       masterPrivateKeyHash: crypto.createHash('sha256').update(newMasterPrivateKey).digest('hex'),
       publicKeyDerivationPath: keyDerivationPath,
       keyGenerationDate: new Date(),
@@ -468,11 +468,11 @@ export class AdvancedKeyRecoveryService {
     const request = await storage.getKeyRecoveryRequest(requestId);
     if (!request) throw new Error('Recovery request not found');
     
-    const auditTrail = await storage.getRecoveryAuditTrail(requestId);
+    const auditTrail = await (storage as any).getRecoveryAuditTrail(requestId);
     
-    const completedSteps = auditTrail.map(entry => entry.eventType);
-    const totalSteps = request.verificationSteps || [];
-    const pendingSteps = totalSteps.filter(step => !completedSteps.includes(step));
+    const completedSteps = auditTrail.map((entry: any) => entry.eventType);
+    const totalSteps = (request as any).verificationSteps || [];
+    const pendingSteps = totalSteps.filter((step: any) => !completedSteps.includes(step));
     
     const progress = (completedSteps.length / totalSteps.length) * 100;
     
@@ -484,7 +484,7 @@ export class AdvancedKeyRecoveryService {
     const securityAlerts = await this.checkSecurityAlerts(requestId);
     
     return {
-      status: request.requestStatus,
+      status: request.requestStatus ?? '',
       progress,
       completedSteps,
       pendingSteps,
@@ -508,15 +508,15 @@ export class AdvancedKeyRecoveryService {
     
     // Historical factors
     const credential = await storage.getProfessionalCredential(request.credentialId);
-    if (credential?.keyRecoveryHistory?.length > 2) riskScore += 0.3;
+    if ((credential as any)?.keyRecoveryHistory?.length > 2) riskScore += 0.3;
     
     // Geographic factors
-    if (request.geoLocationVerification.requestedFrom !== credential?.lastKnownLocation) {
+    if (request.geoLocationVerification.requestedFrom !== (credential as any)?.lastKnownLocation) {
       riskScore += 0.2;
     }
     
     // Time factors (recent activity patterns)
-    const recentActivity = await storage.getRecentCredentialActivity(request.credentialId);
+    const recentActivity = await (storage as any).getRecentCredentialActivity(request.credentialId);
     if (!recentActivity || recentActivity.length === 0) riskScore += 0.4;
     
     return Math.min(riskScore, 1.0);
@@ -649,7 +649,7 @@ export class AdvancedKeyRecoveryService {
     const alerts: string[] = [];
     
     const request = await storage.getKeyRecoveryRequest(requestId);
-    if (request?.riskScore > 0.8) {
+    if ((request as any)?.riskScore > 0.8) {
       alerts.push('High risk score detected - additional verification required');
     }
     
@@ -657,7 +657,7 @@ export class AdvancedKeyRecoveryService {
   }
   
   private async createAuditEntry(requestId: string, eventType: string, data: any): Promise<void> {
-    await storage.createRecoveryAuditEntry({
+    await (storage as any).createRecoveryAuditEntry({
       requestId,
       eventType,
       eventData: data,

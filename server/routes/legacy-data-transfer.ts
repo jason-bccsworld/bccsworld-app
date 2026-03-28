@@ -197,10 +197,10 @@ router.get('/pricing', async (req, res) => {
       additionalFeatures: {
         expedited: urgencyLevel === 'expedited' ? 50 : 0,
         emergency: urgencyLevel === 'emergency' ? 100 : 0,
-        maximumOCR: Array.isArray(features) && features.includes('maximum_ocr') ? 25 : 0,
-        forensicAI: Array.isArray(features) && features.includes('forensic_ai') ? 75 : 0,
-        fullManualQA: Array.isArray(features) && features.includes('full_manual_qa') ? 100 : 0,
-        militaryEncryption: Array.isArray(features) && features.includes('military_encryption') ? 50 : 0
+        maximumOCR: Array.isArray(features) && (features as string[]).includes('maximum_ocr') ? 25 : 0,
+        forensicAI: Array.isArray(features) && (features as string[]).includes('forensic_ai') ? 75 : 0,
+        fullManualQA: Array.isArray(features) && (features as string[]).includes('full_manual_qa') ? 100 : 0,
+        militaryEncryption: Array.isArray(features) && (features as string[]).includes('military_encryption') ? 50 : 0
       },
       get totalPrice() {
         return this.basePrice + Object.values(this.additionalFeatures).reduce((sum, price) => sum + price, 0);

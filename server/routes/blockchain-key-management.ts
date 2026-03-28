@@ -85,7 +85,7 @@ export function registerBlockchainKeyManagementRoutes(app: Express) {
       console.error("Organization registration error:", error);
       res.status(400).json({
         success: false,
-        error: error.message
+        error: error instanceof Error ? error.message : 'Unknown error'
       });
     }
   });
@@ -109,7 +109,7 @@ export function registerBlockchainKeyManagementRoutes(app: Express) {
       console.error("Credential registration error:", error);
       res.status(400).json({
         success: false,
-        error: error.message
+        error: error instanceof Error ? error.message : 'Unknown error'
       });
     }
   });
@@ -129,7 +129,7 @@ export function registerBlockchainKeyManagementRoutes(app: Express) {
       console.error("Training record creation error:", error);
       res.status(400).json({
         success: false,
-        error: error.message
+        error: error instanceof Error ? error.message : 'Unknown error'
       });
     }
   });
@@ -149,7 +149,7 @@ export function registerBlockchainKeyManagementRoutes(app: Express) {
       console.error("Get training records error:", error);
       res.status(500).json({
         success: false,
-        error: error.message
+        error: error instanceof Error ? error.message : 'Unknown error'
       });
     }
   });
@@ -169,7 +169,7 @@ export function registerBlockchainKeyManagementRoutes(app: Express) {
       console.error("Key recovery initiation error:", error);
       res.status(400).json({
         success: false,
-        error: error.message
+        error: error instanceof Error ? error.message : 'Unknown error'
       });
     }
   });
@@ -204,7 +204,7 @@ export function registerBlockchainKeyManagementRoutes(app: Express) {
       console.error("Key recovery processing error:", error);
       res.status(400).json({
         success: false,
-        error: error.message
+        error: error instanceof Error ? error.message : 'Unknown error'
       });
     }
   });
@@ -224,7 +224,7 @@ export function registerBlockchainKeyManagementRoutes(app: Express) {
       console.error("Cross-platform verification error:", error);
       res.status(400).json({
         success: false,
-        error: error.message
+        error: error instanceof Error ? error.message : 'Unknown error'
       });
     }
   });
@@ -244,7 +244,7 @@ export function registerBlockchainKeyManagementRoutes(app: Express) {
       console.error("Get verification history error:", error);
       res.status(500).json({
         success: false,
-        error: error.message
+        error: error instanceof Error ? error.message : 'Unknown error'
       });
     }
   });
@@ -274,7 +274,7 @@ export function registerBlockchainKeyManagementRoutes(app: Express) {
       console.error("Get credential error:", error);
       res.status(500).json({
         success: false,
-        error: error.message
+        error: error instanceof Error ? error.message : 'Unknown error'
       });
     }
   });
@@ -301,7 +301,7 @@ export function registerBlockchainKeyManagementRoutes(app: Express) {
       console.error("Get organization error:", error);
       res.status(500).json({
         success: false,
-        error: error.message
+        error: error instanceof Error ? error.message : 'Unknown error'
       });
     }
   });
@@ -321,7 +321,7 @@ export function registerBlockchainKeyManagementRoutes(app: Express) {
       console.error("Get organization members error:", error);
       res.status(500).json({
         success: false,
-        error: error.message
+        error: error instanceof Error ? error.message : 'Unknown error'
       });
     }
   });

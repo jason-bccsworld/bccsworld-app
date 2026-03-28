@@ -1,0 +1,44 @@
+00:19:48.562 
+server/routes/blockchain-key-management.ts(247,16): error TS18046: 'error' is of type 'unknown'.
+00:19:48.563 
+server/routes/blockchain-key-management.ts(277,16): error TS18046: 'error' is of type 'unknown'.
+00:19:48.563 
+server/routes/blockchain-key-management.ts(304,16): error TS18046: 'error' is of type 'unknown'.
+00:19:48.563 
+server/routes/blockchain-key-management.ts(324,16): error TS18046: 'error' is of type 'unknown'.
+00:19:48.563 
+00:19:48.705 
+server/routes/legacy-data-transfer.ts(200,66): error TS2345: Argument of type 'string' is not assignable to parameter of type 'ParsedQs & string'.
+00:19:48.706 
+  Type 'string' is not assignable to type 'ParsedQs'.
+00:19:48.706 
+server/routes/legacy-data-transfer.ts(201,66): error TS2345: Argument of type 'string' is not assignable to parameter of type 'ParsedQs & string'.
+00:19:48.707 
+  Type 'string' is not assignable to type 'ParsedQs'.
+00:19:48.707 
+server/routes/legacy-data-transfer.ts(202,68): error TS2345: Argument of type 'string' is not assignable to parameter of type 'ParsedQs & string'.
+00:19:48.707 
+  Type 'string' is not assignable to type 'ParsedQs'.
+00:19:48.707 
+server/routes/legacy-data-transfer.ts(203,74): error TS2345: Argument of type 'string' is not assignable to parameter of type 'ParsedQs & string'.
+00:19:48.707 
+  Type 'string' is not assignable to type 'ParsedQs'.
+00:19:48.708 
+00:19:49.269 
+server/routes/advanced-key-recovery.ts(184,28): error TS2304: Cannot find name 'advancedKeyRecoveryService'.
+00:19:49.269 
+server/routes/advanced-key-recovery.ts(205,28): error TS2304: Cannot find name 'advancedKeyRecoveryService'.
+00:19:49.269 
+00:19:49.854 
+server/services/blockchain-key-management.ts(333,9): error TS2552: Cannot find name 'historicalRecordMatches'. Did you mean 'historicalMatches'?
+00:19:49.855 
+server/services/blockchain-key-management.ts(444,7): error TS2322: Type 'boolean | null' is not assignable to type 'boolean'.
+00:19:49.855 
+  Type 'null' is not assignable to type 'boolean'.
+00:19:49.855 
+00:19:55.611 
+Build Completed in /vercel/output [39s]
+00:19:56.281 
+Deploying outputs...
+00:19:57.265 
+Warning: Provided `memory` setting in `vercel.json` is ignored on Active CPU billing. You can safely remove this setting from your configuration. Learn more: https://vercel.com/docs/fluid-compute/pricing

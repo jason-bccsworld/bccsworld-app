@@ -1,6 +1,6 @@
 import { Express } from 'express';
 import { z } from 'zod';
-import { isAuthenticated } from '../replitAuth';
+import { isAuthenticated } from '../localAuth';
 import { simplifiedKeyRecoveryService } from '../services/simplified-key-recovery';
 
 // Validation schemas
@@ -181,7 +181,7 @@ export function registerAdvancedKeyRecoveryRoutes(app: Express) {
       const { requestId } = req.params;
       const emergencyProtocol = emergencyProtocolSchema.parse(req.body);
       
-      const result = await advancedKeyRecoveryService.processEmergencyRecovery(requestId, emergencyProtocol);
+      const result = await simplifiedKeyRecoveryService.processEmergencyOverride({ requestId, ...emergencyProtocol });
       
       res.json({
         success: true,
@@ -202,7 +202,7 @@ export function registerAdvancedKeyRecoveryRoutes(app: Express) {
       const { requestId } = req.params;
       const approvalData = keyRecoveryApprovalSchema.parse(req.body);
       
-      const result = await advancedKeyRecoveryService.generateReplacementKey(requestId, approvalData);
+      const result = await simplifiedKeyRecoveryService.approveRecoveryRequest(requestId, approvalData);
       
       res.json({
         success: true,
