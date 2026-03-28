@@ -124,8 +124,28 @@ Intelligent checklist management with automated retrieval, version monitoring, a
 - **Language**: TypeScript with ES modules
 - **Database**: PostgreSQL (via Neon Database)
 - **ORM**: Drizzle ORM
-- **Authentication**: Replit's OpenID Connect integration with PostgreSQL-backed sessions and role-based access control (Admin, Instructor, Auditor, Viewer).
+- **Authentication**: Local username/password authentication using Passport.js (passport-local) with bcrypt password hashing and PostgreSQL-backed sessions (connect-pg-simple). Role-based access control (Admin, Instructor, Auditor, Viewer). Admin account bootstrapped via ADMIN_EMAIL/ADMIN_PASSWORD environment variables on first startup.
 - **Core Components**: Data Processing Pipeline (document upload, OCR, NLP, human validation, blockchain hashing), Authentication System, Database Schema (Users, Organizations, Documents, Extracted Data, Training Events, Audit Logs), Mobile PWA.
+
+## Vercel Deployment
+
+The platform is configured for deployment to Vercel with Neon PostgreSQL database. Key deployment files:
+- **`vercel.json`** - Vercel build and routing configuration
+- **`api/index.ts`** - Vercel serverless entry point wrapping the Express app
+- **`server/app.ts`** - Modular Express app factory (no server start, used by both server/index.ts and api/index.ts)
+- **`server/localAuth.ts`** - Self-contained local auth replacing Replit OIDC
+- **`.env.example`** - Required environment variables template
+- **`VERCEL_DEPLOY.md`** - Step-by-step Vercel deployment guide
+
+### Required Environment Variables for Production
+| Variable | Purpose |
+|---|---|
+| `DATABASE_URL` | Neon PostgreSQL connection string |
+| `SESSION_SECRET` | Random 32+ char string for session signing |
+| `ADMIN_EMAIL` | Bootstrap admin account email |
+| `ADMIN_PASSWORD` | Bootstrap admin account password |
+| `OPENAI_API_KEY` | GPT-4 for AI features |
+| `NODE_ENV` | Set to `production` |
 
 ## External Dependencies
 

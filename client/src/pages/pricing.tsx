@@ -87,7 +87,7 @@ export default function Pricing() {
   const handlePlanSelect = (planId: string) => {
     if (planId === "trial") {
       // Redirect to signup with trial parameter
-      window.location.href = "/api/login?plan=trial";
+      window.location.href = "/login";
     } else {
       // Contact sales for paid plans
       window.location.href = "mailto:sales@bccs142.com?subject=Interest in " + pricingTiers.find(t => t.id === planId)?.name + " Plan";

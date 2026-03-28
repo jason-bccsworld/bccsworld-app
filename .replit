@@ -16,20 +16,8 @@ localPort = 5000
 externalPort = 80
 
 [[ports]]
-localPort = 35165
-externalPort = 3001
-
-[[ports]]
-localPort = 36559
+localPort = 5904
 externalPort = 3003
-
-[[ports]]
-localPort = 42873
-externalPort = 3000
-
-[[ports]]
-localPort = 43949
-externalPort = 3002
 
 [workflows]
 runButton = "Project"
@@ -53,4 +41,4 @@ args = "npm run dev"
 waitForPort = 5000
 
 [agent]
-integrations = ["javascript_anthropic==1.0.0", "javascript_object_storage==1.0.0", "javascript_openai==1.0.0", "javascript_database==1.0.0", "javascript_log_in_with_replit==1.0.0"]
+integrations = ["javascript_anthropic:1.0.0", "javascript_object_storage:1.0.0", "javascript_openai:1.0.0", "javascript_database:1.0.0", "javascript_log_in_with_replit:1.0.0"]

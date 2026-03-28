@@ -40,6 +40,7 @@ import { AdvancedKeyRecovery } from "@/pages/AdvancedKeyRecovery";
 import LegacyDataTransfer from "@/pages/LegacyDataTransfer";
 import MultiPlatformIntegration from "@/pages/MultiPlatformIntegration";
 import AdaptiveCompliance from "@/pages/adaptive-compliance";
+import Login from "@/pages/login";
 import NotFound from "@/pages/not-found";
 import DashboardLayout from "@/layouts/dashboard-layout";
 import SupportChat from "@/components/support-chat";
@@ -62,6 +63,7 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={Landing} />
+      <Route path="/login" component={Login} />
       <Route path="/home">
         <div className="min-h-screen flex items-center justify-center bg-slate-50">
           <div className="text-center">

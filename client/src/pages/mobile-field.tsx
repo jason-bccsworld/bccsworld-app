@@ -74,7 +74,7 @@ export default function MobileField() {
         description: "Please log in to access field operations",
         variant: "destructive",
       });
-      window.location.href = "/api/login";
+      window.location.href = "/login";
     }
   }, [isAuthenticated, isLoading, toast]);
 

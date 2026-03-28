@@ -38,7 +38,7 @@ export default function Landing() {
               </Button>
               <Button 
                 className="bg-blue-600 hover:bg-blue-700"
-                onClick={() => window.location.href = "/api/login"}
+                onClick={() => window.location.href = "/login"}
               >
                 Sign In
               </Button>
@@ -66,7 +66,7 @@ export default function Landing() {
             <Button 
               size="lg"
               className="bg-blue-600 hover:bg-blue-700 px-8 py-4 text-lg"
-              onClick={() => window.location.href = "/api/login"}
+              onClick={() => window.location.href = "/login"}
             >
               Access Platform
             </Button>
@@ -327,7 +327,7 @@ export default function Landing() {
             <Button 
               size="lg"
               className="bg-blue-600 hover:bg-blue-700 px-8 py-4 text-lg"
-              onClick={() => window.location.href = "/api/login"}
+              onClick={() => window.location.href = "/login"}
             >
               Get Started Today
             </Button>
