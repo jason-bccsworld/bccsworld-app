@@ -1,11 +1,10 @@
 import React from "react";
-import { Switch, Route } from "wouter";
+import { Switch, Route, Redirect } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
-import Landing from "@/pages/landing";
 import Pricing from "@/pages/pricing";
 import Tutorials from "@/pages/tutorials";
 import Dashboard from "@/pages/dashboard";
@@ -62,7 +61,9 @@ function Router() {
 
   return (
     <Switch>
-      <Route path="/" component={Landing} />
+      <Route path="/">
+        {isAuthenticated ? <Redirect to="/dashboard" /> : <Redirect to="/login" />}
+      </Route>
       <Route path="/login" component={Login} />
       <Route path="/home">
         <div className="min-h-screen flex items-center justify-center bg-slate-50">
@@ -85,7 +86,7 @@ function Router() {
       {/* Dashboard routes - available when authenticated */}
       <Route path="/dashboard">
         {!isAuthenticated ? (
-          <Landing />
+          <Redirect to="/login" />
         ) : isMobile ? (
           <MobileField />
         ) : (
@@ -97,7 +98,7 @@ function Router() {
       
       <Route path="/far-compliance">
         {!isAuthenticated ? (
-          <Landing />
+          <Redirect to="/login" />
         ) : (
           <DashboardLayout>
             <FARCompliancePage />
@@ -107,7 +108,7 @@ function Router() {
       
       <Route path="/ai-audit-compliance">
         {!isAuthenticated ? (
-          <Landing />
+          <Redirect to="/login" />
         ) : (
           <DashboardLayout>
             <AIAuditCompliance />
@@ -117,7 +118,7 @@ function Router() {
       
       <Route path="/document-generation">
         {!isAuthenticated ? (
-          <Landing />
+          <Redirect to="/login" />
         ) : (
           <DashboardLayout>
             <DocumentGeneration />
@@ -127,7 +128,7 @@ function Router() {
 
       <Route path="/bccsmaint">
         {!isAuthenticated ? (
-          <Landing />
+          <Redirect to="/login" />
         ) : (
           <DashboardLayout>
             <BCCSMaintDashboard />
@@ -138,7 +139,7 @@ function Router() {
       {/* Redirect old aircraft registry routes to dashboard */}
       <Route path="/aircraft-registry">
         {!isAuthenticated ? (
-          <Landing />
+          <Redirect to="/login" />
         ) : (
           <DashboardLayout>
             <Dashboard />
@@ -148,7 +149,7 @@ function Router() {
 
       <Route path="/key-management">
         {!isAuthenticated ? (
-          <Landing />
+          <Redirect to="/login" />
         ) : (
           <DashboardLayout>
             <KeyManagement />
@@ -158,7 +159,7 @@ function Router() {
 
       <Route path="/key-management-dashboard">
         {!isAuthenticated ? (
-          <Landing />
+          <Redirect to="/login" />
         ) : (
           <DashboardLayout>
             <KeyManagementDashboard />
@@ -168,7 +169,7 @@ function Router() {
 
       <Route path="/advanced-key-recovery">
         {!isAuthenticated ? (
-          <Landing />
+          <Redirect to="/login" />
         ) : (
           <DashboardLayout>
             <AdvancedKeyRecovery />
@@ -178,7 +179,7 @@ function Router() {
 
       <Route path="/legacy-data-transfer">
         {!isAuthenticated ? (
-          <Landing />
+          <Redirect to="/login" />
         ) : (
           <DashboardLayout>
             <LegacyDataTransfer />
@@ -188,7 +189,7 @@ function Router() {
 
       <Route path="/multi-platform-integration">
         {!isAuthenticated ? (
-          <Landing />
+          <Redirect to="/login" />
         ) : (
           <DashboardLayout>
             <MultiPlatformIntegration />
@@ -198,7 +199,7 @@ function Router() {
 
       <Route path="/adaptive-compliance">
         {!isAuthenticated ? (
-          <Landing />
+          <Redirect to="/login" />
         ) : (
           <DashboardLayout>
             <AdaptiveCompliance />
@@ -210,7 +211,7 @@ function Router() {
 
       <Route path="/document-import">
         {!isAuthenticated ? (
-          <Landing />
+          <Redirect to="/login" />
         ) : (
           <DashboardLayout>
             <DocumentImport />
@@ -220,7 +221,7 @@ function Router() {
 
       <Route path="/compliance-records">
         {!isAuthenticated ? (
-          <Landing />
+          <Redirect to="/login" />
         ) : (
           <DashboardLayout>
             <ComplianceRecords />
@@ -230,7 +231,7 @@ function Router() {
 
       <Route path="/admin-dashboard">
         {!isAuthenticated ? (
-          <Landing />
+          <Redirect to="/login" />
         ) : (
           <DashboardLayout>
             <AdminDashboard />
@@ -240,7 +241,7 @@ function Router() {
 
       <Route path="/regulatory-compliance">
         {!isAuthenticated ? (
-          <Landing />
+          <Redirect to="/login" />
         ) : (
           <DashboardLayout>
             <RegulatoryCompliancePage />
@@ -250,7 +251,7 @@ function Router() {
 
       <Route path="/regulatory-alerts">
         {!isAuthenticated ? (
-          <Landing />
+          <Redirect to="/login" />
         ) : (
           <DashboardLayout>
             <RegulatoryAlerts />
@@ -260,7 +261,7 @@ function Router() {
 
       <Route path="/link-monitor">
         {!isAuthenticated ? (
-          <Landing />
+          <Redirect to="/login" />
         ) : (
           <DashboardLayout>
             <LinkMonitor />
@@ -270,7 +271,7 @@ function Router() {
 
       <Route path="/compliance-checklist">
         {!isAuthenticated ? (
-          <Landing />
+          <Redirect to="/login" />
         ) : (
           <DashboardLayout>
             <ComplianceChecklist />
@@ -280,7 +281,7 @@ function Router() {
 
       <Route path="/support">
         {!isAuthenticated ? (
-          <Landing />
+          <Redirect to="/login" />
         ) : (
           <DashboardLayout>
             <Support />
@@ -290,7 +291,7 @@ function Router() {
 
       <Route path="/settings">
         {!isAuthenticated ? (
-          <Landing />
+          <Redirect to="/login" />
         ) : (
           <DashboardLayout>
             <Settings />
