@@ -349,19 +349,10 @@ export class DatabaseStorage implements IStorage {
       conditions.push(eq(auditLogs.severity, filters.severity));
     }
     
-    let query = db.select().from(auditLogs);
-    
-    if (conditions.length > 0) {
-      query = query.where(and(...conditions));
-    }
-    
-    query = query.orderBy(desc(auditLogs.timestamp));
-    
-    if (filters?.limit) {
-      query = query.limit(filters.limit);
-    }
-    
-    return await query;
+    return await db.select().from(auditLogs)
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .orderBy(desc(auditLogs.timestamp))
+      .limit(filters?.limit ?? 1000);
   }
 
   // Crypto payments operations

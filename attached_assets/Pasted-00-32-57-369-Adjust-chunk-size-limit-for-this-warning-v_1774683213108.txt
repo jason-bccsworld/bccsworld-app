@@ -1,0 +1,17 @@
+00:32:57.369 
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+00:32:58.331 
+Using TypeScript 5.6.3 (local user-provided)
+00:33:07.319 
+server/storage.ts(355,7): error TS2740: Type 'Omit<PgSelectBase<"audit_logs", { id: PgColumn<{ name: "id"; tableName: "audit_logs"; dataType: "string"; columnType: "PgUUID"; data: string; driverParam: string; notNull: true; hasDefault: true; isPrimaryKey: true; ... 5 more ...; generated: undefined; }, {}, {}>; ... 7 more ...; timestamp: PgColumn<...>; }, ... 5 ...' is missing the following properties from type 'PgSelectBase<"audit_logs", { id: PgColumn<{ name: "id"; tableName: "audit_logs"; dataType: "string"; columnType: "PgUUID"; data: string; driverParam: string; notNull: true; hasDefault: true; isPrimaryKey: true; ... 5 more ...; generated: undefined; }, {}, {}>; ... 7 more ...; timestamp: PgColumn<...>; }, ... 5 more ...': config, joinsNotNullableMap, tableName, isPartialSelect, and 5 more.
+00:33:07.321 
+server/storage.ts(358,5): error TS2740: Type 'Omit<PgSelectBase<"audit_logs", { id: PgColumn<{ name: "id"; tableName: "audit_logs"; dataType: "string"; columnType: "PgUUID"; data: string; driverParam: string; notNull: true; hasDefault: true; isPrimaryKey: true; ... 5 more ...; generated: undefined; }, {}, {}>; ... 7 more ...; timestamp: PgColumn<...>; }, ... 5 ...' is missing the following properties from type 'PgSelectBase<"audit_logs", { id: PgColumn<{ name: "id"; tableName: "audit_logs"; dataType: "string"; columnType: "PgUUID"; data: string; driverParam: string; notNull: true; hasDefault: true; isPrimaryKey: true; ... 5 more ...; generated: undefined; }, {}, {}>; ... 7 more ...; timestamp: PgColumn<...>; }, ... 5 more ...': config, joinsNotNullableMap, tableName, isPartialSelect, and 5 more.
+00:33:07.323 
+server/storage.ts(361,7): error TS2740: Type 'Omit<PgSelectBase<"audit_logs", { id: PgColumn<{ name: "id"; tableName: "audit_logs"; dataType: "string"; columnType: "PgUUID"; data: string; driverParam: string; notNull: true; hasDefault: true; isPrimaryKey: true; ... 5 more ...; generated: undefined; }, {}, {}>; ... 7 more ...; timestamp: PgColumn<...>; }, ... 5 ...' is missing the following properties from type 'PgSelectBase<"audit_logs", { id: PgColumn<{ name: "id"; tableName: "audit_logs"; dataType: "string"; columnType: "PgUUID"; data: string; driverParam: string; notNull: true; hasDefault: true; isPrimaryKey: true; ... 5 more ...; generated: undefined; }, {}, {}>; ... 7 more ...; timestamp: PgColumn<...>; }, ... 5 more ...': config, joinsNotNullableMap, tableName, isPartialSelect, and 5 more.
+00:33:07.326 
+00:33:14.759 
+Build Completed in /vercel/output [25s]
+00:33:15.427 
+Deploying outputs...
+00:33:16.371 
+Warning: Provided `memory` setting in `vercel.json` is ignored on Active CPU billing. You can safely remove this setting from your configuration. Learn more: https://vercel.com/docs/fluid-compute/pricing
