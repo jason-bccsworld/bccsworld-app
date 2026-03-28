@@ -1,72 +1,49 @@
+import { createApp } from "../server/app";
 import type { Express } from "express";
 
-let appInstance: Express | null = null;
-let initError: string | null = null;
-let initPromise: Promise<void> | null = null;
+let appPromise: Promise<Express> | null = null;
 
-function checkEnv(): string | null {
-  const missing: string[] = [];
-  if (!process.env.DATABASE_URL) missing.push("DATABASE_URL");
-  if (!process.env.SESSION_SECRET) missing.push("SESSION_SECRET");
-  if (missing.length > 0) {
-    return `Missing required environment variables: ${missing.join(", ")}. Add them in Vercel → Settings → Environment Variables, then redeploy.`;
+function getApp(): Promise<Express> {
+  if (!appPromise) {
+    appPromise = createApp();
   }
-  return null;
-}
-
-async function init(): Promise<void> {
-  const envError = checkEnv();
-  if (envError) {
-    initError = envError;
-    console.error("[vercel] Env check failed:", envError);
-    return;
-  }
-  try {
-    const { createApp } = await import("../server/app");
-    appInstance = await createApp();
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    initError = msg;
-    console.error("[vercel] App init failed:", msg);
-  }
-}
-
-function getInitPromise(): Promise<void> {
-  if (!initPromise) {
-    initPromise = init();
-  }
-  return initPromise;
+  return appPromise;
 }
 
 export default async function handler(req: any, res: any) {
   if (req.url === "/api/healthz" || req.url?.startsWith("/api/healthz?")) {
-    const envError = checkEnv();
-    res.status(envError ? 503 : 200).json({
-      status: envError ? "error" : "ok",
+    const missing: string[] = [];
+    if (!process.env.DATABASE_URL) missing.push("DATABASE_URL");
+    if (!process.env.SESSION_SECRET) missing.push("SESSION_SECRET");
+    res.status(missing.length ? 503 : 200).json({
+      status: missing.length ? "error" : "ok",
       env: {
         DATABASE_URL: !!process.env.DATABASE_URL,
         SESSION_SECRET: !!process.env.SESSION_SECRET,
         NODE_ENV: process.env.NODE_ENV ?? "not set",
         ADMIN_EMAIL: !!process.env.ADMIN_EMAIL,
       },
-      error: envError ?? null,
+      error: missing.length ? `Missing: ${missing.join(", ")}` : null,
     });
     return;
   }
 
-  await getInitPromise();
-
-  if (initError || !appInstance) {
+  let app: Express;
+  try {
+    app = await getApp();
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[vercel] Init error:", message);
     res.status(500).json({
       error: "Server initialization failed",
-      message: initError ?? "Unknown startup error",
-      hint: "Visit /api/healthz for environment diagnostics.",
+      message,
+      hint: "Check DATABASE_URL, SESSION_SECRET, NODE_ENV in Vercel → Settings → Environment Variables, then redeploy.",
     });
     return;
   }
 
   return new Promise<void>((resolve, reject) => {
-    appInstance!(req, res, (err: any) => {
+    app(req, res, (err: any) => {
       if (err) reject(err);
       else resolve();
     });
