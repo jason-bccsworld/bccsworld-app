@@ -7,7 +7,7 @@ import { storage } from '../storage';
 const DEFAULT_MODEL_STR = "claude-sonnet-4-20250514";
 
 const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
+  apiKey: process.env.ANTHROPIC_API_KEY || 'not-configured',
 });
 
 export interface LegacyDataTransferRequest {

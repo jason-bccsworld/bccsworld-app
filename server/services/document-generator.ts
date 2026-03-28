@@ -17,7 +17,7 @@ if (fs.existsSync(envPath)) {
 }
 
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY || "",
+  apiKey: process.env.OPENAI_API_KEY || 'not-configured',
 });
 
 export interface GeneratedDocument {

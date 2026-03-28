@@ -2,7 +2,7 @@ import { storage } from "../storage";
 import { generateBlockchainHash } from "./blockchain";
 import OpenAI from "openai";
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || 'not-configured' });
 
 export interface FeedbackData {
   documentId: string;
