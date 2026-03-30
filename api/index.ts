@@ -1,34 +1,16 @@
+import { createApp } from "../server/app";
 import type { Express } from "express";
 
-const VERSION = "v5-" + new Date().toISOString().slice(0, 16);
+const VERSION = "v6";
 
 let appPromise: Promise<Express> | null = null;
 let appError: string | null = null;
 
-async function buildApp(): Promise<Express> {
-  // Step-by-step init so we can see exactly where it fails
-  console.log("[vercel] Starting buildApp...");
-
-  const envMissing = ["DATABASE_URL", "SESSION_SECRET"].filter(k => !process.env[k]);
-  if (envMissing.length) {
-    throw new Error(`Missing env vars: ${envMissing.join(", ")}`);
-  }
-  console.log("[vercel] Env vars OK");
-
-  const { createApp } = await import("../server/app");
-  console.log("[vercel] server/app imported");
-
-  const app = await createApp();
-  console.log("[vercel] createApp() done");
-
-  return app;
-}
-
 function getApp(): Promise<Express> {
   if (!appPromise) {
-    appPromise = buildApp().catch((err) => {
+    appPromise = createApp().catch((err) => {
       appError = err instanceof Error ? err.message : String(err);
-      console.error("[vercel] FATAL:", appError);
+      console.error("[vercel] createApp failed:", appError);
       throw err;
     });
   }
@@ -36,7 +18,6 @@ function getApp(): Promise<Express> {
 }
 
 export default async function handler(req: any, res: any) {
-  // Isolated health check — never touches the app
   if (req.url === "/api/healthz" || req.url?.startsWith("/api/healthz?")) {
     const missing = ["DATABASE_URL", "SESSION_SECRET"].filter(k => !process.env[k]);
     res.status(missing.length ? 503 : 200).json({
@@ -62,7 +43,7 @@ export default async function handler(req: any, res: any) {
     res.status(500).json({
       error: "Server failed to start",
       message: msg,
-      hint: "Check /api/healthz for details",
+      hint: "Check /api/healthz for diagnostics.",
     });
     return;
   }
