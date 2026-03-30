@@ -111,7 +111,11 @@ export async function setupAuth(app: Express) {
     });
   });
 
-  await seedAdminUser();
+  try {
+    await seedAdminUser();
+  } catch (err: any) {
+    console.error("[localAuth] seedAdminUser failed (non-fatal):", err?.message ?? err);
+  }
 }
 
 export const isAuthenticated: RequestHandler = (req, res, next) => {
