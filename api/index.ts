@@ -1,19 +1,18 @@
-// Static import so @vercel/node compiles and bundles server/**
-import { createApp } from "../server/app";
+// @ts-ignore — _server.mjs is pre-compiled by esbuild during buildCommand
+import { createApp } from "./_server.mjs";
 import type { Express, Request, Response } from "express";
 
-const VERSION = "v8";
+const VERSION = "v9";
 
 type AppState =
   | { ready: true; app: Express }
   | { ready: false; error: string; stack: string[] };
 
 let _state: AppState | null = null;
-let _warmup: Promise<AppState> | null = null;
 
 function warmup(): Promise<AppState> {
-  if (_warmup) return _warmup;
-  _warmup = createApp()
+  if (_state) return Promise.resolve(_state);
+  return (createApp() as Promise<Express>)
     .then((app): AppState => {
       console.log(`[api ${VERSION}] createApp OK`);
       _state = { ready: true, app };
@@ -26,16 +25,15 @@ function warmup(): Promise<AppState> {
       _state = { ready: false, error, stack };
       return _state;
     });
-  return _warmup;
 }
 
-// Kick off warm-up immediately (module eval)
-warmup();
+// Kick off warm-up at module load
+const _warmupPromise = warmup();
 
 export default async function handler(req: Request, res: Response): Promise<void> {
-  // ── /api/healthz ─ always responds, no app needed ────────────────────────
+  // ── /api/healthz — always responds ───────────────────────────────────────
   if (req.url?.startsWith("/api/healthz")) {
-    const state = _state ?? (await warmup());
+    const state = await _warmupPromise;
     const missing = (["DATABASE_URL", "SESSION_SECRET"] as const).filter(
       (k) => !process.env[k]
     );
@@ -57,8 +55,8 @@ export default async function handler(req: Request, res: Response): Promise<void
     return;
   }
 
-  // ── Ensure app is ready ──────────────────────────────────────────────────
-  const state = _state ?? (await warmup());
+  // ── Wait for Express app ─────────────────────────────────────────────────
+  const state = await _warmupPromise;
 
   if (!state.ready) {
     res.status(503).json({
@@ -73,12 +71,10 @@ export default async function handler(req: Request, res: Response): Promise<void
   const { app } = state;
   try {
     await new Promise<void>((resolve, reject) => {
-      // Resolve on response finish; reject on any unhandled Express error
-      const onDone = () => resolve();
-      res.once("finish", onDone);
-      res.once("close", onDone);
+      res.once("finish", resolve);
+      res.once("close", resolve);
       try {
-        app(req as any, res as any, (err?: any) => {
+        (app as any)(req, res, (err?: any) => {
           if (err) reject(err);
           else resolve();
         });

@@ -1,0 +1,50 @@
+FORCING COMPLETE CACHE CLEAR...
+index-C0bGIHpC.js:590 Loading new sidebar version 2.0.0...
+login:1 <meta name="apple-mobile-web-app-capable" content="yes"> is deprecated. Please include <meta name="mobile-web-app-capable" content="yes">Understand this warning
+login:84 SW registered:  ServiceWorkerRegistration {installing: ServiceWorker, waiting: null, active: null, navigationPreload: NavigationPreloadManager, scope: 'https://app.bccsworld.com/', …}
+login:1 Error while trying to use the following icon from the Manifest: https://app.bccsworld.com/icons/icon-192x192.png (Resource size is not correct - typo in the Manifest?)Understand this warning
+sw.js:10 Opened cache
+index-C0bGIHpC.js:48  GET https://app.bccsworld.com/api/auth/user 500 (Internal Server Error)
+(anonymous) @ index-C0bGIHpC.js:48
+a @ index-C0bGIHpC.js:48
+y @ index-C0bGIHpC.js:48
+start @ index-C0bGIHpC.js:48
+fetch @ index-C0bGIHpC.js:48
+al @ index-C0bGIHpC.js:48
+onSubscribe @ index-C0bGIHpC.js:48
+subscribe @ index-C0bGIHpC.js:48
+(anonymous) @ index-C0bGIHpC.js:48
+Yj @ index-C0bGIHpC.js:38
+zu @ index-C0bGIHpC.js:40
+qa @ index-C0bGIHpC.js:40
+vv @ index-C0bGIHpC.js:40
+fi @ index-C0bGIHpC.js:38
+mP @ index-C0bGIHpC.js:40
+ji @ index-C0bGIHpC.js:40
+P1 @ index-C0bGIHpC.js:40
+N @ index-C0bGIHpC.js:25
+B @ index-C0bGIHpC.js:25Understand this error
+index-C0bGIHpC.js:544  POST https://app.bccsworld.com/api/login 500 (Internal Server Error)
+mutationFn @ index-C0bGIHpC.js:544
+fn @ index-C0bGIHpC.js:48
+y @ index-C0bGIHpC.js:48
+start @ index-C0bGIHpC.js:48
+execute @ index-C0bGIHpC.js:48
+await in execute
+mutate @ index-C0bGIHpC.js:48
+(anonymous) @ index-C0bGIHpC.js:48
+o @ index-C0bGIHpC.js:544
+(anonymous) @ index-C0bGIHpC.js:537
+await in (anonymous)
+T4 @ index-C0bGIHpC.js:37
+D4 @ index-C0bGIHpC.js:37
+I4 @ index-C0bGIHpC.js:37
+Ug @ index-C0bGIHpC.js:37
+Dj @ index-C0bGIHpC.js:37
+(anonymous) @ index-C0bGIHpC.js:37
+Kh @ index-C0bGIHpC.js:40
+rj @ index-C0bGIHpC.js:37
+Mm @ index-C0bGIHpC.js:37
+bh @ index-C0bGIHpC.js:37
+Q4 @ index-C0bGIHpC.js:37Understand this error
+index-C0bGIHpC.js:544  POST https://app.bccsworld.com/api/login 500 (Internal Server Error)
