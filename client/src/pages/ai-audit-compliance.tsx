@@ -167,19 +167,21 @@ export default function AIAuditCompliance() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {documentSummary ? (
+          {documentSummary && documentSummary.documentCount > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="text-center">
-                <div className="text-2xl font-bold text-blue-600">{documentSummary.totalDocuments}</div>
+                <div className="text-2xl font-bold text-blue-600">{documentSummary.documentCount ?? 0}</div>
                 <div className="text-sm text-gray-600">Total Documents</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-green-600">{documentSummary.documentTypes.length}</div>
+                <div className="text-2xl font-bold text-green-600">
+                  {new Set((documentSummary.documents ?? []).map((d: any) => d.documentType)).size}
+                </div>
                 <div className="text-sm text-gray-600">Document Types</div>
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-purple-600">
-                  {documentSummary.documents.reduce((sum: number, doc: any) => sum + doc.extractedFields, 0)}
+                  {(documentSummary.documents ?? []).reduce((sum: number, doc: any) => sum + (doc.extractedFields ?? 0), 0)}
                 </div>
                 <div className="text-sm text-gray-600">Extracted Fields</div>
               </div>
@@ -187,7 +189,7 @@ export default function AIAuditCompliance() {
           ) : (
             <div className="text-center py-8">
               <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-600">No documents analyzed yet</p>
+              <p className="text-gray-600">No documents analyzed yet. Upload documents to begin compliance analysis.</p>
             </div>
           )}
         </CardContent>

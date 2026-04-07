@@ -124,22 +124,26 @@ export default function AdminDashboard() {
                   <div>Loading organizations...</div>
                 ) : (
                   <div className="space-y-3">
-                    {/* Sample organization entries */}
-                    <div className="flex items-center justify-between p-3 border rounded-lg">
-                      <div className="flex items-center space-x-3">
-                        <div>
-                          <div className="font-medium">BCCS Flight Training</div>
-                          <div className="text-sm text-slate-600">Primary organization</div>
+                    {Array.isArray(organizations) && organizations.length > 0 ? (
+                      organizations.slice(0, 5).map((org: any) => (
+                        <div key={org.id} className="flex items-center justify-between p-3 border rounded-lg">
+                          <div className="flex items-center space-x-3">
+                            <div>
+                              <div className="font-medium">{org.organizationName}</div>
+                              <div className="text-sm text-slate-600">{org.organizationType}</div>
+                            </div>
+                          </div>
+                          <div className="flex items-center space-x-3">
+                            <Badge variant="secondary">Active</Badge>
+                            <Button variant="ghost" size="sm">
+                              <ChevronRight className="w-4 h-4" />
+                            </Button>
+                          </div>
                         </div>
-                      </div>
-                      <div className="flex items-center space-x-3">
-                        <Badge variant="secondary">Active</Badge>
-                        <Button variant="ghost" size="sm">
-                          <ChevronRight className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </div>
-
+                      ))
+                    ) : (
+                      <div className="text-center text-slate-500 py-4 text-sm">No organizations registered yet.</div>
+                    )}
                     <div className="flex items-center justify-between p-3 border rounded-lg bg-slate-50">
                       <div className="flex items-center space-x-3">
                         <div>

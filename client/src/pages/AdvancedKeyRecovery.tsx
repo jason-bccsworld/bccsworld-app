@@ -158,7 +158,7 @@ export function AdvancedKeyRecovery() {
             hrContactEmail: data.hrContactEmail,
             employmentStartDate: new Date(data.employmentStartDate),
             positionTitle: data.positionTitle,
-            managerApprovalHash: 'mock-manager-hash'
+            managerApprovalHash: undefined
           },
           historicalTrainingRecords: [],
           previousEmployers: data.previousEmployers.split(',').map(emp => emp.trim()),
@@ -171,7 +171,7 @@ export function AdvancedKeyRecovery() {
               urgencyLevel: data.urgencyLevel || 'medium',
               authorizingOfficer: data.authorizingOfficer || '',
               emergencyContactVerified: false,
-              medicalDocumentationHash: data.emergencyDocumentation ? 'mock-emergency-hash' : undefined
+              medicalDocumentationHash: undefined
             }
           }),
           geoLocationVerification: {

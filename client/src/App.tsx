@@ -36,6 +36,7 @@ import BCCSMaintDashboard from "@/pages/BCCSMaintDashboard";
 import { KeyManagement } from "@/pages/KeyManagement";
 import { KeyManagementDashboard } from "@/pages/KeyManagementDashboard";
 import { AdvancedKeyRecovery } from "@/pages/AdvancedKeyRecovery";
+import { KeyRecoveryDashboard } from "@/pages/KeyRecoveryDashboard";
 import LegacyDataTransfer from "@/pages/LegacyDataTransfer";
 import MultiPlatformIntegration from "@/pages/MultiPlatformIntegration";
 import AdaptiveCompliance from "@/pages/adaptive-compliance";
@@ -163,6 +164,16 @@ function Router() {
         ) : (
           <DashboardLayout>
             <KeyManagementDashboard />
+          </DashboardLayout>
+        )}
+      </Route>
+
+      <Route path="/key-recovery-dashboard">
+        {!isAuthenticated ? (
+          <Redirect to="/login" />
+        ) : (
+          <DashboardLayout>
+            <KeyRecoveryDashboard />
           </DashboardLayout>
         )}
       </Route>

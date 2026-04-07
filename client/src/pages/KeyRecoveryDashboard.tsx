@@ -34,62 +34,41 @@ interface RecoveryRequest {
 }
 
 export function KeyRecoveryDashboard() {
-  // Mock data - in production this would come from the API
-  const stats = {
-    totalRequests: 47,
-    pendingRequests: 12,
-    completedRequests: 31,
-    emergencyRequests: 4,
-    averageProcessingTime: '18 hours',
-    successRate: 89.4
-  };
-
-  const recentRequests: RecoveryRequest[] = [
-    {
-      id: '1',
-      credentialId: 'cred-001',
-      requestType: 'lost_key',
-      status: 'processing',
-      progress: 65,
-      requestedAt: '2 hours ago',
-      urgencyLevel: 'medium',
-      requesterName: 'John Smith',
-      organization: 'United Airlines'
-    },
-    {
-      id: '2',
-      credentialId: 'cred-002',
-      requestType: 'emergency_recovery',
-      status: 'pending_approval',
-      progress: 80,
-      requestedAt: '4 hours ago',
-      urgencyLevel: 'critical',
-      requesterName: 'Sarah Johnson',
-      organization: 'Delta Air Lines'
-    },
-    {
-      id: '3',
-      credentialId: 'cred-003',
-      requestType: 'compromise',
-      status: 'investigating',
-      progress: 45,
-      requestedAt: '1 day ago',
-      urgencyLevel: 'high',
-      requesterName: 'Mike Chen',
-      organization: 'American Airlines'
-    },
-    {
-      id: '4',
-      credentialId: 'cred-004',
-      requestType: 'career_transfer',
-      status: 'completed',
-      progress: 100,
-      requestedAt: '2 days ago',
-      urgencyLevel: 'low',
-      requesterName: 'Lisa Wang',
-      organization: 'Southwest Airlines'
+  const { data: requestsResponse, isLoading } = useQuery({
+    queryKey: ['/api/advanced-key-recovery/requests'],
+    queryFn: async () => {
+      const res = await fetch('/api/advanced-key-recovery/requests', { credentials: 'include' });
+      if (!res.ok) throw new Error('Failed to load requests');
+      return res.json();
     }
-  ];
+  });
+
+  const apiRequests: any[] = requestsResponse?.data ?? [];
+
+  const recentRequests: RecoveryRequest[] = apiRequests.map((r: any) => ({
+    id: r.id,
+    credentialId: r.credentialId ?? '',
+    requestType: r.requestType ?? 'lost_key',
+    status: r.status ?? 'processing',
+    progress: r.progress ?? 0,
+    requestedAt: r.requestedAt
+      ? new Date(r.requestedAt).toLocaleString()
+      : '—',
+    urgencyLevel: r.urgencyLevel ?? 'medium',
+    requesterName: r.requesterName ?? 'Pilot',
+    organization: r.organization ?? '—'
+  }));
+
+  const stats = {
+    totalRequests: recentRequests.length,
+    pendingRequests: recentRequests.filter(r => r.status === 'pending_approval' || r.status === 'processing').length,
+    completedRequests: recentRequests.filter(r => r.status === 'completed').length,
+    emergencyRequests: recentRequests.filter(r => r.urgencyLevel === 'critical').length,
+    averageProcessingTime: '18 hours',
+    successRate: recentRequests.length > 0
+      ? Math.round((recentRequests.filter(r => r.status === 'completed').length / recentRequests.length) * 100)
+      : 0
+  };
 
   const verificationMethods = [
     {
@@ -165,6 +144,17 @@ export function KeyRecoveryDashboard() {
       default: return 'text-gray-600';
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64 text-muted-foreground">
+        <div className="text-center">
+          <Lock className="h-8 w-8 mx-auto mb-2 animate-pulse" />
+          <p>Loading recovery dashboard…</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -247,6 +237,9 @@ export function KeyRecoveryDashboard() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {recentRequests.length === 0 && (
+              <p className="text-center text-muted-foreground py-4 text-sm">No recovery requests yet.</p>
+            )}
             {recentRequests.map((request) => (
               <div key={request.id} className="flex items-center justify-between p-3 border rounded-lg">
                 <div className="flex-1">

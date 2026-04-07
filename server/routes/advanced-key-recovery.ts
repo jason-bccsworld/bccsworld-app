@@ -26,7 +26,7 @@ const employmentVerificationSchema = z.object({
   hrContactEmail: z.string().email(),
   employmentStartDate: z.string().transform(str => new Date(str)),
   positionTitle: z.string().min(1),
-  managerApprovalHash: z.string().min(64)
+  managerApprovalHash: z.string().optional()
 });
 
 const emergencyProtocolSchema = z.object({

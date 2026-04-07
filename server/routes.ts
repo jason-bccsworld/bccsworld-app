@@ -22,6 +22,9 @@ import documentGenerationRoutes from "./routes/document-generation";
 import maintenanceRoutes from "./routes/maintenance";
 import { generateDocumentImportTutorial } from "./generate-document-import-tutorial";
 import { auditComplianceAI } from "./services/audit-compliance-ai";
+import { db } from "./db";
+import { users, trainingOrganizations } from "@shared/schema";
+import { count } from "drizzle-orm";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -379,6 +382,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Checklist state save error:', error);
       res.status(500).json({ error: 'Failed to save checklist state' });
+    }
+  });
+
+  // ── Admin Endpoints ──────────────────────────────────────────────────────
+  app.get('/api/organizations', isAuthenticated, async (_req, res) => {
+    try {
+      const orgs = await db.select().from(trainingOrganizations).limit(100);
+      res.json(orgs);
+    } catch (error) {
+      console.error('Organizations fetch error:', error);
+      res.status(500).json({ error: 'Failed to fetch organizations' });
+    }
+  });
+
+  app.get('/api/admin/stats', isAuthenticated, async (_req, res) => {
+    try {
+      const [userCount] = await db.select({ total: count() }).from(users);
+      const [orgCount] = await db.select({ total: count() }).from(trainingOrganizations);
+      res.json({
+        totalUsers: Number(userCount?.total ?? 0),
+        totalOrganizations: Number(orgCount?.total ?? 0),
+        activeAudits: 0
+      });
+    } catch (error) {
+      console.error('Admin stats error:', error);
+      res.status(500).json({ error: 'Failed to fetch admin stats' });
     }
   });
 
