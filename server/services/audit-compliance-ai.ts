@@ -53,6 +53,29 @@ export interface DocumentContent {
 
 export class AuditComplianceAI {
   private documentContents: DocumentContent[] = [];
+
+  getDocumentSummary(): DocumentContent[] {
+    return this.documentContents;
+  }
+
+  getAuditChecklist(): AuditChecklistItem[] {
+    return [
+      { id: 'far142-001', category: 'Organization', requirement: 'FAR 142.11 - Certificate Required', description: 'Training center must hold a training center certificate', references: ['14 CFR 142.11'] },
+      { id: 'far142-002', category: 'Organization', requirement: 'FAR 142.13 - Application for Certificate', description: 'Application must include required information', references: ['14 CFR 142.13'] },
+      { id: 'far142-003', category: 'Personnel', requirement: 'FAR 142.45 - Chief Instructor Requirements', description: 'Training center must have a qualified chief instructor', references: ['14 CFR 142.45'] },
+      { id: 'far142-004', category: 'Personnel', requirement: 'FAR 142.47 - Assistant Chief Instructor', description: 'Required qualifications for assistant chief instructor', references: ['14 CFR 142.47'] },
+      { id: 'far142-005', category: 'Personnel', requirement: 'FAR 142.51 - Instructor Requirements', description: 'Instructors must meet qualification requirements', references: ['14 CFR 142.51'] },
+      { id: 'far142-006', category: 'Facilities', requirement: 'FAR 142.27 - Training Facilities', description: 'Training center must maintain approved facilities', references: ['14 CFR 142.27'] },
+      { id: 'far142-007', category: 'Curriculum', requirement: 'FAR 142.37 - Approval of Training Programs', description: 'Training programs must be approved by the FAA', references: ['14 CFR 142.37'] },
+      { id: 'far142-008', category: 'Records', requirement: 'FAR 142.73 - Recordkeeping Requirements', description: 'Training center must maintain required training records', references: ['14 CFR 142.73'] },
+      { id: 'far142-009', category: 'Records', requirement: 'FAR 142.75 - Training Records - Pilot Certification', description: 'Records supporting pilot certification must be maintained', references: ['14 CFR 142.75'] },
+      { id: 'far142-010', category: 'Operations', requirement: 'FAR 142.61 - Training Program Approval', description: 'All training programs require FAA approval before use', references: ['14 CFR 142.61'] },
+    ];
+  }
+
+  async analyzeChecklistItem(item: AuditChecklistItem): Promise<ComplianceAnalysis> {
+    return this.analyzeIndividualRequirement(item);
+  }
   
   async analyzeUploadedDocuments(userId: string): Promise<DocumentContent[]> {
     try {

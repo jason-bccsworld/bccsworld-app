@@ -9,12 +9,19 @@ import {
   insertTokenTransactionSchema 
 } from "@shared/schema";
 import { z } from "zod";
+import multer from "multer";
 import { registerBlockchainKeyManagementRoutes } from "./routes/blockchain-key-management";
 import legacyDataTransferRoutes from "./routes/legacy-data-transfer";
 import adaptiveComplianceRoutes from "./routes/adaptive-compliance";
 import { registerAdvancedKeyRecoveryRoutes } from "./routes/advanced-key-recovery";
 import multiPlatformIntegrationRoutes from "./routes/multi-platform-integration";
+import auditGenerationRoutes from "./routes/audit-generation";
+import complianceAlertsRoutes from "./routes/compliance-alerts";
+import { registerCryptoSubscriptionRoutes } from "./routes/crypto-subscriptions";
+import documentGenerationRoutes from "./routes/document-generation";
+import maintenanceRoutes from "./routes/maintenance";
 import { generateDocumentImportTutorial } from "./generate-document-import-tutorial";
+import { auditComplianceAI } from "./services/audit-compliance-ai";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -241,7 +248,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Crypto Subscription Routes
   app.post('/api/crypto/subscriptions/setup', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const { tierId, walletAddress, stableCoin, chainId, billingPeriod } = req.body;
       
       // Validate wallet address format
@@ -284,7 +291,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/crypto/subscriptions', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const subscriptions = await storage.getCustomerSubscriptionsByUser(userId);
       res.json({ success: true, data: subscriptions });
     } catch (error) {
@@ -336,7 +343,125 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Patent 4/4B: Adaptive Compliance Architecture Routes
   app.use('/api/adaptive-compliance', adaptiveComplianceRoutes);
 
-  // Document Import Tutorial Download
+  // ── Audit Generation Routes ──────────────────────────────────────────────
+  app.use('/', auditGenerationRoutes);
+
+  // ── Compliance Alerts Routes ─────────────────────────────────────────────
+  app.use('/', complianceAlertsRoutes);
+
+  // ── Crypto Subscription Routes (dedicated file, fixes auth) ─────────────
+  registerCryptoSubscriptionRoutes(app);
+
+  // ── Document Generation Routes ───────────────────────────────────────────
+  app.use('/', documentGenerationRoutes);
+
+  // ── Predictive Maintenance Routes ────────────────────────────────────────
+  app.use('/api/maintenance', maintenanceRoutes);
+
+  // ── Document Upload ──────────────────────────────────────────────────────
+  const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 50 * 1024 * 1024 },
+    fileFilter: (_req, file, cb) => {
+      const allowed = ['application/pdf', 'image/jpeg', 'image/png', 'image/tiff',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'text/plain'];
+      cb(null, allowed.includes(file.mimetype));
+    }
+  });
+
+  app.post('/api/documents/upload', isAuthenticated, upload.single('file'), async (req: any, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: 'No file provided or file type not supported' });
+      }
+      const userId = req.user?.id;
+      const { documentType } = req.body;
+      const docId = `doc_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+
+      await storage.createAuditLog({
+        eventType: 'document_upload',
+        severity: 'info',
+        message: `Document uploaded: ${req.file.originalname}`,
+        details: {
+          documentId: docId,
+          fileName: req.file.originalname,
+          fileSize: req.file.size,
+          mimeType: req.file.mimetype,
+          documentType: documentType || 'GENERAL'
+        },
+        sourceSystem: 'document_service',
+        userId
+      });
+
+      res.json({
+        success: true,
+        document: {
+          id: docId,
+          fileName: req.file.originalname,
+          fileSize: req.file.size,
+          mimeType: req.file.mimetype,
+          documentType: documentType || 'GENERAL',
+          status: 'uploaded',
+          uploadedAt: new Date().toISOString()
+        }
+      });
+    } catch (error) {
+      console.error('Document upload error:', error);
+      res.status(500).json({ error: 'Failed to upload document', details: error instanceof Error ? error.message : 'Unknown error' });
+    }
+  });
+
+  // ── Audit Compliance Analysis Endpoints ──────────────────────────────────
+  app.get('/api/audit/document-summary', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.id || 'default';
+      const summary = auditComplianceAI.getDocumentSummary();
+      res.json({
+        success: true,
+        documentCount: summary.length,
+        documents: summary,
+        lastUpdated: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('Document summary error:', error);
+      res.status(500).json({ error: 'Failed to fetch document summary' });
+    }
+  });
+
+  app.post('/api/audit/analyze-compliance', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.id || 'default';
+      const analyses = await auditComplianceAI.performComprehensiveAudit(userId);
+
+      const compliant = analyses.filter(a => a.complianceStatus === 'COMPLIANT').length;
+      const partial = analyses.filter(a => a.complianceStatus === 'PARTIAL').length;
+      const nonCompliant = analyses.filter(a => a.complianceStatus === 'NON_COMPLIANT').length;
+      const insufficient = analyses.filter(a => a.complianceStatus === 'INSUFFICIENT_DATA').length;
+
+      res.json({
+        success: true,
+        checklistItems: analyses.length,
+        documentCount: auditComplianceAI.getDocumentSummary().length,
+        analyses,
+        summary: {
+          compliant,
+          partial,
+          nonCompliant,
+          insufficientData: insufficient,
+          criticalIssues: analyses.filter(a => a.riskLevel === 'CRITICAL').length,
+          highRiskIssues: analyses.filter(a => a.riskLevel === 'HIGH').length
+        },
+        generatedAt: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('Compliance analysis error:', error);
+      res.status(500).json({ error: 'Failed to analyze compliance', details: error instanceof Error ? error.message : 'Unknown error' });
+    }
+  });
+
+  // ── Document Import Tutorial Download ────────────────────────────────────
   app.get('/api/document-import/tutorial/download', isAuthenticated, async (req, res) => {
     try {
       const buffer = await generateDocumentImportTutorial();
