@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { complianceAlertSystem } from '../services/compliance-alerts';
+import { linkMonitoringService } from '../services/link-monitor';
 import { isAuthenticated } from '../localAuth';
 
 const router = Router();
@@ -34,6 +35,21 @@ router.post('/api/alerts/:alertId/acknowledge', isAuthenticated, async (req: any
   } catch (error) {
     console.error('Error acknowledging alert:', error);
     res.status(500).json({ error: 'Failed to acknowledge alert' });
+  }
+});
+
+// Get link monitor statuses
+router.get('/api/link-monitor/statuses', isAuthenticated, async (req: any, res) => {
+  try {
+    const statuses = await linkMonitoringService.getAllLinkStatuses();
+    const allAlerts = complianceAlertSystem.getAllActiveAlerts();
+    const linkAlerts = allAlerts.filter(a =>
+      a.type === 'REGULATORY_CHANGE' || a.description?.toLowerCase().includes('link') || a.description?.toLowerCase().includes('redirect')
+    );
+    res.json({ statuses, alerts: linkAlerts });
+  } catch (error) {
+    console.error('Error fetching link monitor statuses:', error);
+    res.status(500).json({ error: 'Failed to fetch link monitor data' });
   }
 });
 

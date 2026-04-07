@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -2200,11 +2201,51 @@ function parseReferenceLinks(reference: string) {
 }
 
 export default function ComplianceChecklist() {
+  const queryClient = useQueryClient();
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [savePending, setSavePending] = useState(false);
+
   const [inspectionAreas, setInspectionAreas] = useState<InspectionArea[]>(initialData);
   const [selectedArea, setSelectedArea] = useState<string>('area1');
-  
-
   const [inspectionDate, setInspectionDate] = useState<string>(new Date().toISOString().split('T')[0]);
+
+  const { data: savedState } = useQuery({
+    queryKey: ['/api/checklist/state'],
+    queryFn: async () => {
+      const res = await fetch('/api/checklist/state', { credentials: 'include' });
+      if (!res.ok) return null;
+      return res.json();
+    }
+  });
+
+  useEffect(() => {
+    if (savedState?.state && Array.isArray(savedState.state)) {
+      const saved: InspectionArea[] = savedState.state;
+      if (saved.length > 0) {
+        setInspectionAreas(saved);
+      }
+    }
+  }, [savedState]);
+
+  const saveMutation = useMutation({
+    mutationFn: async (areas: InspectionArea[]) => {
+      const res = await fetch('/api/checklist/state', {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ state: areas })
+      });
+      if (!res.ok) throw new Error('Failed to save');
+      return res.json();
+    },
+    onSuccess: () => setSavePending(false)
+  });
+
+  const scheduleSave = (areas: InspectionArea[]) => {
+    setSavePending(true);
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => saveMutation.mutate(areas), 1500);
+  };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -2236,8 +2277,8 @@ export default function ComplianceChecklist() {
   };
 
   const updateItemStatus = (areaId: string, itemId: string, field: string, value: any) => {
-    setInspectionAreas(prev => 
-      prev.map(area => 
+    setInspectionAreas(prev => {
+      const updated = prev.map(area => 
         area.id === areaId 
           ? {
               ...area,
@@ -2248,8 +2289,10 @@ export default function ComplianceChecklist() {
               )
             }
           : area
-      )
-    );
+      );
+      scheduleSave(updated);
+      return updated;
+    });
   };
 
   const calculateAreaProgress = (area: InspectionArea) => {
@@ -2277,7 +2320,13 @@ export default function ComplianceChecklist() {
           <p className="text-gray-600 mt-2">FAA Training Center Inspection Checklist & Job Aid</p>
 
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
+          {savePending && (
+            <span className="text-xs text-muted-foreground animate-pulse">Saving…</span>
+          )}
+          {!savePending && saveMutation.isSuccess && (
+            <span className="text-xs text-green-600">Saved</span>
+          )}
           <Button variant="outline">
             <Upload className="h-4 w-4 mr-2" />
             Import Checklist

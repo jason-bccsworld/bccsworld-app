@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -46,7 +47,7 @@ interface RegulatoryAlert {
   checklistChanges?: ChecklistChange[];
 }
 
-const mockAlerts: RegulatoryAlert[] = [
+const FALLBACK_ALERTS: RegulatoryAlert[] = [
   {
     id: 'alert-1',
     type: 'checklist-update',
@@ -134,9 +135,52 @@ const mockAlerts: RegulatoryAlert[] = [
 ];
 
 export default function RegulatoryAlerts() {
-  const [alerts, setAlerts] = useState<RegulatoryAlert[]>(mockAlerts);
+  const queryClient = useQueryClient();
   const [selectedAlert, setSelectedAlert] = useState<RegulatoryAlert | null>(null);
   const [filter, setFilter] = useState<'all' | 'unacknowledged' | 'checklist-updates'>('all');
+
+  const { data: alertData, isLoading } = useQuery({
+    queryKey: ['/api/alerts'],
+    queryFn: async () => {
+      const res = await fetch('/api/alerts', { credentials: 'include' });
+      if (!res.ok) throw new Error('Failed to fetch alerts');
+      return res.json();
+    }
+  });
+
+  const alerts: RegulatoryAlert[] = useMemo(() => {
+    if (!alertData?.alerts?.length) return FALLBACK_ALERTS;
+    return alertData.alerts.map((a: any) => ({
+      id: a.id,
+      type: a.type === 'REGULATORY_CHANGE' ? 'checklist-update' as const :
+            (a.type === 'DEADLINE' || a.type === 'EXPIRATION') ? 'compliance-deadline' as const :
+            'new-requirement' as const,
+      title: a.title,
+      description: a.description,
+      severity: a.severity === 'CRITICAL' ? 'critical' as const :
+                (a.severity === 'HIGH' || a.severity === 'MEDIUM') ? 'warning' as const : 'info' as const,
+      dueDate: a.dueDate,
+      actionItems: [a.actionRequired].filter(Boolean),
+      createdAt: new Date(a.createdAt),
+      acknowledged: a.acknowledged,
+      source: a.documentType || 'FAA Compliance System',
+      regulation: '14-CFR-142',
+      checklistChanges: [],
+      checklistItems: []
+    }));
+  }, [alertData]);
+
+  const acknowledgeMutation = useMutation({
+    mutationFn: async (alertId: string) => {
+      const res = await fetch(`/api/alerts/${alertId}/acknowledge`, {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      if (!res.ok) throw new Error('Failed to acknowledge');
+      return res.json();
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['/api/alerts'] })
+  });
 
   const getSeverityIcon = (severity: string) => {
     switch (severity) {
@@ -178,11 +222,7 @@ export default function RegulatoryAlerts() {
   };
 
   const acknowledgeAlert = (alertId: string) => {
-    setAlerts(prev => 
-      prev.map(alert => 
-        alert.id === alertId ? { ...alert, acknowledged: true } : alert
-      )
-    );
+    acknowledgeMutation.mutate(alertId);
   };
 
   const filteredAlerts = alerts.filter(alert => {

@@ -343,6 +343,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Patent 4/4B: Adaptive Compliance Architecture Routes
   app.use('/api/adaptive-compliance', adaptiveComplianceRoutes);
 
+  // ── User Profile Update ──────────────────────────────────────────────────
+  app.put('/api/auth/profile', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const { firstName, lastName, email } = req.body;
+      await storage.updateUserProfile(userId, { firstName, lastName, email });
+      const updated = await storage.getUser(userId);
+      res.json({ success: true, user: updated });
+    } catch (error) {
+      console.error('Profile update error:', error);
+      res.status(500).json({ error: 'Failed to update profile' });
+    }
+  });
+
+  // ── Compliance Checklist State ───────────────────────────────────────────
+  app.get('/api/checklist/state', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const row = await storage.getChecklistState(userId);
+      res.json({ state: row?.state ?? null, updatedAt: row?.updatedAt ?? null });
+    } catch (error) {
+      console.error('Checklist state load error:', error);
+      res.status(500).json({ error: 'Failed to load checklist state' });
+    }
+  });
+
+  app.put('/api/checklist/state', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const { state } = req.body;
+      if (!state) return res.status(400).json({ error: 'state is required' });
+      await storage.saveChecklistState(userId, state);
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Checklist state save error:', error);
+      res.status(500).json({ error: 'Failed to save checklist state' });
+    }
+  });
+
   // ── Audit Generation Routes ──────────────────────────────────────────────
   app.use('/', auditGenerationRoutes);
 

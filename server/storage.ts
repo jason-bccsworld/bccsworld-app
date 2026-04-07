@@ -17,6 +17,8 @@ import {
   blockchainTrainingRecords,
   keyRecoveryRequests,
   crossPlatformVerifications,
+  checklistStates,
+  type ChecklistState,
   type User,
   type UpsertUser,
   type AircraftRegistry,
@@ -136,6 +138,11 @@ export interface IStorage {
   
   createCrossPlatformVerification(verification: InsertCrossPlatformVerification): Promise<CrossPlatformVerification>;
   getVerificationHistory(credentialId: string): Promise<CrossPlatformVerification[]>;
+
+  // Compliance checklist state
+  getChecklistState(userId: string): Promise<ChecklistState | null>;
+  saveChecklistState(userId: string, state: any): Promise<void>;
+  updateUserProfile(userId: string, profile: { firstName?: string; lastName?: string; email?: string }): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -533,6 +540,25 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(crossPlatformVerifications)
       .where(eq(crossPlatformVerifications.credentialId, credentialId))
       .orderBy(desc(crossPlatformVerifications.verifiedAt));
+  }
+
+  async getChecklistState(userId: string): Promise<ChecklistState | null> {
+    const [row] = await db.select().from(checklistStates).where(eq(checklistStates.userId, userId));
+    return row ?? null;
+  }
+
+  async saveChecklistState(userId: string, state: any): Promise<void> {
+    await db
+      .insert(checklistStates)
+      .values({ userId, state })
+      .onConflictDoUpdate({
+        target: checklistStates.userId,
+        set: { state, updatedAt: new Date() },
+      });
+  }
+
+  async updateUserProfile(userId: string, profile: { firstName?: string; lastName?: string; email?: string }): Promise<void> {
+    await db.update(users).set(profile).where(eq(users.id, userId));
   }
 }
 

@@ -1010,6 +1010,21 @@ export type RegulatoryCoverageMatrix = typeof regulatoryCoverageMatrix.$inferSel
 export type InsertRegulatoryCoverageMatrix = z.infer<typeof insertRegulatoryCoverageMatrixSchema>;
 
 // ============================================================================
+// COMPLIANCE CHECKLIST STATE
+// ============================================================================
+
+export const checklistStates = pgTable("checklist_states", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().unique(),
+  state: jsonb("state").notNull(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertChecklistStateSchema = createInsertSchema(checklistStates).omit({ id: true, updatedAt: true });
+export type ChecklistState = typeof checklistStates.$inferSelect;
+export type InsertChecklistState = typeof checklistStates.$inferInsert;
+
+// ============================================================================
 // UNIVERSAL FAR INGESTION SYSTEM SCHEMAS & TYPES
 // ============================================================================
 

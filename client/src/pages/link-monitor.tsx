@@ -35,72 +35,35 @@ export default function LinkMonitorPage() {
 
   const fetchLinkData = async () => {
     try {
-      // Simulate API calls - in production these would be real endpoints
-      const mockStatuses: LinkStatus[] = [
-        {
-          url: 'https://www.ecfr.gov/current/title-14/chapter-I/subchapter-H/part-142',
-          status: 'active',
-          lastChecked: new Date().toISOString(),
-          responseCode: 200,
-        },
-        {
-          url: 'https://www.faa.gov/regulations_policies/orders_notices/index.cfm/go/document.information/documentID/1034161',
-          status: 'active',
-          lastChecked: new Date().toISOString(),
-          responseCode: 200,
-        },
-        {
-          url: 'https://www.ecfr.gov/current/title-14',
-          status: 'redirected',
-          lastChecked: new Date().toISOString(),
-          responseCode: 301,
-          newUrl: 'https://www.ecfr.gov/current/title-14/chapter-I',
-        },
-        {
-          url: 'https://www.gpo.gov/fdsys/pkg/CFR-2023-title14',
-          status: 'broken',
-          lastChecked: new Date().toISOString(),
-          responseCode: 404,
-          errorMessage: 'Page not found',
-        },
-      ];
+      const res = await fetch('/api/link-monitor/statuses', { credentials: 'include' });
+      if (!res.ok) throw new Error('Failed to fetch');
+      const data = await res.json();
 
-      const mockAlerts: LinkAlert[] = [
-        {
-          id: 'alert_1',
-          url: 'https://www.gpo.gov/fdsys/pkg/CFR-2023-title14',
-          alertType: 'broken_link',
-          severity: 'critical',
-          message: 'Regulatory link broken: Government Publishing Office CFR page not found',
-          detectedAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-          resolved: false,
-          suggestedAction: 'Check GPO website for relocated content and update checklist references',
-        },
-        {
-          id: 'alert_2',
-          url: 'https://www.ecfr.gov/current/title-14',
-          alertType: 'redirect_detected',
-          severity: 'medium',
-          message: 'Regulatory link redirected to new location',
-          detectedAt: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
-          resolved: false,
-          suggestedAction: 'Update checklist to use new URL to prevent future redirects',
-          newUrl: 'https://www.ecfr.gov/current/title-14/chapter-I',
-        },
-        {
-          id: 'alert_3',
-          url: 'https://www.faa.gov/regulations_policies/orders_notices/index.cfm/go/document.information/documentID/1034161',
-          alertType: 'content_changed',
-          severity: 'high',
-          message: 'FAA Order 8900.1 content updated with new inspection procedures',
-          detectedAt: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
-          resolved: false,
-          suggestedAction: 'Review regulatory changes and update compliance procedures if necessary',
-        },
-      ];
+      const statuses: LinkStatus[] = (data.statuses || []).map((s: any) => ({
+        url: s.url,
+        status: s.status,
+        lastChecked: s.lastChecked,
+        responseCode: s.responseCode,
+        newUrl: s.newUrl,
+        contentChange: s.contentChange,
+        errorMessage: s.errorMessage,
+      }));
 
-      setLinkStatuses(mockStatuses);
-      setAlerts(mockAlerts);
+      const linkAlerts: LinkAlert[] = (data.alerts || []).map((a: any) => ({
+        id: a.id,
+        url: a.description?.match(/https?:\/\/[^\s]+/)?.[0] || '',
+        alertType: a.type === 'REGULATORY_CHANGE' ? 'redirect_detected' : 'content_changed',
+        severity: a.severity === 'CRITICAL' ? 'critical' :
+                  a.severity === 'HIGH' ? 'high' :
+                  a.severity === 'MEDIUM' ? 'medium' : 'low',
+        message: a.description,
+        detectedAt: a.createdAt,
+        resolved: a.acknowledged,
+        suggestedAction: a.actionRequired,
+      }));
+
+      setLinkStatuses(statuses);
+      setAlerts(linkAlerts);
       setLoading(false);
     } catch (error) {
       console.error('Error fetching link data:', error);

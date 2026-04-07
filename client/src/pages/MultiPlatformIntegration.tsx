@@ -99,141 +99,32 @@ export default function MultiPlatformIntegration() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Mock data for development
-  const mockTrainingCenters: TrainingCenter[] = [
-    {
-      id: 'tc_001',
-      name: 'Skyward Flight Training',
-      type: 'Part 142',
-      country: 'United States',
-      blockchainId: 'bc_sky_001',
-      status: 'connected',
-      recordCount: 1247,
-      lastSync: '2024-08-09T18:30:00Z',
-      certificateLevel: 'Platinum'
-    },
-    {
-      id: 'tc_002', 
-      name: 'European Aviation Academy',
-      type: 'EASA ATO',
-      country: 'Germany',
-      blockchainId: 'bc_eaa_002',
-      status: 'connected',
-      recordCount: 892,
-      lastSync: '2024-08-09T16:45:00Z',
-      certificateLevel: 'Gold'
-    },
-    {
-      id: 'tc_003',
-      name: 'Metro Flight College',
-      type: 'Part 141',
-      country: 'United States', 
-      blockchainId: 'bc_mfc_003',
-      status: 'pending',
-      recordCount: 634,
-      lastSync: '2024-08-07T12:20:00Z',
-      certificateLevel: 'Silver'
-    },
-    {
-      id: 'tc_004',
-      name: 'Sahara Aviation Training',
-      type: 'ICAO ATO',
-      country: 'South Africa',
-      blockchainId: 'bc_sat_004', 
-      status: 'disconnected',
-      recordCount: 0,
-      lastSync: 'Never',
-      certificateLevel: 'Bronze'
+  const { data: trainingCenters = [], isLoading: centersLoading } = useQuery<TrainingCenter[]>({
+    queryKey: ['/api/multi-platform-integration/training-centers'],
+    queryFn: async () => {
+      const res = await fetch('/api/multi-platform-integration/training-centers', { credentials: 'include' });
+      if (!res.ok) throw new Error('Failed to fetch training centers');
+      return res.json();
     }
-  ];
+  });
 
-  const mockPilotRecords: PilotRecord[] = [
-    {
-      pilotId: 'plt_001',
-      pilotName: 'Captain Sarah Mitchell',
-      pilotEmail: 'sarah.mitchell@airline.com',
-      trainingCenterId: 'tc_001',
-      trainingCenterName: 'Skyward Flight Training',
-      totalHours: 3500,
-      certificatesEarned: 12,
-      requestedTransfer: true,
-      records: [
-        {
-          id: 'rec_001',
-          type: 'Type Rating',
-          title: 'Boeing 737-800 Type Rating',
-          date: '2024-06-15',
-          status: 'verified',
-          blockchainHash: '0x8a7f2e4d...'
-        },
-        {
-          id: 'rec_002', 
-          type: 'Recurrent Training',
-          title: 'Annual Recurrent Training',
-          date: '2024-03-22',
-          status: 'pending_transfer'
-        },
-        {
-          id: 'rec_003',
-          type: 'Instrument Rating',
-          title: 'Instrument Rating Renewal',
-          date: '2024-01-10', 
-          status: 'transferred',
-          blockchainHash: '0x9b8c3f5e...'
-        }
-      ]
-    },
-    {
-      pilotId: 'plt_002',
-      pilotName: 'First Officer Marcus Chen',
-      pilotEmail: 'marcus.chen@pilot.com',
-      trainingCenterId: 'tc_002',
-      trainingCenterName: 'European Aviation Academy', 
-      totalHours: 1850,
-      certificatesEarned: 8,
-      requestedTransfer: false,
-      records: [
-        {
-          id: 'rec_004',
-          type: 'ATPL Theory',
-          title: 'ATPL Theory Completion',
-          date: '2024-05-20',
-          status: 'verified',
-          blockchainHash: '0x7c6d2a3b...'
-        }
-      ]
+  const { data: pilotRecords = [], isLoading: pilotsLoading } = useQuery<PilotRecord[]>({
+    queryKey: ['/api/multi-platform-integration/pilot-records'],
+    queryFn: async () => {
+      const res = await fetch('/api/multi-platform-integration/pilot-records', { credentials: 'include' });
+      if (!res.ok) throw new Error('Failed to fetch pilot records');
+      return res.json();
     }
-  ];
+  });
 
-  const mockTransferRequests: DataTransferRequest[] = [
-    {
-      id: 'req_001',
-      pilotId: 'plt_001',
-      pilotName: 'Captain Sarah Mitchell',
-      pilotEmail: 'sarah.mitchell@airline.com',
-      trainingCenterId: 'tc_001',
-      trainingCenterName: 'Skyward Flight Training',
-      recordsRequested: 15,
-      status: 'pending_center_approval',
-      requestedDate: '2024-08-08T14:30:00Z',
-      estimatedCompletion: '2024-08-12T17:00:00Z',
-      pilotPrivateKey: 'bccs_key_plt_001_verified'
-    },
-    {
-      id: 'req_002',
-      pilotId: 'plt_003',
-      pilotName: 'Captain James Rodriguez',
-      pilotEmail: 'james.rodriguez@freight.com',
-      trainingCenterId: 'tc_001', 
-      trainingCenterName: 'Skyward Flight Training',
-      recordsRequested: 22,
-      status: 'in_progress',
-      requestedDate: '2024-08-06T09:15:00Z',
-      estimatedCompletion: '2024-08-10T16:30:00Z',
-      pilotPrivateKey: 'bccs_key_plt_003_verified',
-      blockchainVerificationHash: '0x4f2a8e7c...'
+  const { data: transferRequests = [], isLoading: transfersLoading } = useQuery<DataTransferRequest[]>({
+    queryKey: ['/api/multi-platform-integration/transfer-requests'],
+    queryFn: async () => {
+      const res = await fetch('/api/multi-platform-integration/transfer-requests', { credentials: 'include' });
+      if (!res.ok) throw new Error('Failed to fetch transfer requests');
+      return res.json();
     }
-  ];
+  });
 
   const getStatusBadgeColor = (status: string) => {
     switch (status) {
@@ -392,7 +283,7 @@ export default function MultiPlatformIntegration() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {mockTrainingCenters.map((center) => (
+                {trainingCenters.map((center) => (
                   <div key={center.id} className="border rounded-lg p-4">
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-3">
@@ -482,7 +373,7 @@ export default function MultiPlatformIntegration() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Centers</SelectItem>
-                      {mockTrainingCenters.map((center) => (
+                      {trainingCenters.map((center) => (
                         <SelectItem key={center.id} value={center.id}>
                           {center.name}
                         </SelectItem>
@@ -493,7 +384,7 @@ export default function MultiPlatformIntegration() {
               </div>
 
               <div className="space-y-4">
-                {mockPilotRecords.map((pilot) => (
+                {pilotRecords.map((pilot) => (
                   <div key={pilot.pilotId} className="border rounded-lg p-4">
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-3">
@@ -568,7 +459,7 @@ export default function MultiPlatformIntegration() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {mockTransferRequests.map((request) => (
+                {transferRequests.map((request) => (
                   <div key={request.id} className="border rounded-lg p-4">
                     <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center gap-3">
