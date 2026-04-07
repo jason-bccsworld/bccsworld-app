@@ -191,7 +191,7 @@ export function registerBlockchainKeyManagementRoutes(app: Express) {
       
       const result = await blockchainKeyService.processKeyRecovery(
         validatedData.recoveryRequestId,
-        user.claims.sub
+        user.id
       );
       
       res.json({
