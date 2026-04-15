@@ -55,14 +55,7 @@ export default function DocumentUpload() {
     },
     onError: (error, file) => {
       if (isUnauthorizedError(error as Error)) {
-        toast({
-          title: "Unauthorized",
-          description: "You are logged out. Logging in again...",
-          variant: "destructive",
-        });
-        setTimeout(() => {
-          window.location.href = "/login";
-        }, 500);
+        window.location.href = "/login";
         return;
       }
 

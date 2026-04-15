@@ -58,14 +58,7 @@ export default function IntegrationsDashboard() {
   // Redirect to home if not authenticated
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      toast({
-        title: "Unauthorized",
-        description: "You are logged out. Logging in again...",
-        variant: "destructive",
-      });
-      setTimeout(() => {
-        window.location.href = "/login";
-      }, 500);
+      window.location.href = "/login";
       return;
     }
   }, [isAuthenticated, isLoading, toast]);

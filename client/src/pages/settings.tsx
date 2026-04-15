@@ -7,8 +7,10 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { User, Bell, Shield, Database, Globe, Download, Trash2, Key, Loader2 } from 'lucide-react';
+import { User, Bell, Shield, Database, Globe, Download, Trash2, Key, Loader2, Eye, EyeOff } from 'lucide-react';
+import { apiRequest } from "@/lib/queryClient";
 
 export default function Settings() {
   const { toast } = useToast();
@@ -26,6 +28,14 @@ export default function Settings() {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
+
+  // Change password dialog state
+  const [pwDialogOpen, setPwDialogOpen] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showCurrent, setShowCurrent] = useState(false);
+  const [showNew, setShowNew] = useState(false);
 
   useEffect(() => {
     if (userData) {
@@ -55,10 +65,38 @@ export default function Settings() {
     }
   });
 
+  const passwordMutation = useMutation({
+    mutationFn: async () => {
+      if (newPassword !== confirmPassword) throw new Error('Passwords do not match');
+      if (newPassword.length < 8) throw new Error('New password must be at least 8 characters');
+      const res = await apiRequest('PUT', '/api/auth/password', { currentPassword, newPassword });
+      return res;
+    },
+    onSuccess: () => {
+      toast({ title: 'Password changed', description: 'Your password has been updated successfully.' });
+      setPwDialogOpen(false);
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    },
+    onError: (err: any) => {
+      toast({ title: 'Password change failed', description: err.message || 'Could not change password.', variant: 'destructive' });
+    }
+  });
+
   const handleCancel = () => {
     setFirstName(userData?.firstName || '');
     setLastName(userData?.lastName || '');
     setEmail(userData?.email || '');
+  };
+
+  const handlePwDialogClose = () => {
+    setPwDialogOpen(false);
+    setCurrentPassword('');
+    setNewPassword('');
+    setConfirmPassword('');
+    setShowCurrent(false);
+    setShowNew(false);
   };
 
   return (
@@ -161,7 +199,7 @@ export default function Settings() {
                 </SelectContent>
               </Select>
             </div>
-            <Button variant="outline" className="w-full">
+            <Button variant="outline" className="w-full" onClick={() => setPwDialogOpen(true)}>
               <Key className="h-4 w-4 mr-2" />
               Change Password
             </Button>
@@ -246,6 +284,88 @@ export default function Settings() {
           {profileMutation.isPending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Saving…</> : 'Save Changes'}
         </Button>
       </div>
+
+      {/* Change Password Dialog */}
+      <Dialog open={pwDialogOpen} onOpenChange={handlePwDialogClose}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Key className="h-5 w-5" /> Change Password
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <Label>Current Password</Label>
+              <div className="relative">
+                <Input
+                  type={showCurrent ? 'text' : 'password'}
+                  value={currentPassword}
+                  onChange={e => setCurrentPassword(e.target.value)}
+                  placeholder="Enter current password"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="absolute right-1 top-1 h-7 w-7 p-0"
+                  onClick={() => setShowCurrent(v => !v)}
+                >
+                  {showCurrent ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
+              </div>
+            </div>
+            <div>
+              <Label>New Password</Label>
+              <div className="relative">
+                <Input
+                  type={showNew ? 'text' : 'password'}
+                  value={newPassword}
+                  onChange={e => setNewPassword(e.target.value)}
+                  placeholder="At least 8 characters"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="absolute right-1 top-1 h-7 w-7 p-0"
+                  onClick={() => setShowNew(v => !v)}
+                >
+                  {showNew ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
+              </div>
+              {newPassword.length > 0 && newPassword.length < 8 && (
+                <p className="text-xs text-red-500 mt-1">Minimum 8 characters required</p>
+              )}
+            </div>
+            <div>
+              <Label>Confirm New Password</Label>
+              <Input
+                type="password"
+                value={confirmPassword}
+                onChange={e => setConfirmPassword(e.target.value)}
+                placeholder="Repeat new password"
+              />
+              {confirmPassword.length > 0 && newPassword !== confirmPassword && (
+                <p className="text-xs text-red-500 mt-1">Passwords do not match</p>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={handlePwDialogClose}>Cancel</Button>
+            <Button
+              onClick={() => passwordMutation.mutate()}
+              disabled={
+                passwordMutation.isPending ||
+                !currentPassword ||
+                newPassword.length < 8 ||
+                newPassword !== confirmPassword
+              }
+            >
+              {passwordMutation.isPending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Changing…</> : 'Change Password'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

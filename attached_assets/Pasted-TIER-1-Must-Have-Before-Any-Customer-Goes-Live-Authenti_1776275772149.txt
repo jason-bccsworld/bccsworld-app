@@ -1,0 +1,43 @@
+TIER 1 — Must Have Before Any Customer Goes Live 
+
+Authentication & User Management 
+
+Password change — Settings page must actually save a new password. Currently non-functional. 
+
+User profile save — Name, email, organization must save to the database. Currently hardcoded "Frederick Nichols." 
+
+Multi-user support — Admins must be able to invite and manage other users (instructors, auditors, viewers). There is no invite flow, no user list, no role assignment UI. 
+
+Session timeout handling — Currently redirects to login after session expires, but the "You are logged out. Logging in again..." toast is alarming. It should be a clean, professional redirect. 
+
+Organization Setup 
+
+Organization onboarding — New customers must be able to enter their training organization details: certificate number, certificate type (Part 141/142/135), DBA name, physical address, responsible person, and which FAR Parts they operate under. Nothing prompts them to do this today. 
+
+Certificate information — Store and display the organization's operating certificate (type, number, expiration, issuing FSDO). This is the single most important piece of data for an aviation compliance platform. 
+
+Compliance Checklist — Core Feature 
+
+Checklist persistence — The 2,474-line compliance checklist is the most developed feature in the app but saves nothing. Checking an item, uploading evidence, and adding notes must persist to the database. 
+
+Checklist progress tracking — Show overall compliance percentage per section and total, with a clear "audit ready" indicator. This is what the customer checks every morning. 
+
+Evidence attachment to checklist items — Each checklist item must allow a document to be attached as evidence. Currently the adaptive compliance system has evidence indexing built in the backend but it's not connected to the checklist UI. 
+
+Checklist export to PDF — Auditors need a printed or PDF version of the compliance status to bring into an inspection. No export exists. 
+
+Document Management 
+
+Working document upload — The upload button on the main dashboard calls /api/documents/upload which does not exist. This is the most-visible broken feature and the first thing any new user will try. 
+
+Document list and viewer — After uploading, users need to see what they've uploaded, when, and by whom. Currently there's no document library view. 
+
+Document categorization — Documents need to be tagged (Training Manuals, FAA Correspondence, Student Records, Aircraft Documents, etc.) so they can be found during an audit. 
+
+Audit Preparation 
+
+AI Audit Analysis — The AI Audit Compliance page has a complete UI with a file upload and "Analyze" button, but the routes are unmounted. This is a core differentiator of the platform and must work for v1.0. 
+
+Audit packet generation — The backend has an auditPacketGenerator service fully built. It needs a working frontend flow: select checklist, attach evidence, generate downloadable audit packet. Currently unreachable. 
+
+Compliance status summary — A one-page view showing: items complete, items incomplete, items with missing evidence, days until next scheduled audit. Currently the dashboard shows placeholder stats.
