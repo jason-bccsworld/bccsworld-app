@@ -2,6 +2,7 @@ import { createApp } from "./app";
 import { setupVite, serveStatic, log } from "./vite";
 import { regulatoryMonitor } from "./services/regulatory-monitor";
 import { linkMonitoringService } from "./services/link-monitor";
+import { faaDocumentMonitor } from "./services/faa-document-monitor";
 import { ensureTables } from "./db-init";
 import { createServer } from "http";
 import * as fs from "fs";
@@ -41,6 +42,12 @@ if (fs.existsSync(envPath)) {
 
     linkMonitoringService.initializeMonitoring().catch((error) => {
       console.error("Failed to start link monitoring:", error);
+    });
+
+    faaDocumentMonitor.initialize().then(() => {
+      faaDocumentMonitor.startScheduledMonitoring(6);
+    }).catch((error) => {
+      console.error("Failed to start FAA document monitor:", error);
     });
   });
 })();

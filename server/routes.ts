@@ -1036,6 +1036,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ── FAA Document Repository ───────────────────────────────────────────────
+  app.get('/api/faa-repository', isAuthenticated, async (req: any, res) => {
+    try {
+      const { type, priority, status, search } = req.query as any;
+      const { faaDocumentMonitor } = await import('./services/faa-document-monitor');
+      const docs = await faaDocumentMonitor.getDocuments({ type, priority, status, search });
+      res.json(docs);
+    } catch (error) {
+      console.error('FAA repository error:', error);
+      res.status(500).json({ message: 'Failed to fetch FAA repository' });
+    }
+  });
+
+  app.get('/api/faa-repository/stats', isAuthenticated, async (req: any, res) => {
+    try {
+      const { faaDocumentMonitor } = await import('./services/faa-document-monitor');
+      const stats = await faaDocumentMonitor.getStats();
+      res.json(stats);
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to fetch repository stats' });
+    }
+  });
+
+  app.get('/api/faa-repository/updates', isAuthenticated, async (req: any, res) => {
+    try {
+      const { faaDocumentMonitor } = await import('./services/faa-document-monitor');
+      const updates = await faaDocumentMonitor.getUpdateHistory();
+      res.json(updates);
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to fetch update history' });
+    }
+  });
+
+  app.post('/api/faa-repository/refresh', isAuthenticated, async (req: any, res) => {
+    try {
+      const { faaDocumentMonitor } = await import('./services/faa-document-monitor');
+      res.json({ message: 'Check started', startedAt: new Date().toISOString() });
+      faaDocumentMonitor.runCheck().catch(console.error);
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to start refresh' });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

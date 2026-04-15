@@ -1,7 +1,7 @@
 # BCCS-US - Aviation Compliance Platform
 
 ## Overview
-BCCS-US is the regulatory compliance engine within the AeroTraining Platform Ecosystem, a a comprehensive system for aviation training management, development, and compliance. It offers AI-powered document processing, blockchain-secured record keeping, and automated regulatory monitoring. The platform aims to facilitate digital transformation and superior regulatory compliance for various aviation training organizations.
+BCCS-US is the regulatory compliance engine within the AeroTraining Platform Ecosystem, a comprehensive system for aviation training management, development, and compliance. It offers AI-powered document processing, blockchain-secured record keeping, and automated regulatory monitoring. The platform aims to facilitate digital transformation and superior regulatory compliance for various aviation training organizations.
 
 The project's vision is to establish itself as the universal regulatory compliance standard, initially dominating the aviation market. It seeks aggressive market capture and significant revenue growth, targeting unicorn status through network effects, AI automation, and community-driven exponential growth. The platform also explores opportunities in aircraft tokenization and aviation financial ecosystems, expanding its market potential.
 
@@ -26,44 +26,22 @@ IP Strategy: Comprehensive patent strategy analysis completed identifying 12+ ke
 The platform is a full-stack application with clear separation between frontend and backend, leveraging modern web technologies. A key design pattern is the Data Processing Pipeline for document ingestion, analysis, and validation. Blockchain technology ensures immutable record-keeping and audit trail integrity. A mobile PWA supports field operations.
 
 Core architectural components include:
-- **Smart Contract Subscription System**: Manages cryptocurrency-based subscription renewals using stablecoins on Ethereum and Polygon networks.
-- **Universal Blockchain Key Management System**: Provides individual professional keys, training organization master keys, multi-signature training records, and cross-platform verification. Includes secure key recovery and aims for career-portable credentials.
-- **Advanced Key Recovery System**: Features multi-modal biometric verification, identity document/employment verification, security alerts, comprehensive audit trails, and integration with regulatory authorities.
-- **Standalone BCCS Pilot Logbook App**: An AI-powered app for personal flight record blockchain verification, enabling transformation of various legacy logbook formats into secure, verifiable records.
+- **Smart Contract Subscription System**: Manages cryptocurrency-based subscription renewals.
+- **Universal Blockchain Key Management System**: Provides individual professional keys, training organization master keys, multi-signature training records, and cross-platform verification.
+- **Advanced Key Recovery System**: Features multi-modal biometric verification and integration with regulatory authorities.
+- **Standalone BCCS Pilot Logbook App**: An AI-powered app for personal flight record blockchain verification.
 - **Multi-Platform Integration Dashboard**: Facilitates training center blockchain data transfer.
-- **Universal Regulatory Framework**: Designed to be adaptable across various regulatory environments.
+- **Universal Regulatory Framework**: Adaptable across various regulatory environments.
 - **Tiered Blockchain Storage**: Flexible options from hash-only to full document storage.
 - **AI Audit Compliance Assistant**: Analyzes documents against regulatory checklists and generates reports.
 - **Automated Regulatory Monitoring**: Tracks changes in regulations with alerts and impact assessments.
 - **AI-powered Regulatory Link Monitoring**: Ensures accessibility and currency of regulatory references.
 
 ### Universal FAR Ingestion System (Patent Pending)
-The platform features a universal regulatory ingestion system capable of supporting 18 FAR Parts and 16 FAA Order 8900.1 Volumes, along with various policy document types (SAFO, InFO, Policy Notices, Advisory Circulars, Legal Interpretations). This system includes database tables for policy documents, multi-part configurations, regulatory update tracking, and granular section-level tracking.
-
-API Endpoints are available for:
-- Retrieving available FAR Parts and spine frameworks.
-- Selecting primary spine frameworks.
-- Ingesting policy documents.
-- Accessing recent regulatory changes.
-- Creating multi-part configurations.
+The platform supports 18 FAR Parts and 16 FAA Order 8900.1 Volumes, along with various policy document types. It includes database tables for policy documents, multi-part configurations, regulatory update tracking, and granular section-level tracking.
 
 ### Checklist Automation System (Patent Pending)
-Intelligent checklist management with automated retrieval, version monitoring, and evidence mapping, categorized by priority levels (FAA Standard, Certificate-specific, Inspector Supplemental, Operator-required, Archived Legacy).
-
-Key Features:
-- Auto-fetches core FAA checklists.
-- Monitors versions of FAA 8900.1 Orders, eCFR sections, and SAFO/InFO updates.
-- Automatically suppresses outdated versions.
-- Provides evidence-on-demand retrieval with multi-schema indexing.
-- Utilizes blockchain verification for evidence integrity.
-- Generates delta reports for checklist comparisons.
-
-API Endpoints are available for:
-- Auto-fetching core checklists for specific FAR Parts.
-- Retrieving checklists by priority and checking for version updates.
-- Managing checklist versions (suppress, unlock, view history).
-- Getting evidence mapping statistics and mapping evidence to checklist items.
-- Listing all supported FAR Parts with checklist definitions.
+Intelligent checklist management with automated retrieval, version monitoring, and evidence mapping, categorized by priority levels. Key features include auto-fetching core FAA checklists, monitoring versions of regulatory documents, suppressing outdated versions, providing evidence-on-demand retrieval with multi-schema indexing, and utilizing blockchain verification for evidence integrity.
 
 ### Frontend Architecture
 - **Framework**: React with TypeScript
@@ -76,49 +54,19 @@ API Endpoints are available for:
 ### Backend Architecture
 - **Runtime**: Node.js with Express.js
 - **Language**: TypeScript with ES modules
-- **Database**: PostgreSQL (via Neon Database)
+- **Database**: PostgreSQL
 - **ORM**: Drizzle ORM
-- **Authentication**: Local username/password authentication using Passport.js (passport-local) with bcrypt and PostgreSQL-backed sessions. Supports role-based access control (Admin, Instructor, Auditor, Viewer).
+- **Authentication**: Local username/password authentication using Passport.js with bcrypt and PostgreSQL-backed sessions. Supports role-based access control.
 - **Core Components**: Data Processing Pipeline (document upload, OCR, NLP, human validation, blockchain hashing), Authentication System, Database Schema (Users, Organizations, Documents, Extracted Data, Training Events, Audit Logs), Mobile PWA.
 
-## Tier 4 Fixes — Completed (Comprehensive Site-Wide Functional Audit)
-- **6 missing routes added** to App.tsx: /analytics-dashboard, /ml-training, /field-mapping, /integrations-dashboard, /flight-school-dashboard, /regulator-dashboard (all were imported but never routed → 404s)
-- **documents.tsx**: Upload button URL fixed from "/" to "/document-import"
-- **far-compliance.tsx**: Added missing `expandedSections` and `itemStatuses` useState declarations; added interactive status cycle buttons (click to toggle pending→compliant→partial→non-compliant); live compliance stats now computed from state
-- **7 missing API endpoints added** to routes.ts:
-  - GET /api/audit-logs (audit-trail page)
-  - GET /api/training-records (flight-school-dashboard)
-  - GET /api/flight-school/stats (flight-school-dashboard)
-  - GET /api/analytics/compliance-metrics (analytics-dashboard, regulator-dashboard)
-  - GET /api/analytics/forecast (analytics-dashboard)
-  - GET /api/analytics/report (analytics-dashboard, regulator-dashboard)
-  - GET/POST /api/integrations + POST /api/integrations/:id/sync (integrations-dashboard)
-
-## Tier 2 Features (Professional Use) — Completed
-
-### New Database Tables (via db-init.ts safe SQL — NOT drizzle db:push due to orphaned tables in Neon DB)
-- **bccs_training_events**: Blockchain-hashed training event records (student, instructor, event type, date, duration, curriculum item, status, BCCS-prefixed blockchain hash)
-- **students**: Student roster management (name, email, phone, certificate #, enrollment/completion dates, status)
-- **bccs_instructor_records**: Instructor certificate records (name, email, cert type/number, issue/expiration/currency dates, ratings JSONB, status)
-
-### New Frontend Pages
-- **/compliance-records**: Training Records — log/view training events, CSV export, blockchain hash display
-- **/students**: Student Roster — add/view/delete students, enrollment tracking
-- **/instructors**: Instructor Records — add/view/delete instructors, certificate expiry alerts (Part 141.10 compliance)
-- **/safo-info**: SAFO / InFO Dashboard — FAA policy document viewer with fallback demo data
-- **/audit-history**: Audit History — full audit log viewer with CSV export, severity filtering
-- **/compliance-report**: Compliance Report — print-ready PDF summary with score, student/instructor/training/alert sections
-
-### New API Endpoints
-- GET/POST /api/training-events — Training event management
-- GET/POST/PUT/DELETE /api/students — Student roster CRUD
-- GET/POST/DELETE /api/instructors — Instructor records CRUD
-- GET /api/policy-documents — SAFO/InFO policy document retrieval
-- GET /api/audit-history — Full audit log with filtering
-- GET /api/admin/activity — Admin activity feed
-
-### DB Safety Note
-CRITICAL: NEVER use `drizzle-kit push` or `npm run db:push` on this project — the Neon DB has many orphaned legacy tables that Drizzle tries to rename to new table names (destructive). The db:push command also requires interactive input even with --force. Always use direct SQL via `db.execute(sql\`...\`)` in server/db-init.ts using `CREATE TABLE IF NOT EXISTS` patterns. New tables use the `bccs_` prefix to avoid conflicts with orphaned tables (`bccs_training_events`, `bccs_instructor_records`).
+### Core Features and Pages
+- **/faa-repository**: Displays monitored FAA documents with update tracking and historical changes.
+- **/compliance-records**: Manages training event records with blockchain hashing and CSV export.
+- **/students**: Student roster management with enrollment tracking.
+- **/instructors**: Instructor records management with certificate expiry alerts.
+- **/safo-info**: FAA policy document viewer.
+- **/audit-history**: Full audit log viewer with filtering and CSV export.
+- **/compliance-report**: Generates print-ready PDF compliance summaries.
 
 ## External Dependencies
 

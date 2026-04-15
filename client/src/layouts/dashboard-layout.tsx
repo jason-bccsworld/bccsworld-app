@@ -25,7 +25,8 @@ import {
   GraduationCap,
   BookOpen,
   Activity,
-  ClipboardList
+  ClipboardList,
+  Archive
 } from 'lucide-react';
 
 interface DashboardLayoutProps {
@@ -47,6 +48,7 @@ const navigationItems = [
   { path: "/link-monitor", icon: ExternalLink, label: "Link Monitor" },
   { path: "/document-import", icon: FileText, label: "AI Document Import", badge: "AI" },
   { path: "/documents", icon: Database, label: "Document Library" },
+  { path: "/faa-repository", icon: Archive, label: "FAA Repository", badge: "LIVE" },
   { path: "/document-generation", icon: FileText, label: "Document Generator" },
   { path: "/admin-dashboard", icon: Users, label: "User Management" },
   { path: "/organization-setup", icon: Globe, label: "Organization Setup" },
