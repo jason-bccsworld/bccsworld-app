@@ -2,6 +2,7 @@ import { createApp } from "./app";
 import { setupVite, serveStatic, log } from "./vite";
 import { regulatoryMonitor } from "./services/regulatory-monitor";
 import { linkMonitoringService } from "./services/link-monitor";
+import { ensureTables } from "./db-init";
 import { createServer } from "http";
 import * as fs from "fs";
 import * as path from "path";
@@ -20,6 +21,7 @@ if (fs.existsSync(envPath)) {
 }
 
 (async () => {
+  await ensureTables();
   const app = await createApp();
   const server = createServer(app);
 

@@ -21,7 +21,11 @@ import {
   CreditCard,
   Lock,
   Database,
-  Network
+  Network,
+  GraduationCap,
+  BookOpen,
+  Activity,
+  ClipboardList
 } from 'lucide-react';
 
 interface DashboardLayoutProps {
@@ -30,20 +34,22 @@ interface DashboardLayoutProps {
 
 const navigationItems = [
   { path: "/dashboard", icon: BarChart3, label: "Compliance Dashboard" },
-  { path: "/adaptive-compliance", icon: Database, label: "Adaptive Compliance" },
+  { path: "/compliance-records", icon: Clock, label: "Training Records" },
+  { path: "/students", icon: BookOpen, label: "Student Roster" },
+  { path: "/instructors", icon: GraduationCap, label: "Instructor Records" },
+  { path: "/safo-info", icon: Bell, label: "SAFO / InFO" },
+  { path: "/audit-history", icon: Activity, label: "Audit History" },
+  { path: "/compliance-report", icon: ClipboardList, label: "Compliance Report" },
+  { path: "/compliance-checklist", icon: CheckCircle, label: "Part 142 Checklist" },
+  { path: "/far-compliance", icon: Shield, label: "FAR Compliance" },
+  { path: "/ai-audit-compliance", icon: Brain, label: "AI Audit Assistant", badge: "AI" },
+  { path: "/regulatory-alerts", icon: AlertTriangle, label: "Regulatory Alerts" },
+  { path: "/link-monitor", icon: ExternalLink, label: "Link Monitor" },
   { path: "/document-import", icon: FileText, label: "AI Document Import", badge: "AI" },
   { path: "/documents", icon: Database, label: "Document Library" },
-  { path: "/compliance-records", icon: Clock, label: "Training Records" },
-  { path: "/compliance-checklist", icon: CheckCircle, label: "Part 142 Checklist" },
-  { path: "/far-compliance", icon: Shield, label: "FAR Compliance Monitor" },
-  { path: "/ai-audit-compliance", icon: Brain, label: "AI Audit Assistant", badge: "AI" },
-  { path: "/regulatory-compliance", icon: AlertTriangle, label: "Regulatory Monitor" },
-  { path: "/regulatory-alerts", icon: Bell, label: "Compliance Alerts", badge: "2" },
-  { path: "/link-monitor", icon: ExternalLink, label: "Link Monitor" },
   { path: "/document-generation", icon: FileText, label: "Document Generator" },
   { path: "/admin-dashboard", icon: Users, label: "User Management" },
   { path: "/organization-setup", icon: Globe, label: "Organization Setup" },
-  { path: "/mobile-field", icon: Smartphone, label: "Mobile Field Ops" },
   { path: "/support", icon: HelpCircle, label: "Support" },
   { path: "/settings", icon: Settings, label: "Settings" },
 ];

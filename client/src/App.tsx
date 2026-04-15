@@ -42,6 +42,11 @@ import MultiPlatformIntegration from "@/pages/MultiPlatformIntegration";
 import AdaptiveCompliance from "@/pages/adaptive-compliance";
 import Documents from "@/pages/documents";
 import OrganizationSetup from "@/pages/organization-setup";
+import Students from "@/pages/students";
+import Instructors from "@/pages/instructors";
+import SafoInfo from "@/pages/safo-info";
+import AuditHistory from "@/pages/audit-history";
+import ComplianceReport from "@/pages/compliance-report";
 import Login from "@/pages/login";
 import NotFound from "@/pages/not-found";
 import DashboardLayout from "@/layouts/dashboard-layout";
@@ -328,6 +333,56 @@ function Router() {
         ) : (
           <DashboardLayout>
             <OrganizationSetup />
+          </DashboardLayout>
+        )}
+      </Route>
+
+      <Route path="/students">
+        {!isAuthenticated ? (
+          <Redirect to="/login" />
+        ) : (
+          <DashboardLayout>
+            <Students />
+          </DashboardLayout>
+        )}
+      </Route>
+
+      <Route path="/instructors">
+        {!isAuthenticated ? (
+          <Redirect to="/login" />
+        ) : (
+          <DashboardLayout>
+            <Instructors />
+          </DashboardLayout>
+        )}
+      </Route>
+
+      <Route path="/safo-info">
+        {!isAuthenticated ? (
+          <Redirect to="/login" />
+        ) : (
+          <DashboardLayout>
+            <SafoInfo />
+          </DashboardLayout>
+        )}
+      </Route>
+
+      <Route path="/audit-history">
+        {!isAuthenticated ? (
+          <Redirect to="/login" />
+        ) : (
+          <DashboardLayout>
+            <AuditHistory />
+          </DashboardLayout>
+        )}
+      </Route>
+
+      <Route path="/compliance-report">
+        {!isAuthenticated ? (
+          <Redirect to="/login" />
+        ) : (
+          <DashboardLayout>
+            <ComplianceReport />
           </DashboardLayout>
         )}
       </Route>

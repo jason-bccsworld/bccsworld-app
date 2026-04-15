@@ -23,9 +23,10 @@ import maintenanceRoutes from "./routes/maintenance";
 import { generateDocumentImportTutorial } from "./generate-document-import-tutorial";
 import { auditComplianceAI } from "./services/audit-compliance-ai";
 import { db } from "./db";
-import { users, trainingOrganizations, auditLogs } from "@shared/schema";
+import { users, trainingOrganizations, auditLogs, faaPolicyDocuments } from "@shared/schema";
 import { count, eq, desc } from "drizzle-orm";
 import bcrypt from "bcryptjs";
+import { sql as drizzleSql } from "drizzle-orm";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -744,6 +745,186 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: 'Failed to create organization' });
     }
   });
+
+  // ── Training Events ──────────────────────────────────────────────────────
+  app.get('/api/training-events', isAuthenticated, async (req: any, res) => {
+    try {
+      const rows = await db.execute(drizzleSql`
+        SELECT * FROM bccs_training_events ORDER BY event_date DESC LIMIT 200
+      `);
+      res.json((rows as any).rows || []);
+    } catch (error) {
+      console.error('Training events error:', error);
+      res.status(500).json({ message: 'Failed to fetch training events' });
+    }
+  });
+
+  app.post('/api/training-events', isAuthenticated, async (req: any, res) => {
+    try {
+      const { studentName, studentId, instructorName, instructorId, eventType, eventDate, durationHours, curriculumItem, notes, status } = req.body;
+      if (!studentName || !instructorName || !eventType || !eventDate) {
+        return res.status(400).json({ message: 'Student name, instructor, event type, and date are required' });
+      }
+      const hash = `BCCS-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+      const rows = await db.execute(drizzleSql`
+        INSERT INTO bccs_training_events (student_name, student_id, instructor_name, instructor_id, event_type, event_date, duration_hours, curriculum_item, notes, status, blockchain_hash, user_id)
+        VALUES (${studentName}, ${studentId || null}, ${instructorName}, ${instructorId || null}, ${eventType}, ${new Date(eventDate)}, ${durationHours || null}, ${curriculumItem || null}, ${notes || null}, ${status || 'completed'}, ${hash}, ${req.user?.id || 'system'})
+        RETURNING *
+      `);
+      const event = ((rows as any).rows || [])[0];
+      await storage.createAuditLog({ userId: req.user?.id || 'system', eventType: 'training_event_logged', message: `Training event logged for ${studentName} (${eventType})`, details: { studentName, eventType }, severity: 'info' });
+      res.status(201).json(event);
+    } catch (error) {
+      console.error('Create training event error:', error);
+      res.status(500).json({ message: 'Failed to log training event' });
+    }
+  });
+
+  // ── Student Roster ────────────────────────────────────────────────────────
+  app.get('/api/students', isAuthenticated, async (_req, res) => {
+    try {
+      const rows = await db.execute(drizzleSql`SELECT * FROM students ORDER BY last_name, first_name`);
+      res.json((rows as any).rows || []);
+    } catch (error) {
+      console.error('Students error:', error);
+      res.status(500).json({ message: 'Failed to fetch students' });
+    }
+  });
+
+  app.post('/api/students', isAuthenticated, async (req: any, res) => {
+    try {
+      const { firstName, lastName, email, phone, certificateNumber, enrollmentDate, expectedCompletion, status, notes } = req.body;
+      if (!firstName || !lastName) return res.status(400).json({ message: 'First and last name required' });
+      const rows = await db.execute(drizzleSql`
+        INSERT INTO students (first_name, last_name, email, phone, certificate_number, enrollment_date, expected_completion, status, notes)
+        VALUES (${firstName}, ${lastName}, ${email || null}, ${phone || null}, ${certificateNumber || null}, ${enrollmentDate ? new Date(enrollmentDate) : new Date()}, ${expectedCompletion ? new Date(expectedCompletion) : null}, ${status || 'active'}, ${notes || null})
+        RETURNING *
+      `);
+      res.status(201).json(((rows as any).rows || [])[0]);
+    } catch (error) {
+      console.error('Create student error:', error);
+      res.status(500).json({ message: 'Failed to add student' });
+    }
+  });
+
+  app.put('/api/students/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const { status, notes } = req.body;
+      await db.execute(drizzleSql`UPDATE students SET status = ${status}, notes = ${notes || null} WHERE id = ${req.params.id}`);
+      res.json({ message: 'Student updated' });
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to update student' });
+    }
+  });
+
+  app.delete('/api/students/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      await db.execute(drizzleSql`DELETE FROM students WHERE id = ${req.params.id}`);
+      res.json({ message: 'Student removed' });
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to delete student' });
+    }
+  });
+
+  // ── Instructor Records ────────────────────────────────────────────────────
+  app.get('/api/instructors', isAuthenticated, async (_req, res) => {
+    try {
+      const rows = await db.execute(drizzleSql`SELECT * FROM bccs_instructor_records ORDER BY last_name, first_name`);
+      res.json((rows as any).rows || []);
+    } catch (error) {
+      console.error('Instructors error:', error);
+      res.status(500).json({ message: 'Failed to fetch instructors' });
+    }
+  });
+
+  app.post('/api/instructors', isAuthenticated, async (req: any, res) => {
+    try {
+      const { firstName, lastName, email, certificateType, certificateNumber, issueDate, expirationDate, currencyDate, ratings, trainingAuthorizations, status } = req.body;
+      if (!firstName || !lastName || !certificateType || !certificateNumber) {
+        return res.status(400).json({ message: 'Name, certificate type and number are required' });
+      }
+      const rows = await db.execute(drizzleSql`
+        INSERT INTO bccs_instructor_records (first_name, last_name, email, certificate_type, certificate_number, issue_date, expiration_date, currency_date, ratings, training_authorizations, status)
+        VALUES (${firstName}, ${lastName}, ${email || null}, ${certificateType}, ${certificateNumber}, ${issueDate ? new Date(issueDate) : null}, ${expirationDate ? new Date(expirationDate) : null}, ${currencyDate ? new Date(currencyDate) : null}, ${JSON.stringify(ratings || [])}, ${JSON.stringify(trainingAuthorizations || [])}, ${status || 'current'})
+        RETURNING *
+      `);
+      res.status(201).json(((rows as any).rows || [])[0]);
+    } catch (error) {
+      console.error('Create instructor error:', error);
+      res.status(500).json({ message: 'Failed to add instructor' });
+    }
+  });
+
+  app.delete('/api/instructors/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      await db.execute(drizzleSql`DELETE FROM bccs_instructor_records WHERE id = ${req.params.id}`);
+      res.json({ message: 'Instructor removed' });
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to delete instructor' });
+    }
+  });
+
+  // ── SAFO/InFO Policy Documents ────────────────────────────────────────────
+  app.get('/api/policy-documents', isAuthenticated, async (req: any, res) => {
+    try {
+      const { type } = req.query;
+      let docs: any[];
+      if (type && type !== 'all') {
+        docs = await db.select().from(faaPolicyDocuments).where(eq(faaPolicyDocuments.documentType, type as string)).orderBy(desc(faaPolicyDocuments.publishedDate)).limit(100);
+      } else {
+        docs = await db.select().from(faaPolicyDocuments).orderBy(desc(faaPolicyDocuments.publishedDate)).limit(100);
+      }
+      res.json(docs);
+    } catch (error) {
+      console.error('Policy documents error:', error);
+      res.status(500).json({ message: 'Failed to fetch policy documents' });
+    }
+  });
+
+  // ── Audit History ─────────────────────────────────────────────────────────
+  app.get('/api/audit-history', isAuthenticated, async (req: any, res) => {
+    try {
+      const { limit = 100, eventType } = req.query;
+      const filters: any = { limit: Number(limit) };
+      if (eventType && eventType !== 'all') filters.eventType = eventType as string;
+      const logs = await storage.getAuditLogs(filters);
+      res.json(logs);
+    } catch (error) {
+      console.error('Audit history error:', error);
+      res.status(500).json({ message: 'Failed to fetch audit history' });
+    }
+  });
+
+  // ── Admin Activity Feed ───────────────────────────────────────────────────
+  app.get('/api/admin/activity', isAuthenticated, async (req: any, res) => {
+    try {
+      const recentLogs = await storage.getAuditLogs({ limit: 20 });
+      const activity = recentLogs.map(log => ({
+        id: log.id,
+        type: log.eventType,
+        description: formatAuditEvent(log.eventType, log.details),
+        userId: log.userId,
+        severity: log.severity,
+        timestamp: log.timestamp,
+      }));
+      res.json(activity);
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to fetch activity' });
+    }
+  });
+
+  function formatAuditEvent(eventType: string, details: any): string {
+    const d = details as any || {};
+    switch (eventType) {
+      case 'document_upload': return `Document uploaded: ${d.fileName || 'unknown file'}`;
+      case 'training_event_logged': return `Training event logged for ${d.studentName || 'student'} (${d.eventType || ''})`;
+      case 'org_setup': return `Organization created: ${d.organizationName || ''}`;
+      case 'user_login': return 'User logged in';
+      case 'user_logout': return 'User logged out';
+      case 'checklist_save': return 'Compliance checklist updated';
+      default: return eventType.replace(/_/g, ' ');
+    }
+  }
 
   const httpServer = createServer(app);
   return httpServer;

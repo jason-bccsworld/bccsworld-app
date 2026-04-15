@@ -81,6 +81,32 @@ API Endpoints are available for:
 - **Authentication**: Local username/password authentication using Passport.js (passport-local) with bcrypt and PostgreSQL-backed sessions. Supports role-based access control (Admin, Instructor, Auditor, Viewer).
 - **Core Components**: Data Processing Pipeline (document upload, OCR, NLP, human validation, blockchain hashing), Authentication System, Database Schema (Users, Organizations, Documents, Extracted Data, Training Events, Audit Logs), Mobile PWA.
 
+## Tier 2 Features (Professional Use) — Completed
+
+### New Database Tables (via db-init.ts safe SQL — NOT drizzle db:push due to orphaned tables in Neon DB)
+- **bccs_training_events**: Blockchain-hashed training event records (student, instructor, event type, date, duration, curriculum item, status, BCCS-prefixed blockchain hash)
+- **students**: Student roster management (name, email, phone, certificate #, enrollment/completion dates, status)
+- **bccs_instructor_records**: Instructor certificate records (name, email, cert type/number, issue/expiration/currency dates, ratings JSONB, status)
+
+### New Frontend Pages
+- **/compliance-records**: Training Records — log/view training events, CSV export, blockchain hash display
+- **/students**: Student Roster — add/view/delete students, enrollment tracking
+- **/instructors**: Instructor Records — add/view/delete instructors, certificate expiry alerts (Part 141.10 compliance)
+- **/safo-info**: SAFO / InFO Dashboard — FAA policy document viewer with fallback demo data
+- **/audit-history**: Audit History — full audit log viewer with CSV export, severity filtering
+- **/compliance-report**: Compliance Report — print-ready PDF summary with score, student/instructor/training/alert sections
+
+### New API Endpoints
+- GET/POST /api/training-events — Training event management
+- GET/POST/PUT/DELETE /api/students — Student roster CRUD
+- GET/POST/DELETE /api/instructors — Instructor records CRUD
+- GET /api/policy-documents — SAFO/InFO policy document retrieval
+- GET /api/audit-history — Full audit log with filtering
+- GET /api/admin/activity — Admin activity feed
+
+### DB Safety Note
+CRITICAL: NEVER use `drizzle-kit push` or `npm run db:push` on this project — the Neon DB has many orphaned legacy tables that Drizzle tries to rename to new table names (destructive). The db:push command also requires interactive input even with --force. Always use direct SQL via `db.execute(sql\`...\`)` in server/db-init.ts using `CREATE TABLE IF NOT EXISTS` patterns. New tables use the `bccs_` prefix to avoid conflicts with orphaned tables (`bccs_training_events`, `bccs_instructor_records`).
+
 ## External Dependencies
 
 - **@neondatabase/serverless**: PostgreSQL database connection

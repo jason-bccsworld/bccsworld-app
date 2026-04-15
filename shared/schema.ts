@@ -1025,6 +1025,69 @@ export type ChecklistState = typeof checklistStates.$inferSelect;
 export type InsertChecklistState = typeof checklistStates.$inferInsert;
 
 // ============================================================================
+// TRAINING RECORDS SYSTEM
+// ============================================================================
+
+export const trainingEvents = pgTable("bccs_training_events", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  studentName: varchar("student_name", { length: 200 }).notNull(),
+  studentId: varchar("student_id", { length: 100 }),
+  instructorName: varchar("instructor_name", { length: 200 }).notNull(),
+  instructorId: varchar("instructor_id", { length: 100 }),
+  eventType: varchar("event_type", { length: 100 }).notNull(), // ground, flight, simulator, check_ride, evaluation
+  eventDate: timestamp("event_date").notNull(),
+  durationHours: varchar("duration_hours", { length: 20 }),
+  curriculumItem: varchar("curriculum_item", { length: 500 }),
+  notes: text("notes"),
+  status: varchar("status", { length: 50 }).default("completed"), // completed, pending, failed
+  blockchainHash: varchar("blockchain_hash", { length: 200 }),
+  userId: varchar("user_id").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertTrainingEventSchema = createInsertSchema(trainingEvents).omit({ id: true, createdAt: true });
+export type TrainingEvent = typeof trainingEvents.$inferSelect;
+export type InsertTrainingEvent = typeof trainingEvents.$inferInsert;
+
+export const students = pgTable("students", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  firstName: varchar("first_name", { length: 100 }).notNull(),
+  lastName: varchar("last_name", { length: 100 }).notNull(),
+  email: varchar("email", { length: 200 }),
+  phone: varchar("phone", { length: 50 }),
+  certificateNumber: varchar("certificate_number", { length: 100 }),
+  enrollmentDate: timestamp("enrollment_date").defaultNow(),
+  expectedCompletion: timestamp("expected_completion"),
+  status: varchar("status", { length: 50 }).default("active"), // active, completed, suspended
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertStudentSchema = createInsertSchema(students).omit({ id: true, createdAt: true });
+export type Student = typeof students.$inferSelect;
+export type InsertStudent = typeof students.$inferInsert;
+
+export const instructorRecords = pgTable("bccs_instructor_records", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  firstName: varchar("first_name", { length: 100 }).notNull(),
+  lastName: varchar("last_name", { length: 100 }).notNull(),
+  email: varchar("email", { length: 200 }),
+  certificateType: varchar("certificate_type", { length: 100 }).notNull(), // CFI, CFII, MEI, ATP, DPE
+  certificateNumber: varchar("certificate_number", { length: 100 }).notNull(),
+  issueDate: timestamp("issue_date"),
+  expirationDate: timestamp("expiration_date"),
+  currencyDate: timestamp("currency_date"),
+  ratings: jsonb("ratings"),
+  trainingAuthorizations: jsonb("training_authorizations"),
+  status: varchar("status", { length: 50 }).default("current"), // current, expired, suspended
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertInstructorRecordSchema = createInsertSchema(instructorRecords).omit({ id: true, createdAt: true });
+export type InstructorRecord = typeof instructorRecords.$inferSelect;
+export type InsertInstructorRecord = typeof instructorRecords.$inferInsert;
+
+// ============================================================================
 // UNIVERSAL FAR INGESTION SYSTEM SCHEMAS & TYPES
 // ============================================================================
 
