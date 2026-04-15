@@ -22,14 +22,11 @@ import RegulatoryCompliancePage from "@/pages/regulatory-compliance";
 import RegulatoryAlerts from "@/pages/regulatory-alerts";
 import LinkMonitor from "@/pages/link-monitor";
 import ComplianceChecklist from "@/pages/compliance-checklist";
-import TestChecklist from "@/pages/test-checklist";
 import WorkingComplianceChecklist from "@/pages/working-compliance-checklist";
 import Support from "@/pages/support";
 import Settings from "@/pages/settings";
 import FieldMapping from "@/pages/field-mapping";
 import FARCompliancePage from "@/pages/far-compliance";
-import TestFARRoute from "@/pages/test-far-route";
-import DebugSidebar from "@/pages/debug-sidebar";
 import AIAuditCompliance from "@/pages/ai-audit-compliance";
 import DocumentGeneration from "@/pages/DocumentGeneration";
 import BCCSMaintDashboard from "@/pages/BCCSMaintDashboard";
@@ -73,24 +70,8 @@ function Router() {
         {isAuthenticated ? <Redirect to="/dashboard" /> : <Redirect to="/login" />}
       </Route>
       <Route path="/login" component={Login} />
-      <Route path="/home">
-        <div className="min-h-screen flex items-center justify-center bg-slate-50">
-          <div className="text-center">
-            <h1 className="text-3xl font-bold text-green-600 mb-4">✅ HOME ROUTE WORKING</h1>
-            <p className="text-lg text-gray-600 mb-4">The /home route is functional!</p>
-            <button 
-              onClick={() => window.location.href = "/dashboard"}
-              className="px-6 py-3 bg-blue-500 text-white rounded hover:bg-blue-600"
-            >
-              Go to Dashboard
-            </button>
-          </div>
-        </div>
-      </Route>
       <Route path="/pricing" component={Pricing} />
       <Route path="/tutorials" component={Tutorials} />
-      <Route path="/debug-sidebar" component={DebugSidebar} />
-      
       {/* Dashboard routes - available when authenticated */}
       <Route path="/dashboard">
         {!isAuthenticated ? (
@@ -225,8 +206,6 @@ function Router() {
         )}
       </Route>
       
-      <Route path="/test-checklist" component={TestChecklist} />
-
       <Route path="/document-import">
         {!isAuthenticated ? (
           <Redirect to="/login" />

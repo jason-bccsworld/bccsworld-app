@@ -37,14 +37,25 @@ export class CryptoSubscriptionService {
   private providers: Map<number, ethers.JsonRpcProvider> = new Map();
   private contracts: Map<string, ethers.Contract> = new Map();
 
+  public isConfigured: boolean = false;
+
   constructor() {
     this.initializeProviders();
   }
 
   private initializeProviders() {
-    // Initialize providers for different chains
-    this.providers.set(1, new ethers.JsonRpcProvider(process.env.ETHEREUM_RPC_URL));
-    this.providers.set(137, new ethers.JsonRpcProvider(process.env.POLYGON_RPC_URL));
+    try {
+      if (process.env.ETHEREUM_RPC_URL) {
+        this.providers.set(1, new ethers.JsonRpcProvider(process.env.ETHEREUM_RPC_URL));
+      }
+      if (process.env.POLYGON_RPC_URL) {
+        this.providers.set(137, new ethers.JsonRpcProvider(process.env.POLYGON_RPC_URL));
+      }
+      this.isConfigured = this.providers.size > 0;
+    } catch (err) {
+      console.warn('[crypto-service] Blockchain providers not initialized — RPC URLs not configured.');
+      this.isConfigured = false;
+    }
   }
 
   /**

@@ -2222,7 +2222,20 @@ export default function ComplianceChecklist() {
     if (savedState?.state && Array.isArray(savedState.state)) {
       const saved: InspectionArea[] = savedState.state;
       if (saved.length > 0) {
-        setInspectionAreas(saved);
+        // Merge saved item statuses/comments into initialData to preserve icon references
+        // (React component refs are lost during JSON serialization)
+        setInspectionAreas(initialData.map(area => {
+          const savedArea = saved.find(s => s.id === area.id);
+          if (!savedArea) return area;
+          return {
+            ...area,
+            items: area.items.map(item => {
+              const savedItem = savedArea.items?.find((si: any) => si.id === item.id);
+              if (!savedItem) return item;
+              return { ...item, status: savedItem.status, comments: savedItem.comments, findings: savedItem.findings, evidence: savedItem.evidence || [] };
+            })
+          };
+        }));
       }
     }
   }, [savedState]);
@@ -2314,13 +2327,13 @@ export default function ComplianceChecklist() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-start">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Part 142 Compliance Checklist</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Part 142 Compliance Checklist</h1>
           <p className="text-gray-600 mt-2">FAA Training Center Inspection Checklist & Job Aid</p>
 
         </div>
-        <div className="flex gap-2 items-center">
+        <div className="flex gap-2 items-center shrink-0">
           {savePending && (
             <span className="text-xs text-muted-foreground animate-pulse">Saving…</span>
           )}
@@ -2399,20 +2412,22 @@ export default function ComplianceChecklist() {
 
       {/* Inspection Areas */}
       <Tabs value={selectedArea} onValueChange={setSelectedArea}>
-        <TabsList className="grid w-full grid-cols-5 lg:grid-cols-10">
-          {inspectionAreas.map((area) => (
-            <TabsTrigger key={area.id} value={area.id} className="text-xs">
-              Area {area.id.slice(-1)} ({area.items.length})
-            </TabsTrigger>
-          ))}
-        </TabsList>
+        <div className="overflow-x-auto pb-1">
+          <TabsList className="flex w-max min-w-full">
+            {inspectionAreas.map((area) => (
+              <TabsTrigger key={area.id} value={area.id} className="text-xs whitespace-nowrap px-3">
+                Area {area.id.slice(-1)} ({area.items.length})
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </div>
 
         {inspectionAreas.map((area) => (
           <TabsContent key={area.id} value={area.id}>
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <area.icon className="h-5 w-5" />
+                  {area.icon && <area.icon className="h-5 w-5" />}
                   {area.name}
                 </CardTitle>
                 <CardDescription>{area.description}</CardDescription>

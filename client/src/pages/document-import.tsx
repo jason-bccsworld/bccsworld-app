@@ -147,28 +147,26 @@ export default function DocumentImport() {
             ) : (
               <div className="space-y-4">
                 {documents.map((doc: any) => (
-                  <div key={doc.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-lg">
-                    <div className="flex items-center space-x-3">
+                  <div key={doc.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 bg-slate-50 rounded-lg">
+                    <div className="flex items-center space-x-3 min-w-0">
                       {getStatusIcon(doc.status)}
-                      <div>
-                        <h4 className="font-medium text-slate-900">{doc.originalName}</h4>
+                      <div className="min-w-0">
+                        <h4 className="font-medium text-slate-900 truncate">{doc.originalName}</h4>
                         <p className="text-sm text-slate-600">
                           {format(new Date(doc.createdAt), "MMM dd, yyyy 'at' hh:mm a")}
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center space-x-3">
+                    <div className="flex items-center gap-2 shrink-0">
                       <Badge className={getStatusColor(doc.status)}>
                         {doc.status}
                       </Badge>
-                      <div className="flex space-x-2">
-                        <Button size="sm" variant="outline">
-                          <Eye className="w-4 h-4" />
-                        </Button>
-                        <Button size="sm" variant="outline">
-                          <Download className="w-4 h-4" />
-                        </Button>
-                      </div>
+                      <Button size="sm" variant="outline">
+                        <Eye className="w-4 h-4" />
+                      </Button>
+                      <Button size="sm" variant="outline">
+                        <Download className="w-4 h-4" />
+                      </Button>
                     </div>
                   </div>
                 ))}

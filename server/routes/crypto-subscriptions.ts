@@ -19,8 +19,14 @@ const renewSubscriptionSchema = z.object({
 export function registerCryptoSubscriptionRoutes(app: Express) {
   // Setup crypto subscription
   app.post('/api/crypto/subscriptions/setup', isAuthenticated, async (req: any, res) => {
+    if (!cryptoSubscriptionService.isConfigured) {
+      return res.status(503).json({
+        success: false,
+        error: "Blockchain payments are not yet enabled. Please contact support@bccs142.com to activate crypto subscriptions."
+      });
+    }
     try {
-      const userId = req.user.id;
+      const userId = String(req.user.id);
       const validatedData = setupCryptoSubscriptionSchema.parse(req.body);
 
       const result = await cryptoSubscriptionService.setupCryptoSubscription({
@@ -86,7 +92,7 @@ export function registerCryptoSubscriptionRoutes(app: Express) {
   // Get user's crypto subscriptions
   app.get('/api/crypto/subscriptions', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.id;
+      const userId = String(req.user.id);
       
       const subscriptions = await storage.getCustomerSubscriptionsByUser(userId);
 
