@@ -366,6 +366,66 @@ function Router() {
         )}
       </Route>
 
+      <Route path="/analytics-dashboard">
+        {!isAuthenticated ? (
+          <Redirect to="/login" />
+        ) : (
+          <DashboardLayout>
+            <AnalyticsDashboard />
+          </DashboardLayout>
+        )}
+      </Route>
+
+      <Route path="/ml-training">
+        {!isAuthenticated ? (
+          <Redirect to="/login" />
+        ) : (
+          <DashboardLayout>
+            <MLTraining />
+          </DashboardLayout>
+        )}
+      </Route>
+
+      <Route path="/field-mapping">
+        {!isAuthenticated ? (
+          <Redirect to="/login" />
+        ) : (
+          <DashboardLayout>
+            <FieldMapping />
+          </DashboardLayout>
+        )}
+      </Route>
+
+      <Route path="/integrations-dashboard">
+        {!isAuthenticated ? (
+          <Redirect to="/login" />
+        ) : (
+          <DashboardLayout>
+            <IntegrationsDashboard />
+          </DashboardLayout>
+        )}
+      </Route>
+
+      <Route path="/flight-school-dashboard">
+        {!isAuthenticated ? (
+          <Redirect to="/login" />
+        ) : (
+          <DashboardLayout>
+            <FlightSchoolDashboard />
+          </DashboardLayout>
+        )}
+      </Route>
+
+      <Route path="/regulator-dashboard">
+        {!isAuthenticated ? (
+          <Redirect to="/login" />
+        ) : (
+          <DashboardLayout>
+            <RegulatorDashboard />
+          </DashboardLayout>
+        )}
+      </Route>
+
       <Route path="/mobile-field" component={MobileField} />
       <Route component={NotFound} />
     </Switch>

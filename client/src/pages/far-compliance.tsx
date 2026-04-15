@@ -11,6 +11,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 export default function FARCompliancePage() {
   const [searchTerm, setSearchTerm] = React.useState('');
   const [selectedArea, setSelectedArea] = React.useState('all');
+  const [expandedSections, setExpandedSections] = React.useState<Set<string>>(new Set());
+  const [itemStatuses, setItemStatuses] = React.useState<Record<string, string>>(() => {
+    const initial: Record<string, string> = {};
+    completeChecklistData.forEach(area => area.items.forEach((item: any) => { initial[item.id] = item.status || 'pending'; }));
+    return initial;
+  });
 
   // Flatten the nested structure to get all items
   const allItems = completeChecklistData.flatMap(area => 
@@ -39,11 +45,17 @@ export default function FARCompliancePage() {
     title: area.title
   }));
 
-  // Calculate compliance statistics
+  const STATUS_CYCLE: Record<string, string> = { pending: 'compliant', compliant: 'partial', partial: 'non-compliant', 'non-compliant': 'pending' };
+
+  const cycleStatus = (itemId: string) => {
+    setItemStatuses(prev => ({ ...prev, [itemId]: STATUS_CYCLE[prev[itemId]] || 'pending' }));
+  };
+
+  // Calculate compliance statistics from live state
   const totalItems = allItems.length;
-  const compliantItems = allItems.filter(item => item.status === 'compliant').length;
-  const partialItems = allItems.filter(item => item.status === 'partial').length;
-  const pendingItems = allItems.filter(item => item.status === 'pending').length;
+  const compliantItems = Object.values(itemStatuses).filter(s => s === 'compliant').length;
+  const partialItems = Object.values(itemStatuses).filter(s => s === 'partial').length;
+  const pendingItems = Object.values(itemStatuses).filter(s => s === 'pending').length;
   const complianceRate = Math.round((compliantItems / totalItems) * 100);
 
   const toggleSection = (sectionId: string) => {
@@ -176,47 +188,40 @@ export default function FARCompliancePage() {
       </Card>
 
       {/* Checklist Items */}
-      <div className="space-y-4">
-        {filteredData.map((item, index) => (
-          <Card key={index} className="hover:shadow-md transition-shadow">
-            <CardContent className="pt-6">
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex items-start gap-3 flex-1">
-                  {getStatusIcon(item.status)}
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-lg mb-1">
-                      {item.number} - {item.description}
+      <div className="space-y-3">
+        {filteredData.map((item, index) => {
+          const currentStatus = itemStatuses[item.id] || item.status || 'pending';
+          return (
+            <Card key={index} className="hover:shadow-md transition-shadow">
+              <CardContent className="pt-4 pb-4">
+                <div className="flex items-start gap-3">
+                  <button onClick={() => cycleStatus(item.id)} className="mt-0.5 shrink-0" title="Click to change status">
+                    {getStatusIcon(currentStatus)}
+                  </button>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-medium text-sm mb-1">
+                      <span className="text-gray-500 mr-1">{item.number}</span>
+                      {item.description}
                     </h3>
-                    
-                    <div className="flex flex-wrap gap-2 mb-2">
-                      <Badge variant="outline" className="text-xs">
-                        {item.areaTitle}
-                      </Badge>
-                      <Badge 
-                        variant="outline" 
-                        className={`text-xs ${getStatusColor(item.status)}`}
+                    <div className="flex flex-wrap gap-2">
+                      <Badge variant="outline" className="text-xs">{item.areaTitle}</Badge>
+                      <button
+                        onClick={() => cycleStatus(item.id)}
+                        title="Click to change status"
+                        className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors cursor-pointer hover:opacity-80 ${getStatusColor(currentStatus)}`}
                       >
-                        {item.status.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                      </Badge>
+                        {currentStatus.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                      </button>
+                      {item.reference && (
+                        <span className="text-xs text-blue-600">14 CFR {item.reference}</span>
+                      )}
                     </div>
                   </div>
                 </div>
-              </div>
-
-              {item.reference && (
-                <div className="mt-2 text-sm text-blue-600">
-                  <strong>Reference:</strong> 14 CFR {item.reference}
-                </div>
-              )}
-
-              {item.comments && (
-                <div className="mt-2 text-sm text-gray-600">
-                  <strong>Comments:</strong> {item.comments}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        ))}
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
 
       {filteredData.length === 0 && (

@@ -60,7 +60,7 @@ export default function Documents() {
           <h1 className="text-3xl font-bold text-gray-900">Document Library</h1>
           <p className="text-gray-600 mt-1">All uploaded compliance documents and training records</p>
         </div>
-        <Link href="/">
+        <Link href="/document-import">
           <Button className="flex items-center gap-2">
             <Upload className="h-4 w-4" />
             Upload Document

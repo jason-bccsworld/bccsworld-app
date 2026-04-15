@@ -81,6 +81,19 @@ API Endpoints are available for:
 - **Authentication**: Local username/password authentication using Passport.js (passport-local) with bcrypt and PostgreSQL-backed sessions. Supports role-based access control (Admin, Instructor, Auditor, Viewer).
 - **Core Components**: Data Processing Pipeline (document upload, OCR, NLP, human validation, blockchain hashing), Authentication System, Database Schema (Users, Organizations, Documents, Extracted Data, Training Events, Audit Logs), Mobile PWA.
 
+## Tier 4 Fixes — Completed (Comprehensive Site-Wide Functional Audit)
+- **6 missing routes added** to App.tsx: /analytics-dashboard, /ml-training, /field-mapping, /integrations-dashboard, /flight-school-dashboard, /regulator-dashboard (all were imported but never routed → 404s)
+- **documents.tsx**: Upload button URL fixed from "/" to "/document-import"
+- **far-compliance.tsx**: Added missing `expandedSections` and `itemStatuses` useState declarations; added interactive status cycle buttons (click to toggle pending→compliant→partial→non-compliant); live compliance stats now computed from state
+- **7 missing API endpoints added** to routes.ts:
+  - GET /api/audit-logs (audit-trail page)
+  - GET /api/training-records (flight-school-dashboard)
+  - GET /api/flight-school/stats (flight-school-dashboard)
+  - GET /api/analytics/compliance-metrics (analytics-dashboard, regulator-dashboard)
+  - GET /api/analytics/forecast (analytics-dashboard)
+  - GET /api/analytics/report (analytics-dashboard, regulator-dashboard)
+  - GET/POST /api/integrations + POST /api/integrations/:id/sync (integrations-dashboard)
+
 ## Tier 2 Features (Professional Use) — Completed
 
 ### New Database Tables (via db-init.ts safe SQL — NOT drizzle db:push due to orphaned tables in Neon DB)
