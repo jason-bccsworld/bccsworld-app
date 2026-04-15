@@ -1,7 +1,7 @@
 # BCCS-US - Aviation Compliance Platform
 
 ## Overview
-BCCS-US is the regulatory compliance engine within the AeroTraining Platform Ecosystem, a comprehensive system for aviation training management, development, and compliance. It offers AI-powered document processing, blockchain-secured record keeping, and automated regulatory monitoring. The platform aims to facilitate digital transformation and superior regulatory compliance for various aviation training organizations.
+BCCS-US is the regulatory compliance engine within the AeroTraining Platform Ecosystem, a a comprehensive system for aviation training management, development, and compliance. It offers AI-powered document processing, blockchain-secured record keeping, and automated regulatory monitoring. The platform aims to facilitate digital transformation and superior regulatory compliance for various aviation training organizations.
 
 The project's vision is to establish itself as the universal regulatory compliance standard, initially dominating the aviation market. It seeks aggressive market capture and significant revenue growth, targeting unicorn status through network effects, AI automation, and community-driven exponential growth. The platform also explores opportunities in aircraft tokenization and aviation financial ecosystems, expanding its market potential.
 
@@ -26,11 +26,11 @@ IP Strategy: Comprehensive patent strategy analysis completed identifying 12+ ke
 The platform is a full-stack application with clear separation between frontend and backend, leveraging modern web technologies. A key design pattern is the Data Processing Pipeline for document ingestion, analysis, and validation. Blockchain technology ensures immutable record-keeping and audit trail integrity. A mobile PWA supports field operations.
 
 Core architectural components include:
-- **Smart Contract Subscription System**: Manages cryptocurrency-based subscription renewals using stablecoins on Ethereum and Polygon networks, offering various tiers and real-time monitoring.
-- **Universal Blockchain Key Management System**: Provides individual professional keys, training organization master keys, multi-signature training records, and cross-platform verification across BCCS applications. It includes a secure key recovery system and aims for career-portable credentials.
+- **Smart Contract Subscription System**: Manages cryptocurrency-based subscription renewals using stablecoins on Ethereum and Polygon networks.
+- **Universal Blockchain Key Management System**: Provides individual professional keys, training organization master keys, multi-signature training records, and cross-platform verification. Includes secure key recovery and aims for career-portable credentials.
 - **Advanced Key Recovery System**: Features multi-modal biometric verification, identity document/employment verification, security alerts, comprehensive audit trails, and integration with regulatory authorities.
 - **Standalone BCCS Pilot Logbook App**: An AI-powered app for personal flight record blockchain verification, enabling transformation of various legacy logbook formats into secure, verifiable records.
-- **Multi-Platform Integration Dashboard**: Facilitates training center blockchain data transfer, creating market pressure for organizations to join BCCS for career-portable records.
+- **Multi-Platform Integration Dashboard**: Facilitates training center blockchain data transfer.
 - **Universal Regulatory Framework**: Designed to be adaptable across various regulatory environments.
 - **Tiered Blockchain Storage**: Flexible options from hash-only to full document storage.
 - **AI Audit Compliance Assistant**: Analyzes documents against regulatory checklists and generates reports.
@@ -38,78 +38,32 @@ Core architectural components include:
 - **AI-powered Regulatory Link Monitoring**: Ensures accessibility and currency of regulatory references.
 
 ### Universal FAR Ingestion System (Patent Pending)
-The platform now features a universal regulatory ingestion system capable of supporting any FAR Part/Subpart:
+The platform features a universal regulatory ingestion system capable of supporting 18 FAR Parts and 16 FAA Order 8900.1 Volumes, along with various policy document types (SAFO, InFO, Policy Notices, Advisory Circulars, Legal Interpretations). This system includes database tables for policy documents, multi-part configurations, regulatory update tracking, and granular section-level tracking.
 
-**Supported FAR Parts (18 total):**
-- Part 21 (Certification Procedures), Part 43 (Maintenance)
-- Part 61 (Pilot Certification), Part 63 (Flight Crewmembers)
-- Part 65 (Airmen), Part 91 (General Operating Rules)
-- Part 91K (Fractional Ownership), Part 107 (sUAS)
-- Part 119 (Air Carrier Certification), Part 121 (Airline Operations)
-- Part 125 (Large Aircraft), Part 129 (Foreign Air Carriers)
-- Part 135 (Commuter/On-Demand), Part 137 (Agricultural)
-- Part 141 (Pilot Schools), Part 142 (Training Centers)
-- Part 145 (Repair Stations), Part 147 (AMT Schools)
-
-**FAA Order Integration (16 Volumes):**
-- FAA Order 8900.1 Volumes 1-16 covering inspector guidance, certification, technical administration, equipment authorization, airman certification, surveillance, investigation, designees, flight standards programs, safety assurance, flight technologies, international aviation, commercial space, compliance/enforcement, designated representatives, and UAS.
-
-**Policy Document Types:**
-- SAFO (Safety Alerts for Operators)
-- InFO (Information for Operators)
-- Policy Notices
-- Advisory Circulars
-- Legal Interpretations
-- FAA Orders
-
-**Database Tables:**
-- `faa_policy_documents`: Stores SAFOs, InFOs, notices with affected parts linking
-- `multi_part_configurations`: Multi-part regulatory compliance configurations
-- `regulatory_update_tracking`: Change detection and monitoring
-- `regulatory_part_sections`: Granular section-level tracking
-- `regulatory_cross_references`: Inter-regulation linking
-- `regulatory_ingestion_logs`: Audit trail for ingestion events
-
-**API Endpoints:**
-- `GET /api/adaptive-compliance/far-parts` - Available FAR Parts
-- `GET /api/adaptive-compliance/frameworks/spines` - Available spine frameworks
-- `POST /api/adaptive-compliance/frameworks/select-spine` - Select primary spine
-- `POST /api/adaptive-compliance/policy-documents/ingest` - Ingest policy documents
-- `GET /api/adaptive-compliance/regulatory-updates` - Recent regulatory changes
-- `POST /api/adaptive-compliance/multi-part-config` - Create multi-part configurations
-
-**Checklist Automation API Endpoints (Section 7):**
-- `POST /api/adaptive-compliance/checklists/auto-fetch/:farPartCode` - Auto-fetch core checklist for FAR Part
-- `GET /api/adaptive-compliance/checklists/by-priority` - Get checklists sorted by priority level
-- `GET /api/adaptive-compliance/checklists/version-check` - Check for version updates across all checklists
-- `GET /api/adaptive-compliance/checklists/:schemaId/version-history` - Get version history for a checklist
-- `POST /api/adaptive-compliance/checklists/:schemaId/suppress` - Suppress outdated checklist
-- `POST /api/adaptive-compliance/checklists/:schemaId/unlock` - Unlock archived checklist
-- `GET /api/adaptive-compliance/checklists/:schemaId/evidence-stats` - Get evidence mapping statistics
-- `POST /api/adaptive-compliance/checklists/evidence-mapping` - Map evidence to checklist item
-- `GET /api/adaptive-compliance/checklists/supported-parts` - Get all supported FAR Parts with checklist definitions
+API Endpoints are available for:
+- Retrieving available FAR Parts and spine frameworks.
+- Selecting primary spine frameworks.
+- Ingesting policy documents.
+- Accessing recent regulatory changes.
+- Creating multi-part configurations.
 
 ### Checklist Automation System (Patent Pending)
-Intelligent checklist management with automated retrieval, version monitoring, and evidence mapping:
+Intelligent checklist management with automated retrieval, version monitoring, and evidence mapping, categorized by priority levels (FAA Standard, Certificate-specific, Inspector Supplemental, Operator-required, Archived Legacy).
 
-**Priority Levels:**
-1. FAA Standard Checklists (Priority 1) - Primary regulatory checklists from FAA sources
-2. Certificate-specific Checklists (Priority 2) - Organization certificate requirements
-3. Inspector Supplemental Checklists (Priority 3) - Additional inspector-specific items
-4. Operator-required Checklists (Priority 4) - Custom operator additions
-5. Archived Legacy Checklists (Priority 5) - Historical reference only, hidden by default
+Key Features:
+- Auto-fetches core FAA checklists.
+- Monitors versions of FAA 8900.1 Orders, eCFR sections, and SAFO/InFO updates.
+- Automatically suppresses outdated versions.
+- Provides evidence-on-demand retrieval with multi-schema indexing.
+- Utilizes blockchain verification for evidence integrity.
+- Generates delta reports for checklist comparisons.
 
-**Key Features:**
-- Auto-fetch core FAA checklists when regulatory spine selected
-- Version monitoring for FAA 8900.1 Orders, eCFR sections, and SAFO/InFO updates
-- Automatic outdated version suppression with unlock capability for archived access
-- Evidence-on-demand retrieval with multi-schema indexing
-- Blockchain verification for evidence integrity
-- Delta reporting for checklist comparison (added/removed/modified/reordered items)
-
-**Database Tables:**
-- `checklist_version_history`: Tracks version changes with source URLs and change summaries
-- Enhanced `checklist_schemas`: Now includes priority_level, auto_fetched, source_url, last_version_check, is_outdated, is_hidden fields
+API Endpoints are available for:
+- Auto-fetching core checklists for specific FAR Parts.
+- Retrieving checklists by priority and checking for version updates.
+- Managing checklist versions (suppress, unlock, view history).
+- Getting evidence mapping statistics and mapping evidence to checklist items.
+- Listing all supported FAR Parts with checklist definitions.
 
 ### Frontend Architecture
 - **Framework**: React with TypeScript
@@ -124,28 +78,8 @@ Intelligent checklist management with automated retrieval, version monitoring, a
 - **Language**: TypeScript with ES modules
 - **Database**: PostgreSQL (via Neon Database)
 - **ORM**: Drizzle ORM
-- **Authentication**: Local username/password authentication using Passport.js (passport-local) with bcrypt password hashing and PostgreSQL-backed sessions (connect-pg-simple). Role-based access control (Admin, Instructor, Auditor, Viewer). Admin account bootstrapped via ADMIN_EMAIL/ADMIN_PASSWORD environment variables on first startup.
+- **Authentication**: Local username/password authentication using Passport.js (passport-local) with bcrypt and PostgreSQL-backed sessions. Supports role-based access control (Admin, Instructor, Auditor, Viewer).
 - **Core Components**: Data Processing Pipeline (document upload, OCR, NLP, human validation, blockchain hashing), Authentication System, Database Schema (Users, Organizations, Documents, Extracted Data, Training Events, Audit Logs), Mobile PWA.
-
-## Vercel Deployment
-
-The platform is configured for deployment to Vercel with Neon PostgreSQL database. Key deployment files:
-- **`vercel.json`** - Vercel build and routing configuration
-- **`api/index.ts`** - Vercel serverless entry point wrapping the Express app
-- **`server/app.ts`** - Modular Express app factory (no server start, used by both server/index.ts and api/index.ts)
-- **`server/localAuth.ts`** - Self-contained local auth replacing Replit OIDC
-- **`.env.example`** - Required environment variables template
-- **`VERCEL_DEPLOY.md`** - Step-by-step Vercel deployment guide
-
-### Required Environment Variables for Production
-| Variable | Purpose |
-|---|---|
-| `DATABASE_URL` | Neon PostgreSQL connection string |
-| `SESSION_SECRET` | Random 32+ char string for session signing |
-| `ADMIN_EMAIL` | Bootstrap admin account email |
-| `ADMIN_PASSWORD` | Bootstrap admin account password |
-| `OPENAI_API_KEY` | GPT-4 for AI features |
-| `NODE_ENV` | Set to `production` |
 
 ## External Dependencies
 

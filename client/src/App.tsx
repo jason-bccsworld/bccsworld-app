@@ -40,6 +40,8 @@ import { KeyRecoveryDashboard } from "@/pages/KeyRecoveryDashboard";
 import LegacyDataTransfer from "@/pages/LegacyDataTransfer";
 import MultiPlatformIntegration from "@/pages/MultiPlatformIntegration";
 import AdaptiveCompliance from "@/pages/adaptive-compliance";
+import Documents from "@/pages/documents";
+import OrganizationSetup from "@/pages/organization-setup";
 import Login from "@/pages/login";
 import NotFound from "@/pages/not-found";
 import DashboardLayout from "@/layouts/dashboard-layout";
@@ -306,6 +308,26 @@ function Router() {
         ) : (
           <DashboardLayout>
             <Settings />
+          </DashboardLayout>
+        )}
+      </Route>
+
+      <Route path="/documents">
+        {!isAuthenticated ? (
+          <Redirect to="/login" />
+        ) : (
+          <DashboardLayout>
+            <Documents />
+          </DashboardLayout>
+        )}
+      </Route>
+
+      <Route path="/organization-setup">
+        {!isAuthenticated ? (
+          <Redirect to="/login" />
+        ) : (
+          <DashboardLayout>
+            <OrganizationSetup />
           </DashboardLayout>
         )}
       </Route>
