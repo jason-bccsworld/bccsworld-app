@@ -235,9 +235,21 @@ class FAADocumentMonitorService {
     }
   }
 
+  private normalizeFarParts(raw: any): string[] {
+    if (Array.isArray(raw)) return raw;
+    if (typeof raw === 'string') {
+      return raw.replace(/^\{|\}$/g, '').split(',').map(s => s.trim()).filter(Boolean);
+    }
+    return [];
+  }
+
+  private normalizeDoc(row: any): FAADocument {
+    return { ...row, far_parts: this.normalizeFarParts(row.far_parts) };
+  }
+
   async getDocuments(filters?: { type?: string; priority?: string; status?: string; search?: string }) {
     const rows = await db.execute(sql`SELECT * FROM bccs_faa_repository ORDER BY priority DESC, source_type, source_id`);
-    let docs = rows.rows as FAADocument[];
+    let docs = (rows.rows as any[]).map(r => this.normalizeDoc(r));
     if (filters?.type && filters.type !== 'all') docs = docs.filter(d => d.source_type === filters.type);
     if (filters?.priority && filters.priority !== 'all') docs = docs.filter(d => d.priority === filters.priority);
     if (filters?.status && filters.status !== 'all') docs = docs.filter(d => d.status === filters.status);

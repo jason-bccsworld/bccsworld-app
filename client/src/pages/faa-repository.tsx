@@ -137,30 +137,30 @@ export default function FAARepository() {
   if (priorityFilter !== 'all') params.set('priority', priorityFilter);
   if (statusFilter !== 'all') params.set('status', statusFilter);
   if (search) params.set('search', search);
+  const queryUrl = `/api/faa-repository?${params.toString()}`;
 
-  const { data: docs = [], isLoading } = useQuery<any[]>({
-    queryKey: ['/api/faa-repository', typeFilter, priorityFilter, statusFilter, search],
-    queryFn: () => fetch(`/api/faa-repository?${params}`).then(r => r.json()),
+  const { data: rawDocs, isLoading } = useQuery<any>({
+    queryKey: [queryUrl],
   });
+  const docs: any[] = Array.isArray(rawDocs) ? rawDocs : [];
 
   const { data: stats } = useQuery<any>({
     queryKey: ['/api/faa-repository/stats'],
     refetchInterval: 30000,
   });
 
-  const { data: updates = [] } = useQuery<any[]>({
+  const { data: rawUpdates } = useQuery<any>({
     queryKey: ['/api/faa-repository/updates'],
     refetchInterval: 60000,
   });
+  const updates: any[] = Array.isArray(rawUpdates) ? rawUpdates : [];
 
   const refreshMutation = useMutation({
     mutationFn: () => apiRequest('POST', '/api/faa-repository/refresh'),
     onSuccess: () => {
       toast({ title: "Monitor check started", description: "FAA documents are being checked for updates. Results will appear within a few minutes." });
       setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: ['/api/faa-repository'] });
-        queryClient.invalidateQueries({ queryKey: ['/api/faa-repository/stats'] });
-        queryClient.invalidateQueries({ queryKey: ['/api/faa-repository/updates'] });
+        queryClient.invalidateQueries({ predicate: q => String(q.queryKey[0]).startsWith('/api/faa-repository') });
       }, 5000);
     },
     onError: () => toast({ title: "Error", description: "Could not start monitor check", variant: "destructive" }),
