@@ -139,19 +139,28 @@ export default function FAARepository() {
   if (search) params.set('search', search);
   const queryUrl = `/api/faa-repository?${params.toString()}`;
 
-  const { data: rawDocs, isLoading } = useQuery<any>({
+  const { data: rawDocs, isLoading, isError, refetch } = useQuery<any>({
     queryKey: [queryUrl],
+    staleTime: 0,
+    refetchOnMount: true,
+    retry: 2,
   });
   const docs: any[] = Array.isArray(rawDocs) ? rawDocs : [];
 
   const { data: stats } = useQuery<any>({
     queryKey: ['/api/faa-repository/stats'],
+    staleTime: 0,
+    refetchOnMount: true,
     refetchInterval: 30000,
+    retry: 2,
   });
 
   const { data: rawUpdates } = useQuery<any>({
     queryKey: ['/api/faa-repository/updates'],
+    staleTime: 0,
+    refetchOnMount: true,
     refetchInterval: 60000,
+    retry: 2,
   });
   const updates: any[] = Array.isArray(rawUpdates) ? rawUpdates : [];
 
@@ -308,6 +317,17 @@ export default function FAARepository() {
                 <div key={i} className="h-24 bg-gray-100 rounded-lg animate-pulse" />
               ))}
             </div>
+          ) : isError ? (
+            <Card className="border-red-200">
+              <CardContent className="py-12 text-center">
+                <AlertCircle className="h-10 w-10 text-red-400 mx-auto mb-3" />
+                <p className="font-medium text-gray-700">Unable to load repository</p>
+                <p className="text-sm text-gray-400 mt-1">Could not connect to the document repository. Please try again.</p>
+                <Button variant="outline" size="sm" className="mt-4" onClick={() => refetch()}>
+                  <RefreshCw className="h-4 w-4 mr-2" /> Retry
+                </Button>
+              </CardContent>
+            </Card>
           ) : docs.length === 0 ? (
             <Card>
               <CardContent className="py-12 text-center">
