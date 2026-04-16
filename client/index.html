@@ -13,39 +13,6 @@
     <link rel="manifest" href="/manifest.json" />
     <link rel="apple-touch-icon" href="/favicon.png" />
     <title>BCCS-US - Aviation Compliance Platform</title>
-    <script>
-      // NUCLEAR CACHE CLEAR v3.0.0
-      console.log('FORCING COMPLETE CACHE CLEAR...');
-      
-      // Clear all storage
-      localStorage.clear();
-      sessionStorage.clear();
-      
-      // Clear service worker cache
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.getRegistrations().then(function(registrations) {
-          for(let registration of registrations) {
-            registration.unregister();
-          }
-        });
-      }
-      
-      // Clear all caches
-      if ('caches' in window) {
-        caches.keys().then(names => {
-          names.forEach(name => {
-            console.log('Deleting cache:', name);
-            caches.delete(name);
-          });
-        });
-      }
-      
-      // Force page reload without cache
-      if (performance.navigation.type !== 1) {
-        console.log('Reloading page to clear cache...');
-        window.location.reload(true);
-      }
-    </script>
   </head>
   <body>
     <div id="root"></div>

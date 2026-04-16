@@ -51,7 +51,6 @@ import DashboardLayout from "@/layouts/dashboard-layout";
 import SupportChat from "@/components/support-chat";
 import { useIsMobile } from "@/hooks/use-mobile";
 import ErrorBoundary from "@/components/error-boundary";
-import { CacheBuster } from "@/components/cache-buster";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
