@@ -30,7 +30,7 @@ export default function RecentActivity() {
       case "validate_data":
         return `Data validated: ${log.details?.validatedValue || "field"}`;
       default:
-        return `${log.action.replace(/_/g, " ")} performed`;
+        return `${(log.action || "activity").replace(/_/g, " ")} performed`;
     }
   };
 

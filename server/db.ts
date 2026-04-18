@@ -5,9 +5,14 @@ import * as schema from "@shared/schema";
 
 neonConfig.webSocketConstructor = ws;
 
-if (!process.env.DATABASE_URL) {
-  console.error("[db] WARNING: DATABASE_URL is not set — database queries will fail at runtime.");
+const connectionString = process.env.NEON_DATABASE_URL || process.env.DATABASE_URL;
+
+if (!connectionString) {
+  console.error("[db] WARNING: No database URL configured — database queries will fail at runtime.");
+} else {
+  const dbLabel = process.env.NEON_DATABASE_URL ? "Neon (cloud)" : "local PostgreSQL";
+  console.log(`[db] Connecting to ${dbLabel}`);
 }
 
-export const pool = new Pool({ connectionString: process.env.DATABASE_URL || "postgresql://localhost/placeholder" });
+export const pool = new Pool({ connectionString: connectionString || "postgresql://localhost/placeholder" });
 export const db = drizzle({ client: pool, schema });
