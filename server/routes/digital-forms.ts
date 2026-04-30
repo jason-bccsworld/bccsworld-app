@@ -4,6 +4,7 @@ import { digitalFormTemplates, digitalFormSubmissions } from "@shared/schema";
 import { eq, desc, sql } from "drizzle-orm";
 import { isAuthenticated } from "../localAuth";
 import crypto from "crypto";
+import OpenAI from "openai";
 
 const router = Router();
 
@@ -36,6 +37,10 @@ async function ensureTables() {
   await db.execute(sql`ALTER TABLE digital_form_templates ADD COLUMN IF NOT EXISTS organization_name VARCHAR(300)`);
   await db.execute(sql`ALTER TABLE digital_form_templates ADD COLUMN IF NOT EXISTS public_token VARCHAR(100)`);
   await db.execute(sql`ALTER TABLE digital_form_templates ADD COLUMN IF NOT EXISTS is_public BOOLEAN DEFAULT true`);
+  await db.execute(sql`ALTER TABLE digital_form_templates ADD COLUMN IF NOT EXISTS auto_generated BOOLEAN DEFAULT false`);
+  await db.execute(sql`ALTER TABLE digital_form_templates ADD COLUMN IF NOT EXISTS checklist_version_hash TEXT`);
+  await db.execute(sql`ALTER TABLE digital_form_templates ADD COLUMN IF NOT EXISTS regulation_status VARCHAR(20) DEFAULT 'current'`);
+  await db.execute(sql`ALTER TABLE digital_form_templates ADD COLUMN IF NOT EXISTS generated_from_section VARCHAR(200)`);
 
   // Back-fill public tokens for existing templates that don't have one
   const rows = await db.execute(sql`SELECT id FROM digital_form_templates WHERE public_token IS NULL`);
@@ -357,6 +362,359 @@ router.get("/stats", isAuthenticated, async (req, res) => {
     });
   } catch (err) {
     res.status(500).json({ message: "Failed to fetch stats" });
+  }
+});
+
+// ── CHECKLIST GENERATION & MONITORING ─────────────────────────────────────
+
+const openai = new OpenAI();
+
+// The Part 142 checklist sections we can auto-generate templates for
+const PART_142_SECTIONS = [
+  {
+    id: "142-general",
+    sectionRef: "§142.1–142.11",
+    title: "General Requirements",
+    description: "Applicability, certificate requirements, and general operating standards for aviation training centers.",
+    requirements: [
+      "Applicability and certificate required (§142.1)",
+      "Certificate application requirements (§142.5)",
+      "Issue of certificate and training specifications (§142.7)",
+      "Duration of certificate (§142.9)",
+      "Display of certificate (§142.11)",
+      "Falsification of applications, certificates, and reports (§142.13)",
+    ],
+  },
+  {
+    id: "142-personnel",
+    sectionRef: "§142.27–142.35",
+    title: "Personnel Requirements",
+    description: "Chief instructor, assistant chief instructor, and other personnel qualifications and requirements.",
+    requirements: [
+      "Director of safety (§142.27)",
+      "Check instructor qualifications (§142.29)",
+      "Flight simulation device instructor qualifications (§142.31)",
+      "Training center instructor qualifications (§142.33)",
+      "Employment of former FAA employees (§142.35)",
+    ],
+  },
+  {
+    id: "142-training-programs",
+    sectionRef: "§142.37–142.59",
+    title: "Training Programs & Curriculum",
+    description: "Curriculum and course content requirements, training programs, and quality assurance for Part 142 training centers.",
+    requirements: [
+      "Approval of training programs (§142.37)",
+      "Limitations on training programs (§142.39)",
+      "Use and approval of training devices (§142.41)",
+      "Qualifications of check instructors (§142.43)",
+      "Requalification of check instructors (§142.45)",
+      "Training program curriculum requirements (§142.47)",
+      "Airline transport pilot certification training program (§142.49)",
+    ],
+  },
+  {
+    id: "142-facilities",
+    sectionRef: "§142.61–142.67",
+    title: "Facilities & Equipment",
+    description: "Physical facility requirements, training equipment standards, and FSTD requirements for Part 142 centers.",
+    requirements: [
+      "Facility requirements (§142.61)",
+      "Flight simulation device requirements (§142.63)",
+      "FSTD maintenance and qualification standards (§142.65)",
+      "Aircraft simulators and training devices (§142.67)",
+      "Facility inspection access for FAA (§142.67(d))",
+    ],
+  },
+  {
+    id: "142-records",
+    sectionRef: "§142.71–142.79",
+    title: "Records & Reporting",
+    description: "Recordkeeping requirements, record availability, and reporting obligations for Part 142 training centers.",
+    requirements: [
+      "Recordkeeping requirements (§142.71)",
+      "Records: Instructors (§142.73)",
+      "Records: Students and graduates (§142.75)",
+      "Records: Maintenance of training devices (§142.77)",
+      "Availability of records for inspection (§142.79)",
+    ],
+  },
+  {
+    id: "142-ops",
+    sectionRef: "§142.11–142.25",
+    title: "Operating Rules & Authorizations",
+    description: "Privileges, limitations, deviations, and flight simulation quality assurance program requirements.",
+    requirements: [
+      "Privileges of certificate (§142.11)",
+      "Limitations of certificate (§142.13)",
+      "Devation authority (§142.17)",
+      "Flight simulation quality assurance program (§142.25)",
+      "Satellite training centers (§142.26)",
+    ],
+  },
+];
+
+// GET checklist sources — returns FAA docs appropriate for template generation
+router.get("/checklist-sources", isAuthenticated, async (req, res) => {
+  try {
+    const result = await db.execute(sql`
+      SELECT source_id, title, source_type, status, content_hash, last_changed_at, amendment_date
+      FROM bccs_faa_repository
+      WHERE (far_parts @> ARRAY['142']::text[] OR source_id LIKE '%142%')
+      ORDER BY priority DESC, title ASC
+    `);
+
+    res.json({
+      faaDocuments: result.rows,
+      part142Sections: PART_142_SECTIONS,
+    });
+  } catch (err) {
+    console.error("Error fetching checklist sources:", err);
+    res.status(500).json({ message: "Failed to fetch checklist sources" });
+  }
+});
+
+// GET stale check — returns regulation_status for all auto-generated templates
+router.get("/stale-check", isAuthenticated, async (req, res) => {
+  try {
+    // Get all auto-generated templates that link to FAA docs
+    const templates = await db.execute(sql`
+      SELECT t.id, t.faa_source_id, t.checklist_version_hash, t.regulation_status
+      FROM digital_form_templates t
+      WHERE t.auto_generated = true AND t.faa_source_id IS NOT NULL AND t.status = 'active'
+    `);
+
+    if (templates.rows.length === 0) return res.json({});
+
+    // Get current hashes from FAA repository
+    const sourceIds = Array.from(new Set(templates.rows.map((r: any) => r.faa_source_id)));
+    const faaRows = await db.execute(sql`
+      SELECT source_id, content_hash, status FROM bccs_faa_repository
+      WHERE source_id = ANY(${sourceIds}::text[])
+    `);
+
+    const faaHashMap: Record<string, { hash: string | null; status: string }> = {};
+    for (const row of faaRows.rows as any[]) {
+      faaHashMap[row.source_id] = { hash: row.content_hash, status: row.status };
+    }
+
+    const staleMap: Record<string, { stale: boolean; faaStatus: string }> = {};
+    for (const tmpl of templates.rows as any[]) {
+      const faaInfo = faaHashMap[tmpl.faa_source_id];
+      if (!faaInfo) { staleMap[tmpl.id] = { stale: false, faaStatus: 'unknown' }; continue; }
+
+      const isStale =
+        faaInfo.status === 'updated' ||
+        (faaInfo.hash && tmpl.checklist_version_hash && faaInfo.hash !== tmpl.checklist_version_hash);
+
+      staleMap[tmpl.id] = { stale: !!isStale, faaStatus: faaInfo.status };
+
+      // Persist the regulation_status if it has changed
+      if (isStale && tmpl.regulation_status !== 'needs_review') {
+        await db.execute(sql`
+          UPDATE digital_form_templates SET regulation_status = 'needs_review', updated_at = NOW()
+          WHERE id = ${tmpl.id}
+        `);
+      }
+    }
+
+    res.json(staleMap);
+  } catch (err) {
+    console.error("Error checking stale templates:", err);
+    res.status(500).json({ message: "Failed to check stale templates" });
+  }
+});
+
+// POST generate templates from FAA Part 142 checklist section
+router.post("/generate-from-checklist", isAuthenticated, async (req, res) => {
+  try {
+    const user = req.user as any;
+    const { sectionId, organizationName, faaSourceId } = req.body;
+
+    const section = PART_142_SECTIONS.find((s) => s.id === sectionId);
+    if (!section) return res.status(400).json({ message: "Unknown checklist section" });
+
+    // Fetch the current amendment hash for this FAA source
+    let currentHash: string | null = null;
+    if (faaSourceId) {
+      try {
+        const hashResult = await db.execute(sql`
+          SELECT content_hash FROM bccs_faa_repository WHERE source_id = ${faaSourceId}
+        `);
+        currentHash = (hashResult.rows[0] as any)?.content_hash || null;
+      } catch (dbErr: any) {
+        console.warn("[Generate] Could not fetch FAA hash:", dbErr?.message);
+      }
+    }
+
+    // Build the prompt
+    const prompt = `You are an expert in FAA aviation regulations for Part 142 Training Centers.
+Generate a comprehensive compliance inspection checklist form for the section: ${section.title} (${section.sectionRef}).
+
+The checklist form is for an FAA Aviation Safety Inspector (ASI) conducting a surveillance inspection of a Part 142 aviation training center.
+
+Section description: ${section.description}
+
+Key regulatory requirements to cover:
+${section.requirements.map((r, i) => `${i + 1}. ${r}`).join("\n")}
+
+Generate a JSON array of form fields. Each field should have:
+- "id": unique snake_case string
+- "label": clear inspection item label (15-60 chars)
+- "type": one of ["text", "textarea", "checkbox", "select", "date", "number"]
+- "required": boolean
+- "options": array of strings (only for "select" type), otherwise omit
+- "placeholder": helpful hint (only for text/textarea/number)
+
+Requirements:
+- Include 10-18 checklist items covering the section requirements
+- Mix field types appropriately:
+  * Use "checkbox" for yes/no compliance items
+  * Use "select" for status items (Satisfactory/Unsatisfactory/N/A or similar)
+  * Use "textarea" for findings/narrative fields
+  * Use "date" for dates
+  * Use "text" for names, certificate numbers, identifiers
+- First field should always be: inspector name (text, required)
+- Second field: inspection date (date, required)  
+- Third field: training center name (text, required)
+- Fourth field: certificate number (text, required)
+- Then the section-specific compliance items
+- Last field: overall findings/comments (textarea)
+
+Respond with a JSON object in this exact format: { "fields": [ ...array of field objects... ] }`;
+
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [{ role: "user", content: prompt }],
+      response_format: { type: "json_object" },
+      temperature: 0.2,
+    });
+
+    let fields: any[] = [];
+    try {
+      const raw = completion.choices[0].message.content || "{}";
+      const parsed = JSON.parse(raw);
+      // Try known keys first, then find any array value
+      fields = parsed.fields || parsed.items || parsed.checklist || parsed.form_fields ||
+        (Object.values(parsed).find((v) => Array.isArray(v)) as any[]);
+      if (!Array.isArray(fields) || fields.length === 0) {
+        console.error("OpenAI response had no valid array. Raw:", raw.slice(0, 300));
+        throw new Error("No field array in AI response");
+      }
+    } catch (parseErr: any) {
+      return res.status(500).json({ message: `AI response parsing failed: ${parseErr.message}` });
+    }
+
+    // Create the template
+    const [template] = await db
+      .insert(digitalFormTemplates)
+      .values({
+        title: `Part 142 – ${section.title} Inspection`,
+        description: `FAA inspection checklist for ${section.sectionRef}: ${section.description}`,
+        organizationName: organizationName || null,
+        faaSourceId: faaSourceId || "14-CFR-142",
+        faaDocumentTitle: "14 CFR Part 142 – Training Centers",
+        faaDocumentType: "cfr_part",
+        fields,
+        status: "active",
+        publicToken: generateToken(),
+        isPublic: true,
+        autoGenerated: true,
+        checklistVersionHash: currentHash,
+        regulationStatus: "current",
+        generatedFromSection: `${section.sectionRef} ${section.title}`,
+        createdBy: user?.email || user?.username || "system",
+      } as any)
+      .returning();
+
+    res.status(201).json(template);
+  } catch (err: any) {
+    console.error("Error generating template from checklist:", err?.message || err);
+    res.status(500).json({ message: "Failed to generate template from checklist" });
+  }
+});
+
+// POST refresh a single template from FAA regulation (AI re-generate fields)
+router.post("/templates/:id/refresh-from-faa", isAuthenticated, async (req, res) => {
+  try {
+    const [existing] = await db
+      .select()
+      .from(digitalFormTemplates)
+      .where(eq(digitalFormTemplates.id, req.params.id));
+
+    if (!existing) return res.status(404).json({ message: "Template not found" });
+    if (!existing.autoGenerated) return res.status(400).json({ message: "Only AI-generated templates can be refreshed from FAA" });
+
+    // Find the section to regenerate from
+    const section = PART_142_SECTIONS.find(
+      (s) => existing.generatedFromSection?.includes(s.sectionRef) || existing.generatedFromSection?.includes(s.title)
+    );
+
+    // Fetch current amendment hash
+    let currentHash: string | null = null;
+    if (existing.faaSourceId) {
+      const hashResult = await db.execute(sql`
+        SELECT content_hash FROM bccs_faa_repository WHERE source_id = ${existing.faaSourceId}
+      `);
+      currentHash = (hashResult.rows[0] as any)?.content_hash || null;
+    }
+
+    const sectionDescription = section
+      ? `${section.title} (${section.sectionRef})\n\nKey requirements:\n${section.requirements.join("\n")}`
+      : existing.generatedFromSection || "Part 142 Training Centers";
+
+    const prompt = `You are an expert in FAA aviation regulations for Part 142 Training Centers.
+The FAA has updated 14 CFR Part 142. Regenerate an improved compliance inspection checklist for:
+${sectionDescription}
+
+Current form title: ${existing.title}
+Current field count: ${(existing.fields as any[]).length}
+
+Generate an updated JSON array of form fields reflecting current regulatory requirements.
+Each field must have: "id" (snake_case), "label" (15-60 chars), "type" (text/textarea/checkbox/select/date/number), "required" (boolean).
+Add "options" array only for "select" type fields. Add "placeholder" for text/textarea/number fields.
+
+Requirements:
+- 10-18 fields total
+- Start with: inspector name (text), inspection date (date), training center name (text), certificate number (text)
+- Cover all section compliance requirements with appropriate field types
+- End with overall findings/comments (textarea)
+
+Respond with ONLY a valid JSON object: { "fields": [...] }`;
+
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [{ role: "user", content: prompt }],
+      response_format: { type: "json_object" },
+      temperature: 0.2,
+    });
+
+    let newFields: any[] = [];
+    try {
+      const raw = completion.choices[0].message.content || "{}";
+      const parsed = JSON.parse(raw);
+      newFields = parsed.fields || parsed.items || parsed.checklist || parsed.form_fields ||
+        (Object.values(parsed).find((v) => Array.isArray(v)) as any[]);
+      if (!Array.isArray(newFields) || newFields.length === 0) throw new Error("No field array in AI response");
+    } catch (parseErr: any) {
+      return res.status(500).json({ message: `AI response parsing failed: ${parseErr.message}` });
+    }
+
+    const [updated] = await db
+      .update(digitalFormTemplates)
+      .set({
+        fields: newFields,
+        checklistVersionHash: currentHash,
+        regulationStatus: "current",
+        updatedAt: new Date(),
+      } as any)
+      .where(eq(digitalFormTemplates.id, req.params.id))
+      .returning();
+
+    res.json(updated);
+  } catch (err) {
+    console.error("Error refreshing template from FAA:", err);
+    res.status(500).json({ message: "Failed to refresh template from FAA" });
   }
 });
 
