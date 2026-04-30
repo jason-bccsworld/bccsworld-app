@@ -3,26 +3,45 @@ import { db } from "../db";
 import { digitalFormTemplates, digitalFormSubmissions } from "@shared/schema";
 import { eq, desc, sql } from "drizzle-orm";
 import { isAuthenticated } from "../localAuth";
+import crypto from "crypto";
 
 const router = Router();
 
-// Ensure tables exist
+function generateToken(): string {
+  return crypto.randomBytes(12).toString("base64url");
+}
+
+// Ensure tables exist (with all columns including new ones)
 async function ensureTables() {
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS digital_form_templates (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       title VARCHAR(300) NOT NULL,
       description TEXT,
+      organization_name VARCHAR(300),
       faa_source_id VARCHAR(100),
       faa_document_title VARCHAR(300),
       faa_document_type VARCHAR(50),
       fields JSONB NOT NULL DEFAULT '[]',
       status VARCHAR(20) DEFAULT 'active',
+      public_token VARCHAR(100) UNIQUE,
+      is_public BOOLEAN DEFAULT true,
       created_by VARCHAR(200),
       created_at TIMESTAMP DEFAULT NOW(),
       updated_at TIMESTAMP DEFAULT NOW()
     )
   `);
+
+  // Add new columns to existing table if they don't exist
+  await db.execute(sql`ALTER TABLE digital_form_templates ADD COLUMN IF NOT EXISTS organization_name VARCHAR(300)`);
+  await db.execute(sql`ALTER TABLE digital_form_templates ADD COLUMN IF NOT EXISTS public_token VARCHAR(100)`);
+  await db.execute(sql`ALTER TABLE digital_form_templates ADD COLUMN IF NOT EXISTS is_public BOOLEAN DEFAULT true`);
+
+  // Back-fill public tokens for existing templates that don't have one
+  const rows = await db.execute(sql`SELECT id FROM digital_form_templates WHERE public_token IS NULL`);
+  for (const row of rows.rows) {
+    await db.execute(sql`UPDATE digital_form_templates SET public_token = ${generateToken()} WHERE id = ${row.id}`);
+  }
 
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS digital_form_submissions (
@@ -31,6 +50,8 @@ async function ensureTables() {
       template_title VARCHAR(300),
       organization_name VARCHAR(300),
       submitted_by VARCHAR(200),
+      submitter_name VARCHAR(200),
+      submitter_email VARCHAR(300),
       form_data JSONB NOT NULL DEFAULT '{}',
       status VARCHAR(20) DEFAULT 'submitted',
       notes TEXT,
@@ -38,11 +59,85 @@ async function ensureTables() {
       created_at TIMESTAMP DEFAULT NOW()
     )
   `);
+
+  // Add submitter columns if they don't exist
+  await db.execute(sql`ALTER TABLE digital_form_submissions ADD COLUMN IF NOT EXISTS submitter_name VARCHAR(200)`);
+  await db.execute(sql`ALTER TABLE digital_form_submissions ADD COLUMN IF NOT EXISTS submitter_email VARCHAR(300)`);
 }
 
 ensureTables().catch(console.error);
 
-// ── TEMPLATES ──────────────────────────────────────────────────────────────
+// ── PUBLIC ROUTES (no auth required) ──────────────────────────────────────
+
+// GET public form by token — anyone with the link can access this
+router.get("/public/:token", async (req, res) => {
+  try {
+    const [template] = await db
+      .select()
+      .from(digitalFormTemplates)
+      .where(eq(digitalFormTemplates.publicToken, req.params.token));
+
+    if (!template || template.status !== "active" || !template.isPublic) {
+      return res.status(404).json({ message: "Form not found or no longer available" });
+    }
+
+    // Only return safe fields (no internal IDs leaking unnecessary info)
+    res.json({
+      id: template.id,
+      title: template.title,
+      description: template.description,
+      organizationName: template.organizationName,
+      faaSourceId: template.faaSourceId,
+      faaDocumentTitle: template.faaDocumentTitle,
+      faaDocumentType: template.faaDocumentType,
+      fields: template.fields,
+      publicToken: template.publicToken,
+    });
+  } catch (err) {
+    console.error("Error fetching public form:", err);
+    res.status(500).json({ message: "Failed to load form" });
+  }
+});
+
+// POST public form submission — anyone can submit
+router.post("/public/:token/submit", async (req, res) => {
+  try {
+    const [template] = await db
+      .select()
+      .from(digitalFormTemplates)
+      .where(eq(digitalFormTemplates.publicToken, req.params.token));
+
+    if (!template || template.status !== "active" || !template.isPublic) {
+      return res.status(404).json({ message: "Form not found or no longer available" });
+    }
+
+    const { formData, submitterName, submitterEmail, notes } = req.body;
+
+    if (!formData || typeof formData !== "object") {
+      return res.status(400).json({ message: "Form data is required" });
+    }
+
+    const [submission] = await db
+      .insert(digitalFormSubmissions)
+      .values({
+        templateId: template.id,
+        templateTitle: template.title,
+        organizationName: template.organizationName,
+        submittedBy: submitterEmail || submitterName || "anonymous",
+        formData,
+        notes: notes || null,
+        status: "submitted",
+      } as any)
+      .returning();
+
+    res.status(201).json({ success: true, submissionId: submission.id });
+  } catch (err) {
+    console.error("Error submitting public form:", err);
+    res.status(500).json({ message: "Failed to submit form" });
+  }
+});
+
+// ── AUTHENTICATED ROUTES ───────────────────────────────────────────────────
 
 // GET all templates
 router.get("/templates", isAuthenticated, async (req, res) => {
@@ -69,7 +164,6 @@ router.get("/templates/:id", isAuthenticated, async (req, res) => {
     if (!template) return res.status(404).json({ message: "Template not found" });
     res.json(template);
   } catch (err) {
-    console.error("Error fetching template:", err);
     res.status(500).json({ message: "Failed to fetch template" });
   }
 });
@@ -78,11 +172,9 @@ router.get("/templates/:id", isAuthenticated, async (req, res) => {
 router.post("/templates", isAuthenticated, async (req, res) => {
   try {
     const user = req.user as any;
-    const { title, description, faaSourceId, faaDocumentTitle, faaDocumentType, fields } = req.body;
+    const { title, description, organizationName, faaSourceId, faaDocumentTitle, faaDocumentType, fields, isPublic } = req.body;
 
-    if (!title || !title.trim()) {
-      return res.status(400).json({ message: "Title is required" });
-    }
+    if (!title?.trim()) return res.status(400).json({ message: "Title is required" });
     if (!fields || !Array.isArray(fields) || fields.length === 0) {
       return res.status(400).json({ message: "At least one field is required" });
     }
@@ -92,11 +184,14 @@ router.post("/templates", isAuthenticated, async (req, res) => {
       .values({
         title: title.trim(),
         description: description || null,
+        organizationName: organizationName || null,
         faaSourceId: faaSourceId || null,
         faaDocumentTitle: faaDocumentTitle || null,
         faaDocumentType: faaDocumentType || null,
         fields,
         status: "active",
+        publicToken: generateToken(),
+        isPublic: isPublic !== false,
         createdBy: user?.email || user?.username || "system",
       })
       .returning();
@@ -111,17 +206,19 @@ router.post("/templates", isAuthenticated, async (req, res) => {
 // PUT update template
 router.put("/templates/:id", isAuthenticated, async (req, res) => {
   try {
-    const { title, description, faaSourceId, faaDocumentTitle, faaDocumentType, fields } = req.body;
+    const { title, description, organizationName, faaSourceId, faaDocumentTitle, faaDocumentType, fields, isPublic } = req.body;
 
     const [updated] = await db
       .update(digitalFormTemplates)
       .set({
         title: title?.trim(),
         description: description || null,
+        organizationName: organizationName || null,
         faaSourceId: faaSourceId || null,
         faaDocumentTitle: faaDocumentTitle || null,
         faaDocumentType: faaDocumentType || null,
         fields: fields || [],
+        isPublic: isPublic !== false,
         updatedAt: new Date(),
       })
       .where(eq(digitalFormTemplates.id, req.params.id))
@@ -135,6 +232,21 @@ router.put("/templates/:id", isAuthenticated, async (req, res) => {
   }
 });
 
+// POST regenerate public link
+router.post("/templates/:id/regenerate-token", isAuthenticated, async (req, res) => {
+  try {
+    const [updated] = await db
+      .update(digitalFormTemplates)
+      .set({ publicToken: generateToken(), updatedAt: new Date() })
+      .where(eq(digitalFormTemplates.id, req.params.id))
+      .returning();
+    if (!updated) return res.status(404).json({ message: "Template not found" });
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json({ message: "Failed to regenerate link" });
+  }
+});
+
 // DELETE (archive) template
 router.delete("/templates/:id", isAuthenticated, async (req, res) => {
   try {
@@ -144,14 +256,12 @@ router.delete("/templates/:id", isAuthenticated, async (req, res) => {
       .where(eq(digitalFormTemplates.id, req.params.id));
     res.json({ message: "Template archived" });
   } catch (err) {
-    console.error("Error archiving template:", err);
     res.status(500).json({ message: "Failed to archive template" });
   }
 });
 
 // ── SUBMISSIONS ────────────────────────────────────────────────────────────
 
-// GET all submissions (document repository)
 router.get("/submissions", isAuthenticated, async (req, res) => {
   try {
     const submissions = await db
@@ -160,12 +270,10 @@ router.get("/submissions", isAuthenticated, async (req, res) => {
       .orderBy(desc(digitalFormSubmissions.submittedAt));
     res.json(submissions);
   } catch (err) {
-    console.error("Error fetching submissions:", err);
     res.status(500).json({ message: "Failed to fetch submissions" });
   }
 });
 
-// GET single submission
 router.get("/submissions/:id", isAuthenticated, async (req, res) => {
   try {
     const [submission] = await db
@@ -175,23 +283,16 @@ router.get("/submissions/:id", isAuthenticated, async (req, res) => {
     if (!submission) return res.status(404).json({ message: "Submission not found" });
     res.json(submission);
   } catch (err) {
-    console.error("Error fetching submission:", err);
     res.status(500).json({ message: "Failed to fetch submission" });
   }
 });
 
-// POST create submission (fill out a form)
+// Internal (authenticated) submission — for admins filling forms themselves
 router.post("/submissions", isAuthenticated, async (req, res) => {
   try {
     const user = req.user as any;
     const { templateId, templateTitle, organizationName, formData, notes, status } = req.body;
-
-    if (!templateId) {
-      return res.status(400).json({ message: "Template ID is required" });
-    }
-    if (!formData || typeof formData !== "object") {
-      return res.status(400).json({ message: "Form data is required" });
-    }
+    if (!templateId) return res.status(400).json({ message: "Template ID is required" });
 
     const [submission] = await db
       .insert(digitalFormSubmissions)
@@ -208,12 +309,10 @@ router.post("/submissions", isAuthenticated, async (req, res) => {
 
     res.status(201).json(submission);
   } catch (err) {
-    console.error("Error creating submission:", err);
     res.status(500).json({ message: "Failed to save form submission" });
   }
 });
 
-// PATCH update submission status
 router.patch("/submissions/:id/status", isAuthenticated, async (req, res) => {
   try {
     const { status } = req.body;
@@ -225,12 +324,10 @@ router.patch("/submissions/:id/status", isAuthenticated, async (req, res) => {
     if (!updated) return res.status(404).json({ message: "Submission not found" });
     res.json(updated);
   } catch (err) {
-    console.error("Error updating submission status:", err);
     res.status(500).json({ message: "Failed to update status" });
   }
 });
 
-// GET stats
 router.get("/stats", isAuthenticated, async (req, res) => {
   try {
     const [{ templateCount }] = await db
@@ -259,7 +356,6 @@ router.get("/stats", isAuthenticated, async (req, res) => {
       approvedCount: Number(approvedCount),
     });
   } catch (err) {
-    console.error("Error fetching stats:", err);
     res.status(500).json({ message: "Failed to fetch stats" });
   }
 });

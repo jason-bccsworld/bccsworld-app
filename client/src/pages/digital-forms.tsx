@@ -16,7 +16,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import {
   FileText, Plus, Trash2, PenLine, Eye, CheckCircle2, Clock,
   FolderOpen, LayoutTemplate, Save, X, ChevronDown, ChevronUp,
-  GripVertical, Download, Filter, Search
+  GripVertical, Filter, Search, Link2, Copy, ExternalLink, Building2, Globe
 } from "lucide-react";
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -36,11 +36,14 @@ interface FormTemplate {
   id: string;
   title: string;
   description: string | null;
+  organizationName: string | null;
   faaSourceId: string | null;
   faaDocumentTitle: string | null;
   faaDocumentType: string | null;
   fields: FormField[];
   status: string;
+  publicToken: string | null;
+  isPublic: boolean;
   createdBy: string | null;
   createdAt: string;
 }
@@ -124,6 +127,7 @@ function TemplateBuilder({
 
   const [title, setTitle] = useState(editTemplate?.title || "");
   const [description, setDescription] = useState(editTemplate?.description || "");
+  const [orgName, setOrgName] = useState(editTemplate?.organizationName || "");
   const [selectedFaa, setSelectedFaa] = useState(editTemplate?.faaSourceId || "none");
   const [fields, setFields] = useState<FormField[]>(
     editTemplate?.fields?.length ? editTemplate.fields : [newField()]
@@ -178,6 +182,7 @@ function TemplateBuilder({
     const body = {
       title: title.trim(),
       description: description.trim() || null,
+      organizationName: orgName.trim() || null,
       faaSourceId: selectedDoc?.source_id || null,
       faaDocumentTitle: selectedDoc?.title || null,
       faaDocumentType: selectedDoc?.source_type || null,
@@ -210,6 +215,21 @@ function TemplateBuilder({
                 placeholder="e.g. Part 141 Training Course Outline"
                 className="mt-1"
               />
+            </div>
+            <div>
+              <Label className="flex items-center gap-1.5">
+                <Building2 size={13} className="text-slate-500" />
+                Organization Name
+              </Label>
+              <Input
+                value={orgName}
+                onChange={(e) => setOrgName(e.target.value)}
+                placeholder="e.g. Apex Flight Academy"
+                className="mt-1"
+              />
+              <p className="text-xs text-slate-400 mt-1">
+                This name appears on the public form so respondents know who the form is for.
+              </p>
             </div>
             <div>
               <Label>Description</Label>
@@ -838,8 +858,19 @@ export default function DigitalForms() {
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredTemplates.map((template) => (
-                <Card key={template.id} className="border border-slate-200 hover:border-blue-300 transition-colors">
+              {filteredTemplates.map((template) => {
+                const publicUrl = template.publicToken
+                  ? `${window.location.origin}/f/${template.publicToken}`
+                  : null;
+
+                const copyLink = () => {
+                  if (!publicUrl) return;
+                  navigator.clipboard.writeText(publicUrl);
+                  toast({ title: "Link copied!", description: "Share this link with anyone who needs to fill out the form." });
+                };
+
+                return (
+                <Card key={template.id} className="border border-slate-200 hover:border-blue-300 transition-colors flex flex-col">
                   <CardHeader className="pb-2 pt-4 px-4">
                     <div className="flex items-start justify-between gap-2">
                       <CardTitle className="text-sm font-semibold text-slate-800 leading-snug">
@@ -849,12 +880,17 @@ export default function DigitalForms() {
                         {template.fields.length} field{template.fields.length !== 1 ? "s" : ""}
                       </Badge>
                     </div>
-                    {template.faaDocumentTitle && (
+                    {template.organizationName && (
                       <p className="text-xs text-slate-500 mt-1 flex items-center gap-1">
+                        <Building2 size={11} />
+                        {template.organizationName}
+                      </p>
+                    )}
+                    {template.faaDocumentTitle && (
+                      <p className="text-xs text-slate-400 mt-1 flex items-center gap-1">
                         <FileText size={11} />
                         {DOC_TYPE_LABELS[template.faaDocumentType || ""] || ""}{" "}
-                        {template.faaSourceId} · {template.faaDocumentTitle.slice(0, 50)}
-                        {template.faaDocumentTitle.length > 50 ? "…" : ""}
+                        {template.faaSourceId}
                       </p>
                     )}
                     {template.description && (
@@ -863,23 +899,40 @@ export default function DigitalForms() {
                       </CardDescription>
                     )}
                   </CardHeader>
-                  <CardContent className="pt-0 pb-3 px-4">
+                  <CardContent className="pt-0 pb-3 px-4 flex flex-col flex-1">
+                    {/* Shareable link */}
+                    {publicUrl && (
+                      <div className="mb-3 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 flex items-center gap-2">
+                        <Globe size={12} className="text-green-600 shrink-0" />
+                        <span className="text-xs text-slate-500 truncate flex-1 font-mono">
+                          /f/{template.publicToken}
+                        </span>
+                        <button onClick={copyLink} title="Copy link" className="text-slate-400 hover:text-blue-600 transition-colors shrink-0">
+                          <Copy size={12} />
+                        </button>
+                        <a href={publicUrl} target="_blank" rel="noopener noreferrer" title="Open form" className="text-slate-400 hover:text-blue-600 transition-colors shrink-0">
+                          <ExternalLink size={12} />
+                        </a>
+                      </div>
+                    )}
                     <p className="text-xs text-slate-400 mb-3">
-                      Created by {template.createdBy || "system"} ·{" "}
-                      {new Date(template.createdAt).toLocaleDateString()}
+                      Created {new Date(template.createdAt).toLocaleDateString()}
+                      {template.createdBy ? ` by ${template.createdBy}` : ""}
                     </p>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 mt-auto">
                       <Button
                         size="sm"
                         className="flex-1 h-7 text-xs bg-blue-600 hover:bg-blue-700"
-                        onClick={() => setFillTemplate(template)}
+                        onClick={copyLink}
+                        disabled={!publicUrl}
                       >
-                        <PenLine size={12} className="mr-1" /> Fill Out
+                        <Link2 size={12} className="mr-1" /> Share Link
                       </Button>
                       <Button
                         size="sm"
                         variant="outline"
                         className="h-7 text-xs"
+                        title="Edit template"
                         onClick={() => { setEditTemplate(template); setShowBuilder(true); }}
                       >
                         <PenLine size={12} />
@@ -896,7 +949,8 @@ export default function DigitalForms() {
                     </div>
                   </CardContent>
                 </Card>
-              ))}
+                );
+              })}
             </div>
           )}
         </TabsContent>

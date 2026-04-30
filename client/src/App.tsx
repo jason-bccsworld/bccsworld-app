@@ -46,6 +46,7 @@ import AuditHistory from "@/pages/audit-history";
 import ComplianceReport from "@/pages/compliance-report";
 import FAARepository from "@/pages/faa-repository";
 import DigitalForms from "@/pages/digital-forms";
+import PublicForm from "@/pages/public-form";
 import Login from "@/pages/login";
 import NotFound from "@/pages/not-found";
 import DashboardLayout from "@/layouts/dashboard-layout";
@@ -446,6 +447,9 @@ function Router() {
           </DashboardLayout>
         )}
       </Route>
+
+      {/* Public form route — no auth required */}
+      <Route path="/f/:token" component={PublicForm} />
 
       <Route path="/mobile-field" component={MobileField} />
       <Route component={NotFound} />
