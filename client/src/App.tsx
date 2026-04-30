@@ -45,6 +45,7 @@ import SafoInfo from "@/pages/safo-info";
 import AuditHistory from "@/pages/audit-history";
 import ComplianceReport from "@/pages/compliance-report";
 import FAARepository from "@/pages/faa-repository";
+import DigitalForms from "@/pages/digital-forms";
 import Login from "@/pages/login";
 import NotFound from "@/pages/not-found";
 import DashboardLayout from "@/layouts/dashboard-layout";
@@ -432,6 +433,16 @@ function Router() {
         ) : (
           <DashboardLayout>
             <FAARepository />
+          </DashboardLayout>
+        )}
+      </Route>
+
+      <Route path="/digital-forms">
+        {!isAuthenticated ? (
+          <Redirect to="/login" />
+        ) : (
+          <DashboardLayout>
+            <DigitalForms />
           </DashboardLayout>
         )}
       </Route>

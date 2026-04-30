@@ -1,0 +1,1008 @@
+import { useState } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  FileText, Plus, Trash2, PenLine, Eye, CheckCircle2, Clock,
+  FolderOpen, LayoutTemplate, Save, X, ChevronDown, ChevronUp,
+  GripVertical, Download, Filter, Search
+} from "lucide-react";
+
+// ── Types ──────────────────────────────────────────────────────────────────
+
+type FieldType = "text" | "textarea" | "date" | "number" | "checkbox" | "select" | "email" | "phone";
+
+interface FormField {
+  id: string;
+  label: string;
+  type: FieldType;
+  required: boolean;
+  placeholder?: string;
+  options?: string[];
+}
+
+interface FormTemplate {
+  id: string;
+  title: string;
+  description: string | null;
+  faaSourceId: string | null;
+  faaDocumentTitle: string | null;
+  faaDocumentType: string | null;
+  fields: FormField[];
+  status: string;
+  createdBy: string | null;
+  createdAt: string;
+}
+
+interface FormSubmission {
+  id: string;
+  templateId: string;
+  templateTitle: string | null;
+  organizationName: string | null;
+  submittedBy: string | null;
+  formData: Record<string, any>;
+  status: string;
+  notes: string | null;
+  submittedAt: string;
+}
+
+interface FAADocument {
+  id: number;
+  source_id: string;
+  source_type: string;
+  title: string;
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+
+const FIELD_TYPES: { value: FieldType; label: string }[] = [
+  { value: "text", label: "Short Text" },
+  { value: "textarea", label: "Long Text" },
+  { value: "date", label: "Date" },
+  { value: "number", label: "Number" },
+  { value: "checkbox", label: "Checkbox (Yes/No)" },
+  { value: "select", label: "Dropdown" },
+  { value: "email", label: "Email" },
+  { value: "phone", label: "Phone Number" },
+];
+
+const DOC_TYPE_LABELS: Record<string, string> = {
+  cfr_part: "CFR Part",
+  faa_order: "FAA Order",
+  safo: "SAFO",
+  info: "InFO",
+  advisory_circular: "Advisory Circular",
+};
+
+function statusBadge(status: string) {
+  const map: Record<string, string> = {
+    submitted: "bg-blue-100 text-blue-800",
+    approved: "bg-green-100 text-green-800",
+    rejected: "bg-red-100 text-red-800",
+    draft: "bg-gray-100 text-gray-700",
+  };
+  return map[status] || "bg-gray-100 text-gray-700";
+}
+
+function newField(): FormField {
+  return {
+    id: `field_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+    label: "",
+    type: "text",
+    required: false,
+    placeholder: "",
+    options: [],
+  };
+}
+
+// ── TemplateBuilder ────────────────────────────────────────────────────────
+
+function TemplateBuilder({
+  open,
+  onClose,
+  editTemplate,
+  faaDocuments,
+}: {
+  open: boolean;
+  onClose: () => void;
+  editTemplate?: FormTemplate | null;
+  faaDocuments: FAADocument[];
+}) {
+  const { toast } = useToast();
+  const isEdit = !!editTemplate;
+
+  const [title, setTitle] = useState(editTemplate?.title || "");
+  const [description, setDescription] = useState(editTemplate?.description || "");
+  const [selectedFaa, setSelectedFaa] = useState(editTemplate?.faaSourceId || "none");
+  const [fields, setFields] = useState<FormField[]>(
+    editTemplate?.fields?.length ? editTemplate.fields : [newField()]
+  );
+
+  const selectedDoc = faaDocuments.find((d) => d.source_id === selectedFaa);
+
+  const addField = () => setFields((f) => [...f, newField()]);
+
+  const removeField = (id: string) =>
+    setFields((f) => f.filter((x) => x.id !== id));
+
+  const updateField = (id: string, patch: Partial<FormField>) =>
+    setFields((f) => f.map((x) => (x.id === id ? { ...x, ...patch } : x)));
+
+  const moveField = (idx: number, dir: -1 | 1) => {
+    setFields((f) => {
+      const arr = [...f];
+      const target = idx + dir;
+      if (target < 0 || target >= arr.length) return arr;
+      [arr[idx], arr[target]] = [arr[target], arr[idx]];
+      return arr;
+    });
+  };
+
+  const createMutation = useMutation({
+    mutationFn: (body: any) => apiRequest("POST", "/api/digital-forms/templates", body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/digital-forms/templates"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/digital-forms/stats"] });
+      toast({ title: "Form template created", description: title });
+      onClose();
+    },
+    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: (body: any) => apiRequest("PUT", `/api/digital-forms/templates/${editTemplate?.id}`, body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/digital-forms/templates"] });
+      toast({ title: "Template updated" });
+      onClose();
+    },
+    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const handleSave = () => {
+    if (!title.trim()) return toast({ title: "Title is required", variant: "destructive" });
+    const validFields = fields.filter((f) => f.label.trim());
+    if (!validFields.length) return toast({ title: "Add at least one field with a label", variant: "destructive" });
+
+    const body = {
+      title: title.trim(),
+      description: description.trim() || null,
+      faaSourceId: selectedDoc?.source_id || null,
+      faaDocumentTitle: selectedDoc?.title || null,
+      faaDocumentType: selectedDoc?.source_type || null,
+      fields: validFields,
+    };
+
+    isEdit ? updateMutation.mutate(body) : createMutation.mutate(body);
+  };
+
+  const isPending = createMutation.isPending || updateMutation.isPending;
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <LayoutTemplate size={20} className="text-blue-600" />
+            {isEdit ? "Edit Form Template" : "Create Form Template"}
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-5 py-2">
+          {/* Basic info */}
+          <div className="grid grid-cols-1 gap-4">
+            <div>
+              <Label>Form Title *</Label>
+              <Input
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="e.g. Part 141 Training Course Outline"
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label>Description</Label>
+              <Textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Brief description of this form's purpose..."
+                rows={2}
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label>Link to FAA Document (optional)</Label>
+              <Select value={selectedFaa} onValueChange={setSelectedFaa}>
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Select an FAA document..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">— None —</SelectItem>
+                  {faaDocuments.map((doc) => (
+                    <SelectItem key={doc.source_id} value={doc.source_id}>
+                      <span className="text-xs text-slate-400 mr-2">
+                        [{DOC_TYPE_LABELS[doc.source_type] || doc.source_type}]
+                      </span>
+                      {doc.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {selectedDoc && (
+                <p className="text-xs text-slate-500 mt-1">
+                  Linked to: <strong>{selectedDoc.source_id}</strong> — {selectedDoc.title}
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Field builder */}
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <Label className="text-base font-semibold">Form Fields</Label>
+              <Button size="sm" variant="outline" onClick={addField}>
+                <Plus size={14} className="mr-1" /> Add Field
+              </Button>
+            </div>
+
+            <div className="space-y-3">
+              {fields.map((field, idx) => (
+                <Card key={field.id} className="border border-slate-200">
+                  <CardContent className="pt-4 pb-3 px-4">
+                    <div className="flex items-start gap-3">
+                      <div className="flex flex-col gap-1 mt-1">
+                        <button
+                          onClick={() => moveField(idx, -1)}
+                          disabled={idx === 0}
+                          className="text-slate-400 hover:text-slate-600 disabled:opacity-30"
+                        >
+                          <ChevronUp size={14} />
+                        </button>
+                        <GripVertical size={14} className="text-slate-300" />
+                        <button
+                          onClick={() => moveField(idx, 1)}
+                          disabled={idx === fields.length - 1}
+                          className="text-slate-400 hover:text-slate-600 disabled:opacity-30"
+                        >
+                          <ChevronDown size={14} />
+                        </button>
+                      </div>
+
+                      <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <Label className="text-xs">Field Label *</Label>
+                          <Input
+                            value={field.label}
+                            onChange={(e) => updateField(field.id, { label: e.target.value })}
+                            placeholder="e.g. Organization Name"
+                            className="mt-1 h-8 text-sm"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Field Type</Label>
+                          <Select
+                            value={field.type}
+                            onValueChange={(v) => updateField(field.id, { type: v as FieldType, options: [] })}
+                          >
+                            <SelectTrigger className="mt-1 h-8 text-sm">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {FIELD_TYPES.map((ft) => (
+                                <SelectItem key={ft.value} value={ft.value}>
+                                  {ft.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        {field.type !== "checkbox" && (
+                          <div>
+                            <Label className="text-xs">Placeholder (optional)</Label>
+                            <Input
+                              value={field.placeholder || ""}
+                              onChange={(e) => updateField(field.id, { placeholder: e.target.value })}
+                              placeholder="Enter placeholder text..."
+                              className="mt-1 h-8 text-sm"
+                            />
+                          </div>
+                        )}
+
+                        {field.type === "select" && (
+                          <div>
+                            <Label className="text-xs">Options (comma-separated)</Label>
+                            <Input
+                              value={(field.options || []).join(", ")}
+                              onChange={(e) =>
+                                updateField(field.id, {
+                                  options: e.target.value.split(",").map((s) => s.trim()).filter(Boolean),
+                                })
+                              }
+                              placeholder="Option A, Option B, Option C"
+                              className="mt-1 h-8 text-sm"
+                            />
+                          </div>
+                        )}
+
+                        <div className="flex items-center gap-2 mt-1">
+                          <Checkbox
+                            id={`req_${field.id}`}
+                            checked={field.required}
+                            onCheckedChange={(v) => updateField(field.id, { required: !!v })}
+                          />
+                          <Label htmlFor={`req_${field.id}`} className="text-xs cursor-pointer">
+                            Required field
+                          </Label>
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={() => removeField(field.id)}
+                        className="text-slate-400 hover:text-red-500 mt-1"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+
+            {fields.length === 0 && (
+              <div className="text-center py-6 text-slate-400 border border-dashed rounded-lg">
+                No fields yet. Click "Add Field" to start building your form.
+              </div>
+            )}
+          </div>
+        </div>
+
+        <DialogFooter className="gap-2">
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button onClick={handleSave} disabled={isPending}>
+            <Save size={14} className="mr-2" />
+            {isPending ? "Saving..." : isEdit ? "Update Template" : "Create Template"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ── FormFiller ─────────────────────────────────────────────────────────────
+
+function FormFiller({
+  open,
+  onClose,
+  template,
+}: {
+  open: boolean;
+  onClose: () => void;
+  template: FormTemplate;
+}) {
+  const { toast } = useToast();
+  const [values, setValues] = useState<Record<string, any>>({});
+  const [orgName, setOrgName] = useState("");
+  const [notes, setNotes] = useState("");
+
+  const setValue = (id: string, val: any) => setValues((v) => ({ ...v, [id]: val }));
+
+  const submitMutation = useMutation({
+    mutationFn: (body: any) => apiRequest("POST", "/api/digital-forms/submissions", body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/digital-forms/submissions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/digital-forms/stats"] });
+      toast({ title: "Form submitted", description: "Saved to Document Repository" });
+      onClose();
+    },
+    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const handleSubmit = () => {
+    // Validate required fields
+    const missing = template.fields.filter(
+      (f) => f.required && (values[f.id] === undefined || values[f.id] === "" || values[f.id] === false)
+    );
+    if (missing.length) {
+      return toast({
+        title: "Missing required fields",
+        description: missing.map((f) => f.label).join(", "),
+        variant: "destructive",
+      });
+    }
+
+    submitMutation.mutate({
+      templateId: template.id,
+      templateTitle: template.title,
+      organizationName: orgName.trim() || null,
+      formData: values,
+      notes: notes.trim() || null,
+      status: "submitted",
+    });
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <PenLine size={20} className="text-blue-600" />
+            Fill Out: {template.title}
+          </DialogTitle>
+          {template.faaDocumentTitle && (
+            <p className="text-sm text-slate-500 mt-1">
+              Based on:{" "}
+              <span className="font-medium text-slate-700">{template.faaDocumentTitle}</span>
+            </p>
+          )}
+        </DialogHeader>
+
+        <div className="space-y-5 py-2">
+          {/* Organization */}
+          <div>
+            <Label>Organization Name</Label>
+            <Input
+              value={orgName}
+              onChange={(e) => setOrgName(e.target.value)}
+              placeholder="Your organization or training center name..."
+              className="mt-1"
+            />
+          </div>
+
+          {/* Dynamic fields */}
+          {template.fields.map((field) => (
+            <div key={field.id}>
+              <Label className="flex items-center gap-1">
+                {field.label}
+                {field.required && <span className="text-red-500 text-xs">*</span>}
+              </Label>
+
+              {field.type === "text" && (
+                <Input
+                  value={values[field.id] || ""}
+                  onChange={(e) => setValue(field.id, e.target.value)}
+                  placeholder={field.placeholder || ""}
+                  className="mt-1"
+                />
+              )}
+              {field.type === "email" && (
+                <Input
+                  type="email"
+                  value={values[field.id] || ""}
+                  onChange={(e) => setValue(field.id, e.target.value)}
+                  placeholder={field.placeholder || "email@example.com"}
+                  className="mt-1"
+                />
+              )}
+              {field.type === "phone" && (
+                <Input
+                  type="tel"
+                  value={values[field.id] || ""}
+                  onChange={(e) => setValue(field.id, e.target.value)}
+                  placeholder={field.placeholder || "+1 (555) 000-0000"}
+                  className="mt-1"
+                />
+              )}
+              {field.type === "textarea" && (
+                <Textarea
+                  value={values[field.id] || ""}
+                  onChange={(e) => setValue(field.id, e.target.value)}
+                  placeholder={field.placeholder || ""}
+                  rows={3}
+                  className="mt-1"
+                />
+              )}
+              {field.type === "date" && (
+                <Input
+                  type="date"
+                  value={values[field.id] || ""}
+                  onChange={(e) => setValue(field.id, e.target.value)}
+                  className="mt-1"
+                />
+              )}
+              {field.type === "number" && (
+                <Input
+                  type="number"
+                  value={values[field.id] || ""}
+                  onChange={(e) => setValue(field.id, e.target.value)}
+                  placeholder={field.placeholder || "0"}
+                  className="mt-1"
+                />
+              )}
+              {field.type === "checkbox" && (
+                <div className="flex items-center gap-2 mt-2">
+                  <Checkbox
+                    id={`fill_${field.id}`}
+                    checked={!!values[field.id]}
+                    onCheckedChange={(v) => setValue(field.id, !!v)}
+                  />
+                  <Label htmlFor={`fill_${field.id}`} className="cursor-pointer font-normal">
+                    Yes
+                  </Label>
+                </div>
+              )}
+              {field.type === "select" && (
+                <Select
+                  value={values[field.id] || ""}
+                  onValueChange={(v) => setValue(field.id, v)}
+                >
+                  <SelectTrigger className="mt-1">
+                    <SelectValue placeholder={field.placeholder || "Select an option..."} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(field.options || []).map((opt) => (
+                      <SelectItem key={opt} value={opt}>
+                        {opt}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+          ))}
+
+          {/* Notes */}
+          <div>
+            <Label>Notes (optional)</Label>
+            <Textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Any additional notes for this submission..."
+              rows={2}
+              className="mt-1"
+            />
+          </div>
+        </div>
+
+        <DialogFooter className="gap-2">
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button onClick={handleSubmit} disabled={submitMutation.isPending}>
+            <CheckCircle2 size={14} className="mr-2" />
+            {submitMutation.isPending ? "Submitting..." : "Submit & Save to Repository"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ── SubmissionViewer ───────────────────────────────────────────────────────
+
+function SubmissionViewer({
+  open,
+  onClose,
+  submission,
+}: {
+  open: boolean;
+  onClose: () => void;
+  submission: FormSubmission | null;
+}) {
+  const { toast } = useToast();
+
+  const statusMutation = useMutation({
+    mutationFn: (status: string) =>
+      apiRequest("PATCH", `/api/digital-forms/submissions/${submission?.id}/status`, { status }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/digital-forms/submissions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/digital-forms/stats"] });
+      toast({ title: "Status updated" });
+      onClose();
+    },
+    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  if (!submission) return null;
+
+  const entries = Object.entries(submission.formData || {});
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Eye size={20} className="text-blue-600" />
+            {submission.templateTitle || "Form Submission"}
+          </DialogTitle>
+          <div className="flex items-center gap-2 flex-wrap mt-2">
+            <Badge className={statusBadge(submission.status)}>
+              {submission.status.charAt(0).toUpperCase() + submission.status.slice(1)}
+            </Badge>
+            {submission.organizationName && (
+              <span className="text-sm text-slate-500">{submission.organizationName}</span>
+            )}
+            <span className="text-xs text-slate-400">
+              Submitted by {submission.submittedBy} · {new Date(submission.submittedAt).toLocaleDateString()}
+            </span>
+          </div>
+        </DialogHeader>
+
+        <div className="space-y-3 py-2">
+          {entries.length === 0 ? (
+            <p className="text-slate-500 text-sm">No form data recorded.</p>
+          ) : (
+            entries.map(([key, value]) => (
+              <div key={key} className="bg-slate-50 rounded-lg p-3">
+                <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">
+                  {key.replace(/_/g, " ")}
+                </p>
+                <p className="text-sm text-slate-800">
+                  {value === true
+                    ? "✓ Yes"
+                    : value === false
+                    ? "✗ No"
+                    : value !== null && value !== undefined && value !== ""
+                    ? String(value)
+                    : <span className="text-slate-400 italic">Not provided</span>}
+                </p>
+              </div>
+            ))
+          )}
+
+          {submission.notes && (
+            <div className="bg-amber-50 rounded-lg p-3 border border-amber-100">
+              <p className="text-xs font-medium text-amber-700 mb-1">Notes</p>
+              <p className="text-sm text-slate-700">{submission.notes}</p>
+            </div>
+          )}
+        </div>
+
+        <DialogFooter className="flex-col sm:flex-row gap-2">
+          <div className="flex gap-2 flex-1">
+            {submission.status !== "approved" && (
+              <Button
+                size="sm"
+                className="bg-green-600 hover:bg-green-700"
+                onClick={() => statusMutation.mutate("approved")}
+                disabled={statusMutation.isPending}
+              >
+                <CheckCircle2 size={14} className="mr-1" /> Approve
+              </Button>
+            )}
+            {submission.status !== "rejected" && (
+              <Button
+                size="sm"
+                variant="destructive"
+                onClick={() => statusMutation.mutate("rejected")}
+                disabled={statusMutation.isPending}
+              >
+                <X size={14} className="mr-1" /> Reject
+              </Button>
+            )}
+          </div>
+          <Button variant="outline" onClick={onClose}>Close</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ── Main Page ──────────────────────────────────────────────────────────────
+
+export default function DigitalForms() {
+  const { user } = useAuth();
+  const { toast } = useToast();
+
+  const [activeTab, setActiveTab] = useState("templates");
+  const [showBuilder, setShowBuilder] = useState(false);
+  const [editTemplate, setEditTemplate] = useState<FormTemplate | null>(null);
+  const [fillTemplate, setFillTemplate] = useState<FormTemplate | null>(null);
+  const [viewSubmission, setViewSubmission] = useState<FormSubmission | null>(null);
+  const [templateSearch, setTemplateSearch] = useState("");
+  const [submissionSearch, setSubmissionSearch] = useState("");
+  const [submissionStatusFilter, setSubmissionStatusFilter] = useState("all");
+
+  // Queries
+  const { data: templates = [], isLoading: loadingTemplates } = useQuery<FormTemplate[]>({
+    queryKey: ["/api/digital-forms/templates"],
+  });
+
+  const { data: submissions = [], isLoading: loadingSubmissions } = useQuery<FormSubmission[]>({
+    queryKey: ["/api/digital-forms/submissions"],
+  });
+
+  const { data: faaDocuments = [] } = useQuery<FAADocument[]>({
+    queryKey: ["/api/faa-repository"],
+  });
+
+  const { data: stats } = useQuery<{
+    templateCount: number;
+    totalSubmissions: number;
+    submittedCount: number;
+    approvedCount: number;
+  }>({
+    queryKey: ["/api/digital-forms/stats"],
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/digital-forms/templates/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/digital-forms/templates"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/digital-forms/stats"] });
+      toast({ title: "Template removed" });
+    },
+    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  // Filtered lists
+  const filteredTemplates = templates.filter(
+    (t) =>
+      !templateSearch ||
+      t.title.toLowerCase().includes(templateSearch.toLowerCase()) ||
+      (t.faaDocumentTitle || "").toLowerCase().includes(templateSearch.toLowerCase())
+  );
+
+  const filteredSubmissions = submissions.filter((s) => {
+    const matchesSearch =
+      !submissionSearch ||
+      (s.templateTitle || "").toLowerCase().includes(submissionSearch.toLowerCase()) ||
+      (s.organizationName || "").toLowerCase().includes(submissionSearch.toLowerCase()) ||
+      (s.submittedBy || "").toLowerCase().includes(submissionSearch.toLowerCase());
+    const matchesStatus = submissionStatusFilter === "all" || s.status === submissionStatusFilter;
+    return matchesSearch && matchesStatus;
+  });
+
+  return (
+    <div className="p-6 max-w-6xl mx-auto">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+            <FileText className="text-blue-600" size={28} />
+            Digital Forms
+          </h1>
+          <p className="text-slate-500 text-sm mt-1">
+            Create FAA-linked form templates and manage your organization's submitted documents
+          </p>
+        </div>
+        <Button
+          onClick={() => { setEditTemplate(null); setShowBuilder(true); }}
+          className="bg-blue-600 hover:bg-blue-700"
+        >
+          <Plus size={16} className="mr-2" /> New Form Template
+        </Button>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+        {[
+          { label: "Form Templates", value: stats?.templateCount ?? 0, icon: LayoutTemplate, color: "text-blue-600" },
+          { label: "Total Submissions", value: stats?.totalSubmissions ?? 0, icon: FolderOpen, color: "text-slate-600" },
+          { label: "Pending Review", value: stats?.submittedCount ?? 0, icon: Clock, color: "text-amber-600" },
+          { label: "Approved", value: stats?.approvedCount ?? 0, icon: CheckCircle2, color: "text-green-600" },
+        ].map((s) => (
+          <Card key={s.label} className="border border-slate-200">
+            <CardContent className="pt-4 pb-3">
+              <div className="flex items-center gap-3">
+                <s.icon size={22} className={s.color} />
+                <div>
+                  <p className="text-xl font-bold text-slate-800">{s.value}</p>
+                  <p className="text-xs text-slate-500">{s.label}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="mb-4">
+          <TabsTrigger value="templates" className="flex items-center gap-2">
+            <LayoutTemplate size={15} /> Form Templates
+          </TabsTrigger>
+          <TabsTrigger value="repository" className="flex items-center gap-2">
+            <FolderOpen size={15} /> Document Repository
+          </TabsTrigger>
+        </TabsList>
+
+        {/* ── TEMPLATES TAB ─────────────────────────────────────────────── */}
+        <TabsContent value="templates">
+          <div className="mb-4 flex items-center gap-3">
+            <div className="relative flex-1 max-w-sm">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <Input
+                value={templateSearch}
+                onChange={(e) => setTemplateSearch(e.target.value)}
+                placeholder="Search templates..."
+                className="pl-8"
+              />
+            </div>
+          </div>
+
+          {loadingTemplates ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {Array(3).fill(0).map((_, i) => (
+                <Card key={i} className="animate-pulse">
+                  <CardContent className="pt-5 pb-4 h-36 bg-slate-50 rounded-lg" />
+                </Card>
+              ))}
+            </div>
+          ) : filteredTemplates.length === 0 ? (
+            <div className="text-center py-20 text-slate-400">
+              <LayoutTemplate size={40} className="mx-auto mb-3 opacity-30" />
+              <p className="text-lg font-medium">No form templates yet</p>
+              <p className="text-sm mt-1 mb-4">Create your first template to get started</p>
+              <Button onClick={() => { setEditTemplate(null); setShowBuilder(true); }}>
+                <Plus size={14} className="mr-2" /> Create Template
+              </Button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredTemplates.map((template) => (
+                <Card key={template.id} className="border border-slate-200 hover:border-blue-300 transition-colors">
+                  <CardHeader className="pb-2 pt-4 px-4">
+                    <div className="flex items-start justify-between gap-2">
+                      <CardTitle className="text-sm font-semibold text-slate-800 leading-snug">
+                        {template.title}
+                      </CardTitle>
+                      <Badge variant="outline" className="text-xs shrink-0 bg-blue-50 text-blue-700 border-blue-200">
+                        {template.fields.length} field{template.fields.length !== 1 ? "s" : ""}
+                      </Badge>
+                    </div>
+                    {template.faaDocumentTitle && (
+                      <p className="text-xs text-slate-500 mt-1 flex items-center gap-1">
+                        <FileText size={11} />
+                        {DOC_TYPE_LABELS[template.faaDocumentType || ""] || ""}{" "}
+                        {template.faaSourceId} · {template.faaDocumentTitle.slice(0, 50)}
+                        {template.faaDocumentTitle.length > 50 ? "…" : ""}
+                      </p>
+                    )}
+                    {template.description && (
+                      <CardDescription className="text-xs mt-1 line-clamp-2">
+                        {template.description}
+                      </CardDescription>
+                    )}
+                  </CardHeader>
+                  <CardContent className="pt-0 pb-3 px-4">
+                    <p className="text-xs text-slate-400 mb-3">
+                      Created by {template.createdBy || "system"} ·{" "}
+                      {new Date(template.createdAt).toLocaleDateString()}
+                    </p>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        className="flex-1 h-7 text-xs bg-blue-600 hover:bg-blue-700"
+                        onClick={() => setFillTemplate(template)}
+                      >
+                        <PenLine size={12} className="mr-1" /> Fill Out
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs"
+                        onClick={() => { setEditTemplate(template); setShowBuilder(true); }}
+                      >
+                        <PenLine size={12} />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs text-red-500 hover:text-red-600 hover:bg-red-50"
+                        onClick={() => deleteMutation.mutate(template.id)}
+                        disabled={deleteMutation.isPending}
+                      >
+                        <Trash2 size={12} />
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        {/* ── DOCUMENT REPOSITORY TAB ──────────────────────────────────── */}
+        <TabsContent value="repository">
+          <div className="mb-4 flex items-center gap-3 flex-wrap">
+            <div className="relative flex-1 max-w-sm">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <Input
+                value={submissionSearch}
+                onChange={(e) => setSubmissionSearch(e.target.value)}
+                placeholder="Search by form, organization..."
+                className="pl-8"
+              />
+            </div>
+            <Select value={submissionStatusFilter} onValueChange={setSubmissionStatusFilter}>
+              <SelectTrigger className="w-36">
+                <Filter size={13} className="mr-2 text-slate-400" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="submitted">Submitted</SelectItem>
+                <SelectItem value="approved">Approved</SelectItem>
+                <SelectItem value="rejected">Rejected</SelectItem>
+                <SelectItem value="draft">Draft</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {loadingSubmissions ? (
+            <div className="space-y-2">
+              {Array(4).fill(0).map((_, i) => (
+                <div key={i} className="h-16 bg-slate-100 rounded-lg animate-pulse" />
+              ))}
+            </div>
+          ) : filteredSubmissions.length === 0 ? (
+            <div className="text-center py-20 text-slate-400">
+              <FolderOpen size={40} className="mx-auto mb-3 opacity-30" />
+              <p className="text-lg font-medium">No submissions yet</p>
+              <p className="text-sm mt-1 mb-4">Fill out a form template to create your first record</p>
+              <Button variant="outline" onClick={() => setActiveTab("templates")}>
+                Browse Templates
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {filteredSubmissions.map((sub) => (
+                <div
+                  key={sub.id}
+                  className="flex items-center justify-between bg-white border border-slate-200 rounded-lg px-4 py-3 hover:border-blue-300 cursor-pointer transition-colors"
+                  onClick={() => setViewSubmission(sub)}
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <FileText size={18} className="text-blue-500 shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-slate-800 truncate">
+                        {sub.templateTitle || "Untitled Form"}
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        {sub.organizationName || "No organization"} · Submitted by {sub.submittedBy || "unknown"} ·{" "}
+                        {new Date(sub.submittedAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0 ml-3">
+                    <span
+                      className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusBadge(sub.status)}`}
+                    >
+                      {sub.status.charAt(0).toUpperCase() + sub.status.slice(1)}
+                    </span>
+                    <Eye size={15} className="text-slate-400" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
+
+      {/* Dialogs */}
+      {showBuilder && (
+        <TemplateBuilder
+          open={showBuilder}
+          onClose={() => { setShowBuilder(false); setEditTemplate(null); }}
+          editTemplate={editTemplate}
+          faaDocuments={faaDocuments}
+        />
+      )}
+
+      {fillTemplate && (
+        <FormFiller
+          open={!!fillTemplate}
+          onClose={() => setFillTemplate(null)}
+          template={fillTemplate}
+        />
+      )}
+
+      {viewSubmission && (
+        <SubmissionViewer
+          open={!!viewSubmission}
+          onClose={() => setViewSubmission(null)}
+          submission={viewSubmission}
+        />
+      )}
+    </div>
+  );
+}

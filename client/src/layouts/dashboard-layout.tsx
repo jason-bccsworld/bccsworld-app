@@ -26,7 +26,8 @@ import {
   BookOpen,
   Activity,
   ClipboardList,
-  Archive
+  Archive,
+  PenLine
 } from 'lucide-react';
 
 interface DashboardLayoutProps {
@@ -49,6 +50,7 @@ const navigationItems = [
   { path: "/document-import", icon: FileText, label: "AI Document Import", badge: "AI" },
   { path: "/documents", icon: Database, label: "Document Library" },
   { path: "/faa-repository", icon: Archive, label: "FAA Repository", badge: "LIVE" },
+  { path: "/digital-forms", icon: PenLine, label: "Digital Forms", badge: "NEW" },
   { path: "/document-generation", icon: FileText, label: "Document Generator" },
   { path: "/admin-dashboard", icon: Users, label: "User Management" },
   { path: "/organization-setup", icon: Globe, label: "Organization Setup" },

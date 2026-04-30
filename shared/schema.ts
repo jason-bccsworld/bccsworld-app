@@ -1117,3 +1117,40 @@ export type InsertOperatorAuthorization = z.infer<typeof insertOperatorAuthoriza
 
 export type RegionalSupplement = typeof regionalSupplements.$inferSelect;
 export type InsertRegionalSupplement = z.infer<typeof insertRegionalSupplementSchema>;
+
+// ── DIGITAL FORMS SYSTEM ─────────────────────────────────────────────────────
+
+export const digitalFormTemplates = pgTable("digital_form_templates", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: varchar("title", { length: 300 }).notNull(),
+  description: text("description"),
+  faaSourceId: varchar("faa_source_id", { length: 100 }),
+  faaDocumentTitle: varchar("faa_document_title", { length: 300 }),
+  faaDocumentType: varchar("faa_document_type", { length: 50 }),
+  fields: jsonb("fields").notNull().default([]),
+  status: varchar("status", { length: 20 }).default("active"),
+  createdBy: varchar("created_by", { length: 200 }),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const digitalFormSubmissions = pgTable("digital_form_submissions", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  templateId: uuid("template_id").references(() => digitalFormTemplates.id).notNull(),
+  templateTitle: varchar("template_title", { length: 300 }),
+  organizationName: varchar("organization_name", { length: 300 }),
+  submittedBy: varchar("submitted_by", { length: 200 }),
+  formData: jsonb("form_data").notNull().default({}),
+  status: varchar("status", { length: 20 }).default("submitted"),
+  notes: text("notes"),
+  submittedAt: timestamp("submitted_at").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertDigitalFormTemplateSchema = createInsertSchema(digitalFormTemplates).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertDigitalFormSubmissionSchema = createInsertSchema(digitalFormSubmissions).omit({ id: true, createdAt: true, submittedAt: true });
+
+export type DigitalFormTemplate = typeof digitalFormTemplates.$inferSelect;
+export type InsertDigitalFormTemplate = z.infer<typeof insertDigitalFormTemplateSchema>;
+export type DigitalFormSubmission = typeof digitalFormSubmissions.$inferSelect;
+export type InsertDigitalFormSubmission = z.infer<typeof insertDigitalFormSubmissionSchema>;

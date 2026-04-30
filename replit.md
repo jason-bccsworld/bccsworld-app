@@ -61,6 +61,7 @@ Intelligent checklist management with automated retrieval, version monitoring, a
 
 ### Core Features and Pages
 - **/faa-repository**: Displays monitored FAA documents with update tracking and historical changes.
+- **/digital-forms**: Digital Forms system — create FAA-linked form templates with a field builder (text, textarea, date, number, checkbox, select, email, phone), fill out and submit forms, manage submissions in a Document Repository with approve/reject workflow. Backend tables: `digital_form_templates`, `digital_form_submissions`.
 - **/compliance-records**: Manages training event records with blockchain hashing and CSV export.
 - **/students**: Student roster management with enrollment tracking.
 - **/instructors**: Instructor records management with certificate expiry alerts.
