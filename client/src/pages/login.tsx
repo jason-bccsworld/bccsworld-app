@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
+import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -21,7 +22,14 @@ type LoginFormData = z.infer<typeof loginSchema>;
 export default function Login() {
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
+  const { isAuthenticated } = useAuth();
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      setLocation("/dashboard");
+    }
+  }, [isAuthenticated, setLocation]);
 
   const form = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
@@ -42,9 +50,8 @@ export default function Login() {
       }
       return res.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
-      setLocation("/dashboard");
+    onSuccess: (data) => {
+      queryClient.setQueryData(["/api/auth/user"], data.user);
     },
     onError: (err: Error) => {
       setError(err.message);
