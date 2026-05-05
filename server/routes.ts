@@ -317,8 +317,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/admin/stats', isAuthenticated, async (_req, res) => {
+  app.get('/api/admin/stats', isAuthenticated, async (req: any, res) => {
     try {
+      if (req.user?.role !== 'admin') return res.status(403).json({ message: 'Admin access required' });
       const [userCount] = await db.select({ total: count() }).from(users);
       const [orgCount] = await db.select({ total: count() }).from(trainingOrganizations);
       res.json({
@@ -1000,6 +1001,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ── Admin Activity Feed ───────────────────────────────────────────────────
   app.get('/api/admin/activity', isAuthenticated, async (req: any, res) => {
     try {
+      if (req.user?.role !== 'admin') return res.status(403).json({ message: 'Admin access required' });
       const recentLogs = await storage.getAuditLogs({ limit: 20 });
       const activity = recentLogs.map(log => ({
         id: log.id,
