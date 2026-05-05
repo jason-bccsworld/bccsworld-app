@@ -10,6 +10,7 @@ import {
 } from "@shared/schema";
 import { z } from "zod";
 import multer from "multer";
+import { DEFAULT_ROLE_PERMISSIONS, SYSTEM_ROLES, ALL_PERMISSIONS } from "../shared/permissions";
 import { registerBlockchainKeyManagementRoutes } from "./routes/blockchain-key-management";
 import legacyDataTransferRoutes from "./routes/legacy-data-transfer";
 import adaptiveComplianceRoutes from "./routes/adaptive-compliance";
@@ -562,6 +563,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         firstName: users.firstName,
         lastName: users.lastName,
         role: users.role,
+        isActive: users.isActive,
+        lastLoginAt: users.lastLoginAt,
         createdAt: users.createdAt,
       }).from(users).orderBy(desc(users.createdAt));
       res.json(allUsers);
@@ -578,6 +581,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!email || !firstName || !lastName || !role || !temporaryPassword) {
         return res.status(400).json({ message: 'All fields are required' });
       }
+      if (temporaryPassword.length < 8) {
+        return res.status(400).json({ message: 'Password must be at least 8 characters' });
+      }
       const [existing] = await db.select().from(users).where(eq(users.email, email));
       if (existing) return res.status(409).json({ message: 'User with this email already exists' });
 
@@ -587,8 +593,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         firstName,
         lastName,
         role: role || 'viewer',
+        isActive: true,
         passwordHash,
-      }).returning({ id: users.id, email: users.email, firstName: users.firstName, lastName: users.lastName, role: users.role });
+      }).returning({
+        id: users.id, email: users.email, firstName: users.firstName,
+        lastName: users.lastName, role: users.role, isActive: users.isActive,
+        lastLoginAt: users.lastLoginAt, createdAt: users.createdAt,
+      });
+      await storage.createAuditLog({
+        userId: req.user?.id || 'system',
+        eventType: 'user_invited',
+        message: `User ${email} invited with role ${role}`,
+        details: { email, role },
+        severity: 'info',
+      });
       res.status(201).json(newUser);
     } catch (error) {
       console.error('Invite user error:', error);
@@ -600,15 +618,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       if (req.user?.role !== 'admin') return res.status(403).json({ message: 'Admin access required' });
       const { role } = req.body;
-      const validRoles = ['admin', 'instructor', 'auditor', 'viewer'];
+      // Get valid roles dynamically from role permissions table
+      const rolesResult = await db.execute(drizzleSql`SELECT role_name FROM bccs_role_permissions`);
+      const validRoles = (rolesResult.rows as any[]).map(r => r.role_name);
       if (!role || !validRoles.includes(role)) {
         return res.status(400).json({ message: 'Invalid role' });
       }
       await db.update(users).set({ role, updatedAt: new Date() }).where(eq(users.id, req.params.id));
+      await storage.createAuditLog({
+        userId: req.user?.id || 'system',
+        eventType: 'user_role_changed',
+        message: `User role updated to ${role}`,
+        details: { targetUserId: req.params.id, newRole: role },
+        severity: 'info',
+      });
       res.json({ message: 'Role updated successfully' });
     } catch (error) {
       console.error('Update role error:', error);
       res.status(500).json({ message: 'Failed to update role' });
+    }
+  });
+
+  app.put('/api/admin/users/:id/status', isAuthenticated, async (req: any, res) => {
+    try {
+      if (req.user?.role !== 'admin') return res.status(403).json({ message: 'Admin access required' });
+      if (req.params.id === req.user.id) return res.status(400).json({ message: 'Cannot change your own account status' });
+      const { isActive } = req.body;
+      if (typeof isActive !== 'boolean') return res.status(400).json({ message: 'isActive must be a boolean' });
+      await db.update(users).set({ isActive, updatedAt: new Date() }).where(eq(users.id, req.params.id));
+      await storage.createAuditLog({
+        userId: req.user?.id || 'system',
+        eventType: isActive ? 'user_activated' : 'user_deactivated',
+        message: `User account ${isActive ? 'activated' : 'deactivated'}`,
+        details: { targetUserId: req.params.id },
+        severity: 'info',
+      });
+      res.json({ message: `User ${isActive ? 'activated' : 'deactivated'}` });
+    } catch (error) {
+      console.error('Update user status error:', error);
+      res.status(500).json({ message: 'Failed to update user status' });
+    }
+  });
+
+  app.put('/api/admin/users/:id/reset-password', isAuthenticated, async (req: any, res) => {
+    try {
+      if (req.user?.role !== 'admin') return res.status(403).json({ message: 'Admin access required' });
+      const { newPassword } = req.body;
+      if (!newPassword || newPassword.length < 8) return res.status(400).json({ message: 'Password must be at least 8 characters' });
+      const passwordHash = await bcrypt.hash(newPassword, 12);
+      await db.update(users).set({ passwordHash, updatedAt: new Date() }).where(eq(users.id, req.params.id));
+      await storage.createAuditLog({
+        userId: req.user?.id || 'system',
+        eventType: 'password_reset',
+        message: 'User password reset by admin',
+        details: { targetUserId: req.params.id },
+        severity: 'info',
+      });
+      res.json({ message: 'Password reset successfully' });
+    } catch (error) {
+      console.error('Reset password error:', error);
+      res.status(500).json({ message: 'Failed to reset password' });
     }
   });
 
@@ -617,10 +686,124 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (req.user?.role !== 'admin') return res.status(403).json({ message: 'Admin access required' });
       if (req.params.id === req.user.id) return res.status(400).json({ message: 'Cannot delete your own account' });
       await db.delete(users).where(eq(users.id, req.params.id));
+      await storage.createAuditLog({
+        userId: req.user?.id || 'system',
+        eventType: 'user_deleted',
+        message: 'User account permanently deleted',
+        details: { targetUserId: req.params.id },
+        severity: 'info',
+      });
       res.json({ message: 'User deleted' });
     } catch (error) {
       console.error('Delete user error:', error);
       res.status(500).json({ message: 'Failed to delete user' });
+    }
+  });
+
+  // ── Role & Permission Management ─────────────────────────────────────────
+  app.get('/api/admin/roles', isAuthenticated, async (req: any, res) => {
+    try {
+      if (req.user?.role !== 'admin') return res.status(403).json({ message: 'Admin access required' });
+      const result = await db.execute(drizzleSql`
+        SELECT id, role_name, display_name, description, permissions, is_system, color, created_at, updated_at
+        FROM bccs_role_permissions
+        ORDER BY is_system DESC, role_name ASC
+      `);
+      res.json(result.rows);
+    } catch (error) {
+      console.error('Get roles error:', error);
+      res.status(500).json({ message: 'Failed to fetch roles' });
+    }
+  });
+
+  app.put('/api/admin/roles/:roleName', isAuthenticated, async (req: any, res) => {
+    try {
+      if (req.user?.role !== 'admin') return res.status(403).json({ message: 'Admin access required' });
+      const { permissions, displayName, description } = req.body;
+      if (!Array.isArray(permissions)) return res.status(400).json({ message: 'permissions must be an array' });
+      // Validate all permissions are known
+      const invalid = permissions.filter((p: string) => !ALL_PERMISSIONS.includes(p));
+      if (invalid.length > 0) return res.status(400).json({ message: `Unknown permissions: ${invalid.join(', ')}` });
+      const roleName = req.params.roleName;
+      // Prevent removing admin:roles from admin role
+      if (roleName === 'admin' && !permissions.includes('admin:roles')) {
+        return res.status(400).json({ message: 'Cannot remove admin:roles from the admin role' });
+      }
+      const updates: any = { permissions: permissions, updated_at: new Date() };
+      if (displayName) updates.display_name = displayName;
+      if (description !== undefined) updates.description = description;
+      const permsLiteral = permissions.length > 0
+        ? `ARRAY[${permissions.map((p: string) => `'${p.replace(/'/g, "''")}'`).join(',')}]::TEXT[]`
+        : `ARRAY[]::TEXT[]`;
+      const safeDisplayName = (displayName || '').replace(/'/g, "''");
+      const safeDescription = (description ?? '').replace(/'/g, "''");
+      await db.execute(drizzleSql.raw(`
+        UPDATE bccs_role_permissions
+        SET permissions = ${permsLiteral},
+            display_name = COALESCE(NULLIF('${safeDisplayName}', ''), display_name),
+            description  = COALESCE(NULLIF('${safeDescription}', ''), description),
+            updated_at   = NOW()
+        WHERE role_name = '${roleName.replace(/'/g, "''")}'
+      `));
+      await storage.createAuditLog({
+        userId: req.user?.id || 'system',
+        eventType: 'role_permissions_updated',
+        message: `Permissions updated for role: ${roleName}`,
+        details: { roleName, permissionCount: permissions.length },
+        severity: 'info',
+      });
+      res.json({ message: 'Permissions updated' });
+    } catch (error) {
+      console.error('Update role permissions error:', error);
+      res.status(500).json({ message: 'Failed to update permissions' });
+    }
+  });
+
+  app.post('/api/admin/roles', isAuthenticated, async (req: any, res) => {
+    try {
+      if (req.user?.role !== 'admin') return res.status(403).json({ message: 'Admin access required' });
+      const { roleName, displayName, description, permissions = [], color } = req.body;
+      if (!roleName || !displayName) return res.status(400).json({ message: 'roleName and displayName are required' });
+      if (!/^[a-z0-9_-]+$/.test(roleName)) return res.status(400).json({ message: 'roleName must be lowercase alphanumeric with _ or -' });
+      const newPermsLiteral = permissions.length > 0
+        ? `ARRAY[${permissions.map((p: string) => `'${p.replace(/'/g, "''")}'`).join(',')}]::TEXT[]`
+        : `ARRAY[]::TEXT[]`;
+      const safeColor = (color || 'bg-teal-100 text-teal-700').replace(/'/g, "''");
+      const result = await db.execute(drizzleSql.raw(`
+        INSERT INTO bccs_role_permissions (role_name, display_name, description, permissions, is_system, color)
+        VALUES (
+          '${roleName.replace(/'/g, "''")}',
+          '${displayName.replace(/'/g, "''")}',
+          '${(description || '').replace(/'/g, "''")}',
+          ${newPermsLiteral},
+          FALSE,
+          '${safeColor}'
+        )
+        RETURNING *
+      `));
+      res.status(201).json(result.rows[0]);
+    } catch (error: any) {
+      if (error?.code === '23505') return res.status(409).json({ message: 'A role with this name already exists' });
+      console.error('Create role error:', error);
+      res.status(500).json({ message: 'Failed to create role' });
+    }
+  });
+
+  app.delete('/api/admin/roles/:roleName', isAuthenticated, async (req: any, res) => {
+    try {
+      if (req.user?.role !== 'admin') return res.status(403).json({ message: 'Admin access required' });
+      const roleName = req.params.roleName;
+      // Cannot delete system roles
+      const isSystemRole = SYSTEM_ROLES.some(r => r.roleName === roleName);
+      if (isSystemRole) return res.status(400).json({ message: 'System roles cannot be deleted' });
+      // Check if any users have this role
+      const [userWithRole] = await db.select({ id: users.id }).from(users).where(eq(users.role, roleName));
+      if (userWithRole) return res.status(400).json({ message: 'Cannot delete a role that is assigned to users' });
+      await db.execute(drizzleSql`DELETE FROM bccs_role_permissions WHERE role_name = ${roleName}`);
+      res.json({ message: 'Role deleted' });
+    } catch (error) {
+      console.error('Delete role error:', error);
+      res.status(500).json({ message: 'Failed to delete role' });
     }
   });
 

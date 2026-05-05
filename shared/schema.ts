@@ -35,7 +35,22 @@ export const users = pgTable("users", {
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
   passwordHash: varchar("password_hash"),
-  role: varchar("role").default("user"), // admin, instructor, auditor, viewer
+  role: varchar("role").default("viewer"), // admin, instructor, auditor, viewer
+  isActive: boolean("is_active").default(true),
+  lastLoginAt: timestamp("last_login_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Role permissions table – one row per role, stores the list of granted permissions
+export const rolePermissions = pgTable("bccs_role_permissions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  roleName: varchar("role_name", { length: 50 }).notNull().unique(),
+  displayName: varchar("display_name", { length: 100 }).notNull(),
+  description: text("description"),
+  permissions: text("permissions").array().default(sql`ARRAY[]::text[]`),
+  isSystem: boolean("is_system").default(false),
+  color: varchar("color", { length: 80 }).default("bg-gray-100 text-gray-700"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

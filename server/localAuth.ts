@@ -6,7 +6,7 @@ import connectPg from "connect-pg-simple";
 import type { Express, RequestHandler } from "express";
 import { db } from "./db";
 import { users } from "@shared/schema";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { storage } from "./storage";
 
 export function getSession() {
@@ -91,8 +91,14 @@ export async function setupAuth(app: Express) {
       if (!user) {
         return res.status(401).json({ message: info?.message ?? "Invalid credentials" });
       }
-      req.logIn(user, (loginErr) => {
+      // Check if user is active
+      if (user.isActive === false) {
+        return res.status(403).json({ message: "Your account has been deactivated. Contact your administrator." });
+      }
+      req.logIn(user, async (loginErr) => {
         if (loginErr) return next(loginErr);
+        // Stamp last login timestamp (fire-and-forget)
+        db.execute(sql`UPDATE users SET last_login_at = NOW() WHERE id = ${user.id}`).catch(() => {});
         const { passwordHash: _, ...safeUser } = user;
         res.json({ success: true, user: safeUser });
       });
