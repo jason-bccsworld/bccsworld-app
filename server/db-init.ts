@@ -1,6 +1,7 @@
 import { db } from "./db";
 import { sql } from "drizzle-orm";
 import { DEFAULT_ROLE_PERMISSIONS, SYSTEM_ROLES } from "../shared/permissions";
+import { ensureCryptoTables } from "./services/crypto-signing";
 
 export async function ensureTables(): Promise<void> {
   try {
@@ -157,6 +158,9 @@ export async function ensureTables(): Promise<void> {
       )
       ON CONFLICT (role_name) DO NOTHING
     `));
+
+    // Crypto signing tables (Ed25519 key pairs + signature columns)
+    await ensureCryptoTables();
 
     console.log('[db-init] Training records tables ensured');
     console.log('[db-init] Role permissions seeded');

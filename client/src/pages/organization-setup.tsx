@@ -8,7 +8,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { Building2, CheckCircle2, Loader2, Shield, Key, Globe, FileText } from "lucide-react";
+import {
+  Building2, CheckCircle2, Loader2, Shield, Key, Globe, FileText,
+  ShieldCheck, Copy, Download, RefreshCw, ShieldAlert
+} from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useLocation } from "wouter";
 
@@ -38,6 +41,10 @@ export default function OrganizationSetup() {
     queryKey: ["/api/auth/organization"],
   });
 
+  const { data: orgKey, refetch: refetchKey } = useQuery<any>({
+    queryKey: ["/api/org-keys/current"],
+  });
+
   const [orgName, setOrgName] = useState("");
   const [orgType, setOrgType] = useState("");
   const [authority, setAuthority] = useState("");
@@ -57,13 +64,23 @@ export default function OrganizationSetup() {
         contactInfo: { city, country, phone, email: contactEmail },
       });
     },
-    onSuccess: () => {
+    onSuccess: async (data: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/auth/organization"] });
-      toast({
-        title: "Organization created",
-        description: "Your training organization has been set up successfully.",
-      });
-      setTimeout(() => navigate("/"), 1500);
+      // Auto-generate key pair for the new org
+      try {
+        await apiRequest("POST", "/api/org-keys/generate-for-org", { orgId: data.id });
+        queryClient.invalidateQueries({ queryKey: ["/api/org-keys/current"] });
+        toast({
+          title: "Organization registered",
+          description: "Ed25519 signing key pair generated and activated.",
+        });
+      } catch {
+        toast({
+          title: "Organization registered",
+          description: "Key pair generation failed — generate it manually below.",
+          variant: "destructive",
+        });
+      }
     },
     onError: (err: any) => {
       toast({
@@ -73,6 +90,34 @@ export default function OrganizationSetup() {
       });
     },
   });
+
+  const generateKeyMutation = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/org-keys/generate"),
+    onSuccess: () => {
+      refetchKey();
+      queryClient.invalidateQueries({ queryKey: ["/api/org-keys/current"] });
+      toast({ title: "New key pair generated", description: "Previous key deactivated. New Ed25519 key is now active." });
+    },
+    onError: (err: any) => {
+      toast({ title: "Key generation failed", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const copyFingerprint = () => {
+    if (orgKey?.fingerprint) {
+      navigator.clipboard.writeText(orgKey.fingerprint);
+      toast({ title: "Copied", description: "Fingerprint copied to clipboard." });
+    }
+  };
+
+  const downloadPublicKey = () => {
+    const a = document.createElement("a");
+    a.href = "/api/org-keys/public-key";
+    a.download = "bccs-org-public-key.pem";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
 
   if (orgLoading) {
     return (
@@ -91,9 +136,10 @@ export default function OrganizationSetup() {
       <div className="space-y-6 max-w-3xl">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Organization Profile</h1>
-          <p className="text-gray-600 mt-1">Your registered training organization details</p>
+          <p className="text-gray-600 mt-1">Your registered training organization and cryptographic signing keys</p>
         </div>
 
+        {/* Org details */}
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
@@ -129,43 +175,119 @@ export default function OrganizationSetup() {
                 </div>
               )}
             </div>
-
-            <Separator />
-
-            <div>
-              <p className="text-sm font-medium text-gray-500 mb-2 flex items-center gap-1">
-                <Key className="h-3 w-3" /> BCCS Master Public Key
-              </p>
-              <p className="text-xs font-mono bg-gray-100 p-2 rounded break-all text-gray-700">
-                {existingOrg.masterPublicKey}
-              </p>
-            </div>
-
-            <div className="flex items-center gap-2 text-xs text-gray-500">
-              <Shield className="h-3 w-3 text-green-600" />
-              Blockchain key generated on{" "}
-              {existingOrg.keyGenerationDate
-                ? new Date(existingOrg.keyGenerationDate).toLocaleDateString()
-                : "—"}
-            </div>
           </CardContent>
         </Card>
 
+        {/* Cryptographic key section */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">What's included with your BCCS organization key</CardTitle>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Key className="h-5 w-5 text-blue-600" />
+              Cryptographic Signing Key (Ed25519)
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {orgKey?.hasKey ? (
+              <>
+                <div className="flex items-center gap-2 p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-800 text-sm font-medium">
+                  <ShieldCheck className="h-4 w-4 flex-shrink-0" />
+                  Active — records are being automatically signed
+                </div>
+
+                <div>
+                  <p className="text-sm font-medium text-gray-500 mb-1">Key Algorithm</p>
+                  <Badge variant="secondary" className="font-mono">Ed25519</Badge>
+                </div>
+
+                <div>
+                  <p className="text-sm font-medium text-gray-500 mb-1">Public Key Fingerprint (SHA-256)</p>
+                  <div className="flex items-center gap-2">
+                    <code className="flex-1 text-sm font-mono bg-gray-100 px-3 py-2 rounded break-all text-gray-700">
+                      {orgKey.fingerprint}
+                    </code>
+                    <Button variant="ghost" size="sm" onClick={copyFingerprint} className="flex-shrink-0">
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <p className="text-xs text-gray-400 mt-1">Share this fingerprint with regulatory authorities for out-of-band verification</p>
+                </div>
+
+                <div>
+                  <p className="text-sm font-medium text-gray-500 mb-1">Key Created</p>
+                  <p className="text-sm text-gray-700">
+                    {orgKey.createdAt ? new Date(orgKey.createdAt).toLocaleString() : "—"}
+                  </p>
+                </div>
+
+                <div>
+                  <p className="text-sm font-medium text-gray-500 mb-1">Public Key (PEM)</p>
+                  <pre className="text-[11px] font-mono bg-gray-100 p-3 rounded overflow-x-auto text-gray-600 leading-relaxed whitespace-pre-wrap break-all">
+                    {orgKey.publicKeyPem}
+                  </pre>
+                </div>
+
+                <div className="flex gap-2 flex-wrap">
+                  <Button variant="outline" size="sm" onClick={downloadPublicKey}>
+                    <Download className="h-4 w-4 mr-2" />
+                    Download Public Key (.pem)
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => generateKeyMutation.mutate()}
+                    disabled={generateKeyMutation.isPending}
+                    className="text-amber-700 border-amber-300 hover:bg-amber-50"
+                  >
+                    {generateKeyMutation.isPending
+                      ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Rotating…</>
+                      : <><RefreshCw className="h-4 w-4 mr-2" />Rotate Key</>
+                    }
+                  </Button>
+                </div>
+                <p className="text-xs text-amber-700">
+                  ⚠ Rotating the key will deactivate the current key. Existing signed records remain verifiable against the old key fingerprint. New records will use the new key.
+                </p>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-sm">
+                  <ShieldAlert className="h-4 w-4 flex-shrink-0" />
+                  No signing key generated yet. Training records cannot be cryptographically signed.
+                </div>
+                <Button
+                  onClick={() => generateKeyMutation.mutate()}
+                  disabled={generateKeyMutation.isPending}
+                  className="w-full"
+                >
+                  {generateKeyMutation.isPending
+                    ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Generating Ed25519 Key Pair…</>
+                    : <><Key className="h-4 w-4 mr-2" />Generate Ed25519 Signing Key</>
+                  }
+                </Button>
+              </>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* What the key does */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">How cryptographic signing works</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
               {[
-                { icon: FileText, text: "Immutable compliance record storage" },
-                { icon: Shield, text: "Tamper-proof audit trail" },
-                { icon: Key, text: "Multi-signature training record verification" },
-                { icon: Globe, text: "Cross-border regulatory recognition" },
-              ].map(({ icon: Icon, text }) => (
-                <div key={text} className="flex items-center gap-2 text-sm text-gray-700">
-                  <Icon className="h-4 w-4 text-blue-600 flex-shrink-0" />
-                  {text}
+                { icon: Key, title: "Ed25519 Key Pair", desc: "Industry-standard elliptic curve algorithm used in SSH, TLS, and government PKI systems" },
+                { icon: Shield, title: "Per-Record Signatures", desc: "Every training record is signed with a cryptographic hash that can prove it hasn't been altered" },
+                { icon: ShieldCheck, title: "Chain of Trust", desc: "Each signature includes the hash of the previous record, making the entire ledger tamper-evident" },
+                { icon: Globe, title: "Regulatory Verification", desc: "Share your public key fingerprint with the FAA, EASA, or any authority for independent verification" },
+              ].map(({ icon: Icon, title, desc }) => (
+                <div key={title} className="flex items-start gap-3 p-3 rounded-lg border bg-slate-50">
+                  <Icon className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="font-medium text-slate-800">{title}</p>
+                    <p className="text-slate-500 text-xs mt-0.5">{desc}</p>
+                  </div>
                 </div>
               ))}
             </div>
@@ -180,7 +302,7 @@ export default function OrganizationSetup() {
       <div>
         <h1 className="text-3xl font-bold text-gray-900">Organization Setup</h1>
         <p className="text-gray-600 mt-1">
-          Register your training organization to unlock full compliance management and blockchain record keeping.
+          Register your training organization to enable full compliance management and Ed25519-signed record keeping.
         </p>
       </div>
 
@@ -266,10 +388,10 @@ export default function OrganizationSetup() {
 
           <div className="bg-blue-50 border border-blue-100 rounded-lg p-4 text-sm text-blue-800">
             <div className="flex items-center gap-2 font-medium mb-1">
-              <Key className="h-4 w-4" /> A unique BCCS blockchain key will be generated for your organization
+              <Key className="h-4 w-4" /> An Ed25519 key pair will be generated for your organization
             </div>
             <p className="text-blue-700">
-              This key cryptographically signs all training records, enabling tamper-proof compliance verification across regulatory authorities.
+              The private key is encrypted and stored server-side. Every training record will be automatically signed. Your public key fingerprint can be shared with regulatory authorities for independent verification.
             </p>
           </div>
 
@@ -285,9 +407,9 @@ export default function OrganizationSetup() {
             }
           >
             {setupMutation.isPending ? (
-              <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Setting up…</>
+              <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Setting up & generating key pair…</>
             ) : (
-              <><Building2 className="h-4 w-4 mr-2" />Register Organization</>
+              <><Building2 className="h-4 w-4 mr-2" />Register Organization + Generate Signing Key</>
             )}
           </Button>
         </CardContent>

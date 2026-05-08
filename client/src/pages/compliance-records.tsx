@@ -9,7 +9,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Eye, Download, Filter, Search, Plus, Loader2, CheckCircle2, Clock } from "lucide-react";
+import {
+  Eye, Download, Filter, Search, Plus, Loader2, CheckCircle2, Clock,
+  Shield, ShieldCheck, ShieldAlert, ShieldX, Lock, ExternalLink
+} from "lucide-react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -26,7 +29,7 @@ const EVENT_TYPES = [
 ];
 
 function exportCSV(events: any[]) {
-  const headers = ["Student", "Instructor", "Event Type", "Date", "Duration (hrs)", "Curriculum Item", "Status", "Blockchain Hash"];
+  const headers = ["Student", "Instructor", "Event Type", "Date", "Duration (hrs)", "Curriculum Item", "Status", "Signed", "Key Fingerprint", "Chain Hash"];
   const rows = events.map(e => [
     e.student_name || e.studentName,
     e.instructor_name || e.instructorName,
@@ -35,7 +38,9 @@ function exportCSV(events: any[]) {
     e.duration_hours || e.durationHours || "",
     e.curriculum_item || e.curriculumItem || "",
     e.status,
-    e.blockchain_hash || e.blockchainHash || "",
+    e.signature ? "Yes" : "No",
+    e.key_fingerprint || "",
+    e.chain_hash || "",
   ]);
   const csv = [headers, ...rows].map(r => r.map(c => `"${String(c || "").replace(/"/g, '""')}"`).join(",")).join("\n");
   const blob = new Blob([csv], { type: "text/csv" });
@@ -45,6 +50,14 @@ function exportCSV(events: any[]) {
   URL.revokeObjectURL(url);
 }
 
+interface VerifyResult {
+  valid: boolean;
+  eventId: string;
+  keyFingerprint: string | null;
+  signedAt: string | null;
+  details: string;
+}
+
 export default function ComplianceRecords() {
   const { toast } = useToast();
   const { isAuthenticated, isLoading } = useAuth();
@@ -52,6 +65,9 @@ export default function ComplianceRecords() {
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
   const [logOpen, setLogOpen] = useState(false);
+  const [verifyResult, setVerifyResult] = useState<{ result: VerifyResult; eventId: string } | null>(null);
+  const [verifyingId, setVerifyingId] = useState<string | null>(null);
+  const [signingId, setSigningId] = useState<string | null>(null);
 
   // Form state
   const [studentName, setStudentName] = useState("");
@@ -77,6 +93,11 @@ export default function ComplianceRecords() {
     enabled: isAuthenticated,
   });
 
+  const { data: orgKey } = useQuery<any>({
+    queryKey: ["/api/org-keys/current"],
+    enabled: isAuthenticated,
+  });
+
   const logMutation = useMutation({
     mutationFn: () => apiRequest("POST", "/api/training-events", {
       studentName, instructorName, eventType, eventDate, durationHours, curriculumItem, notes, status
@@ -84,7 +105,13 @@ export default function ComplianceRecords() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/training-events"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
-      toast({ title: "Training event logged", description: "Record saved with blockchain hash." });
+      const autoSigned = orgKey?.hasKey;
+      toast({
+        title: "Training event logged",
+        description: autoSigned
+          ? "Record saved and cryptographically signed with your org key."
+          : "Record saved. Generate an org key to enable automatic signing.",
+      });
       setLogOpen(false);
       setStudentName(""); setInstructorName(""); setEventType(""); setDurationHours(""); setCurriculumItem(""); setNotes("");
     },
@@ -92,6 +119,42 @@ export default function ComplianceRecords() {
       toast({ title: "Failed to log event", description: err.message, variant: "destructive" });
     }
   });
+
+  const signAllMutation = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/org-keys/sign-all"),
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/training-events"] });
+      toast({ title: "Signing complete", description: `${data.signed} records signed, ${data.failed} failed.` });
+    },
+    onError: (err: any) => {
+      toast({ title: "Signing failed", description: err.message, variant: "destructive" });
+    }
+  });
+
+  const handleVerify = async (eventId: string) => {
+    setVerifyingId(eventId);
+    try {
+      const result = await apiRequest("GET", `/api/org-keys/verify/${eventId}`);
+      setVerifyResult({ result, eventId });
+    } catch (err: any) {
+      toast({ title: "Verification failed", description: err.message, variant: "destructive" });
+    } finally {
+      setVerifyingId(null);
+    }
+  };
+
+  const handleSignOne = async (eventId: string) => {
+    setSigningId(eventId);
+    try {
+      await apiRequest("POST", `/api/org-keys/sign/${eventId}`);
+      queryClient.invalidateQueries({ queryKey: ["/api/training-events"] });
+      toast({ title: "Record signed", description: "Ed25519 signature applied." });
+    } catch (err: any) {
+      toast({ title: "Signing failed", description: err.message, variant: "destructive" });
+    } finally {
+      setSigningId(null);
+    }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -111,6 +174,9 @@ export default function ComplianceRecords() {
     return matchSearch && matchType;
   });
 
+  const signedCount = trainingEvents.filter(e => e.signature || e.signed_at).length;
+  const unsignedCount = trainingEvents.length - signedCount;
+
   if (isLoading) return <div className="flex-1 flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
 
   return (
@@ -118,9 +184,17 @@ export default function ComplianceRecords() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Training Records</h1>
-          <p className="text-slate-600">Immutable training records secured on blockchain</p>
+          <p className="text-slate-600">Ed25519-signed training records with cryptographic chain-of-trust</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
+          {orgKey?.hasKey && unsignedCount > 0 && (
+            <Button variant="outline" onClick={() => signAllMutation.mutate()} disabled={signAllMutation.isPending}>
+              {signAllMutation.isPending
+                ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Signing…</>
+                : <><Shield className="h-4 w-4 mr-2" />Sign All Unsigned ({unsignedCount})</>
+              }
+            </Button>
+          )}
           <Button variant="outline" onClick={() => exportCSV(filtered)} disabled={filtered.length === 0}>
             <Download className="h-4 w-4 mr-2" /> Export CSV
           </Button>
@@ -129,6 +203,23 @@ export default function ComplianceRecords() {
           </Button>
         </div>
       </div>
+
+      {/* Key status banner */}
+      {orgKey && (
+        <div className={`flex items-center gap-3 px-4 py-3 rounded-lg border text-sm ${orgKey.hasKey ? "bg-emerald-50 border-emerald-200 text-emerald-800" : "bg-amber-50 border-amber-200 text-amber-800"}`}>
+          {orgKey.hasKey ? <ShieldCheck className="h-4 w-4 flex-shrink-0" /> : <ShieldAlert className="h-4 w-4 flex-shrink-0" />}
+          {orgKey.hasKey ? (
+            <span>
+              <strong>Ed25519 key active</strong> — Fingerprint: <code className="font-mono text-xs bg-emerald-100 px-1 rounded">{orgKey.fingerprint}</code>
+              {" · "}{signedCount} of {trainingEvents.length} records signed
+            </span>
+          ) : (
+            <span>
+              <strong>No signing key configured.</strong> Go to Organization Setup → Generate Key to enable cryptographic record signing.
+            </span>
+          )}
+        </div>
+      )}
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -141,8 +232,8 @@ export default function ComplianceRecords() {
           <p className="text-sm text-gray-600">Completed</p>
         </CardContent></Card>
         <Card><CardContent className="p-4 text-center">
-          <p className="text-2xl font-bold text-amber-600">{trainingEvents.filter(e => (e.status || '') === 'pending').length}</p>
-          <p className="text-sm text-gray-600">Pending</p>
+          <p className="text-2xl font-bold text-emerald-600">{signedCount}</p>
+          <p className="text-sm text-gray-600">Cryptographically Signed</p>
         </CardContent></Card>
         <Card><CardContent className="p-4 text-center">
           <p className="text-2xl font-bold text-purple-600">{[...new Set(trainingEvents.map(e => e.student_name || e.studentName))].length}</p>
@@ -155,7 +246,7 @@ export default function ComplianceRecords() {
           <div className="flex items-center justify-between flex-wrap gap-3">
             <div>
               <CardTitle>Training Events ({filtered.length})</CardTitle>
-              <CardDescription>All logged training sessions and evaluations</CardDescription>
+              <CardDescription>All logged training sessions — signed records are cryptographically verifiable</CardDescription>
             </div>
             <div className="flex gap-2 flex-wrap">
               <div className="relative">
@@ -190,42 +281,121 @@ export default function ComplianceRecords() {
                     <th className="text-left py-3 px-4 font-medium">Instructor</th>
                     <th className="text-left py-3 px-4 font-medium">Event Type</th>
                     <th className="text-left py-3 px-4 font-medium">Date</th>
-                    <th className="text-left py-3 px-4 font-medium">Duration</th>
                     <th className="text-left py-3 px-4 font-medium">Status</th>
-                    <th className="text-left py-3 px-4 font-medium">Blockchain</th>
+                    <th className="text-left py-3 px-4 font-medium">Signature</th>
+                    <th className="text-left py-3 px-4 font-medium">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {filtered.map((event: any) => (
-                    <tr key={event.id} className="hover:bg-slate-50">
-                      <td className="py-3 px-4 font-medium">{event.student_name || event.studentName}</td>
-                      <td className="py-3 px-4 text-slate-600">{event.instructor_name || event.instructorName}</td>
-                      <td className="py-3 px-4 text-slate-600 capitalize">{(event.event_type || event.eventType || "").replace("_", " ")}</td>
-                      <td className="py-3 px-4 text-slate-600">
-                        {event.event_date ? format(new Date(event.event_date), "MMM dd, yyyy") : "—"}
-                      </td>
-                      <td className="py-3 px-4 text-slate-600">{event.duration_hours || event.durationHours || "—"} hrs</td>
-                      <td className="py-3 px-4">
-                        <Badge className={getStatusColor(event.status)}>{event.status}</Badge>
-                      </td>
-                      <td className="py-3 px-4">
-                        {(event.blockchain_hash || event.blockchainHash) ? (
-                          <span className="flex items-center gap-1 text-xs text-green-600">
-                            <CheckCircle2 className="h-3 w-3" />
-                            <code className="text-xs">{(event.blockchain_hash || event.blockchainHash).slice(0, 18)}…</code>
-                          </span>
-                        ) : (
-                          <span className="text-slate-400 text-xs">Pending</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
+                  {filtered.map((event: any) => {
+                    const isSigned = !!(event.signature || event.signed_at || event.key_fingerprint);
+                    return (
+                      <tr key={event.id} className="hover:bg-slate-50">
+                        <td className="py-3 px-4 font-medium">{event.student_name || event.studentName}</td>
+                        <td className="py-3 px-4 text-slate-600">{event.instructor_name || event.instructorName}</td>
+                        <td className="py-3 px-4 text-slate-600 capitalize">{(event.event_type || event.eventType || "").replace("_", " ")}</td>
+                        <td className="py-3 px-4 text-slate-600">
+                          {event.event_date ? format(new Date(event.event_date), "MMM dd, yyyy") : "—"}
+                        </td>
+                        <td className="py-3 px-4">
+                          <Badge className={getStatusColor(event.status)}>{event.status}</Badge>
+                        </td>
+                        <td className="py-3 px-4">
+                          {isSigned ? (
+                            <span className="flex items-center gap-1 text-xs text-emerald-700 font-medium">
+                              <ShieldCheck className="h-3.5 w-3.5" />
+                              <span>Signed</span>
+                              {event.key_fingerprint && (
+                                <code className="text-[10px] text-slate-400 ml-1">{event.key_fingerprint.slice(0, 11)}…</code>
+                              )}
+                            </span>
+                          ) : (
+                            <span className="flex items-center gap-1 text-xs text-slate-400">
+                              <ShieldX className="h-3.5 w-3.5" />
+                              Unsigned
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="flex gap-1">
+                            {isSigned ? (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 px-2 text-xs text-blue-600"
+                                onClick={() => handleVerify(event.id)}
+                                disabled={verifyingId === event.id}
+                              >
+                                {verifyingId === event.id
+                                  ? <Loader2 className="h-3 w-3 animate-spin" />
+                                  : <><ShieldCheck className="h-3 w-3 mr-1" />Verify</>
+                                }
+                              </Button>
+                            ) : orgKey?.hasKey ? (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 px-2 text-xs text-slate-600"
+                                onClick={() => handleSignOne(event.id)}
+                                disabled={signingId === event.id}
+                              >
+                                {signingId === event.id
+                                  ? <Loader2 className="h-3 w-3 animate-spin" />
+                                  : <><Shield className="h-3 w-3 mr-1" />Sign</>
+                                }
+                              </Button>
+                            ) : null}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
           )}
         </CardContent>
       </Card>
+
+      {/* Verify Result Dialog */}
+      <Dialog open={!!verifyResult} onOpenChange={() => setVerifyResult(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {verifyResult?.result.valid
+                ? <ShieldCheck className="h-5 w-5 text-emerald-600" />
+                : <ShieldX className="h-5 w-5 text-red-500" />
+              }
+              Cryptographic Verification
+            </DialogTitle>
+          </DialogHeader>
+          {verifyResult && (
+            <div className="space-y-3 py-2">
+              <div className={`flex items-center gap-2 p-3 rounded-lg font-medium ${verifyResult.result.valid ? "bg-emerald-50 text-emerald-800 border border-emerald-200" : "bg-red-50 text-red-800 border border-red-200"}`}>
+                {verifyResult.result.valid ? <CheckCircle2 className="h-5 w-5" /> : <ShieldX className="h-5 w-5" />}
+                {verifyResult.result.valid ? "Signature Valid — Record is Authentic" : "Signature Invalid"}
+              </div>
+              <div className="text-sm text-slate-600">{verifyResult.result.details}</div>
+              {verifyResult.result.keyFingerprint && (
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-slate-500">Signing Key Fingerprint (Ed25519)</p>
+                  <code className="block text-xs font-mono bg-slate-100 p-2 rounded break-all">{verifyResult.result.keyFingerprint}</code>
+                </div>
+              )}
+              {verifyResult.result.signedAt && (
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-slate-500">Signed At</p>
+                  <p className="text-xs text-slate-700">{new Date(verifyResult.result.signedAt).toLocaleString()}</p>
+                </div>
+              )}
+              <p className="text-xs text-slate-400">Record ID: <code>{verifyResult.result.eventId}</code></p>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setVerifyResult(null)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Log Training Event Dialog */}
       <Dialog open={logOpen} onOpenChange={setLogOpen}>
@@ -296,6 +466,12 @@ export default function ComplianceRecords() {
               <Label>Notes</Label>
               <Textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Observations, performance notes…" rows={3} />
             </div>
+            {orgKey?.hasKey && (
+              <div className="flex items-center gap-2 text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded p-2">
+                <ShieldCheck className="h-3.5 w-3.5 flex-shrink-0" />
+                This record will be automatically signed with your org's Ed25519 key on save.
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setLogOpen(false)}>Cancel</Button>

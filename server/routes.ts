@@ -23,6 +23,8 @@ import documentGenerationRoutes from "./routes/document-generation";
 import maintenanceRoutes from "./routes/maintenance";
 import digitalFormsRoutes from "./routes/digital-forms";
 import mlTrainingRoutes from "./routes/ml-training";
+import cryptoSigningRoutes from "./routes/crypto-signing";
+import { signTrainingRecord, getOrgActiveKey } from "./services/crypto-signing";
 import { generateDocumentImportTutorial } from "./generate-document-import-tutorial";
 import { auditComplianceAI } from "./services/audit-compliance-ai";
 import { db } from "./db";
@@ -350,6 +352,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/api/maintenance', maintenanceRoutes);
   app.use('/api/digital-forms', digitalFormsRoutes);
   app.use('/api/ml', mlTrainingRoutes);
+  app.use('/api/org-keys', cryptoSigningRoutes);
 
   // ── Document Upload ──────────────────────────────────────────────────────
   const upload = multer({
@@ -877,6 +880,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         RETURNING *
       `);
       const event = ((rows as any).rows || [])[0];
+
+      // Auto-sign with org Ed25519 key if one exists
+      if (event?.id) {
+        try {
+          const orgRows = await db.execute(drizzleSql`SELECT id FROM training_organizations WHERE is_active = TRUE ORDER BY created_at ASC LIMIT 1`);
+          const org = ((orgRows as any).rows || [])[0];
+          const orgId = org?.id ?? (req.user as any)?.email?.split('@')[1] ?? 'default-org';
+          const hasKey = await getOrgActiveKey(orgId);
+          if (hasKey) {
+            await signTrainingRecord(event.id, orgId);
+          }
+        } catch (signErr) {
+          // Signing failure is non-fatal — record is still saved
+          console.warn('Auto-sign skipped:', (signErr as Error).message);
+        }
+      }
+
       await storage.createAuditLog({ userId: req.user?.id || 'system', eventType: 'training_event_logged', message: `Training event logged for ${studentName} (${eventType})`, details: { studentName, eventType }, severity: 'info' });
       res.status(201).json(event);
     } catch (error) {
