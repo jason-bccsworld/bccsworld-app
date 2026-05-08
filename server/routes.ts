@@ -1347,48 +1347,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // ── STRIPE PAYMENT ROUTES ────────────────────────────────────────────────────
 
-  // GET /api/stripe/products — list products with prices (from stripe.* schema)
+  // GET /api/stripe/products — list products with prices (fetched directly from Stripe API)
   app.get('/api/stripe/products', async (_req, res) => {
     try {
-      const result = await db.execute(drizzleSql`
-        WITH paginated_products AS (
-          SELECT id, name, description, metadata, active
-          FROM stripe.products
-          WHERE active = true
-          ORDER BY name
-        )
-        SELECT
-          p.id as product_id, p.name as product_name, p.description, p.metadata,
-          pr.id as price_id, pr.unit_amount, pr.currency, pr.recurring, pr.active as price_active, pr.metadata as price_metadata
-        FROM paginated_products p
-        LEFT JOIN stripe.prices pr ON pr.product = p.id AND pr.active = true
-        ORDER BY p.name, pr.unit_amount
-      `);
+      const { getUncachableStripeClient } = await import('./stripeClient');
+      const stripe = await getUncachableStripeClient();
 
-      const map = new Map<string, any>();
-      for (const row of result.rows as any[]) {
-        if (!map.has(row.product_id)) {
-          map.set(row.product_id, {
-            id: row.product_id,
-            name: row.product_name,
-            description: row.description,
-            metadata: row.metadata,
-            prices: [],
-          });
-        }
-        if (row.price_id) {
-          map.get(row.product_id).prices.push({
-            id: row.price_id,
-            unit_amount: row.unit_amount,
-            currency: row.currency,
-            recurring: row.recurring,
-            metadata: row.price_metadata,
-          });
-        }
+      const products = await stripe.products.list({ active: true, limit: 20 });
+      const result: any[] = [];
+
+      for (const product of products.data) {
+        const prices = await stripe.prices.list({ product: product.id, active: true, limit: 10 });
+        result.push({
+          id: product.id,
+          name: product.name,
+          description: product.description,
+          metadata: product.metadata,
+          prices: prices.data.map((p) => ({
+            id: p.id,
+            unit_amount: p.unit_amount,
+            currency: p.currency,
+            recurring: p.recurring,
+            metadata: p.metadata,
+          })),
+        });
       }
-      res.json(Array.from(map.values()));
+
+      // Sort by unit_amount of first price so Standard < Professional < Enterprise
+      result.sort((a, b) => (a.prices[0]?.unit_amount ?? 0) - (b.prices[0]?.unit_amount ?? 0));
+      res.json(result);
     } catch (error: any) {
-      // stripe schema may not be set up yet
       console.warn('Stripe products fetch:', error.message?.slice(0, 80));
       res.json([]);
     }

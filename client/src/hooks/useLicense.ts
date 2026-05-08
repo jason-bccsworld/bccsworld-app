@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { PLAN_FEATURES, PLAN_DISPLAY, type PlanKey, type LicenseStatus, type PlanFeatures } from '../../../shared/license';
+import { PLAN_FEATURES, PLAN_DISPLAY, type PlanKey, type LicenseStatus, type PlanFeatures } from '@shared/license';
 
 export interface LicenseInfo {
   id: string;
@@ -21,6 +21,12 @@ export function useLicense() {
   const { data: license, isLoading, error, refetch } = useQuery<LicenseInfo>({
     queryKey: ['/api/license'],
     staleTime: 30_000,
+    queryFn: async () => {
+      const res = await fetch('/api/license', { credentials: 'include' });
+      if (res.status === 401) return null as any;
+      if (!res.ok) throw new Error(`${res.status}`);
+      return res.json();
+    },
   });
 
   const plan: PlanKey = license?.plan ?? 'trial';

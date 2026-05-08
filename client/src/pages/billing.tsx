@@ -9,7 +9,7 @@ import {
   ExternalLink, Loader2, Users, FileText, Zap, Shield,
 } from "lucide-react";
 import { useLicense } from "@/hooks/useLicense";
-import { PLAN_DISPLAY, PLAN_FEATURES, type PlanKey } from "../../../shared/license";
+import { PLAN_DISPLAY, PLAN_FEATURES, type PlanKey } from "@shared/license";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -48,10 +48,19 @@ export default function Billing() {
 
   const { data: stripeProducts } = useQuery<any[]>({
     queryKey: ["/api/stripe/products"],
+    queryFn: async () => {
+      const res = await fetch("/api/stripe/products", { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    staleTime: 60_000,
   });
 
   const portalMutation = useMutation({
-    mutationFn: () => apiRequest("POST", "/api/stripe/portal", {}),
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/stripe/portal", {});
+      return res.json();
+    },
     onSuccess: (data: any) => {
       if (data?.url) window.location.href = data.url;
     },
@@ -59,7 +68,10 @@ export default function Billing() {
   });
 
   const checkoutMutation = useMutation({
-    mutationFn: (priceId: string) => apiRequest("POST", "/api/stripe/checkout", { priceId }),
+    mutationFn: async (priceId: string) => {
+      const res = await apiRequest("POST", "/api/stripe/checkout", { priceId });
+      return res.json();
+    },
     onSuccess: (data: any) => {
       if (data?.url) window.location.href = data.url;
     },
@@ -150,23 +162,21 @@ export default function Billing() {
             </p>
           )}
 
-          {license?.stripeSubscriptionId && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => portalMutation.mutate()}
-              disabled={portalMutation.isPending}
-              className="gap-2"
-            >
-              {portalMutation.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <CreditCard className="h-4 w-4" />
-              )}
-              Manage Billing
-              <ExternalLink className="h-3.5 w-3.5 text-slate-400" />
-            </Button>
-          )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => portalMutation.mutate()}
+            disabled={portalMutation.isPending}
+            className="gap-2"
+          >
+            {portalMutation.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <CreditCard className="h-4 w-4" />
+            )}
+            Manage Billing
+            <ExternalLink className="h-3.5 w-3.5 text-slate-400" />
+          </Button>
         </CardContent>
       </Card>
 

@@ -72,10 +72,19 @@ export default function Pricing() {
 
   const { data: stripeProducts } = useQuery<any[]>({
     queryKey: ["/api/stripe/products"],
+    queryFn: async () => {
+      const res = await fetch("/api/stripe/products", { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    staleTime: 60_000,
   });
 
   const checkoutMutation = useMutation({
-    mutationFn: (priceId: string) => apiRequest("POST", "/api/stripe/checkout", { priceId }),
+    mutationFn: async (priceId: string) => {
+      const res = await apiRequest("POST", "/api/stripe/checkout", { priceId });
+      return res.json();
+    },
     onSuccess: (data: any) => {
       if (data?.url) window.location.href = data.url;
     },
