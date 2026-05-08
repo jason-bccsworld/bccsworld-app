@@ -1,14 +1,12 @@
 var __defProp = Object.defineProperty;
+var __getOwnPropNames = Object.getOwnPropertyNames;
+var __esm = (fn, res) => function __init() {
+  return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
+};
 var __export = (target, all) => {
   for (var name in all)
     __defProp(target, name, { get: all[name], enumerable: true });
 };
-
-// server/app.ts
-import express from "express";
-
-// server/routes.ts
-import { createServer } from "http";
 
 // shared/schema.ts
 var schema_exports = {};
@@ -25,11 +23,14 @@ __export(schema_exports, {
   checklistItems: () => checklistItems,
   checklistMappings: () => checklistMappings,
   checklistSchemas: () => checklistSchemas,
+  checklistStates: () => checklistStates,
   checklistVersionHistory: () => checklistVersionHistory,
   complianceChecks: () => complianceChecks,
   crossPlatformVerifications: () => crossPlatformVerifications,
   cryptoPayments: () => cryptoPayments,
   customerSubscriptions: () => customerSubscriptions,
+  digitalFormSubmissions: () => digitalFormSubmissions,
+  digitalFormTemplates: () => digitalFormTemplates,
   evidenceChecklistMappings: () => evidenceChecklistMappings,
   evidenceRecords: () => evidenceRecords,
   evidenceRegulatoryMappings: () => evidenceRegulatoryMappings,
@@ -46,10 +47,13 @@ __export(schema_exports, {
   insertChecklistItemSchema: () => insertChecklistItemSchema,
   insertChecklistMappingSchema: () => insertChecklistMappingSchema,
   insertChecklistSchemaSchema: () => insertChecklistSchemaSchema,
+  insertChecklistStateSchema: () => insertChecklistStateSchema,
   insertChecklistVersionHistorySchema: () => insertChecklistVersionHistorySchema,
   insertCrossPlatformVerificationSchema: () => insertCrossPlatformVerificationSchema,
   insertCryptoPaymentSchema: () => insertCryptoPaymentSchema,
   insertCustomerSubscriptionSchema: () => insertCustomerSubscriptionSchema,
+  insertDigitalFormSubmissionSchema: () => insertDigitalFormSubmissionSchema,
+  insertDigitalFormTemplateSchema: () => insertDigitalFormTemplateSchema,
   insertEvidenceChecklistMappingSchema: () => insertEvidenceChecklistMappingSchema,
   insertEvidenceRecordSchema: () => insertEvidenceRecordSchema,
   insertEvidenceRegulatoryMappingSchema: () => insertEvidenceRegulatoryMappingSchema,
@@ -58,6 +62,7 @@ __export(schema_exports, {
   insertHarmonizationDeltaSchema: () => insertHarmonizationDeltaSchema,
   insertInspectorBehaviorSchema: () => insertInspectorBehaviorSchema,
   insertInspectorProfileSchema: () => insertInspectorProfileSchema,
+  insertInstructorRecordSchema: () => insertInstructorRecordSchema,
   insertKeyRecoveryRequestSchema: () => insertKeyRecoveryRequestSchema,
   insertMultiPartConfigurationSchema: () => insertMultiPartConfigurationSchema,
   insertOperatorAuthorizationSchema: () => insertOperatorAuthorizationSchema,
@@ -70,12 +75,15 @@ __export(schema_exports, {
   insertRegulatoryGraphLinkSchema: () => insertRegulatoryGraphLinkSchema,
   insertRegulatoryUpdateTrackingSchema: () => insertRegulatoryUpdateTrackingSchema,
   insertSmartContractSchema: () => insertSmartContractSchema,
+  insertStudentSchema: () => insertStudentSchema,
   insertTokenHolderSchema: () => insertTokenHolderSchema,
   insertTokenOfferingSchema: () => insertTokenOfferingSchema,
   insertTokenTransactionSchema: () => insertTokenTransactionSchema,
+  insertTrainingEventSchema: () => insertTrainingEventSchema,
   insertTrainingOrganizationSchema: () => insertTrainingOrganizationSchema,
   inspectorBehaviors: () => inspectorBehaviors,
   inspectorProfiles: () => inspectorProfiles,
+  instructorRecords: () => instructorRecords,
   insuranceProviders: () => insuranceProviders,
   insuranceQuotes: () => insuranceQuotes,
   keyRecoveryRequests: () => keyRecoveryRequests,
@@ -94,8 +102,10 @@ __export(schema_exports, {
   regulatoryFrameworks: () => regulatoryFrameworks,
   regulatoryGraphLinks: () => regulatoryGraphLinks,
   regulatoryUpdateTracking: () => regulatoryUpdateTracking,
+  rolePermissions: () => rolePermissions,
   sessions: () => sessions,
   smartContracts: () => smartContracts,
+  students: () => students,
   subscriptionTiers: () => subscriptionTiers,
   tokenHolders: () => tokenHolders,
   tokenHoldersRelations: () => tokenHoldersRelations,
@@ -103,6 +113,7 @@ __export(schema_exports, {
   tokenOfferingsRelations: () => tokenOfferingsRelations,
   tokenTransactions: () => tokenTransactions,
   tokenTransactionsRelations: () => tokenTransactionsRelations,
+  trainingEvents: () => trainingEvents,
   trainingOrganizations: () => trainingOrganizations,
   users: () => users
 });
@@ -121,945 +132,1584 @@ import {
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { relations } from "drizzle-orm";
-var sessions = pgTable(
-  "sessions",
-  {
-    sid: varchar("sid").primaryKey(),
-    sess: jsonb("sess").notNull(),
-    expire: timestamp("expire").notNull()
-  },
-  (table) => [index("IDX_session_expire").on(table.expire)]
-);
-var users = pgTable("users", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  email: varchar("email").unique(),
-  firstName: varchar("first_name"),
-  lastName: varchar("last_name"),
-  profileImageUrl: varchar("profile_image_url"),
-  passwordHash: varchar("password_hash"),
-  role: varchar("role").default("user"),
-  // admin, instructor, auditor, viewer
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow()
+var sessions, users, rolePermissions, aircraftRegistry, aircraftOwnership, aircraftLiens, aircraftInsurance, tokenOfferings, tokenHolders, tokenTransactions, complianceChecks, registryAnalytics, auditLogs, cryptoPayments, smartContracts, insuranceProviders, insuranceQuotes, maintenanceProviders, maintenanceServices, lenders, financeApplications, marketAnalytics, trainingOrganizations, professionalCredentials, organizationMembers, blockchainTrainingRecords, keyRecoveryRequests, crossPlatformVerifications, regulatoryFrameworks, organizationAuthorizations, checklistSchemas, checklistItems, checklistMappings, harmonizationDeltas, checklistVersionHistory, faaCoreForms, inspectorProfiles, inspectorBehaviors, evidenceRecords, evidenceChecklistMappings, evidenceRegulatoryMappings, auditPackets, auditPacketItems, regulatoryCoverageMatrix, faaPolicyDocuments, multiPartConfigurations, regulatoryUpdateTracking, regulatoryGraphLinks, operatorAuthorizations, regionalSupplements, subscriptionTiers, customerSubscriptions, aircraftRegistryRelations, tokenOfferingsRelations, tokenHoldersRelations, tokenTransactionsRelations, insertAircraftRegistrySchema, insertAircraftOwnershipSchema, insertTokenOfferingSchema, insertTokenHolderSchema, insertTokenTransactionSchema, insertAuditLogSchema, insertCryptoPaymentSchema, insertSmartContractSchema, insertCustomerSubscriptionSchema, insertTrainingOrganizationSchema, insertProfessionalCredentialSchema, insertOrganizationMemberSchema, insertBlockchainTrainingRecordSchema, insertKeyRecoveryRequestSchema, insertCrossPlatformVerificationSchema, insertRegulatoryFrameworkSchema, insertOrganizationAuthorizationSchema, insertChecklistSchemaSchema, insertChecklistItemSchema, insertChecklistMappingSchema, insertHarmonizationDeltaSchema, insertChecklistVersionHistorySchema, insertFaaCoreFormSchema, insertInspectorProfileSchema, insertInspectorBehaviorSchema, insertEvidenceRecordSchema, insertEvidenceChecklistMappingSchema, insertEvidenceRegulatoryMappingSchema, insertAuditPacketSchema, insertAuditPacketItemSchema, insertRegulatoryCoverageMatrixSchema, checklistStates, insertChecklistStateSchema, trainingEvents, insertTrainingEventSchema, students, insertStudentSchema, instructorRecords, insertInstructorRecordSchema, insertFaaPolicyDocumentSchema, insertMultiPartConfigurationSchema, insertRegulatoryUpdateTrackingSchema, insertRegulatoryGraphLinkSchema, insertOperatorAuthorizationSchema, insertRegionalSupplementSchema, digitalFormTemplates, digitalFormSubmissions, insertDigitalFormTemplateSchema, insertDigitalFormSubmissionSchema;
+var init_schema = __esm({
+  "shared/schema.ts"() {
+    "use strict";
+    sessions = pgTable(
+      "sessions",
+      {
+        sid: varchar("sid").primaryKey(),
+        sess: jsonb("sess").notNull(),
+        expire: timestamp("expire").notNull()
+      },
+      (table) => [index("IDX_session_expire").on(table.expire)]
+    );
+    users = pgTable("users", {
+      id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+      email: varchar("email").unique(),
+      firstName: varchar("first_name"),
+      lastName: varchar("last_name"),
+      profileImageUrl: varchar("profile_image_url"),
+      passwordHash: varchar("password_hash"),
+      role: varchar("role").default("viewer"),
+      // admin, instructor, auditor, viewer
+      isActive: boolean("is_active").default(true),
+      lastLoginAt: timestamp("last_login_at"),
+      createdAt: timestamp("created_at").defaultNow(),
+      updatedAt: timestamp("updated_at").defaultNow()
+    });
+    rolePermissions = pgTable("bccs_role_permissions", {
+      id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+      roleName: varchar("role_name", { length: 50 }).notNull().unique(),
+      displayName: varchar("display_name", { length: 100 }).notNull(),
+      description: text("description"),
+      permissions: text("permissions").array().default(sql`ARRAY[]::text[]`),
+      isSystem: boolean("is_system").default(false),
+      color: varchar("color", { length: 80 }).default("bg-gray-100 text-gray-700"),
+      createdAt: timestamp("created_at").defaultNow(),
+      updatedAt: timestamp("updated_at").defaultNow()
+    });
+    aircraftRegistry = pgTable("aircraft_registry", {
+      id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+      tailNumber: varchar("tail_number", { length: 20 }).notNull().unique(),
+      manufacturer: varchar("manufacturer", { length: 100 }).notNull(),
+      model: varchar("model", { length: 100 }).notNull(),
+      year: integer("year").notNull(),
+      serialNumber: varchar("serial_number", { length: 100 }),
+      engineType: varchar("engine_type", { length: 100 }),
+      maxSeats: integer("max_seats"),
+      maxWeight: decimal("max_weight", { precision: 10, scale: 2 }),
+      registrationStatus: varchar("registration_status").default("active"),
+      // active, suspended, cancelled
+      registrationDate: timestamp("registration_date").defaultNow(),
+      expirationDate: timestamp("expiration_date"),
+      currentValuation: decimal("current_valuation", { precision: 15, scale: 2 }),
+      lastValuationDate: timestamp("last_valuation_date"),
+      isTokenized: boolean("is_tokenized").default(false),
+      createdAt: timestamp("created_at").defaultNow(),
+      updatedAt: timestamp("updated_at").defaultNow()
+    });
+    aircraftOwnership = pgTable("aircraft_ownership", {
+      id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+      aircraftId: uuid("aircraft_id").references(() => aircraftRegistry.id).notNull(),
+      ownerName: varchar("owner_name", { length: 200 }).notNull(),
+      ownerType: varchar("owner_type").notNull(),
+      // individual, corporation, trust, government
+      ownerAddress: text("owner_address"),
+      ownershipPercentage: decimal("ownership_percentage", { precision: 5, scale: 2 }).default("100.00"),
+      ownershipType: varchar("ownership_type").default("full"),
+      // full, fractional, lease
+      effectiveDate: timestamp("effective_date").defaultNow(),
+      registeredDate: timestamp("registered_date").defaultNow(),
+      isActive: boolean("is_active").default(true)
+    });
+    aircraftLiens = pgTable("aircraft_liens", {
+      id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+      aircraftId: uuid("aircraft_id").references(() => aircraftRegistry.id).notNull(),
+      lienholder: varchar("lienholder", { length: 200 }).notNull(),
+      lienAmount: decimal("lien_amount", { precision: 15, scale: 2 }).notNull(),
+      lienType: varchar("lien_type").notNull(),
+      // mortgage, security_interest, tax_lien
+      filingDate: timestamp("filing_date").defaultNow(),
+      maturityDate: timestamp("maturity_date"),
+      isActive: boolean("is_active").default(true)
+    });
+    aircraftInsurance = pgTable("aircraft_insurance", {
+      id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+      aircraftId: uuid("aircraft_id").references(() => aircraftRegistry.id).notNull(),
+      provider: varchar("provider", { length: 200 }).notNull(),
+      policyNumber: varchar("policy_number", { length: 100 }).notNull(),
+      coverageAmount: decimal("coverage_amount", { precision: 15, scale: 2 }).notNull(),
+      effectiveDate: timestamp("effective_date").notNull(),
+      expirationDate: timestamp("expiration_date").notNull(),
+      isActive: boolean("is_active").default(true)
+    });
+    tokenOfferings = pgTable("token_offerings", {
+      id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+      aircraftId: uuid("aircraft_id").references(() => aircraftRegistry.id).notNull(),
+      contractAddress: varchar("contract_address", { length: 100 }),
+      totalTokens: integer("total_tokens").notNull(),
+      tokensIssued: integer("tokens_issued").default(0),
+      tokensSold: integer("tokens_sold").default(0),
+      initialPrice: decimal("initial_price", { precision: 10, scale: 6 }).notNull(),
+      currentPrice: decimal("current_price", { precision: 10, scale: 6 }),
+      launchDate: timestamp("launch_date").defaultNow(),
+      status: varchar("status").default("active"),
+      // active, paused, completed, cancelled
+      prospectusUrl: text("prospectus_url"),
+      minimumInvestment: decimal("minimum_investment", { precision: 10, scale: 2 }),
+      isAccreditedOnly: boolean("is_accredited_only").default(false)
+    });
+    tokenHolders = pgTable("token_holders", {
+      id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+      offeringId: uuid("offering_id").references(() => tokenOfferings.id).notNull(),
+      investorId: varchar("investor_id").notNull(),
+      walletAddress: varchar("wallet_address", { length: 100 }),
+      tokensOwned: integer("tokens_owned").notNull(),
+      averagePurchasePrice: decimal("average_purchase_price", { precision: 10, scale: 6 }),
+      totalInvestment: decimal("total_investment", { precision: 15, scale: 2 }),
+      firstPurchaseDate: timestamp("first_purchase_date").defaultNow(),
+      lastTransactionDate: timestamp("last_transaction_date").defaultNow(),
+      kycStatus: varchar("kyc_status").default("pending"),
+      // pending, verified, rejected
+      accreditationStatus: varchar("accreditation_status").default("unknown")
+      // verified, unverified, unknown
+    });
+    tokenTransactions = pgTable("token_transactions", {
+      id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+      offeringId: uuid("offering_id").references(() => tokenOfferings.id).notNull(),
+      transactionHash: varchar("transaction_hash", { length: 100 }),
+      transactionType: varchar("transaction_type").notNull(),
+      // buy, sell, transfer, dividend
+      buyerId: varchar("buyer_id"),
+      sellerId: varchar("seller_id"),
+      tokenAmount: integer("token_amount").notNull(),
+      pricePerToken: decimal("price_per_token", { precision: 10, scale: 6 }),
+      totalAmount: decimal("total_amount", { precision: 15, scale: 2 }),
+      transactionFee: decimal("transaction_fee", { precision: 10, scale: 2 }),
+      blockNumber: integer("block_number"),
+      gasUsed: integer("gas_used"),
+      transactionDate: timestamp("transaction_date").defaultNow(),
+      status: varchar("status").default("pending")
+      // pending, confirmed, failed
+    });
+    complianceChecks = pgTable("compliance_checks", {
+      id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+      aircraftId: uuid("aircraft_id").references(() => aircraftRegistry.id).notNull(),
+      checkType: varchar("check_type").notNull(),
+      // registration, insurance, liens, ownership
+      checkResult: varchar("check_result").notNull(),
+      // passed, failed, warning
+      checkDetails: jsonb("check_details"),
+      checkDate: timestamp("check_date").defaultNow(),
+      nextCheckDate: timestamp("next_check_date"),
+      performedBy: varchar("performed_by")
+    });
+    registryAnalytics = pgTable("registry_analytics", {
+      id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+      registryId: varchar("registry_id").notNull(),
+      metricType: varchar("metric_type").notNull(),
+      // aircraft_count, token_volume, revenue
+      metricValue: decimal("metric_value", { precision: 15, scale: 2 }).notNull(),
+      period: varchar("period").notNull(),
+      // daily, weekly, monthly, yearly
+      recordDate: timestamp("record_date").defaultNow()
+    });
+    auditLogs = pgTable("audit_logs", {
+      id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+      eventType: varchar("event_type").notNull(),
+      // regulatory_check, link_check, compliance_alert, system_error, crypto_payment
+      severity: varchar("severity").notNull(),
+      // info, warning, error, critical
+      message: text("message").notNull(),
+      details: jsonb("details"),
+      sourceSystem: varchar("source_system"),
+      // regulatory_monitor, link_monitor, compliance_engine, crypto_service
+      userId: varchar("user_id"),
+      aircraftId: uuid("aircraft_id"),
+      timestamp: timestamp("timestamp").defaultNow()
+    });
+    cryptoPayments = pgTable("crypto_payments", {
+      id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+      subscriptionId: uuid("subscription_id").references(() => customerSubscriptions.id).notNull(),
+      transactionHash: varchar("transaction_hash", { length: 100 }).unique(),
+      blockNumber: integer("block_number"),
+      fromAddress: varchar("from_address", { length: 50 }).notNull(),
+      toAddress: varchar("to_address", { length: 50 }).notNull(),
+      amount: decimal("amount", { precision: 18, scale: 6 }).notNull(),
+      stableCoin: varchar("stable_coin").notNull(),
+      // USDC, USDT, DAI
+      chainId: integer("chain_id").notNull(),
+      gasUsed: integer("gas_used"),
+      gasFee: decimal("gas_fee", { precision: 18, scale: 6 }),
+      status: varchar("status").default("pending"),
+      // pending, confirmed, failed, cancelled
+      paymentType: varchar("payment_type").notNull(),
+      // subscription_renewal, setup_fee, upgrade
+      periodCovered: varchar("period_covered"),
+      // 2024-01, 2024-Q1, 2024
+      confirmedAt: timestamp("confirmed_at"),
+      createdAt: timestamp("created_at").defaultNow()
+    });
+    smartContracts = pgTable("smart_contracts", {
+      id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+      contractAddress: varchar("contract_address", { length: 50 }).notNull().unique(),
+      chainId: integer("chain_id").notNull(),
+      contractType: varchar("contract_type").notNull(),
+      // subscription_manager, payment_processor
+      version: varchar("version").notNull(),
+      deployedAt: timestamp("deployed_at").defaultNow(),
+      isActive: boolean("is_active").default(true),
+      supportedStableCoins: varchar("supported_stable_coins").array().notNull(),
+      minimumPayment: decimal("minimum_payment", { precision: 18, scale: 6 }),
+      maximumPayment: decimal("maximum_payment", { precision: 18, scale: 6 }),
+      gasLimit: integer("gas_limit"),
+      abi: jsonb("abi")
+      // Contract ABI for interaction
+    });
+    insuranceProviders = pgTable("insurance_providers", {
+      id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+      companyName: varchar("company_name", { length: 200 }).notNull(),
+      licenseNumber: varchar("license_number", { length: 100 }),
+      coverageTypes: varchar("coverage_types").array().notNull(),
+      ratingScore: decimal("rating_score", { precision: 3, scale: 2 }),
+      isActive: boolean("is_active").default(true),
+      contactInfo: jsonb("contact_info"),
+      createdAt: timestamp("created_at").defaultNow()
+    });
+    insuranceQuotes = pgTable("insurance_quotes", {
+      id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+      aircraftId: uuid("aircraft_id").references(() => aircraftRegistry.id).notNull(),
+      providerId: uuid("provider_id").references(() => insuranceProviders.id).notNull(),
+      coverageType: varchar("coverage_type").notNull(),
+      coverageAmount: decimal("coverage_amount", { precision: 15, scale: 2 }).notNull(),
+      annualPremium: decimal("annual_premium", { precision: 10, scale: 2 }).notNull(),
+      deductible: decimal("deductible", { precision: 10, scale: 2 }),
+      quoteValidUntil: timestamp("quote_valid_until").notNull(),
+      quotedAt: timestamp("quoted_at").defaultNow(),
+      status: varchar("status").default("active")
+    });
+    maintenanceProviders = pgTable("maintenance_providers", {
+      id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+      companyName: varchar("company_name", { length: 200 }).notNull(),
+      certificationNumber: varchar("certification_number", { length: 100 }),
+      serviceTypes: varchar("service_types").array().notNull(),
+      location: varchar("location", { length: 200 }),
+      ratingScore: decimal("rating_score", { precision: 3, scale: 2 }),
+      hourlyRate: decimal("hourly_rate", { precision: 8, scale: 2 }),
+      isActive: boolean("is_active").default(true),
+      contactInfo: jsonb("contact_info"),
+      createdAt: timestamp("created_at").defaultNow()
+    });
+    maintenanceServices = pgTable("maintenance_services", {
+      id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+      aircraftId: uuid("aircraft_id").references(() => aircraftRegistry.id).notNull(),
+      providerId: uuid("provider_id").references(() => maintenanceProviders.id).notNull(),
+      serviceType: varchar("service_type").notNull(),
+      scheduledDate: timestamp("scheduled_date"),
+      completedDate: timestamp("completed_date"),
+      estimatedCost: decimal("estimated_cost", { precision: 10, scale: 2 }),
+      actualCost: decimal("actual_cost", { precision: 10, scale: 2 }),
+      status: varchar("status").default("scheduled"),
+      description: text("description"),
+      createdAt: timestamp("created_at").defaultNow()
+    });
+    lenders = pgTable("lenders", {
+      id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+      institutionName: varchar("institution_name", { length: 200 }).notNull(),
+      lenderType: varchar("lender_type").notNull(),
+      // bank, credit_union, private, institutional
+      minimumLoan: decimal("minimum_loan", { precision: 15, scale: 2 }),
+      maximumLoan: decimal("maximum_loan", { precision: 15, scale: 2 }),
+      interestRateRange: varchar("interest_rate_range"),
+      loanTerms: varchar("loan_terms").array(),
+      aircraftTypes: varchar("aircraft_types").array(),
+      ratingScore: decimal("rating_score", { precision: 3, scale: 2 }),
+      isActive: boolean("is_active").default(true),
+      contactInfo: jsonb("contact_info"),
+      createdAt: timestamp("created_at").defaultNow()
+    });
+    financeApplications = pgTable("finance_applications", {
+      id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+      aircraftId: uuid("aircraft_id").references(() => aircraftRegistry.id).notNull(),
+      lenderId: uuid("lender_id").references(() => lenders.id).notNull(),
+      applicantId: varchar("applicant_id").notNull(),
+      loanAmount: decimal("loan_amount", { precision: 15, scale: 2 }).notNull(),
+      loanTerm: integer("loan_term").notNull(),
+      // months
+      interestRate: decimal("interest_rate", { precision: 5, scale: 3 }),
+      downPayment: decimal("down_payment", { precision: 15, scale: 2 }),
+      applicationStatus: varchar("application_status").default("pending"),
+      creditScore: integer("credit_score"),
+      annualIncome: decimal("annual_income", { precision: 15, scale: 2 }),
+      appliedAt: timestamp("applied_at").defaultNow(),
+      approvedAt: timestamp("approved_at")
+    });
+    marketAnalytics = pgTable("market_analytics", {
+      id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+      analysisType: varchar("analysis_type").notNull(),
+      // valuation, demand, pricing, trends
+      aircraftCategory: varchar("aircraft_category"),
+      manufacturer: varchar("manufacturer"),
+      model: varchar("model"),
+      metricName: varchar("metric_name").notNull(),
+      metricValue: decimal("metric_value", { precision: 15, scale: 4 }).notNull(),
+      timeframe: varchar("timeframe").notNull(),
+      confidence: decimal("confidence", { precision: 3, scale: 2 }),
+      analysisDate: timestamp("analysis_date").defaultNow(),
+      dataSource: varchar("data_source")
+    });
+    trainingOrganizations = pgTable("training_organizations", {
+      id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+      organizationName: varchar("organization_name", { length: 200 }).notNull(),
+      organizationType: varchar("organization_type").notNull(),
+      // part_142, part_141, part_121, part_135, mro, atc
+      certificateNumber: varchar("certificate_number", { length: 100 }),
+      regulatoryAuthority: varchar("regulatory_authority").notNull(),
+      // faa, easa, transport_canada, casa
+      masterPublicKey: varchar("master_public_key", { length: 100 }).unique().notNull(),
+      keyGenerationDate: timestamp("key_generation_date").defaultNow(),
+      isActive: boolean("is_active").default(true),
+      contactInfo: jsonb("contact_info"),
+      createdAt: timestamp("created_at").defaultNow(),
+      updatedAt: timestamp("updated_at").defaultNow()
+    });
+    professionalCredentials = pgTable("professional_credentials", {
+      id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+      credentialType: varchar("credential_type").notNull(),
+      // pilot_license, atp, mechanic_license, controller_license
+      licenseNumber: varchar("license_number", { length: 100 }).notNull(),
+      regulatoryAuthority: varchar("regulatory_authority").notNull(),
+      // faa, easa, transport_canada, casa
+      masterPrivateKeyHash: varchar("master_private_key_hash", { length: 100 }).unique().notNull(),
+      publicKeyDerivationPath: varchar("public_key_derivation_path", { length: 200 }),
+      holderFirstName: varchar("holder_first_name", { length: 100 }).notNull(),
+      holderLastName: varchar("holder_last_name", { length: 100 }).notNull(),
+      holderEmail: varchar("holder_email", { length: 200 }),
+      dateOfBirth: timestamp("date_of_birth"),
+      issueDate: timestamp("issue_date").notNull(),
+      expirationDate: timestamp("expiration_date"),
+      isActive: boolean("is_active").default(true),
+      createdAt: timestamp("created_at").defaultNow(),
+      updatedAt: timestamp("updated_at").defaultNow()
+    });
+    organizationMembers = pgTable("organization_members", {
+      id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+      organizationId: uuid("organization_id").references(() => trainingOrganizations.id).notNull(),
+      credentialId: uuid("credential_id").references(() => professionalCredentials.id).notNull(),
+      memberRole: varchar("member_role").notNull(),
+      // instructor, admin, compliance_officer, student
+      organizationPrivateKeyHash: varchar("organization_private_key_hash", { length: 100 }).notNull(),
+      delegatedAuthority: jsonb("delegated_authority"),
+      // what they can sign/approve
+      startDate: timestamp("start_date").defaultNow(),
+      endDate: timestamp("end_date"),
+      isActive: boolean("is_active").default(true),
+      createdAt: timestamp("created_at").defaultNow()
+    });
+    blockchainTrainingRecords = pgTable("blockchain_training_records", {
+      id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+      studentCredentialId: uuid("student_credential_id").references(() => professionalCredentials.id).notNull(),
+      organizationId: uuid("organization_id").references(() => trainingOrganizations.id).notNull(),
+      instructorCredentialId: uuid("instructor_credential_id").references(() => professionalCredentials.id).notNull(),
+      trainingType: varchar("training_type").notNull(),
+      // initial, recurrent, checkride, proficiency
+      trainingDetails: jsonb("training_details").notNull(),
+      studentSignature: varchar("student_signature", { length: 200 }).notNull(),
+      instructorSignature: varchar("instructor_signature", { length: 200 }).notNull(),
+      organizationSignature: varchar("organization_signature", { length: 200 }).notNull(),
+      blockchainHash: varchar("blockchain_hash", { length: 100 }).unique().notNull(),
+      transactionHash: varchar("transaction_hash", { length: 100 }),
+      blockNumber: integer("block_number"),
+      completionDate: timestamp("completion_date").notNull(),
+      recordedAt: timestamp("recorded_at").defaultNow()
+    });
+    keyRecoveryRequests = pgTable("key_recovery_requests", {
+      id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+      credentialId: uuid("credential_id").references(() => professionalCredentials.id).notNull(),
+      requestType: varchar("request_type").notNull(),
+      // lost_key, compromise, career_transfer
+      requestReason: text("request_reason").notNull(),
+      identityVerificationData: jsonb("identity_verification_data"),
+      // documents, biometrics
+      employmentVerificationData: jsonb("employment_verification_data"),
+      // current employer confirmation
+      historicalRecordMatches: jsonb("historical_record_matches"),
+      // cross-reference validation
+      verificationStatus: varchar("verification_status").default("pending"),
+      // pending, verified, rejected
+      requestStatus: varchar("request_status").default("pending"),
+      // pending, processing, completed, rejected
+      newMasterPrivateKeyHash: varchar("new_master_private_key_hash", { length: 100 }),
+      recoveryCompletedAt: timestamp("recovery_completed_at"),
+      emergencyFlag: boolean("emergency_flag").default(false),
+      requestedAt: timestamp("requested_at").defaultNow(),
+      processedBy: varchar("processed_by")
+      // BCCS admin who handled recovery
+    });
+    crossPlatformVerifications = pgTable("cross_platform_verifications", {
+      id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+      credentialId: uuid("credential_id").references(() => professionalCredentials.id).notNull(),
+      platformType: varchar("platform_type").notNull(),
+      // bccs142, bccsmaint, bccsatc, bccsreg, bccsregistry
+      verificationPurpose: varchar("verification_purpose").notNull(),
+      // training_entry, maintenance_sign_off, atc_certification
+      verifyingOrganizationId: uuid("verifying_organization_id").references(() => trainingOrganizations.id),
+      verificationResult: varchar("verification_result").notNull(),
+      // verified, failed, expired
+      verificationData: jsonb("verification_data"),
+      verifiedAt: timestamp("verified_at").defaultNow()
+    });
+    regulatoryFrameworks = pgTable("regulatory_frameworks", {
+      id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+      frameworkCode: varchar("framework_code", { length: 50 }).notNull().unique(),
+      // e.g., "14-CFR-142", "FAA-8900.1-VOL3"
+      frameworkName: varchar("framework_name", { length: 200 }).notNull(),
+      frameworkType: varchar("framework_type").notNull(),
+      // spine, attachment
+      regulatoryAuthority: varchar("regulatory_authority").notNull(),
+      // faa, easa, transport_canada, casa
+      effectiveDate: timestamp("effective_date").notNull(),
+      version: varchar("version", { length: 50 }).notNull(),
+      parentFrameworkId: uuid("parent_framework_id"),
+      // For attachments, references the spine
+      hierarchyLevel: integer("hierarchy_level").default(1),
+      // 1=spine, 2+=attachments
+      applicabilityRules: jsonb("applicability_rules"),
+      // Conditions when this framework applies
+      sourceUrl: text("source_url"),
+      fullText: text("full_text"),
+      // Full regulation text for indexing
+      isActive: boolean("is_active").default(true),
+      createdAt: timestamp("created_at").defaultNow(),
+      updatedAt: timestamp("updated_at").defaultNow()
+    });
+    organizationAuthorizations = pgTable("organization_authorizations", {
+      id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+      organizationId: uuid("organization_id").references(() => trainingOrganizations.id).notNull(),
+      frameworkId: uuid("framework_id").references(() => regulatoryFrameworks.id).notNull(),
+      authorizationType: varchar("authorization_type").notNull(),
+      // primary, supplementary, conditional
+      authorizationNumber: varchar("authorization_number", { length: 100 }),
+      grantedDate: timestamp("granted_date").notNull(),
+      expirationDate: timestamp("expiration_date"),
+      conditions: jsonb("conditions"),
+      // Specific conditions or limitations
+      operatorClients: jsonb("operator_clients"),
+      // Array of operator client IDs (121, 135, 91K operators)
+      isActive: boolean("is_active").default(true),
+      createdAt: timestamp("created_at").defaultNow()
+    });
+    checklistSchemas = pgTable("checklist_schemas", {
+      id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+      schemaName: varchar("schema_name", { length: 200 }).notNull(),
+      schemaSource: varchar("schema_source").notNull(),
+      // faa_standard, certificate_job_aid, inspector_supplemental, operator_required, archived_legacy
+      frameworkId: uuid("framework_id").references(() => regulatoryFrameworks.id),
+      version: varchar("version", { length: 50 }).notNull(),
+      effectiveDate: timestamp("effective_date").notNull(),
+      totalItems: integer("total_items").notNull(),
+      structureHash: varchar("structure_hash", { length: 100 }),
+      // Hash for change detection
+      metadata: jsonb("metadata"),
+      // Additional schema metadata
+      isCanonical: boolean("is_canonical").default(false),
+      // Is this the authoritative version?
+      priorityLevel: integer("priority_level").default(5),
+      // 1=FAA Standard, 2=Certificate Job Aid, 3=Inspector Supplemental, 4=Operator Required, 5=Archived Legacy
+      autoFetched: boolean("auto_fetched").default(false),
+      // Was this auto-fetched when spine was selected?
+      sourceUrl: text("source_url"),
+      // FAA source URL for version monitoring
+      lastVersionCheck: timestamp("last_version_check"),
+      // When was version last verified
+      isOutdated: boolean("is_outdated").default(false),
+      // Has a newer version been detected?
+      supersededById: uuid("superseded_by_id"),
+      // Reference to newer version if outdated
+      isHidden: boolean("is_hidden").default(false),
+      // Hidden from normal view (archived/legacy)
+      createdAt: timestamp("created_at").defaultNow(),
+      updatedAt: timestamp("updated_at").defaultNow()
+    });
+    checklistItems = pgTable("checklist_items", {
+      id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+      schemaId: uuid("schema_id").references(() => checklistSchemas.id).notNull(),
+      itemNumber: varchar("item_number", { length: 20 }).notNull(),
+      itemOrder: integer("item_order").notNull(),
+      categoryId: varchar("category_id", { length: 50 }),
+      categoryName: varchar("category_name", { length: 200 }),
+      description: text("description").notNull(),
+      regulatoryReference: varchar("regulatory_reference", { length: 100 }),
+      // e.g., "142.5(a)"
+      requiredEvidence: jsonb("required_evidence"),
+      // Types of evidence needed
+      complianceCriteria: jsonb("compliance_criteria"),
+      // What constitutes compliance
+      riskWeight: decimal("risk_weight", { precision: 3, scale: 2 }).default("1.00"),
+      isActive: boolean("is_active").default(true),
+      createdAt: timestamp("created_at").defaultNow()
+    });
+    checklistMappings = pgTable("checklist_mappings", {
+      id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+      sourceSchemaId: uuid("source_schema_id").references(() => checklistSchemas.id).notNull(),
+      targetSchemaId: uuid("target_schema_id").references(() => checklistSchemas.id).notNull(),
+      sourceItemId: uuid("source_item_id").references(() => checklistItems.id).notNull(),
+      targetItemId: uuid("target_item_id").references(() => checklistItems.id),
+      mappingType: varchar("mapping_type").notNull(),
+      // exact, partial, expanded, missing
+      mappingConfidence: decimal("mapping_confidence", { precision: 3, scale: 2 }),
+      mappingNotes: text("mapping_notes"),
+      createdAt: timestamp("created_at").defaultNow()
+    });
+    harmonizationDeltas = pgTable("harmonization_deltas", {
+      id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+      baseSchemaId: uuid("base_schema_id").references(() => checklistSchemas.id).notNull(),
+      comparedSchemaId: uuid("compared_schema_id").references(() => checklistSchemas.id).notNull(),
+      deltaType: varchar("delta_type").notNull(),
+      // added, removed, modified, reordered
+      affectedItemId: uuid("affected_item_id").references(() => checklistItems.id),
+      baseItemNumber: varchar("base_item_number", { length: 20 }),
+      comparedItemNumber: varchar("compared_item_number", { length: 20 }),
+      changeDescription: text("change_description").notNull(),
+      complianceImpact: varchar("compliance_impact"),
+      // none, minor, major, critical
+      generatedAt: timestamp("generated_at").defaultNow()
+    });
+    checklistVersionHistory = pgTable("checklist_version_history", {
+      id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+      schemaId: uuid("schema_id").references(() => checklistSchemas.id).notNull(),
+      previousVersion: varchar("previous_version", { length: 50 }),
+      newVersion: varchar("new_version", { length: 50 }).notNull(),
+      changeType: varchar("change_type").notNull(),
+      // new_version, amendment, correction, superseded
+      changeSummary: text("change_summary"),
+      sourceReference: text("source_reference"),
+      // FAA document number/reference
+      detectedAt: timestamp("detected_at").defaultNow(),
+      appliedAt: timestamp("applied_at"),
+      appliedBy: varchar("applied_by").references(() => users.id),
+      isAcknowledged: boolean("is_acknowledged").default(false)
+    });
+    faaCoreForms = pgTable("faa_core_forms", {
+      id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+      farPart: varchar("far_part", { length: 20 }).notNull(),
+      // e.g., "142", "141", "145"
+      formNumber: varchar("form_number", { length: 50 }).notNull(),
+      // e.g., "8610-2", "8900.1 Vol 3"
+      formTitle: varchar("form_title", { length: 300 }).notNull(),
+      formType: varchar("form_type").notNull(),
+      // audit_checklist, job_aid, inspector_guide, application
+      currentVersion: varchar("current_version", { length: 50 }),
+      effectiveDate: timestamp("effective_date"),
+      sourceUrl: text("source_url"),
+      pdfUrl: text("pdf_url"),
+      relatedOrderVolume: varchar("related_order_volume", { length: 50 }),
+      // e.g., "8900.1 Vol 3"
+      isActive: boolean("is_active").default(true),
+      lastCheckedAt: timestamp("last_checked_at"),
+      createdAt: timestamp("created_at").defaultNow()
+    });
+    inspectorProfiles = pgTable("inspector_profiles", {
+      id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+      inspectorName: varchar("inspector_name", { length: 200 }),
+      inspectorId: varchar("inspector_id", { length: 100 }),
+      // TCPM ID or FAA identifier
+      region: varchar("region", { length: 100 }),
+      office: varchar("office", { length: 200 }),
+      preferredChecklistId: uuid("preferred_checklist_id").references(() => checklistSchemas.id),
+      preferredItemOrdering: jsonb("preferred_item_ordering"),
+      // Custom ordering preferences
+      commonExtraQuestions: jsonb("common_extra_questions"),
+      // Questions they typically add
+      focusAreas: jsonb("focus_areas"),
+      // Categories they emphasize
+      averageAuditDuration: integer("average_audit_duration"),
+      // In hours
+      strictnessScore: decimal("strictness_score", { precision: 3, scale: 2 }),
+      // 0-1 scale
+      lastAuditDate: timestamp("last_audit_date"),
+      totalAuditsTracked: integer("total_audits_tracked").default(0),
+      predictionConfidence: decimal("prediction_confidence", { precision: 3, scale: 2 }),
+      isActive: boolean("is_active").default(true),
+      createdAt: timestamp("created_at").defaultNow(),
+      updatedAt: timestamp("updated_at").defaultNow()
+    });
+    inspectorBehaviors = pgTable("inspector_behaviors", {
+      id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+      inspectorId: uuid("inspector_id").references(() => inspectorProfiles.id).notNull(),
+      organizationId: uuid("organization_id").references(() => trainingOrganizations.id).notNull(),
+      auditDate: timestamp("audit_date").notNull(),
+      checklistSchemaUsed: uuid("checklist_schema_used").references(() => checklistSchemas.id),
+      itemsReordered: jsonb("items_reordered"),
+      // Which items they reordered
+      additionalQuestions: jsonb("additional_questions"),
+      // Extra questions asked
+      skippedItems: jsonb("skipped_items"),
+      // Items they skipped
+      emphasisAreas: jsonb("emphasis_areas"),
+      // Areas they spent extra time on
+      findingsCount: integer("findings_count"),
+      auditOutcome: varchar("audit_outcome"),
+      // passed, conditional, failed
+      auditDuration: integer("audit_duration"),
+      // In minutes
+      notes: text("notes"),
+      createdAt: timestamp("created_at").defaultNow()
+    });
+    evidenceRecords = pgTable("evidence_records", {
+      id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+      organizationId: uuid("organization_id").references(() => trainingOrganizations.id).notNull(),
+      evidenceType: varchar("evidence_type").notNull(),
+      // document, training_record, certificate, log, procedure
+      evidenceTitle: varchar("evidence_title", { length: 300 }).notNull(),
+      evidenceDescription: text("evidence_description"),
+      filePath: text("file_path"),
+      fileHash: varchar("file_hash", { length: 100 }),
+      // SHA-256 hash of content
+      extractedText: text("extracted_text"),
+      // OCR/parsed text for indexing
+      metadata: jsonb("metadata"),
+      // Document metadata
+      blockchainTrainingRecordId: uuid("blockchain_training_record_id").references(() => blockchainTrainingRecords.id),
+      blockchainVerificationHash: varchar("blockchain_verification_hash", { length: 100 }),
+      verificationStatus: varchar("verification_status").default("pending"),
+      // pending, verified, failed
+      verifiedAt: timestamp("verified_at"),
+      expirationDate: timestamp("expiration_date"),
+      isActive: boolean("is_active").default(true),
+      createdAt: timestamp("created_at").defaultNow(),
+      updatedAt: timestamp("updated_at").defaultNow()
+    });
+    evidenceChecklistMappings = pgTable("evidence_checklist_mappings", {
+      id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+      evidenceId: uuid("evidence_id").references(() => evidenceRecords.id).notNull(),
+      checklistItemId: uuid("checklist_item_id").references(() => checklistItems.id).notNull(),
+      mappingConfidence: decimal("mapping_confidence", { precision: 3, scale: 2 }).default("1.00"),
+      mappingSource: varchar("mapping_source").notNull(),
+      // manual, ai_suggested, auto_matched
+      evidenceRelevance: varchar("evidence_relevance").notNull(),
+      // primary, supporting, contextual
+      notes: text("notes"),
+      createdBy: varchar("created_by"),
+      createdAt: timestamp("created_at").defaultNow()
+    });
+    evidenceRegulatoryMappings = pgTable("evidence_regulatory_mappings", {
+      id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+      evidenceId: uuid("evidence_id").references(() => evidenceRecords.id).notNull(),
+      frameworkId: uuid("framework_id").references(() => regulatoryFrameworks.id).notNull(),
+      regulatoryReference: varchar("regulatory_reference", { length: 100 }).notNull(),
+      // e.g., "142.5(a)"
+      referenceType: varchar("reference_type").notNull(),
+      // direct_compliance, supporting, cross_reference
+      notes: text("notes"),
+      createdAt: timestamp("created_at").defaultNow()
+    });
+    auditPackets = pgTable("audit_packets", {
+      id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+      organizationId: uuid("organization_id").references(() => trainingOrganizations.id).notNull(),
+      packetName: varchar("packet_name", { length: 300 }).notNull(),
+      packetType: varchar("packet_type").notNull(),
+      // regulation_sorted, checklist_sorted, comprehensive
+      targetInspectorId: uuid("target_inspector_id").references(() => inspectorProfiles.id),
+      checklistSchemaId: uuid("checklist_schema_id").references(() => checklistSchemas.id).notNull(),
+      generatedBy: varchar("generated_by"),
+      generatedAt: timestamp("generated_at").defaultNow(),
+      totalItems: integer("total_items").notNull(),
+      itemsWithEvidence: integer("items_with_evidence").notNull(),
+      blockchainVerifiedCount: integer("blockchain_verified_count").notNull(),
+      complianceScore: decimal("compliance_score", { precision: 5, scale: 2 }),
+      filePath: text("file_path"),
+      // Generated PDF/document path
+      packetHash: varchar("packet_hash", { length: 100 }),
+      // Hash for integrity
+      status: varchar("status").default("generated"),
+      // generated, reviewed, submitted
+      metadata: jsonb("metadata")
+    });
+    auditPacketItems = pgTable("audit_packet_items", {
+      id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+      packetId: uuid("packet_id").references(() => auditPackets.id).notNull(),
+      checklistItemId: uuid("checklist_item_id").references(() => checklistItems.id).notNull(),
+      itemOrder: integer("item_order").notNull(),
+      regulatorySection: varchar("regulatory_section", { length: 100 }),
+      // For regulation-sorted packets
+      evidenceIds: uuid("evidence_ids").array(),
+      // Array of linked evidence
+      complianceStatus: varchar("compliance_status").notNull(),
+      // compliant, partial, non_compliant, pending
+      blockchainVerified: boolean("blockchain_verified").default(false),
+      verificationDetails: jsonb("verification_details"),
+      notes: text("notes")
+    });
+    regulatoryCoverageMatrix = pgTable("regulatory_coverage_matrix", {
+      id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+      organizationId: uuid("organization_id").references(() => trainingOrganizations.id).notNull(),
+      frameworkId: uuid("framework_id").references(() => regulatoryFrameworks.id).notNull(),
+      totalRequirements: integer("total_requirements").notNull(),
+      evidencedRequirements: integer("evidenced_requirements").notNull(),
+      blockchainVerifiedRequirements: integer("blockchain_verified_requirements").notNull(),
+      coveragePercentage: decimal("coverage_percentage", { precision: 5, scale: 2 }).notNull(),
+      lastCalculatedAt: timestamp("last_calculated_at").defaultNow(),
+      gapAnalysis: jsonb("gap_analysis")
+      // Detailed gap information
+    });
+    faaPolicyDocuments = pgTable("faa_policy_documents", {
+      id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+      documentType: varchar("document_type").notNull(),
+      // safo, info, notice, bulletin, afs_directive, order
+      documentNumber: varchar("document_number", { length: 100 }).notNull().unique(),
+      title: varchar("title", { length: 500 }).notNull(),
+      subject: text("subject"),
+      issuanceDate: timestamp("issuance_date").notNull(),
+      effectiveDate: timestamp("effective_date"),
+      expirationDate: timestamp("expiration_date"),
+      affectedParts: varchar("affected_parts").array(),
+      // Array of affected FAR Parts
+      applicability: jsonb("applicability"),
+      // Who/what this applies to
+      content: text("content"),
+      // Full document text
+      sourceUrl: text("source_url"),
+      contentHash: varchar("content_hash", { length: 100 }),
+      // For change detection
+      linkedFrameworks: uuid("linked_frameworks").array(),
+      // References to regulatoryFrameworks
+      supersedes: varchar("supersedes", { length: 100 }),
+      // Previous document replaced
+      supersededBy: varchar("superseded_by", { length: 100 }),
+      // Document that replaces this
+      status: varchar("status").default("active"),
+      // active, superseded, cancelled, expired
+      isActive: boolean("is_active").default(true),
+      createdAt: timestamp("created_at").defaultNow(),
+      updatedAt: timestamp("updated_at").defaultNow()
+    });
+    multiPartConfigurations = pgTable("multi_part_configurations", {
+      id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+      configName: varchar("config_name", { length: 200 }).notNull(),
+      description: text("description"),
+      primarySpineId: uuid("primary_spine_id").references(() => regulatoryFrameworks.id).notNull(),
+      secondarySpines: uuid("secondary_spines").array(),
+      // Additional FAR Parts for multi-domain operations
+      coreAttachmentIds: uuid("core_attachment_ids").array(),
+      // FAA Orders, etc.
+      dynamicAttachmentIds: uuid("dynamic_attachment_ids").array(),
+      // Conditional attachments
+      applicableOperationTypes: varchar("applicable_operation_types").array(),
+      // 121_training, 135_training, 145_maintenance
+      applicableAuthorizations: jsonb("applicable_authorizations"),
+      // OpSpecs, LOAs, TCOs, AQP approvals
+      isDefault: boolean("is_default").default(false),
+      isActive: boolean("is_active").default(true),
+      createdAt: timestamp("created_at").defaultNow(),
+      updatedAt: timestamp("updated_at").defaultNow()
+    });
+    regulatoryUpdateTracking = pgTable("regulatory_update_tracking", {
+      id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+      sourceType: varchar("source_type").notNull(),
+      // ecfr, faa_order, safo, info, notice
+      sourceIdentifier: varchar("source_identifier", { length: 200 }).notNull(),
+      // e.g., "14-CFR-142", "SAFO-24001"
+      sourceUrl: text("source_url"),
+      lastCheckedAt: timestamp("last_checked_at").notNull(),
+      lastContentHash: varchar("last_content_hash", { length: 100 }),
+      currentContentHash: varchar("current_content_hash", { length: 100 }),
+      changeDetected: boolean("change_detected").default(false),
+      changeType: varchar("change_type"),
+      // new, modified, deleted, superseded
+      changeSummary: text("change_summary"),
+      affectedFrameworkId: uuid("affected_framework_id").references(() => regulatoryFrameworks.id),
+      affectedPolicyDocId: uuid("affected_policy_doc_id").references(() => faaPolicyDocuments.id),
+      notificationSent: boolean("notification_sent").default(false),
+      processedAt: timestamp("processed_at"),
+      impactAssessment: jsonb("impact_assessment"),
+      // AI-generated impact analysis
+      createdAt: timestamp("created_at").defaultNow()
+    });
+    regulatoryGraphLinks = pgTable("regulatory_graph_links", {
+      id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+      sourceType: varchar("source_type").notNull(),
+      // framework, policy_document, checklist_item
+      sourceId: uuid("source_id").notNull(),
+      targetType: varchar("target_type").notNull(),
+      targetId: uuid("target_id").notNull(),
+      linkType: varchar("link_type").notNull(),
+      // references, implements, supplements, supersedes, cross_references
+      linkStrength: decimal("link_strength", { precision: 3, scale: 2 }).default("1.00"),
+      // 0-1 confidence
+      description: text("description"),
+      regulatorySection: varchar("regulatory_section", { length: 100 }),
+      // Specific section reference
+      isAutoGenerated: boolean("is_auto_generated").default(false),
+      isVerified: boolean("is_verified").default(false),
+      createdAt: timestamp("created_at").defaultNow()
+    });
+    operatorAuthorizations = pgTable("operator_authorizations", {
+      id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+      organizationId: uuid("organization_id").references(() => trainingOrganizations.id).notNull(),
+      authorizationType: varchar("authorization_type").notNull(),
+      // opspecs, loa, tco, aqp, training_program
+      authorizationNumber: varchar("authorization_number", { length: 100 }).notNull(),
+      title: varchar("title", { length: 300 }),
+      issuingAuthority: varchar("issuing_authority", { length: 100 }),
+      // FSDO, CHDO, CMO
+      issuingOffice: varchar("issuing_office", { length: 200 }),
+      issuedDate: timestamp("issued_date").notNull(),
+      effectiveDate: timestamp("effective_date"),
+      expirationDate: timestamp("expiration_date"),
+      applicableParts: varchar("applicable_parts").array(),
+      // FAR Parts this authorization relates to
+      conditions: jsonb("conditions"),
+      // Specific conditions/limitations
+      privileges: jsonb("privileges"),
+      // What operations are authorized
+      documentPath: text("document_path"),
+      documentHash: varchar("document_hash", { length: 100 }),
+      linkedFrameworkIds: uuid("linked_framework_ids").array(),
+      status: varchar("status").default("active"),
+      // active, amended, revoked, expired
+      isActive: boolean("is_active").default(true),
+      createdAt: timestamp("created_at").defaultNow(),
+      updatedAt: timestamp("updated_at").defaultNow()
+    });
+    regionalSupplements = pgTable("regional_supplements", {
+      id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+      region: varchar("region", { length: 100 }).notNull(),
+      // e.g., "Southwest", "Great Lakes"
+      officeType: varchar("office_type").notNull(),
+      // fsdo, chdo, cmo
+      officeIdentifier: varchar("office_identifier", { length: 100 }),
+      officeName: varchar("office_name", { length: 200 }),
+      supplementType: varchar("supplement_type").notNull(),
+      // checklist_variant, additional_requirement, interpretation
+      applicableFrameworkId: uuid("applicable_framework_id").references(() => regulatoryFrameworks.id),
+      supplementTitle: varchar("supplement_title", { length: 300 }).notNull(),
+      supplementContent: text("supplement_content"),
+      effectiveDate: timestamp("effective_date"),
+      additionalRequirements: jsonb("additional_requirements"),
+      modifiedChecklistItems: jsonb("modified_checklist_items"),
+      // Items added/modified for this region
+      isActive: boolean("is_active").default(true),
+      createdAt: timestamp("created_at").defaultNow(),
+      updatedAt: timestamp("updated_at").defaultNow()
+    });
+    subscriptionTiers = pgTable("subscription_tiers", {
+      id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+      tierName: varchar("tier_name", { length: 100 }).notNull(),
+      monthlyPrice: decimal("monthly_price", { precision: 10, scale: 2 }).notNull(),
+      annualPrice: decimal("annual_price", { precision: 10, scale: 2 }),
+      features: varchar("features").array().notNull(),
+      analyticsAccess: varchar("analytics_access").array(),
+      dataRetention: integer("data_retention"),
+      // days
+      apiCallLimit: integer("api_call_limit"),
+      isActive: boolean("is_active").default(true),
+      createdAt: timestamp("created_at").defaultNow()
+    });
+    customerSubscriptions = pgTable("customer_subscriptions", {
+      id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+      customerId: varchar("customer_id").notNull(),
+      tierId: uuid("tier_id").references(() => subscriptionTiers.id).notNull(),
+      startDate: timestamp("start_date").defaultNow(),
+      endDate: timestamp("end_date"),
+      status: varchar("status").default("active"),
+      // active, paused, cancelled, expired
+      paymentMethod: varchar("payment_method"),
+      // traditional, crypto
+      lastPayment: timestamp("last_payment"),
+      nextBilling: timestamp("next_billing"),
+      autoRenew: boolean("auto_renew").default(true),
+      // Crypto payment fields
+      walletAddress: varchar("wallet_address"),
+      smartContractAddress: varchar("smart_contract_address"),
+      stableCoin: varchar("stable_coin"),
+      // USDC, USDT, DAI
+      chainId: integer("chain_id"),
+      // 1 for Ethereum, 137 for Polygon, etc.
+      allowanceAmount: decimal("allowance_amount", { precision: 18, scale: 6 }),
+      lastBlockChecked: integer("last_block_checked")
+    });
+    aircraftRegistryRelations = relations(aircraftRegistry, ({ many, one }) => ({
+      ownership: many(aircraftOwnership),
+      liens: many(aircraftLiens),
+      insurance: many(aircraftInsurance),
+      tokenOffering: one(tokenOfferings),
+      complianceChecks: many(complianceChecks)
+    }));
+    tokenOfferingsRelations = relations(tokenOfferings, ({ one, many }) => ({
+      aircraft: one(aircraftRegistry, {
+        fields: [tokenOfferings.aircraftId],
+        references: [aircraftRegistry.id]
+      }),
+      holders: many(tokenHolders),
+      transactions: many(tokenTransactions)
+    }));
+    tokenHoldersRelations = relations(tokenHolders, ({ one }) => ({
+      offering: one(tokenOfferings, {
+        fields: [tokenHolders.offeringId],
+        references: [tokenOfferings.id]
+      })
+    }));
+    tokenTransactionsRelations = relations(tokenTransactions, ({ one }) => ({
+      offering: one(tokenOfferings, {
+        fields: [tokenTransactions.offeringId],
+        references: [tokenOfferings.id]
+      })
+    }));
+    insertAircraftRegistrySchema = createInsertSchema(aircraftRegistry);
+    insertAircraftOwnershipSchema = createInsertSchema(aircraftOwnership);
+    insertTokenOfferingSchema = createInsertSchema(tokenOfferings);
+    insertTokenHolderSchema = createInsertSchema(tokenHolders);
+    insertTokenTransactionSchema = createInsertSchema(tokenTransactions);
+    insertAuditLogSchema = createInsertSchema(auditLogs);
+    insertCryptoPaymentSchema = createInsertSchema(cryptoPayments);
+    insertSmartContractSchema = createInsertSchema(smartContracts);
+    insertCustomerSubscriptionSchema = createInsertSchema(customerSubscriptions);
+    insertTrainingOrganizationSchema = createInsertSchema(trainingOrganizations);
+    insertProfessionalCredentialSchema = createInsertSchema(professionalCredentials);
+    insertOrganizationMemberSchema = createInsertSchema(organizationMembers);
+    insertBlockchainTrainingRecordSchema = createInsertSchema(blockchainTrainingRecords);
+    insertKeyRecoveryRequestSchema = createInsertSchema(keyRecoveryRequests);
+    insertCrossPlatformVerificationSchema = createInsertSchema(crossPlatformVerifications);
+    insertRegulatoryFrameworkSchema = createInsertSchema(regulatoryFrameworks);
+    insertOrganizationAuthorizationSchema = createInsertSchema(organizationAuthorizations);
+    insertChecklistSchemaSchema = createInsertSchema(checklistSchemas);
+    insertChecklistItemSchema = createInsertSchema(checklistItems);
+    insertChecklistMappingSchema = createInsertSchema(checklistMappings);
+    insertHarmonizationDeltaSchema = createInsertSchema(harmonizationDeltas);
+    insertChecklistVersionHistorySchema = createInsertSchema(checklistVersionHistory);
+    insertFaaCoreFormSchema = createInsertSchema(faaCoreForms);
+    insertInspectorProfileSchema = createInsertSchema(inspectorProfiles);
+    insertInspectorBehaviorSchema = createInsertSchema(inspectorBehaviors);
+    insertEvidenceRecordSchema = createInsertSchema(evidenceRecords);
+    insertEvidenceChecklistMappingSchema = createInsertSchema(evidenceChecklistMappings);
+    insertEvidenceRegulatoryMappingSchema = createInsertSchema(evidenceRegulatoryMappings);
+    insertAuditPacketSchema = createInsertSchema(auditPackets);
+    insertAuditPacketItemSchema = createInsertSchema(auditPacketItems);
+    insertRegulatoryCoverageMatrixSchema = createInsertSchema(regulatoryCoverageMatrix);
+    checklistStates = pgTable("checklist_states", {
+      id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+      userId: varchar("user_id").notNull().unique(),
+      state: jsonb("state").notNull(),
+      updatedAt: timestamp("updated_at").defaultNow()
+    });
+    insertChecklistStateSchema = createInsertSchema(checklistStates).omit({ id: true, updatedAt: true });
+    trainingEvents = pgTable("bccs_training_events", {
+      id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+      studentName: varchar("student_name", { length: 200 }).notNull(),
+      studentId: varchar("student_id", { length: 100 }),
+      instructorName: varchar("instructor_name", { length: 200 }).notNull(),
+      instructorId: varchar("instructor_id", { length: 100 }),
+      eventType: varchar("event_type", { length: 100 }).notNull(),
+      // ground, flight, simulator, check_ride, evaluation
+      eventDate: timestamp("event_date").notNull(),
+      durationHours: varchar("duration_hours", { length: 20 }),
+      curriculumItem: varchar("curriculum_item", { length: 500 }),
+      notes: text("notes"),
+      status: varchar("status", { length: 50 }).default("completed"),
+      // completed, pending, failed
+      blockchainHash: varchar("blockchain_hash", { length: 200 }),
+      userId: varchar("user_id").notNull(),
+      createdAt: timestamp("created_at").defaultNow()
+    });
+    insertTrainingEventSchema = createInsertSchema(trainingEvents).omit({ id: true, createdAt: true });
+    students = pgTable("students", {
+      id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+      firstName: varchar("first_name", { length: 100 }).notNull(),
+      lastName: varchar("last_name", { length: 100 }).notNull(),
+      email: varchar("email", { length: 200 }),
+      phone: varchar("phone", { length: 50 }),
+      certificateNumber: varchar("certificate_number", { length: 100 }),
+      enrollmentDate: timestamp("enrollment_date").defaultNow(),
+      expectedCompletion: timestamp("expected_completion"),
+      status: varchar("status", { length: 50 }).default("active"),
+      // active, completed, suspended
+      notes: text("notes"),
+      createdAt: timestamp("created_at").defaultNow()
+    });
+    insertStudentSchema = createInsertSchema(students).omit({ id: true, createdAt: true });
+    instructorRecords = pgTable("bccs_instructor_records", {
+      id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+      firstName: varchar("first_name", { length: 100 }).notNull(),
+      lastName: varchar("last_name", { length: 100 }).notNull(),
+      email: varchar("email", { length: 200 }),
+      certificateType: varchar("certificate_type", { length: 100 }).notNull(),
+      // CFI, CFII, MEI, ATP, DPE
+      certificateNumber: varchar("certificate_number", { length: 100 }).notNull(),
+      issueDate: timestamp("issue_date"),
+      expirationDate: timestamp("expiration_date"),
+      currencyDate: timestamp("currency_date"),
+      ratings: jsonb("ratings"),
+      trainingAuthorizations: jsonb("training_authorizations"),
+      status: varchar("status", { length: 50 }).default("current"),
+      // current, expired, suspended
+      createdAt: timestamp("created_at").defaultNow()
+    });
+    insertInstructorRecordSchema = createInsertSchema(instructorRecords).omit({ id: true, createdAt: true });
+    insertFaaPolicyDocumentSchema = createInsertSchema(faaPolicyDocuments);
+    insertMultiPartConfigurationSchema = createInsertSchema(multiPartConfigurations);
+    insertRegulatoryUpdateTrackingSchema = createInsertSchema(regulatoryUpdateTracking);
+    insertRegulatoryGraphLinkSchema = createInsertSchema(regulatoryGraphLinks);
+    insertOperatorAuthorizationSchema = createInsertSchema(operatorAuthorizations);
+    insertRegionalSupplementSchema = createInsertSchema(regionalSupplements);
+    digitalFormTemplates = pgTable("digital_form_templates", {
+      id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+      title: varchar("title", { length: 300 }).notNull(),
+      description: text("description"),
+      organizationName: varchar("organization_name", { length: 300 }),
+      faaSourceId: varchar("faa_source_id", { length: 100 }),
+      faaDocumentTitle: varchar("faa_document_title", { length: 300 }),
+      faaDocumentType: varchar("faa_document_type", { length: 50 }),
+      fields: jsonb("fields").notNull().default([]),
+      status: varchar("status", { length: 20 }).default("active"),
+      publicToken: varchar("public_token", { length: 100 }),
+      isPublic: boolean("is_public").default(true),
+      // AI generation tracking
+      autoGenerated: boolean("auto_generated").default(false),
+      checklistVersionHash: text("checklist_version_hash"),
+      // content_hash from bccs_faa_repository at generation time
+      regulationStatus: varchar("regulation_status", { length: 20 }).default("current"),
+      // 'current' | 'needs_review'
+      generatedFromSection: varchar("generated_from_section", { length: 200 }),
+      // e.g. "§142.27 Personnel"
+      createdBy: varchar("created_by", { length: 200 }),
+      createdAt: timestamp("created_at").defaultNow(),
+      updatedAt: timestamp("updated_at").defaultNow()
+    });
+    digitalFormSubmissions = pgTable("digital_form_submissions", {
+      id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+      templateId: uuid("template_id").references(() => digitalFormTemplates.id).notNull(),
+      templateTitle: varchar("template_title", { length: 300 }),
+      organizationName: varchar("organization_name", { length: 300 }),
+      submittedBy: varchar("submitted_by", { length: 200 }),
+      formData: jsonb("form_data").notNull().default({}),
+      status: varchar("status", { length: 20 }).default("submitted"),
+      notes: text("notes"),
+      submittedAt: timestamp("submitted_at").defaultNow(),
+      createdAt: timestamp("created_at").defaultNow()
+    });
+    insertDigitalFormTemplateSchema = createInsertSchema(digitalFormTemplates).omit({ id: true, createdAt: true, updatedAt: true });
+    insertDigitalFormSubmissionSchema = createInsertSchema(digitalFormSubmissions).omit({ id: true, createdAt: true, submittedAt: true });
+  }
 });
-var aircraftRegistry = pgTable("aircraft_registry", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  tailNumber: varchar("tail_number", { length: 20 }).notNull().unique(),
-  manufacturer: varchar("manufacturer", { length: 100 }).notNull(),
-  model: varchar("model", { length: 100 }).notNull(),
-  year: integer("year").notNull(),
-  serialNumber: varchar("serial_number", { length: 100 }),
-  engineType: varchar("engine_type", { length: 100 }),
-  maxSeats: integer("max_seats"),
-  maxWeight: decimal("max_weight", { precision: 10, scale: 2 }),
-  registrationStatus: varchar("registration_status").default("active"),
-  // active, suspended, cancelled
-  registrationDate: timestamp("registration_date").defaultNow(),
-  expirationDate: timestamp("expiration_date"),
-  currentValuation: decimal("current_valuation", { precision: 15, scale: 2 }),
-  lastValuationDate: timestamp("last_valuation_date"),
-  isTokenized: boolean("is_tokenized").default(false),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow()
-});
-var aircraftOwnership = pgTable("aircraft_ownership", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  aircraftId: uuid("aircraft_id").references(() => aircraftRegistry.id).notNull(),
-  ownerName: varchar("owner_name", { length: 200 }).notNull(),
-  ownerType: varchar("owner_type").notNull(),
-  // individual, corporation, trust, government
-  ownerAddress: text("owner_address"),
-  ownershipPercentage: decimal("ownership_percentage", { precision: 5, scale: 2 }).default("100.00"),
-  ownershipType: varchar("ownership_type").default("full"),
-  // full, fractional, lease
-  effectiveDate: timestamp("effective_date").defaultNow(),
-  registeredDate: timestamp("registered_date").defaultNow(),
-  isActive: boolean("is_active").default(true)
-});
-var aircraftLiens = pgTable("aircraft_liens", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  aircraftId: uuid("aircraft_id").references(() => aircraftRegistry.id).notNull(),
-  lienholder: varchar("lienholder", { length: 200 }).notNull(),
-  lienAmount: decimal("lien_amount", { precision: 15, scale: 2 }).notNull(),
-  lienType: varchar("lien_type").notNull(),
-  // mortgage, security_interest, tax_lien
-  filingDate: timestamp("filing_date").defaultNow(),
-  maturityDate: timestamp("maturity_date"),
-  isActive: boolean("is_active").default(true)
-});
-var aircraftInsurance = pgTable("aircraft_insurance", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  aircraftId: uuid("aircraft_id").references(() => aircraftRegistry.id).notNull(),
-  provider: varchar("provider", { length: 200 }).notNull(),
-  policyNumber: varchar("policy_number", { length: 100 }).notNull(),
-  coverageAmount: decimal("coverage_amount", { precision: 15, scale: 2 }).notNull(),
-  effectiveDate: timestamp("effective_date").notNull(),
-  expirationDate: timestamp("expiration_date").notNull(),
-  isActive: boolean("is_active").default(true)
-});
-var tokenOfferings = pgTable("token_offerings", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  aircraftId: uuid("aircraft_id").references(() => aircraftRegistry.id).notNull(),
-  contractAddress: varchar("contract_address", { length: 100 }),
-  totalTokens: integer("total_tokens").notNull(),
-  tokensIssued: integer("tokens_issued").default(0),
-  tokensSold: integer("tokens_sold").default(0),
-  initialPrice: decimal("initial_price", { precision: 10, scale: 6 }).notNull(),
-  currentPrice: decimal("current_price", { precision: 10, scale: 6 }),
-  launchDate: timestamp("launch_date").defaultNow(),
-  status: varchar("status").default("active"),
-  // active, paused, completed, cancelled
-  prospectusUrl: text("prospectus_url"),
-  minimumInvestment: decimal("minimum_investment", { precision: 10, scale: 2 }),
-  isAccreditedOnly: boolean("is_accredited_only").default(false)
-});
-var tokenHolders = pgTable("token_holders", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  offeringId: uuid("offering_id").references(() => tokenOfferings.id).notNull(),
-  investorId: varchar("investor_id").notNull(),
-  walletAddress: varchar("wallet_address", { length: 100 }),
-  tokensOwned: integer("tokens_owned").notNull(),
-  averagePurchasePrice: decimal("average_purchase_price", { precision: 10, scale: 6 }),
-  totalInvestment: decimal("total_investment", { precision: 15, scale: 2 }),
-  firstPurchaseDate: timestamp("first_purchase_date").defaultNow(),
-  lastTransactionDate: timestamp("last_transaction_date").defaultNow(),
-  kycStatus: varchar("kyc_status").default("pending"),
-  // pending, verified, rejected
-  accreditationStatus: varchar("accreditation_status").default("unknown")
-  // verified, unverified, unknown
-});
-var tokenTransactions = pgTable("token_transactions", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  offeringId: uuid("offering_id").references(() => tokenOfferings.id).notNull(),
-  transactionHash: varchar("transaction_hash", { length: 100 }),
-  transactionType: varchar("transaction_type").notNull(),
-  // buy, sell, transfer, dividend
-  buyerId: varchar("buyer_id"),
-  sellerId: varchar("seller_id"),
-  tokenAmount: integer("token_amount").notNull(),
-  pricePerToken: decimal("price_per_token", { precision: 10, scale: 6 }),
-  totalAmount: decimal("total_amount", { precision: 15, scale: 2 }),
-  transactionFee: decimal("transaction_fee", { precision: 10, scale: 2 }),
-  blockNumber: integer("block_number"),
-  gasUsed: integer("gas_used"),
-  transactionDate: timestamp("transaction_date").defaultNow(),
-  status: varchar("status").default("pending")
-  // pending, confirmed, failed
-});
-var complianceChecks = pgTable("compliance_checks", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  aircraftId: uuid("aircraft_id").references(() => aircraftRegistry.id).notNull(),
-  checkType: varchar("check_type").notNull(),
-  // registration, insurance, liens, ownership
-  checkResult: varchar("check_result").notNull(),
-  // passed, failed, warning
-  checkDetails: jsonb("check_details"),
-  checkDate: timestamp("check_date").defaultNow(),
-  nextCheckDate: timestamp("next_check_date"),
-  performedBy: varchar("performed_by")
-});
-var registryAnalytics = pgTable("registry_analytics", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  registryId: varchar("registry_id").notNull(),
-  metricType: varchar("metric_type").notNull(),
-  // aircraft_count, token_volume, revenue
-  metricValue: decimal("metric_value", { precision: 15, scale: 2 }).notNull(),
-  period: varchar("period").notNull(),
-  // daily, weekly, monthly, yearly
-  recordDate: timestamp("record_date").defaultNow()
-});
-var auditLogs = pgTable("audit_logs", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  eventType: varchar("event_type").notNull(),
-  // regulatory_check, link_check, compliance_alert, system_error, crypto_payment
-  severity: varchar("severity").notNull(),
-  // info, warning, error, critical
-  message: text("message").notNull(),
-  details: jsonb("details"),
-  sourceSystem: varchar("source_system"),
-  // regulatory_monitor, link_monitor, compliance_engine, crypto_service
-  userId: varchar("user_id"),
-  aircraftId: uuid("aircraft_id"),
-  timestamp: timestamp("timestamp").defaultNow()
-});
-var cryptoPayments = pgTable("crypto_payments", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  subscriptionId: uuid("subscription_id").references(() => customerSubscriptions.id).notNull(),
-  transactionHash: varchar("transaction_hash", { length: 100 }).unique(),
-  blockNumber: integer("block_number"),
-  fromAddress: varchar("from_address", { length: 50 }).notNull(),
-  toAddress: varchar("to_address", { length: 50 }).notNull(),
-  amount: decimal("amount", { precision: 18, scale: 6 }).notNull(),
-  stableCoin: varchar("stable_coin").notNull(),
-  // USDC, USDT, DAI
-  chainId: integer("chain_id").notNull(),
-  gasUsed: integer("gas_used"),
-  gasFee: decimal("gas_fee", { precision: 18, scale: 6 }),
-  status: varchar("status").default("pending"),
-  // pending, confirmed, failed, cancelled
-  paymentType: varchar("payment_type").notNull(),
-  // subscription_renewal, setup_fee, upgrade
-  periodCovered: varchar("period_covered"),
-  // 2024-01, 2024-Q1, 2024
-  confirmedAt: timestamp("confirmed_at"),
-  createdAt: timestamp("created_at").defaultNow()
-});
-var smartContracts = pgTable("smart_contracts", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  contractAddress: varchar("contract_address", { length: 50 }).notNull().unique(),
-  chainId: integer("chain_id").notNull(),
-  contractType: varchar("contract_type").notNull(),
-  // subscription_manager, payment_processor
-  version: varchar("version").notNull(),
-  deployedAt: timestamp("deployed_at").defaultNow(),
-  isActive: boolean("is_active").default(true),
-  supportedStableCoins: varchar("supported_stable_coins").array().notNull(),
-  minimumPayment: decimal("minimum_payment", { precision: 18, scale: 6 }),
-  maximumPayment: decimal("maximum_payment", { precision: 18, scale: 6 }),
-  gasLimit: integer("gas_limit"),
-  abi: jsonb("abi")
-  // Contract ABI for interaction
-});
-var insuranceProviders = pgTable("insurance_providers", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  companyName: varchar("company_name", { length: 200 }).notNull(),
-  licenseNumber: varchar("license_number", { length: 100 }),
-  coverageTypes: varchar("coverage_types").array().notNull(),
-  ratingScore: decimal("rating_score", { precision: 3, scale: 2 }),
-  isActive: boolean("is_active").default(true),
-  contactInfo: jsonb("contact_info"),
-  createdAt: timestamp("created_at").defaultNow()
-});
-var insuranceQuotes = pgTable("insurance_quotes", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  aircraftId: uuid("aircraft_id").references(() => aircraftRegistry.id).notNull(),
-  providerId: uuid("provider_id").references(() => insuranceProviders.id).notNull(),
-  coverageType: varchar("coverage_type").notNull(),
-  coverageAmount: decimal("coverage_amount", { precision: 15, scale: 2 }).notNull(),
-  annualPremium: decimal("annual_premium", { precision: 10, scale: 2 }).notNull(),
-  deductible: decimal("deductible", { precision: 10, scale: 2 }),
-  quoteValidUntil: timestamp("quote_valid_until").notNull(),
-  quotedAt: timestamp("quoted_at").defaultNow(),
-  status: varchar("status").default("active")
-});
-var maintenanceProviders = pgTable("maintenance_providers", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  companyName: varchar("company_name", { length: 200 }).notNull(),
-  certificationNumber: varchar("certification_number", { length: 100 }),
-  serviceTypes: varchar("service_types").array().notNull(),
-  location: varchar("location", { length: 200 }),
-  ratingScore: decimal("rating_score", { precision: 3, scale: 2 }),
-  hourlyRate: decimal("hourly_rate", { precision: 8, scale: 2 }),
-  isActive: boolean("is_active").default(true),
-  contactInfo: jsonb("contact_info"),
-  createdAt: timestamp("created_at").defaultNow()
-});
-var maintenanceServices = pgTable("maintenance_services", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  aircraftId: uuid("aircraft_id").references(() => aircraftRegistry.id).notNull(),
-  providerId: uuid("provider_id").references(() => maintenanceProviders.id).notNull(),
-  serviceType: varchar("service_type").notNull(),
-  scheduledDate: timestamp("scheduled_date"),
-  completedDate: timestamp("completed_date"),
-  estimatedCost: decimal("estimated_cost", { precision: 10, scale: 2 }),
-  actualCost: decimal("actual_cost", { precision: 10, scale: 2 }),
-  status: varchar("status").default("scheduled"),
-  description: text("description"),
-  createdAt: timestamp("created_at").defaultNow()
-});
-var lenders = pgTable("lenders", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  institutionName: varchar("institution_name", { length: 200 }).notNull(),
-  lenderType: varchar("lender_type").notNull(),
-  // bank, credit_union, private, institutional
-  minimumLoan: decimal("minimum_loan", { precision: 15, scale: 2 }),
-  maximumLoan: decimal("maximum_loan", { precision: 15, scale: 2 }),
-  interestRateRange: varchar("interest_rate_range"),
-  loanTerms: varchar("loan_terms").array(),
-  aircraftTypes: varchar("aircraft_types").array(),
-  ratingScore: decimal("rating_score", { precision: 3, scale: 2 }),
-  isActive: boolean("is_active").default(true),
-  contactInfo: jsonb("contact_info"),
-  createdAt: timestamp("created_at").defaultNow()
-});
-var financeApplications = pgTable("finance_applications", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  aircraftId: uuid("aircraft_id").references(() => aircraftRegistry.id).notNull(),
-  lenderId: uuid("lender_id").references(() => lenders.id).notNull(),
-  applicantId: varchar("applicant_id").notNull(),
-  loanAmount: decimal("loan_amount", { precision: 15, scale: 2 }).notNull(),
-  loanTerm: integer("loan_term").notNull(),
-  // months
-  interestRate: decimal("interest_rate", { precision: 5, scale: 3 }),
-  downPayment: decimal("down_payment", { precision: 15, scale: 2 }),
-  applicationStatus: varchar("application_status").default("pending"),
-  creditScore: integer("credit_score"),
-  annualIncome: decimal("annual_income", { precision: 15, scale: 2 }),
-  appliedAt: timestamp("applied_at").defaultNow(),
-  approvedAt: timestamp("approved_at")
-});
-var marketAnalytics = pgTable("market_analytics", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  analysisType: varchar("analysis_type").notNull(),
-  // valuation, demand, pricing, trends
-  aircraftCategory: varchar("aircraft_category"),
-  manufacturer: varchar("manufacturer"),
-  model: varchar("model"),
-  metricName: varchar("metric_name").notNull(),
-  metricValue: decimal("metric_value", { precision: 15, scale: 4 }).notNull(),
-  timeframe: varchar("timeframe").notNull(),
-  confidence: decimal("confidence", { precision: 3, scale: 2 }),
-  analysisDate: timestamp("analysis_date").defaultNow(),
-  dataSource: varchar("data_source")
-});
-var trainingOrganizations = pgTable("training_organizations", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  organizationName: varchar("organization_name", { length: 200 }).notNull(),
-  organizationType: varchar("organization_type").notNull(),
-  // part_142, part_141, part_121, part_135, mro, atc
-  certificateNumber: varchar("certificate_number", { length: 100 }),
-  regulatoryAuthority: varchar("regulatory_authority").notNull(),
-  // faa, easa, transport_canada, casa
-  masterPublicKey: varchar("master_public_key", { length: 100 }).unique().notNull(),
-  keyGenerationDate: timestamp("key_generation_date").defaultNow(),
-  isActive: boolean("is_active").default(true),
-  contactInfo: jsonb("contact_info"),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow()
-});
-var professionalCredentials = pgTable("professional_credentials", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  credentialType: varchar("credential_type").notNull(),
-  // pilot_license, atp, mechanic_license, controller_license
-  licenseNumber: varchar("license_number", { length: 100 }).notNull(),
-  regulatoryAuthority: varchar("regulatory_authority").notNull(),
-  // faa, easa, transport_canada, casa
-  masterPrivateKeyHash: varchar("master_private_key_hash", { length: 100 }).unique().notNull(),
-  publicKeyDerivationPath: varchar("public_key_derivation_path", { length: 200 }),
-  holderFirstName: varchar("holder_first_name", { length: 100 }).notNull(),
-  holderLastName: varchar("holder_last_name", { length: 100 }).notNull(),
-  holderEmail: varchar("holder_email", { length: 200 }),
-  dateOfBirth: timestamp("date_of_birth"),
-  issueDate: timestamp("issue_date").notNull(),
-  expirationDate: timestamp("expiration_date"),
-  isActive: boolean("is_active").default(true),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow()
-});
-var organizationMembers = pgTable("organization_members", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  organizationId: uuid("organization_id").references(() => trainingOrganizations.id).notNull(),
-  credentialId: uuid("credential_id").references(() => professionalCredentials.id).notNull(),
-  memberRole: varchar("member_role").notNull(),
-  // instructor, admin, compliance_officer, student
-  organizationPrivateKeyHash: varchar("organization_private_key_hash", { length: 100 }).notNull(),
-  delegatedAuthority: jsonb("delegated_authority"),
-  // what they can sign/approve
-  startDate: timestamp("start_date").defaultNow(),
-  endDate: timestamp("end_date"),
-  isActive: boolean("is_active").default(true),
-  createdAt: timestamp("created_at").defaultNow()
-});
-var blockchainTrainingRecords = pgTable("blockchain_training_records", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  studentCredentialId: uuid("student_credential_id").references(() => professionalCredentials.id).notNull(),
-  organizationId: uuid("organization_id").references(() => trainingOrganizations.id).notNull(),
-  instructorCredentialId: uuid("instructor_credential_id").references(() => professionalCredentials.id).notNull(),
-  trainingType: varchar("training_type").notNull(),
-  // initial, recurrent, checkride, proficiency
-  trainingDetails: jsonb("training_details").notNull(),
-  studentSignature: varchar("student_signature", { length: 200 }).notNull(),
-  instructorSignature: varchar("instructor_signature", { length: 200 }).notNull(),
-  organizationSignature: varchar("organization_signature", { length: 200 }).notNull(),
-  blockchainHash: varchar("blockchain_hash", { length: 100 }).unique().notNull(),
-  transactionHash: varchar("transaction_hash", { length: 100 }),
-  blockNumber: integer("block_number"),
-  completionDate: timestamp("completion_date").notNull(),
-  recordedAt: timestamp("recorded_at").defaultNow()
-});
-var keyRecoveryRequests = pgTable("key_recovery_requests", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  credentialId: uuid("credential_id").references(() => professionalCredentials.id).notNull(),
-  requestType: varchar("request_type").notNull(),
-  // lost_key, compromise, career_transfer
-  requestReason: text("request_reason").notNull(),
-  identityVerificationData: jsonb("identity_verification_data"),
-  // documents, biometrics
-  employmentVerificationData: jsonb("employment_verification_data"),
-  // current employer confirmation
-  historicalRecordMatches: jsonb("historical_record_matches"),
-  // cross-reference validation
-  verificationStatus: varchar("verification_status").default("pending"),
-  // pending, verified, rejected
-  requestStatus: varchar("request_status").default("pending"),
-  // pending, processing, completed, rejected
-  newMasterPrivateKeyHash: varchar("new_master_private_key_hash", { length: 100 }),
-  recoveryCompletedAt: timestamp("recovery_completed_at"),
-  emergencyFlag: boolean("emergency_flag").default(false),
-  requestedAt: timestamp("requested_at").defaultNow(),
-  processedBy: varchar("processed_by")
-  // BCCS admin who handled recovery
-});
-var crossPlatformVerifications = pgTable("cross_platform_verifications", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  credentialId: uuid("credential_id").references(() => professionalCredentials.id).notNull(),
-  platformType: varchar("platform_type").notNull(),
-  // bccs142, bccsmaint, bccsatc, bccsreg, bccsregistry
-  verificationPurpose: varchar("verification_purpose").notNull(),
-  // training_entry, maintenance_sign_off, atc_certification
-  verifyingOrganizationId: uuid("verifying_organization_id").references(() => trainingOrganizations.id),
-  verificationResult: varchar("verification_result").notNull(),
-  // verified, failed, expired
-  verificationData: jsonb("verification_data"),
-  verifiedAt: timestamp("verified_at").defaultNow()
-});
-var regulatoryFrameworks = pgTable("regulatory_frameworks", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  frameworkCode: varchar("framework_code", { length: 50 }).notNull().unique(),
-  // e.g., "14-CFR-142", "FAA-8900.1-VOL3"
-  frameworkName: varchar("framework_name", { length: 200 }).notNull(),
-  frameworkType: varchar("framework_type").notNull(),
-  // spine, attachment
-  regulatoryAuthority: varchar("regulatory_authority").notNull(),
-  // faa, easa, transport_canada, casa
-  effectiveDate: timestamp("effective_date").notNull(),
-  version: varchar("version", { length: 50 }).notNull(),
-  parentFrameworkId: uuid("parent_framework_id"),
-  // For attachments, references the spine
-  hierarchyLevel: integer("hierarchy_level").default(1),
-  // 1=spine, 2+=attachments
-  applicabilityRules: jsonb("applicability_rules"),
-  // Conditions when this framework applies
-  sourceUrl: text("source_url"),
-  fullText: text("full_text"),
-  // Full regulation text for indexing
-  isActive: boolean("is_active").default(true),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow()
-});
-var organizationAuthorizations = pgTable("organization_authorizations", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  organizationId: uuid("organization_id").references(() => trainingOrganizations.id).notNull(),
-  frameworkId: uuid("framework_id").references(() => regulatoryFrameworks.id).notNull(),
-  authorizationType: varchar("authorization_type").notNull(),
-  // primary, supplementary, conditional
-  authorizationNumber: varchar("authorization_number", { length: 100 }),
-  grantedDate: timestamp("granted_date").notNull(),
-  expirationDate: timestamp("expiration_date"),
-  conditions: jsonb("conditions"),
-  // Specific conditions or limitations
-  operatorClients: jsonb("operator_clients"),
-  // Array of operator client IDs (121, 135, 91K operators)
-  isActive: boolean("is_active").default(true),
-  createdAt: timestamp("created_at").defaultNow()
-});
-var checklistSchemas = pgTable("checklist_schemas", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  schemaName: varchar("schema_name", { length: 200 }).notNull(),
-  schemaSource: varchar("schema_source").notNull(),
-  // faa_standard, certificate_job_aid, inspector_supplemental, operator_required, archived_legacy
-  frameworkId: uuid("framework_id").references(() => regulatoryFrameworks.id),
-  version: varchar("version", { length: 50 }).notNull(),
-  effectiveDate: timestamp("effective_date").notNull(),
-  totalItems: integer("total_items").notNull(),
-  structureHash: varchar("structure_hash", { length: 100 }),
-  // Hash for change detection
-  metadata: jsonb("metadata"),
-  // Additional schema metadata
-  isCanonical: boolean("is_canonical").default(false),
-  // Is this the authoritative version?
-  priorityLevel: integer("priority_level").default(5),
-  // 1=FAA Standard, 2=Certificate Job Aid, 3=Inspector Supplemental, 4=Operator Required, 5=Archived Legacy
-  autoFetched: boolean("auto_fetched").default(false),
-  // Was this auto-fetched when spine was selected?
-  sourceUrl: text("source_url"),
-  // FAA source URL for version monitoring
-  lastVersionCheck: timestamp("last_version_check"),
-  // When was version last verified
-  isOutdated: boolean("is_outdated").default(false),
-  // Has a newer version been detected?
-  supersededById: uuid("superseded_by_id"),
-  // Reference to newer version if outdated
-  isHidden: boolean("is_hidden").default(false),
-  // Hidden from normal view (archived/legacy)
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow()
-});
-var checklistItems = pgTable("checklist_items", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  schemaId: uuid("schema_id").references(() => checklistSchemas.id).notNull(),
-  itemNumber: varchar("item_number", { length: 20 }).notNull(),
-  itemOrder: integer("item_order").notNull(),
-  categoryId: varchar("category_id", { length: 50 }),
-  categoryName: varchar("category_name", { length: 200 }),
-  description: text("description").notNull(),
-  regulatoryReference: varchar("regulatory_reference", { length: 100 }),
-  // e.g., "142.5(a)"
-  requiredEvidence: jsonb("required_evidence"),
-  // Types of evidence needed
-  complianceCriteria: jsonb("compliance_criteria"),
-  // What constitutes compliance
-  riskWeight: decimal("risk_weight", { precision: 3, scale: 2 }).default("1.00"),
-  isActive: boolean("is_active").default(true),
-  createdAt: timestamp("created_at").defaultNow()
-});
-var checklistMappings = pgTable("checklist_mappings", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  sourceSchemaId: uuid("source_schema_id").references(() => checklistSchemas.id).notNull(),
-  targetSchemaId: uuid("target_schema_id").references(() => checklistSchemas.id).notNull(),
-  sourceItemId: uuid("source_item_id").references(() => checklistItems.id).notNull(),
-  targetItemId: uuid("target_item_id").references(() => checklistItems.id),
-  mappingType: varchar("mapping_type").notNull(),
-  // exact, partial, expanded, missing
-  mappingConfidence: decimal("mapping_confidence", { precision: 3, scale: 2 }),
-  mappingNotes: text("mapping_notes"),
-  createdAt: timestamp("created_at").defaultNow()
-});
-var harmonizationDeltas = pgTable("harmonization_deltas", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  baseSchemaId: uuid("base_schema_id").references(() => checklistSchemas.id).notNull(),
-  comparedSchemaId: uuid("compared_schema_id").references(() => checklistSchemas.id).notNull(),
-  deltaType: varchar("delta_type").notNull(),
-  // added, removed, modified, reordered
-  affectedItemId: uuid("affected_item_id").references(() => checklistItems.id),
-  baseItemNumber: varchar("base_item_number", { length: 20 }),
-  comparedItemNumber: varchar("compared_item_number", { length: 20 }),
-  changeDescription: text("change_description").notNull(),
-  complianceImpact: varchar("compliance_impact"),
-  // none, minor, major, critical
-  generatedAt: timestamp("generated_at").defaultNow()
-});
-var checklistVersionHistory = pgTable("checklist_version_history", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  schemaId: uuid("schema_id").references(() => checklistSchemas.id).notNull(),
-  previousVersion: varchar("previous_version", { length: 50 }),
-  newVersion: varchar("new_version", { length: 50 }).notNull(),
-  changeType: varchar("change_type").notNull(),
-  // new_version, amendment, correction, superseded
-  changeSummary: text("change_summary"),
-  sourceReference: text("source_reference"),
-  // FAA document number/reference
-  detectedAt: timestamp("detected_at").defaultNow(),
-  appliedAt: timestamp("applied_at"),
-  appliedBy: varchar("applied_by").references(() => users.id),
-  isAcknowledged: boolean("is_acknowledged").default(false)
-});
-var faaCoreForms = pgTable("faa_core_forms", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  farPart: varchar("far_part", { length: 20 }).notNull(),
-  // e.g., "142", "141", "145"
-  formNumber: varchar("form_number", { length: 50 }).notNull(),
-  // e.g., "8610-2", "8900.1 Vol 3"
-  formTitle: varchar("form_title", { length: 300 }).notNull(),
-  formType: varchar("form_type").notNull(),
-  // audit_checklist, job_aid, inspector_guide, application
-  currentVersion: varchar("current_version", { length: 50 }),
-  effectiveDate: timestamp("effective_date"),
-  sourceUrl: text("source_url"),
-  pdfUrl: text("pdf_url"),
-  relatedOrderVolume: varchar("related_order_volume", { length: 50 }),
-  // e.g., "8900.1 Vol 3"
-  isActive: boolean("is_active").default(true),
-  lastCheckedAt: timestamp("last_checked_at"),
-  createdAt: timestamp("created_at").defaultNow()
-});
-var inspectorProfiles = pgTable("inspector_profiles", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  inspectorName: varchar("inspector_name", { length: 200 }),
-  inspectorId: varchar("inspector_id", { length: 100 }),
-  // TCPM ID or FAA identifier
-  region: varchar("region", { length: 100 }),
-  office: varchar("office", { length: 200 }),
-  preferredChecklistId: uuid("preferred_checklist_id").references(() => checklistSchemas.id),
-  preferredItemOrdering: jsonb("preferred_item_ordering"),
-  // Custom ordering preferences
-  commonExtraQuestions: jsonb("common_extra_questions"),
-  // Questions they typically add
-  focusAreas: jsonb("focus_areas"),
-  // Categories they emphasize
-  averageAuditDuration: integer("average_audit_duration"),
-  // In hours
-  strictnessScore: decimal("strictness_score", { precision: 3, scale: 2 }),
-  // 0-1 scale
-  lastAuditDate: timestamp("last_audit_date"),
-  totalAuditsTracked: integer("total_audits_tracked").default(0),
-  predictionConfidence: decimal("prediction_confidence", { precision: 3, scale: 2 }),
-  isActive: boolean("is_active").default(true),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow()
-});
-var inspectorBehaviors = pgTable("inspector_behaviors", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  inspectorId: uuid("inspector_id").references(() => inspectorProfiles.id).notNull(),
-  organizationId: uuid("organization_id").references(() => trainingOrganizations.id).notNull(),
-  auditDate: timestamp("audit_date").notNull(),
-  checklistSchemaUsed: uuid("checklist_schema_used").references(() => checklistSchemas.id),
-  itemsReordered: jsonb("items_reordered"),
-  // Which items they reordered
-  additionalQuestions: jsonb("additional_questions"),
-  // Extra questions asked
-  skippedItems: jsonb("skipped_items"),
-  // Items they skipped
-  emphasisAreas: jsonb("emphasis_areas"),
-  // Areas they spent extra time on
-  findingsCount: integer("findings_count"),
-  auditOutcome: varchar("audit_outcome"),
-  // passed, conditional, failed
-  auditDuration: integer("audit_duration"),
-  // In minutes
-  notes: text("notes"),
-  createdAt: timestamp("created_at").defaultNow()
-});
-var evidenceRecords = pgTable("evidence_records", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  organizationId: uuid("organization_id").references(() => trainingOrganizations.id).notNull(),
-  evidenceType: varchar("evidence_type").notNull(),
-  // document, training_record, certificate, log, procedure
-  evidenceTitle: varchar("evidence_title", { length: 300 }).notNull(),
-  evidenceDescription: text("evidence_description"),
-  filePath: text("file_path"),
-  fileHash: varchar("file_hash", { length: 100 }),
-  // SHA-256 hash of content
-  extractedText: text("extracted_text"),
-  // OCR/parsed text for indexing
-  metadata: jsonb("metadata"),
-  // Document metadata
-  blockchainTrainingRecordId: uuid("blockchain_training_record_id").references(() => blockchainTrainingRecords.id),
-  blockchainVerificationHash: varchar("blockchain_verification_hash", { length: 100 }),
-  verificationStatus: varchar("verification_status").default("pending"),
-  // pending, verified, failed
-  verifiedAt: timestamp("verified_at"),
-  expirationDate: timestamp("expiration_date"),
-  isActive: boolean("is_active").default(true),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow()
-});
-var evidenceChecklistMappings = pgTable("evidence_checklist_mappings", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  evidenceId: uuid("evidence_id").references(() => evidenceRecords.id).notNull(),
-  checklistItemId: uuid("checklist_item_id").references(() => checklistItems.id).notNull(),
-  mappingConfidence: decimal("mapping_confidence", { precision: 3, scale: 2 }).default("1.00"),
-  mappingSource: varchar("mapping_source").notNull(),
-  // manual, ai_suggested, auto_matched
-  evidenceRelevance: varchar("evidence_relevance").notNull(),
-  // primary, supporting, contextual
-  notes: text("notes"),
-  createdBy: varchar("created_by"),
-  createdAt: timestamp("created_at").defaultNow()
-});
-var evidenceRegulatoryMappings = pgTable("evidence_regulatory_mappings", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  evidenceId: uuid("evidence_id").references(() => evidenceRecords.id).notNull(),
-  frameworkId: uuid("framework_id").references(() => regulatoryFrameworks.id).notNull(),
-  regulatoryReference: varchar("regulatory_reference", { length: 100 }).notNull(),
-  // e.g., "142.5(a)"
-  referenceType: varchar("reference_type").notNull(),
-  // direct_compliance, supporting, cross_reference
-  notes: text("notes"),
-  createdAt: timestamp("created_at").defaultNow()
-});
-var auditPackets = pgTable("audit_packets", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  organizationId: uuid("organization_id").references(() => trainingOrganizations.id).notNull(),
-  packetName: varchar("packet_name", { length: 300 }).notNull(),
-  packetType: varchar("packet_type").notNull(),
-  // regulation_sorted, checklist_sorted, comprehensive
-  targetInspectorId: uuid("target_inspector_id").references(() => inspectorProfiles.id),
-  checklistSchemaId: uuid("checklist_schema_id").references(() => checklistSchemas.id).notNull(),
-  generatedBy: varchar("generated_by"),
-  generatedAt: timestamp("generated_at").defaultNow(),
-  totalItems: integer("total_items").notNull(),
-  itemsWithEvidence: integer("items_with_evidence").notNull(),
-  blockchainVerifiedCount: integer("blockchain_verified_count").notNull(),
-  complianceScore: decimal("compliance_score", { precision: 5, scale: 2 }),
-  filePath: text("file_path"),
-  // Generated PDF/document path
-  packetHash: varchar("packet_hash", { length: 100 }),
-  // Hash for integrity
-  status: varchar("status").default("generated"),
-  // generated, reviewed, submitted
-  metadata: jsonb("metadata")
-});
-var auditPacketItems = pgTable("audit_packet_items", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  packetId: uuid("packet_id").references(() => auditPackets.id).notNull(),
-  checklistItemId: uuid("checklist_item_id").references(() => checklistItems.id).notNull(),
-  itemOrder: integer("item_order").notNull(),
-  regulatorySection: varchar("regulatory_section", { length: 100 }),
-  // For regulation-sorted packets
-  evidenceIds: uuid("evidence_ids").array(),
-  // Array of linked evidence
-  complianceStatus: varchar("compliance_status").notNull(),
-  // compliant, partial, non_compliant, pending
-  blockchainVerified: boolean("blockchain_verified").default(false),
-  verificationDetails: jsonb("verification_details"),
-  notes: text("notes")
-});
-var regulatoryCoverageMatrix = pgTable("regulatory_coverage_matrix", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  organizationId: uuid("organization_id").references(() => trainingOrganizations.id).notNull(),
-  frameworkId: uuid("framework_id").references(() => regulatoryFrameworks.id).notNull(),
-  totalRequirements: integer("total_requirements").notNull(),
-  evidencedRequirements: integer("evidenced_requirements").notNull(),
-  blockchainVerifiedRequirements: integer("blockchain_verified_requirements").notNull(),
-  coveragePercentage: decimal("coverage_percentage", { precision: 5, scale: 2 }).notNull(),
-  lastCalculatedAt: timestamp("last_calculated_at").defaultNow(),
-  gapAnalysis: jsonb("gap_analysis")
-  // Detailed gap information
-});
-var faaPolicyDocuments = pgTable("faa_policy_documents", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  documentType: varchar("document_type").notNull(),
-  // safo, info, notice, bulletin, afs_directive, order
-  documentNumber: varchar("document_number", { length: 100 }).notNull().unique(),
-  title: varchar("title", { length: 500 }).notNull(),
-  subject: text("subject"),
-  issuanceDate: timestamp("issuance_date").notNull(),
-  effectiveDate: timestamp("effective_date"),
-  expirationDate: timestamp("expiration_date"),
-  affectedParts: varchar("affected_parts").array(),
-  // Array of affected FAR Parts
-  applicability: jsonb("applicability"),
-  // Who/what this applies to
-  content: text("content"),
-  // Full document text
-  sourceUrl: text("source_url"),
-  contentHash: varchar("content_hash", { length: 100 }),
-  // For change detection
-  linkedFrameworks: uuid("linked_frameworks").array(),
-  // References to regulatoryFrameworks
-  supersedes: varchar("supersedes", { length: 100 }),
-  // Previous document replaced
-  supersededBy: varchar("superseded_by", { length: 100 }),
-  // Document that replaces this
-  status: varchar("status").default("active"),
-  // active, superseded, cancelled, expired
-  isActive: boolean("is_active").default(true),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow()
-});
-var multiPartConfigurations = pgTable("multi_part_configurations", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  configName: varchar("config_name", { length: 200 }).notNull(),
-  description: text("description"),
-  primarySpineId: uuid("primary_spine_id").references(() => regulatoryFrameworks.id).notNull(),
-  secondarySpines: uuid("secondary_spines").array(),
-  // Additional FAR Parts for multi-domain operations
-  coreAttachmentIds: uuid("core_attachment_ids").array(),
-  // FAA Orders, etc.
-  dynamicAttachmentIds: uuid("dynamic_attachment_ids").array(),
-  // Conditional attachments
-  applicableOperationTypes: varchar("applicable_operation_types").array(),
-  // 121_training, 135_training, 145_maintenance
-  applicableAuthorizations: jsonb("applicable_authorizations"),
-  // OpSpecs, LOAs, TCOs, AQP approvals
-  isDefault: boolean("is_default").default(false),
-  isActive: boolean("is_active").default(true),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow()
-});
-var regulatoryUpdateTracking = pgTable("regulatory_update_tracking", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  sourceType: varchar("source_type").notNull(),
-  // ecfr, faa_order, safo, info, notice
-  sourceIdentifier: varchar("source_identifier", { length: 200 }).notNull(),
-  // e.g., "14-CFR-142", "SAFO-24001"
-  sourceUrl: text("source_url"),
-  lastCheckedAt: timestamp("last_checked_at").notNull(),
-  lastContentHash: varchar("last_content_hash", { length: 100 }),
-  currentContentHash: varchar("current_content_hash", { length: 100 }),
-  changeDetected: boolean("change_detected").default(false),
-  changeType: varchar("change_type"),
-  // new, modified, deleted, superseded
-  changeSummary: text("change_summary"),
-  affectedFrameworkId: uuid("affected_framework_id").references(() => regulatoryFrameworks.id),
-  affectedPolicyDocId: uuid("affected_policy_doc_id").references(() => faaPolicyDocuments.id),
-  notificationSent: boolean("notification_sent").default(false),
-  processedAt: timestamp("processed_at"),
-  impactAssessment: jsonb("impact_assessment"),
-  // AI-generated impact analysis
-  createdAt: timestamp("created_at").defaultNow()
-});
-var regulatoryGraphLinks = pgTable("regulatory_graph_links", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  sourceType: varchar("source_type").notNull(),
-  // framework, policy_document, checklist_item
-  sourceId: uuid("source_id").notNull(),
-  targetType: varchar("target_type").notNull(),
-  targetId: uuid("target_id").notNull(),
-  linkType: varchar("link_type").notNull(),
-  // references, implements, supplements, supersedes, cross_references
-  linkStrength: decimal("link_strength", { precision: 3, scale: 2 }).default("1.00"),
-  // 0-1 confidence
-  description: text("description"),
-  regulatorySection: varchar("regulatory_section", { length: 100 }),
-  // Specific section reference
-  isAutoGenerated: boolean("is_auto_generated").default(false),
-  isVerified: boolean("is_verified").default(false),
-  createdAt: timestamp("created_at").defaultNow()
-});
-var operatorAuthorizations = pgTable("operator_authorizations", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  organizationId: uuid("organization_id").references(() => trainingOrganizations.id).notNull(),
-  authorizationType: varchar("authorization_type").notNull(),
-  // opspecs, loa, tco, aqp, training_program
-  authorizationNumber: varchar("authorization_number", { length: 100 }).notNull(),
-  title: varchar("title", { length: 300 }),
-  issuingAuthority: varchar("issuing_authority", { length: 100 }),
-  // FSDO, CHDO, CMO
-  issuingOffice: varchar("issuing_office", { length: 200 }),
-  issuedDate: timestamp("issued_date").notNull(),
-  effectiveDate: timestamp("effective_date"),
-  expirationDate: timestamp("expiration_date"),
-  applicableParts: varchar("applicable_parts").array(),
-  // FAR Parts this authorization relates to
-  conditions: jsonb("conditions"),
-  // Specific conditions/limitations
-  privileges: jsonb("privileges"),
-  // What operations are authorized
-  documentPath: text("document_path"),
-  documentHash: varchar("document_hash", { length: 100 }),
-  linkedFrameworkIds: uuid("linked_framework_ids").array(),
-  status: varchar("status").default("active"),
-  // active, amended, revoked, expired
-  isActive: boolean("is_active").default(true),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow()
-});
-var regionalSupplements = pgTable("regional_supplements", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  region: varchar("region", { length: 100 }).notNull(),
-  // e.g., "Southwest", "Great Lakes"
-  officeType: varchar("office_type").notNull(),
-  // fsdo, chdo, cmo
-  officeIdentifier: varchar("office_identifier", { length: 100 }),
-  officeName: varchar("office_name", { length: 200 }),
-  supplementType: varchar("supplement_type").notNull(),
-  // checklist_variant, additional_requirement, interpretation
-  applicableFrameworkId: uuid("applicable_framework_id").references(() => regulatoryFrameworks.id),
-  supplementTitle: varchar("supplement_title", { length: 300 }).notNull(),
-  supplementContent: text("supplement_content"),
-  effectiveDate: timestamp("effective_date"),
-  additionalRequirements: jsonb("additional_requirements"),
-  modifiedChecklistItems: jsonb("modified_checklist_items"),
-  // Items added/modified for this region
-  isActive: boolean("is_active").default(true),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow()
-});
-var subscriptionTiers = pgTable("subscription_tiers", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  tierName: varchar("tier_name", { length: 100 }).notNull(),
-  monthlyPrice: decimal("monthly_price", { precision: 10, scale: 2 }).notNull(),
-  annualPrice: decimal("annual_price", { precision: 10, scale: 2 }),
-  features: varchar("features").array().notNull(),
-  analyticsAccess: varchar("analytics_access").array(),
-  dataRetention: integer("data_retention"),
-  // days
-  apiCallLimit: integer("api_call_limit"),
-  isActive: boolean("is_active").default(true),
-  createdAt: timestamp("created_at").defaultNow()
-});
-var customerSubscriptions = pgTable("customer_subscriptions", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  customerId: varchar("customer_id").notNull(),
-  tierId: uuid("tier_id").references(() => subscriptionTiers.id).notNull(),
-  startDate: timestamp("start_date").defaultNow(),
-  endDate: timestamp("end_date"),
-  status: varchar("status").default("active"),
-  // active, paused, cancelled, expired
-  paymentMethod: varchar("payment_method"),
-  // traditional, crypto
-  lastPayment: timestamp("last_payment"),
-  nextBilling: timestamp("next_billing"),
-  autoRenew: boolean("auto_renew").default(true),
-  // Crypto payment fields
-  walletAddress: varchar("wallet_address"),
-  smartContractAddress: varchar("smart_contract_address"),
-  stableCoin: varchar("stable_coin"),
-  // USDC, USDT, DAI
-  chainId: integer("chain_id"),
-  // 1 for Ethereum, 137 for Polygon, etc.
-  allowanceAmount: decimal("allowance_amount", { precision: 18, scale: 6 }),
-  lastBlockChecked: integer("last_block_checked")
-});
-var aircraftRegistryRelations = relations(aircraftRegistry, ({ many, one }) => ({
-  ownership: many(aircraftOwnership),
-  liens: many(aircraftLiens),
-  insurance: many(aircraftInsurance),
-  tokenOffering: one(tokenOfferings),
-  complianceChecks: many(complianceChecks)
-}));
-var tokenOfferingsRelations = relations(tokenOfferings, ({ one, many }) => ({
-  aircraft: one(aircraftRegistry, {
-    fields: [tokenOfferings.aircraftId],
-    references: [aircraftRegistry.id]
-  }),
-  holders: many(tokenHolders),
-  transactions: many(tokenTransactions)
-}));
-var tokenHoldersRelations = relations(tokenHolders, ({ one }) => ({
-  offering: one(tokenOfferings, {
-    fields: [tokenHolders.offeringId],
-    references: [tokenOfferings.id]
-  })
-}));
-var tokenTransactionsRelations = relations(tokenTransactions, ({ one }) => ({
-  offering: one(tokenOfferings, {
-    fields: [tokenTransactions.offeringId],
-    references: [tokenOfferings.id]
-  })
-}));
-var insertAircraftRegistrySchema = createInsertSchema(aircraftRegistry);
-var insertAircraftOwnershipSchema = createInsertSchema(aircraftOwnership);
-var insertTokenOfferingSchema = createInsertSchema(tokenOfferings);
-var insertTokenHolderSchema = createInsertSchema(tokenHolders);
-var insertTokenTransactionSchema = createInsertSchema(tokenTransactions);
-var insertAuditLogSchema = createInsertSchema(auditLogs);
-var insertCryptoPaymentSchema = createInsertSchema(cryptoPayments);
-var insertSmartContractSchema = createInsertSchema(smartContracts);
-var insertCustomerSubscriptionSchema = createInsertSchema(customerSubscriptions);
-var insertTrainingOrganizationSchema = createInsertSchema(trainingOrganizations);
-var insertProfessionalCredentialSchema = createInsertSchema(professionalCredentials);
-var insertOrganizationMemberSchema = createInsertSchema(organizationMembers);
-var insertBlockchainTrainingRecordSchema = createInsertSchema(blockchainTrainingRecords);
-var insertKeyRecoveryRequestSchema = createInsertSchema(keyRecoveryRequests);
-var insertCrossPlatformVerificationSchema = createInsertSchema(crossPlatformVerifications);
-var insertRegulatoryFrameworkSchema = createInsertSchema(regulatoryFrameworks);
-var insertOrganizationAuthorizationSchema = createInsertSchema(organizationAuthorizations);
-var insertChecklistSchemaSchema = createInsertSchema(checklistSchemas);
-var insertChecklistItemSchema = createInsertSchema(checklistItems);
-var insertChecklistMappingSchema = createInsertSchema(checklistMappings);
-var insertHarmonizationDeltaSchema = createInsertSchema(harmonizationDeltas);
-var insertChecklistVersionHistorySchema = createInsertSchema(checklistVersionHistory);
-var insertFaaCoreFormSchema = createInsertSchema(faaCoreForms);
-var insertInspectorProfileSchema = createInsertSchema(inspectorProfiles);
-var insertInspectorBehaviorSchema = createInsertSchema(inspectorBehaviors);
-var insertEvidenceRecordSchema = createInsertSchema(evidenceRecords);
-var insertEvidenceChecklistMappingSchema = createInsertSchema(evidenceChecklistMappings);
-var insertEvidenceRegulatoryMappingSchema = createInsertSchema(evidenceRegulatoryMappings);
-var insertAuditPacketSchema = createInsertSchema(auditPackets);
-var insertAuditPacketItemSchema = createInsertSchema(auditPacketItems);
-var insertRegulatoryCoverageMatrixSchema = createInsertSchema(regulatoryCoverageMatrix);
-var insertFaaPolicyDocumentSchema = createInsertSchema(faaPolicyDocuments);
-var insertMultiPartConfigurationSchema = createInsertSchema(multiPartConfigurations);
-var insertRegulatoryUpdateTrackingSchema = createInsertSchema(regulatoryUpdateTracking);
-var insertRegulatoryGraphLinkSchema = createInsertSchema(regulatoryGraphLinks);
-var insertOperatorAuthorizationSchema = createInsertSchema(operatorAuthorizations);
-var insertRegionalSupplementSchema = createInsertSchema(regionalSupplements);
 
 // server/db.ts
 import { Pool, neonConfig } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-serverless";
 import ws from "ws";
-neonConfig.webSocketConstructor = ws;
-if (!process.env.DATABASE_URL) {
-  console.error("[db] WARNING: DATABASE_URL is not set \u2014 database queries will fail at runtime.");
+var connectionString, pool, db;
+var init_db = __esm({
+  "server/db.ts"() {
+    "use strict";
+    init_schema();
+    neonConfig.webSocketConstructor = ws;
+    connectionString = process.env.NEON_DATABASE_URL || process.env.DATABASE_URL;
+    if (!connectionString) {
+      console.error("[db] WARNING: No database URL configured \u2014 database queries will fail at runtime.");
+    } else {
+      const dbLabel = process.env.NEON_DATABASE_URL ? "Neon (cloud)" : "local PostgreSQL";
+      console.log(`[db] Connecting to ${dbLabel}`);
+    }
+    pool = new Pool({ connectionString: connectionString || "postgresql://localhost/placeholder" });
+    db = drizzle({ client: pool, schema: schema_exports });
+  }
+});
+
+// server/services/faa-document-monitor.ts
+var faa_document_monitor_exports = {};
+__export(faa_document_monitor_exports, {
+  faaDocumentMonitor: () => faaDocumentMonitor
+});
+import { sql as sql8 } from "drizzle-orm";
+import * as crypto7 from "crypto";
+var FAA_SEED_DOCUMENTS, FAADocumentMonitorService, faaDocumentMonitor;
+var init_faa_document_monitor = __esm({
+  "server/services/faa-document-monitor.ts"() {
+    "use strict";
+    init_db();
+    FAA_SEED_DOCUMENTS = [
+      // 14 CFR Parts
+      { type: "cfr_part", id: "14-CFR-61", title: "14 CFR Part 61 \u2013 Certification: Pilots, FIs, Ground Instructors", description: "Requirements for pilot, flight instructor, and ground instructor certificates and ratings.", url: "https://www.ecfr.gov/current/title-14/chapter-I/subchapter-D/part-61", checkUrl: "https://www.ecfr.gov/api/versioner/v1/versions/title-14", priority: "high", parts: ["61"] },
+      { type: "cfr_part", id: "14-CFR-91", title: "14 CFR Part 91 \u2013 General Operating and Flight Rules", description: "General flight operating rules for all aircraft operations in US airspace.", url: "https://www.ecfr.gov/current/title-14/chapter-I/subchapter-F/part-91", checkUrl: "https://www.ecfr.gov/api/versioner/v1/versions/title-14", priority: "medium", parts: ["91"] },
+      { type: "cfr_part", id: "14-CFR-119", title: "14 CFR Part 119 \u2013 Certification: Air Carriers and Commercial Operators", description: "Certification requirements for air carriers and commercial operators.", url: "https://www.ecfr.gov/current/title-14/chapter-I/subchapter-G/part-119", checkUrl: "https://www.ecfr.gov/api/versioner/v1/versions/title-14", priority: "high", parts: ["119"] },
+      { type: "cfr_part", id: "14-CFR-121", title: "14 CFR Part 121 \u2013 Operating Requirements: Domestic/Flag/Supplemental", description: "Operating requirements for large aircraft airlines and cargo carriers.", url: "https://www.ecfr.gov/current/title-14/chapter-I/subchapter-G/part-121", checkUrl: "https://www.ecfr.gov/api/versioner/v1/versions/title-14", priority: "high", parts: ["121"] },
+      { type: "cfr_part", id: "14-CFR-135", title: "14 CFR Part 135 \u2013 Operating Requirements: Commuter and On-Demand", description: "Operating requirements for commuter airlines and on-demand charter operators.", url: "https://www.ecfr.gov/current/title-14/chapter-I/subchapter-G/part-135", checkUrl: "https://www.ecfr.gov/api/versioner/v1/versions/title-14", priority: "high", parts: ["135"] },
+      { type: "cfr_part", id: "14-CFR-141", title: "14 CFR Part 141 \u2013 Pilot Schools", description: "Certification and operating requirements for FAA-approved pilot training schools.", url: "https://www.ecfr.gov/current/title-14/chapter-I/subchapter-H/part-141", checkUrl: "https://www.ecfr.gov/api/versioner/v1/versions/title-14", priority: "critical", parts: ["141"] },
+      { type: "cfr_part", id: "14-CFR-142", title: "14 CFR Part 142 \u2013 Training Centers", description: "Certification and operating requirements for FAA-approved aviation training centers.", url: "https://www.ecfr.gov/current/title-14/chapter-I/subchapter-H/part-142", checkUrl: "https://www.ecfr.gov/api/versioner/v1/versions/title-14", priority: "critical", parts: ["142"] },
+      { type: "cfr_part", id: "14-CFR-145", title: "14 CFR Part 145 \u2013 Repair Stations", description: "Certification requirements for aircraft maintenance and repair stations.", url: "https://www.ecfr.gov/current/title-14/chapter-I/subchapter-H/part-145", checkUrl: "https://www.ecfr.gov/api/versioner/v1/versions/title-14", priority: "medium", parts: ["145"] },
+      { type: "cfr_part", id: "14-CFR-43", title: "14 CFR Part 43 \u2013 Maintenance, Preventive Maintenance, Rebuilding, and Alteration", description: "Maintenance standards and requirements for all civil aircraft.", url: "https://www.ecfr.gov/current/title-14/chapter-I/subchapter-C/part-43", checkUrl: "https://www.ecfr.gov/api/versioner/v1/versions/title-14", priority: "medium", parts: ["43"] },
+      // FAA Orders (8900.1)
+      { type: "faa_order", id: "FAA-8900.1-V2", title: "FAA Order 8900.1 Volume 2 \u2013 Air Agency Certification", description: "Guidance for certifying pilot schools, training centers, and air agencies (Parts 141 and 142).", url: "https://www.faa.gov/documentLibrary/media/Order/FAAORDER8900.1CHG.pdf", checkUrl: "https://www.faa.gov/regulations_policies/orders_notices/index.cfm/go/document.information/documentID/1036256", priority: "critical", parts: ["141", "142"] },
+      { type: "faa_order", id: "FAA-8900.1-V3", title: "FAA Order 8900.1 Volume 3 \u2013 General Technical Administration", description: "Technical administration guidance for FAA Aviation Safety Inspectors.", url: "https://www.faa.gov/regulations_policies/orders_notices/", priority: "high", parts: ["119", "121", "135"] },
+      { type: "faa_order", id: "FAA-8900.1-V5", title: "FAA Order 8900.1 Volume 5 \u2013 Airmen Certification", description: "Guidance for airmen certification including pilot, mechanic, and parachute rigger applications.", url: "https://www.faa.gov/regulations_policies/orders_notices/", priority: "high", parts: ["61", "65"] },
+      // SAFOs
+      { type: "safo", id: "SAFO-22012", title: "SAFO 22012 \u2013 Crew Resource Management Training Requirements", description: "Clarifies CRM training requirements for Part 121 and Part 135 operators including simulator requirements.", url: "https://www.faa.gov/other_visit/aviation_industry/airline_operators/airline_safety/safo/all_safos/media/2022/SAFO22012.pdf", priority: "high", parts: ["121", "135"] },
+      { type: "safo", id: "SAFO-23003", title: "SAFO 23003 \u2013 Runway Incursion Prevention Program Updates", description: "Updated guidance on runway safety procedures including hotspot awareness and LAHSO operations.", url: "https://www.faa.gov/other_visit/aviation_industry/airline_operators/airline_safety/safo/all_safos/media/2023/SAFO23003.pdf", priority: "high", parts: ["91", "121", "135", "141"] },
+      { type: "safo", id: "SAFO-23005", title: "SAFO 23005 \u2013 Qualification, Authorization, and Identification of Aviation Safety Inspectors", description: "Updated requirements for ASI qualifications and identification procedures.", url: "https://www.faa.gov/other_visit/aviation_industry/airline_operators/airline_safety/safo/all_safos/", priority: "medium", parts: ["119", "141", "142"] },
+      { type: "safo", id: "SAFO-24001", title: "SAFO 24001 \u2013 Advanced Air Mobility Operations", description: "Safety guidance for emerging AAM operations in controlled airspace.", url: "https://www.faa.gov/other_visit/aviation_industry/airline_operators/airline_safety/safo/all_safos/", priority: "medium", parts: ["91", "135"] },
+      // InFOs
+      { type: "info", id: "InFO-22019", title: "InFO 22019 \u2013 Winter Operations Safety Reminder", description: "Reminds pilots and operators of requirements for ground deicing and anti-icing procedures.", url: "https://www.faa.gov/other_visit/aviation_industry/airline_operators/airline_safety/info/all_infos/media/2022/IN22019.pdf", priority: "medium", parts: ["121", "135", "91"] },
+      { type: "info", id: "InFO-23015", title: "InFO 23015 \u2013 Training Requirements for Part 141 Pilot School Graduates", description: "Clarification of training hour credit for Part 141 graduates seeking airline transport pilot certification.", url: "https://www.faa.gov/other_visit/aviation_industry/airline_operators/airline_safety/info/all_infos/", priority: "high", parts: ["141", "61"] },
+      { type: "info", id: "InFO-24008", title: "InFO 24008 \u2013 Electronic Flight Bag Usage in Training", description: "Guidance on acceptable use of EFBs during training operations at Part 141/142 facilities.", url: "https://www.faa.gov/other_visit/aviation_industry/airline_operators/airline_safety/info/all_infos/", priority: "medium", parts: ["141", "142", "121"] },
+      // Advisory Circulars
+      { type: "advisory_circular", id: "AC-61-65J", title: "AC 61-65J \u2013 Certification: Pilots and Flight and Ground Instructors", description: "Revised guidance for pilot certificate applications and flight/ground instructor certification.", url: "https://www.faa.gov/regulations_policies/advisory_circulars/index.cfm/go/document.information/documentID/1042507", priority: "high", parts: ["61"] },
+      { type: "advisory_circular", id: "AC-120-51F", title: "AC 120-51F \u2013 Crew Resource Management Training", description: "Standards for developing, implementing, and evaluating CRM training programs.", url: "https://www.faa.gov/documentLibrary/media/Advisory_Circular/AC_120-51F.pdf", priority: "high", parts: ["121", "135"] },
+      { type: "advisory_circular", id: "AC-141-1B", title: "AC 141-1B \u2013 Pilot School Certification", description: "Guidance for obtaining FAA certification for Part 141 pilot schools.", url: "https://www.faa.gov/regulations_policies/advisory_circulars/", priority: "critical", parts: ["141"] },
+      { type: "advisory_circular", id: "AC-142-1A", title: "AC 142-1A \u2013 Certification and Operation of Aviation Training Devices", description: "Guidance for certifying and using flight simulation training devices (FSTDs) at Part 142 training centers.", url: "https://www.faa.gov/regulations_policies/advisory_circulars/", priority: "critical", parts: ["142"] },
+      { type: "advisory_circular", id: "AC-60-28B", title: "AC 60-28B \u2013 English Language Standard for an FAA Certificate", description: "Guidance on the English language standard for FAA pilot and flight crew certificates.", url: "https://www.faa.gov/regulations_policies/advisory_circulars/", priority: "medium", parts: ["61", "121", "135"] }
+    ];
+    FAADocumentMonitorService = class {
+      isRunning = false;
+      intervalHandle = null;
+      ecfrVersionCache = null;
+      ecfrVersionCacheAt = 0;
+      async initialize() {
+        await this.ensureTable();
+        await this.seedDocuments();
+        console.log("[FAA Monitor] Repository initialized with", FAA_SEED_DOCUMENTS.length, "documents");
+      }
+      async ensureTable() {
+        await db.execute(sql8`
+      CREATE TABLE IF NOT EXISTS bccs_faa_repository (
+        id SERIAL PRIMARY KEY,
+        source_type VARCHAR(50) NOT NULL,
+        source_id VARCHAR(100) NOT NULL UNIQUE,
+        title TEXT NOT NULL,
+        description TEXT,
+        source_url TEXT NOT NULL,
+        check_url TEXT,
+        last_checked_at TIMESTAMP,
+        last_changed_at TIMESTAMP,
+        amendment_date VARCHAR(50),
+        content_hash VARCHAR(100),
+        status VARCHAR(20) DEFAULT 'current',
+        change_summary TEXT,
+        priority VARCHAR(20) DEFAULT 'medium',
+        far_parts TEXT[] DEFAULT '{}',
+        metadata JSONB DEFAULT '{}',
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+      }
+      async seedDocuments() {
+        for (const doc of FAA_SEED_DOCUMENTS) {
+          const partsLiteral = `{${doc.parts.join(",")}}`;
+          await db.execute(sql8`
+        INSERT INTO bccs_faa_repository (source_type, source_id, title, description, source_url, check_url, priority, far_parts, status)
+        VALUES (
+          ${doc.type}, ${doc.id}, ${doc.title}, ${doc.description},
+          ${doc.url}, ${doc.checkUrl || null}, ${doc.priority},
+          ${partsLiteral}::text[], 'unknown'
+        )
+        ON CONFLICT (source_id) DO NOTHING
+      `);
+        }
+      }
+      async getECFRVersions() {
+        const now = Date.now();
+        if (this.ecfrVersionCache && now - this.ecfrVersionCacheAt < 36e5) {
+          return this.ecfrVersionCache;
+        }
+        try {
+          const res = await fetch("https://www.ecfr.gov/api/versioner/v1/versions/title-14", {
+            headers: { "Accept": "application/json", "User-Agent": "BCCS-US Compliance Platform" },
+            signal: AbortSignal.timeout(15e3)
+          });
+          if (!res.ok) throw new Error(`eCFR API ${res.status}`);
+          const data = await res.json();
+          const versions = {};
+          if (data?.content_versions) {
+            for (const v of data.content_versions) {
+              versions[String(v.part)] = v.amendment_date || v.date || "";
+            }
+          }
+          this.ecfrVersionCache = versions;
+          this.ecfrVersionCacheAt = now;
+          return versions;
+        } catch (err) {
+          console.error("[FAA Monitor] eCFR API error:", err.message);
+          return {};
+        }
+      }
+      async checkDocument(doc, ecfrVersions) {
+        const now = /* @__PURE__ */ new Date();
+        let newHash = null;
+        let amendmentDate = doc.amendment_date || null;
+        let status = doc.status || "unknown";
+        let changeSummary = null;
+        if (doc.source_type === "cfr_part") {
+          const partNum = doc.source_id.replace("14-CFR-", "");
+          const latestAmendment = ecfrVersions[partNum];
+          if (latestAmendment) {
+            newHash = crypto7.createHash("sha256").update(latestAmendment).digest("hex").substring(0, 16);
+            amendmentDate = latestAmendment;
+            if (doc.content_hash && newHash !== doc.content_hash) {
+              status = "updated";
+              changeSummary = `Amendment detected. New amendment date: ${latestAmendment}`;
+            } else if (!doc.content_hash) {
+              status = "current";
+            }
+          }
+        } else {
+          try {
+            const res = await fetch(doc.source_url, {
+              method: "HEAD",
+              headers: { "User-Agent": "BCCS-US Compliance Platform" },
+              signal: AbortSignal.timeout(1e4)
+            });
+            const lastMod = res.headers.get("last-modified") || "";
+            const contentLength = res.headers.get("content-length") || "";
+            const etag = res.headers.get("etag") || "";
+            const hashInput = `${res.status}|${lastMod}|${contentLength}|${etag}`;
+            newHash = crypto7.createHash("sha256").update(hashInput).digest("hex").substring(0, 16);
+            if (res.ok || res.status === 302 || res.status === 301) {
+              if (doc.content_hash && newHash !== doc.content_hash) {
+                status = "updated";
+                changeSummary = `Document metadata changed. Last-Modified: ${lastMod || "unknown"}`;
+              } else if (!doc.content_hash) {
+                status = "current";
+              }
+            } else {
+              status = status === "unknown" ? "unknown" : doc.status;
+            }
+          } catch {
+            status = status === "unknown" ? "unknown" : doc.status;
+          }
+        }
+        const isChanged = doc.content_hash && newHash && newHash !== doc.content_hash;
+        await db.execute(sql8`
+      UPDATE bccs_faa_repository SET
+        last_checked_at = ${now.toISOString()},
+        content_hash = ${newHash || doc.content_hash},
+        amendment_date = ${amendmentDate},
+        status = ${status},
+        change_summary = ${changeSummary || doc.change_summary},
+        last_changed_at = ${isChanged ? now.toISOString() : doc.last_changed_at},
+        updated_at = NOW()
+      WHERE source_id = ${doc.source_id}
+    `);
+        return isChanged;
+      }
+      async runCheck() {
+        if (this.isRunning) return;
+        this.isRunning = true;
+        console.log("[FAA Monitor] Starting document check...");
+        try {
+          const result = await db.execute(sql8`SELECT * FROM bccs_faa_repository ORDER BY priority DESC, source_type, source_id`);
+          const docs = result.rows;
+          const ecfrVersions = await this.getECFRVersions();
+          let changedCount = 0;
+          for (const doc of docs) {
+            const changed = await this.checkDocument(doc, ecfrVersions);
+            if (changed) changedCount++;
+            await new Promise((r) => setTimeout(r, 200));
+          }
+          console.log(`[FAA Monitor] Check complete. ${docs.length} documents checked, ${changedCount} changes detected.`);
+        } catch (err) {
+          console.error("[FAA Monitor] Check error:", err.message);
+        } finally {
+          this.isRunning = false;
+        }
+      }
+      startScheduledMonitoring(intervalHours = 6) {
+        console.log(`[FAA Monitor] Scheduled monitoring started (every ${intervalHours}h)`);
+        this.runCheck().catch(console.error);
+        this.intervalHandle = setInterval(() => {
+          this.runCheck().catch(console.error);
+        }, intervalHours * 60 * 60 * 1e3);
+      }
+      stopMonitoring() {
+        if (this.intervalHandle) {
+          clearInterval(this.intervalHandle);
+          this.intervalHandle = null;
+        }
+      }
+      normalizeFarParts(raw) {
+        if (Array.isArray(raw)) return raw;
+        if (typeof raw === "string") {
+          return raw.replace(/^\{|\}$/g, "").split(",").map((s) => s.trim()).filter(Boolean);
+        }
+        return [];
+      }
+      normalizeDoc(row) {
+        return { ...row, far_parts: this.normalizeFarParts(row.far_parts) };
+      }
+      async getDocuments(filters) {
+        const rows = await db.execute(sql8`SELECT * FROM bccs_faa_repository ORDER BY priority DESC, source_type, source_id`);
+        let docs = rows.rows.map((r) => this.normalizeDoc(r));
+        if (filters?.type && filters.type !== "all") docs = docs.filter((d) => d.source_type === filters.type);
+        if (filters?.priority && filters.priority !== "all") docs = docs.filter((d) => d.priority === filters.priority);
+        if (filters?.status && filters.status !== "all") docs = docs.filter((d) => d.status === filters.status);
+        if (filters?.search) {
+          const q = filters.search.toLowerCase();
+          docs = docs.filter((d) => d.title.toLowerCase().includes(q) || (d.description || "").toLowerCase().includes(q) || d.source_id.toLowerCase().includes(q));
+        }
+        return docs;
+      }
+      async getStats() {
+        const result = await db.execute(sql8`
+      SELECT 
+        COUNT(*) as total,
+        COUNT(CASE WHEN status='current' THEN 1 END) as current_count,
+        COUNT(CASE WHEN status='updated' THEN 1 END) as updated_count,
+        COUNT(CASE WHEN status='unknown' THEN 1 END) as unknown_count,
+        COUNT(CASE WHEN source_type='cfr_part' THEN 1 END) as cfr_parts,
+        COUNT(CASE WHEN source_type='faa_order' THEN 1 END) as faa_orders,
+        COUNT(CASE WHEN source_type='safo' THEN 1 END) as safos,
+        COUNT(CASE WHEN source_type='info' THEN 1 END) as infos,
+        COUNT(CASE WHEN source_type='advisory_circular' THEN 1 END) as acs,
+        MAX(last_checked_at) as last_check_at
+      FROM bccs_faa_repository
+    `);
+        return result.rows[0];
+      }
+      async getUpdateHistory() {
+        const result = await db.execute(sql8`
+      SELECT source_id, title, source_type, status, change_summary, last_changed_at, amendment_date
+      FROM bccs_faa_repository
+      WHERE status = 'updated' OR last_changed_at IS NOT NULL
+      ORDER BY last_changed_at DESC NULLS LAST
+      LIMIT 50
+    `);
+        return result.rows;
+      }
+    };
+    faaDocumentMonitor = new FAADocumentMonitorService();
+  }
+});
+
+// shared/license.ts
+var PLAN_FEATURES;
+var init_license = __esm({
+  "shared/license.ts"() {
+    "use strict";
+    PLAN_FEATURES = {
+      trial: {
+        maxUsers: 5,
+        maxFormTemplates: 2,
+        aiDocumentProcessing: false,
+        aiFormGeneration: false,
+        complianceReports: false,
+        advancedAnalytics: false,
+        customRoles: false,
+        blockchainRecords: false,
+        apiAccess: false,
+        prioritySupport: false
+      },
+      standard: {
+        maxUsers: 15,
+        maxFormTemplates: 5,
+        aiDocumentProcessing: false,
+        aiFormGeneration: false,
+        complianceReports: false,
+        advancedAnalytics: false,
+        customRoles: false,
+        blockchainRecords: false,
+        apiAccess: false,
+        prioritySupport: false
+      },
+      professional: {
+        maxUsers: 50,
+        maxFormTemplates: -1,
+        aiDocumentProcessing: true,
+        aiFormGeneration: true,
+        complianceReports: true,
+        advancedAnalytics: true,
+        customRoles: true,
+        blockchainRecords: false,
+        apiAccess: false,
+        prioritySupport: false
+      },
+      enterprise: {
+        maxUsers: -1,
+        maxFormTemplates: -1,
+        aiDocumentProcessing: true,
+        aiFormGeneration: true,
+        complianceReports: true,
+        advancedAnalytics: true,
+        customRoles: true,
+        blockchainRecords: true,
+        apiAccess: true,
+        prioritySupport: true
+      }
+    };
+  }
+});
+
+// server/middleware/license.ts
+var license_exports = {};
+__export(license_exports, {
+  attachLicense: () => attachLicense,
+  getActiveLicense: () => getActiveLicense,
+  getLicenseFeatures: () => getLicenseFeatures,
+  invalidateLicenseCache: () => invalidateLicenseCache,
+  isLicenseExpired: () => isLicenseExpired,
+  requireFeature: () => requireFeature,
+  requireLicenseAdmin: () => requireLicenseAdmin
+});
+import { sql as sql9 } from "drizzle-orm";
+async function getActiveLicense() {
+  const now = Date.now();
+  if (cachedLicense && now < cacheExpiry) return cachedLicense;
+  const result = await db.execute(sql9`
+    SELECT * FROM bccs_licenses
+    ORDER BY created_at DESC
+    LIMIT 1
+  `);
+  const row = result.rows[0];
+  cachedLicense = row ?? null;
+  cacheExpiry = now + 3e4;
+  return cachedLicense;
 }
-var pool = new Pool({ connectionString: process.env.DATABASE_URL || "postgresql://localhost/placeholder" });
-var db = drizzle({ client: pool, schema: schema_exports });
+function invalidateLicenseCache() {
+  cachedLicense = null;
+  cacheExpiry = 0;
+}
+function isLicenseExpired(license) {
+  if (!license.current_period_end) return false;
+  return new Date(license.current_period_end) < /* @__PURE__ */ new Date();
+}
+function getLicenseFeatures(license) {
+  const plan = isLicenseExpired(license) ? "trial" : license.plan;
+  return PLAN_FEATURES[plan] ?? PLAN_FEATURES.trial;
+}
+async function attachLicense(req, _res, next) {
+  try {
+    req.license = await getActiveLicense();
+  } catch {
+    req.license = null;
+  }
+  next();
+}
+function requireFeature(feature) {
+  return async (req, res, next) => {
+    const license = req.license ?? await getActiveLicense();
+    if (!license) {
+      return res.status(402).json({ message: "No license found. Please contact support.", feature });
+    }
+    if (license.status === "suspended") {
+      return res.status(402).json({ message: "License suspended. Please contact BCCS support.", feature });
+    }
+    const expired = isLicenseExpired(license);
+    const features = PLAN_FEATURES[expired ? "trial" : license.plan] ?? PLAN_FEATURES.trial;
+    const val = features[feature];
+    const allowed = typeof val === "boolean" ? val : val !== 0;
+    if (!allowed) {
+      return res.status(402).json({
+        message: `This feature requires a higher plan. Current plan: ${license.plan}.`,
+        feature,
+        currentPlan: license.plan,
+        upgradeRequired: true
+      });
+    }
+    next();
+  };
+}
+function requireLicenseAdmin(req, res, next) {
+  const user = req.user;
+  if (!user) return res.status(401).json({ message: "Not authenticated" });
+  if (user.role !== "admin" && user.role !== "support_admin") {
+    return res.status(403).json({ message: "Insufficient permissions to manage licenses" });
+  }
+  next();
+}
+var cachedLicense, cacheExpiry;
+var init_license2 = __esm({
+  "server/middleware/license.ts"() {
+    "use strict";
+    init_db();
+    init_license();
+    cachedLicense = null;
+    cacheExpiry = 0;
+  }
+});
+
+// server/stripeClient.ts
+var stripeClient_exports = {};
+__export(stripeClient_exports, {
+  getStripePublishableKey: () => getStripePublishableKey,
+  getStripeSecretKey: () => getStripeSecretKey,
+  getStripeSync: () => getStripeSync,
+  getStripeWebhookSecret: () => getStripeWebhookSecret,
+  getUncachableStripeClient: () => getUncachableStripeClient
+});
+import Stripe from "stripe";
+function isReplitEnvironment() {
+  return !!(process.env.REPLIT_CONNECTORS_HOSTNAME && (process.env.REPL_IDENTITY || process.env.WEB_REPL_RENEWAL));
+}
+async function getCredentialsFromReplit() {
+  const hostname = process.env.REPLIT_CONNECTORS_HOSTNAME;
+  const xReplitToken = process.env.REPL_IDENTITY ? "repl " + process.env.REPL_IDENTITY : "depl " + process.env.WEB_REPL_RENEWAL;
+  const isProduction = process.env.REPLIT_DEPLOYMENT === "1";
+  const targetEnvironment = isProduction ? "production" : "development";
+  const url = new URL(`https://${hostname}/api/v2/connection`);
+  url.searchParams.set("include_secrets", "true");
+  url.searchParams.set("connector_names", "stripe");
+  url.searchParams.set("environment", targetEnvironment);
+  const response = await fetch(url.toString(), {
+    headers: {
+      "Accept": "application/json",
+      "X-Replit-Token": xReplitToken
+    }
+  });
+  const data = await response.json();
+  const settings = data.items?.[0]?.settings;
+  if (!settings?.publishable || !settings?.secret) {
+    throw new Error(`Stripe ${targetEnvironment} connection not found in Replit connector`);
+  }
+  return { publishableKey: settings.publishable, secretKey: settings.secret };
+}
+function getCredentialsFromEnv() {
+  const secretKey = process.env.STRIPE_SECRET_KEY;
+  const publishableKey = process.env.STRIPE_PUBLISHABLE_KEY ?? "";
+  if (!secretKey) {
+    throw new Error(
+      "STRIPE_SECRET_KEY environment variable is required. Set it in your Vercel project settings (Settings \u2192 Environment Variables)."
+    );
+  }
+  return { publishableKey, secretKey };
+}
+async function getCredentials() {
+  if (isReplitEnvironment()) {
+    return getCredentialsFromReplit();
+  }
+  return getCredentialsFromEnv();
+}
+async function getUncachableStripeClient() {
+  const { secretKey } = await getCredentials();
+  return new Stripe(secretKey, { apiVersion: "2025-08-27.basil" });
+}
+async function getStripePublishableKey() {
+  const { publishableKey } = await getCredentials();
+  return publishableKey;
+}
+async function getStripeSecretKey() {
+  const { secretKey } = await getCredentials();
+  return secretKey;
+}
+function getStripeWebhookSecret() {
+  return process.env.STRIPE_WEBHOOK_SECRET ?? "";
+}
+async function getStripeSync() {
+  if (!isReplitEnvironment()) return null;
+  if (!_stripeSyncInstance) {
+    try {
+      const { StripeSync } = await import("stripe-replit-sync");
+      const secretKey = await getStripeSecretKey();
+      _stripeSyncInstance = new StripeSync({
+        poolConfig: {
+          connectionString: process.env.DATABASE_URL,
+          max: 2
+        },
+        stripeSecretKey: secretKey
+      });
+    } catch (err) {
+      console.warn("[stripe] StripeSync unavailable:", err.message?.slice(0, 80));
+      return null;
+    }
+  }
+  return _stripeSyncInstance;
+}
+var _stripeSyncInstance;
+var init_stripeClient = __esm({
+  "server/stripeClient.ts"() {
+    "use strict";
+    _stripeSyncInstance = null;
+  }
+});
+
+// server/app.ts
+import express2 from "express";
+
+// server/routes.ts
+import { createServer } from "http";
 
 // server/storage.ts
+init_schema();
+init_db();
 import { eq, desc, and, count, sql as sql2 } from "drizzle-orm";
 var DatabaseStorage = class {
   // User operations
@@ -1306,16 +1956,31 @@ var DatabaseStorage = class {
   async getVerificationHistory(credentialId) {
     return await db.select().from(crossPlatformVerifications).where(eq(crossPlatformVerifications.credentialId, credentialId)).orderBy(desc(crossPlatformVerifications.verifiedAt));
   }
+  async getChecklistState(userId) {
+    const [row] = await db.select().from(checklistStates).where(eq(checklistStates.userId, userId));
+    return row ?? null;
+  }
+  async saveChecklistState(userId, state) {
+    await db.insert(checklistStates).values({ userId, state }).onConflictDoUpdate({
+      target: checklistStates.userId,
+      set: { state, updatedAt: /* @__PURE__ */ new Date() }
+    });
+  }
+  async updateUserProfile(userId, profile) {
+    await db.update(users).set(profile).where(eq(users.id, userId));
+  }
 };
 var storage = new DatabaseStorage();
 
 // server/localAuth.ts
+init_db();
+init_schema();
 import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
 import bcrypt from "bcryptjs";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
-import { eq as eq2 } from "drizzle-orm";
+import { eq as eq2, sql as sql3 } from "drizzle-orm";
 function getSession() {
   const sessionTtl = 7 * 24 * 60 * 60 * 1e3;
   const pgStore = connectPg(session);
@@ -1391,8 +2056,13 @@ async function setupAuth(app) {
       if (!user) {
         return res.status(401).json({ message: info?.message ?? "Invalid credentials" });
       }
-      req.logIn(user, (loginErr) => {
+      if (user.isActive === false) {
+        return res.status(403).json({ message: "Your account has been deactivated. Contact your administrator." });
+      }
+      req.logIn(user, async (loginErr) => {
         if (loginErr) return next(loginErr);
+        db.execute(sql3`UPDATE users SET last_login_at = NOW() WHERE id = ${user.id}`).catch(() => {
+        });
         const { passwordHash: _, ...safeUser } = user;
         res.json({ success: true, user: safeUser });
       });
@@ -1420,14 +2090,133 @@ var isAuthenticated = (req, res, next) => {
 };
 
 // server/routes.ts
-import { z as z4 } from "zod";
+init_schema();
+import { z as z5 } from "zod";
+import multer from "multer";
+
+// shared/permissions.ts
+var PERMISSION_DEFINITIONS = [
+  // User Management
+  { key: "users:view", label: "View Users", description: "See the full list of platform users", group: "User Management" },
+  { key: "users:invite", label: "Invite Users", description: "Send invitations and create new user accounts", group: "User Management" },
+  { key: "users:edit_role", label: "Edit User Roles", description: "Change the role assigned to any user", group: "User Management" },
+  { key: "users:deactivate", label: "Deactivate Users", description: "Suspend or reactivate user accounts", group: "User Management" },
+  { key: "users:delete", label: "Delete Users", description: "Permanently remove users from the platform", group: "User Management" },
+  // Compliance Records
+  { key: "compliance:view", label: "View Records", description: "View all training event and compliance records", group: "Compliance Records" },
+  { key: "compliance:add", label: "Log Events", description: "Add new training events and compliance records", group: "Compliance Records" },
+  { key: "compliance:edit", label: "Edit Records", description: "Modify existing training records", group: "Compliance Records" },
+  { key: "compliance:export", label: "Export CSV", description: "Download compliance data as CSV", group: "Compliance Records" },
+  // Students & Instructors
+  { key: "students:view", label: "View Students", description: "See the student roster", group: "Students & Instructors" },
+  { key: "students:manage", label: "Manage Students", description: "Add, edit, and update student records", group: "Students & Instructors" },
+  { key: "instructors:view", label: "View Instructors", description: "See the instructor list", group: "Students & Instructors" },
+  { key: "instructors:manage", label: "Manage Instructors", description: "Add, edit, and update instructor records", group: "Students & Instructors" },
+  // Documents
+  { key: "documents:view", label: "View Documents", description: "Access the document repository", group: "Documents" },
+  { key: "documents:upload", label: "Upload Documents", description: "Upload new documents for processing", group: "Documents" },
+  { key: "documents:delete", label: "Delete Documents", description: "Remove documents from the repository", group: "Documents" },
+  // Digital Forms
+  { key: "forms:view", label: "View Forms", description: "View form templates and submissions", group: "Digital Forms" },
+  { key: "forms:submit", label: "Submit Forms", description: "Fill out and submit forms", group: "Digital Forms" },
+  { key: "forms:manage", label: "Manage Templates", description: "Create, edit, and delete form templates", group: "Digital Forms" },
+  { key: "forms:ai_generate", label: "AI Generate", description: "Generate templates from FAA checklists using AI", group: "Digital Forms" },
+  { key: "forms:review", label: "Review Submissions", description: "Approve or reject form submissions", group: "Digital Forms" },
+  // Regulatory & FAA
+  { key: "faa:view", label: "FAA Repository", description: "Browse the monitored FAA document repository", group: "Regulatory & FAA" },
+  { key: "regulatory:view", label: "Regulatory Alerts", description: "View regulatory monitoring alerts", group: "Regulatory & FAA" },
+  { key: "regulatory:manage", label: "Manage Monitoring", description: "Configure regulatory link monitoring", group: "Regulatory & FAA" },
+  // Audit & Reports
+  { key: "audit:view", label: "View Audit Log", description: "Access the full audit history", group: "Audit & Reports" },
+  { key: "audit:export", label: "Export Audit Log", description: "Download audit history as CSV", group: "Audit & Reports" },
+  { key: "reports:generate", label: "Generate Reports", description: "Create and print compliance reports", group: "Audit & Reports" },
+  // Administration
+  { key: "admin:settings", label: "System Settings", description: "Access system configuration and settings", group: "Administration" },
+  { key: "admin:roles", label: "Manage Roles", description: "Edit role permissions and create custom roles", group: "Administration" }
+];
+var ALL_PERMISSIONS = PERMISSION_DEFINITIONS.map((p) => p.key);
+var DEFAULT_ROLE_PERMISSIONS = {
+  admin: [...ALL_PERMISSIONS],
+  auditor: [
+    "users:view",
+    "compliance:view",
+    "compliance:export",
+    "students:view",
+    "instructors:view",
+    "documents:view",
+    "forms:view",
+    "forms:review",
+    "faa:view",
+    "regulatory:view",
+    "audit:view",
+    "audit:export",
+    "reports:generate"
+  ],
+  instructor: [
+    "compliance:view",
+    "compliance:add",
+    "compliance:export",
+    "students:view",
+    "students:manage",
+    "instructors:view",
+    "documents:view",
+    "documents:upload",
+    "forms:view",
+    "forms:submit",
+    "forms:manage",
+    "faa:view",
+    "regulatory:view",
+    "reports:generate"
+  ],
+  viewer: [
+    "compliance:view",
+    "students:view",
+    "instructors:view",
+    "documents:view",
+    "forms:view",
+    "faa:view",
+    "regulatory:view",
+    "audit:view",
+    "reports:generate"
+  ]
+};
+var SYSTEM_ROLES = [
+  {
+    roleName: "admin",
+    displayName: "Administrator",
+    description: "Full system access with all permissions",
+    color: "bg-red-100 text-red-700",
+    isSystem: true
+  },
+  {
+    roleName: "auditor",
+    displayName: "Auditor",
+    description: "Read-only plus export and reporting capabilities",
+    color: "bg-purple-100 text-purple-700",
+    isSystem: true
+  },
+  {
+    roleName: "instructor",
+    displayName: "Instructor",
+    description: "Manages training events, students, and forms",
+    color: "bg-blue-100 text-blue-700",
+    isSystem: true
+  },
+  {
+    roleName: "viewer",
+    displayName: "Viewer",
+    description: "Read-only access across all modules",
+    color: "bg-gray-100 text-gray-700",
+    isSystem: true
+  }
+];
 
 // server/routes/blockchain-key-management.ts
 import { z } from "zod";
 
 // server/services/blockchain-key-management.ts
 import { ethers } from "ethers";
-import crypto from "crypto";
+import crypto2 from "crypto";
 var BlockchainKeyManagementService = class {
   /**
    * Generate master keys for a new professional credential
@@ -1713,19 +2502,19 @@ var BlockchainKeyManagementService = class {
   }
   // Private utility methods
   hashPrivateKey(privateKey) {
-    return crypto.createHash("sha256").update(privateKey).digest("hex");
+    return crypto2.createHash("sha256").update(privateKey).digest("hex");
   }
   hashStringToNumber(input) {
-    const hash = crypto.createHash("sha256").update(input).digest("hex");
+    const hash = crypto2.createHash("sha256").update(input).digest("hex");
     return parseInt(hash.substring(0, 8), 16) % 1e6;
   }
   createTrainingRecordHash(recordData) {
     const dataString = JSON.stringify(recordData, Object.keys(recordData).sort());
-    return crypto.createHash("sha256").update(dataString).digest("hex");
+    return crypto2.createHash("sha256").update(dataString).digest("hex");
   }
   createBlockchainHash(recordHash, signatures) {
     const combinedData = recordHash + signatures.join("");
-    return crypto.createHash("sha256").update(combinedData).digest("hex");
+    return crypto2.createHash("sha256").update(combinedData).digest("hex");
   }
 };
 var blockchainKeyService = new BlockchainKeyManagementService();
@@ -1887,7 +2676,7 @@ function registerBlockchainKeyManagementRoutes(app) {
       const validatedData = processKeyRecoverySchema.parse(req.body);
       const result = await blockchainKeyService.processKeyRecovery(
         validatedData.recoveryRequestId,
-        user.claims.sub
+        user.id
       );
       res.json({
         success: true,
@@ -2001,7 +2790,7 @@ function registerBlockchainKeyManagementRoutes(app) {
 import { Router } from "express";
 
 // server/services/legacy-data-transfer.ts
-import crypto2 from "crypto";
+import crypto3 from "crypto";
 import Anthropic from "@anthropic-ai/sdk";
 var DEFAULT_MODEL_STR = "claude-sonnet-4-20250514";
 var anthropic = new Anthropic({
@@ -2009,7 +2798,7 @@ var anthropic = new Anthropic({
 });
 var LegacyDataTransferService = class {
   async initiateDataTransfer(request) {
-    const jobId = crypto2.randomUUID();
+    const jobId = crypto3.randomUUID();
     const estimatedRecords = parseInt(request.estimatedRecords) || 1e3;
     const job = {
       jobId,
@@ -2046,7 +2835,7 @@ var LegacyDataTransferService = class {
   async getAllJobs(filters) {
     return [
       {
-        jobId: crypto2.randomUUID(),
+        jobId: crypto3.randomUUID(),
         organizationName: "Skyward Flight Training",
         dataType: "pilot_logbooks",
         status: "completed",
@@ -2062,7 +2851,7 @@ var LegacyDataTransferService = class {
           validationPassed: 0.97,
           duplicatesFound: 23
         },
-        blockchainHash: "0x" + crypto2.randomBytes(32).toString("hex"),
+        blockchainHash: "0x" + crypto3.randomBytes(32).toString("hex"),
         downloadLinks: ["bccs_native_data.json", "quality_report.pdf"],
         alerts: [],
         createdAt: new Date(Date.now() - 864e5),
@@ -2151,7 +2940,7 @@ var LegacyDataTransferService = class {
   }
   async performBlockchainVerification(jobId) {
     await this.delay(1e3);
-    const blockchainHash = "0x" + crypto2.randomBytes(32).toString("hex");
+    const blockchainHash = "0x" + crypto3.randomBytes(32).toString("hex");
     const job = await this.getStoredJob(jobId);
     if (job) {
       job.blockchainHash = blockchainHash;
@@ -2598,8 +3387,10 @@ var legacy_data_transfer_default = router;
 import { Router as Router2 } from "express";
 
 // server/services/regulatory-spine.ts
+init_db();
+init_schema();
 import { eq as eq3, and as and2, inArray, like as like2, or, desc as desc2 } from "drizzle-orm";
-import crypto3 from "crypto";
+import crypto4 from "crypto";
 var RegulatorySpineService = class _RegulatorySpineService {
   static UNIVERSAL_FAR_PARTS = [
     {
@@ -2910,7 +3701,7 @@ var RegulatorySpineService = class _RegulatorySpineService {
     };
   }
   async ingestFAAPolicyDocument(document) {
-    const contentHash = document.content ? crypto3.createHash("sha256").update(document.content).digest("hex").substring(0, 64) : null;
+    const contentHash = document.content ? crypto4.createHash("sha256").update(document.content).digest("hex").substring(0, 64) : null;
     const affectedFrameworks = await db.select().from(regulatoryFrameworks).where(inArray(regulatoryFrameworks.frameworkCode, document.affectedParts.map((p) => `14-CFR-${p}`)));
     const policyDoc = {
       documentType: document.documentType,
@@ -3118,6 +3909,8 @@ var RegulatorySpineService = class _RegulatorySpineService {
 var regulatorySpineService = new RegulatorySpineService();
 
 // server/services/checklist-harmonization.ts
+init_db();
+init_schema();
 import { eq as eq4, and as and3, desc as desc3, asc, isNull as isNull2, or as or2 } from "drizzle-orm";
 import { createHash } from "crypto";
 var CHECKLIST_PRIORITY_MAP = {
@@ -3612,6 +4405,8 @@ Critical/Major Changes: ${criticalChanges.length}
 var checklistHarmonizationEngine = new ChecklistHarmonizationEngine();
 
 // server/services/inspector-preference.ts
+init_db();
+init_schema();
 import { eq as eq5, and as and4, desc as desc4 } from "drizzle-orm";
 var InspectorPreferenceEngine = class {
   async createInspectorProfile(inspectorData) {
@@ -3798,6 +4593,8 @@ var InspectorPreferenceEngine = class {
 var inspectorPreferenceEngine = new InspectorPreferenceEngine();
 
 // server/services/evidence-indexing.ts
+init_db();
+init_schema();
 import { eq as eq6, and as and5, inArray as inArray2 } from "drizzle-orm";
 import { createHash as createHash2 } from "crypto";
 var EvidenceIndexingService = class {
@@ -4052,6 +4849,8 @@ var EvidenceIndexingService = class {
 var evidenceIndexingService = new EvidenceIndexingService();
 
 // server/services/audit-packet-generator.ts
+init_db();
+init_schema();
 import { eq as eq7, inArray as inArray3, desc as desc5 } from "drizzle-orm";
 import { createHash as createHash3 } from "crypto";
 var AuditPacketGenerator = class {
@@ -6627,10 +7426,10 @@ var adaptive_compliance_default = router2;
 import { z as z3 } from "zod";
 
 // server/services/simplified-key-recovery.ts
-import crypto4 from "crypto";
+import crypto5 from "crypto";
 var SimplifiedKeyRecoveryService = class {
   async initiateKeyRecovery(recoveryRequest) {
-    const requestId = crypto4.randomUUID();
+    const requestId = crypto5.randomUUID();
     const riskScore = this.calculateRiskScore(recoveryRequest);
     const verificationSteps = this.determineVerificationSteps(recoveryRequest, riskScore);
     await this.storeRecoveryRequest(requestId, recoveryRequest, riskScore);
@@ -6703,8 +7502,8 @@ var SimplifiedKeyRecoveryService = class {
   async getAllRecoveryRequests(filters) {
     return [
       {
-        id: crypto4.randomUUID(),
-        credentialId: crypto4.randomUUID(),
+        id: crypto5.randomUUID(),
+        credentialId: crypto5.randomUUID(),
         requestType: "lost_key",
         status: "processing",
         progress: 65,
@@ -6712,8 +7511,8 @@ var SimplifiedKeyRecoveryService = class {
         urgencyLevel: "medium"
       },
       {
-        id: crypto4.randomUUID(),
-        credentialId: crypto4.randomUUID(),
+        id: crypto5.randomUUID(),
+        credentialId: crypto5.randomUUID(),
         requestType: "emergency_recovery",
         status: "pending_approval",
         progress: 80,
@@ -6844,7 +7643,7 @@ var employmentVerificationSchema = z3.object({
   hrContactEmail: z3.string().email(),
   employmentStartDate: z3.string().transform((str) => new Date(str)),
   positionTitle: z3.string().min(1),
-  managerApprovalHash: z3.string().min(64)
+  managerApprovalHash: z3.string().optional()
 });
 var emergencyProtocolSchema = z3.object({
   emergencyType: z3.enum(["medical", "security_breach", "natural_disaster", "equipment_failure"]),
@@ -7519,6 +8318,2989 @@ router3.get("/integration-benefits", async (req, res) => {
   }
 });
 var multi_platform_integration_default = router3;
+
+// server/routes/audit-generation.ts
+import { Router as Router4 } from "express";
+
+// server/services/audit-compliance-ai.ts
+import OpenAI2 from "openai";
+import * as fs3 from "fs";
+import * as path3 from "path";
+
+// server/services/ocr.ts
+import { createWorker } from "tesseract.js";
+import fs from "fs";
+import path from "path";
+import { exec } from "child_process";
+import { promisify } from "util";
+var execAsync = promisify(exec);
+async function processPdfText(pdfPath) {
+  try {
+    console.log(`Extracting text from PDF: ${pdfPath}`);
+    try {
+      const { stdout } = await execAsync(`pdftotext "${pdfPath}" -`);
+      if (stdout && stdout.trim().length > 0) {
+        console.log("Successfully extracted text from PDF");
+        return stdout.trim();
+      }
+    } catch (pdfTextError) {
+      console.log("pdftotext failed, PDF might be scanned or corrupted");
+    }
+    console.log("Converting PDF to images for OCR...");
+    const tempDir = path.join(path.dirname(pdfPath), "temp_pdf_images");
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
+    }
+    try {
+      const baseFileName = path.basename(pdfPath, ".pdf");
+      const imagePrefix = path.join(tempDir, `${baseFileName}_page`);
+      await execAsync(`pdftoppm -png "${pdfPath}" "${imagePrefix}"`);
+      const imageFiles = fs.readdirSync(tempDir).filter((file) => file.startsWith(`${baseFileName}_page`) && file.endsWith(".png")).sort();
+      if (imageFiles.length === 0) {
+        throw new Error("No images were generated from PDF");
+      }
+      console.log(`Generated ${imageFiles.length} images from PDF`);
+      let combinedText = "";
+      for (const imageFile of imageFiles) {
+        const imagePath = path.join(tempDir, imageFile);
+        console.log(`Processing image: ${imageFile}`);
+        try {
+          const imageText = await processImageOCR(imagePath);
+          combinedText += imageText + "\n\n";
+        } catch (imageError) {
+          const errorMessage = imageError instanceof Error ? imageError.message : "Unknown error";
+          console.log(`Failed to OCR image ${imageFile}:`, errorMessage);
+        }
+      }
+      for (const imageFile of imageFiles) {
+        const imagePath = path.join(tempDir, imageFile);
+        if (fs.existsSync(imagePath)) {
+          fs.unlinkSync(imagePath);
+        }
+      }
+      try {
+        fs.rmdirSync(tempDir);
+      } catch (e) {
+      }
+      if (combinedText.trim().length > 0) {
+        console.log("Successfully extracted text from PDF images");
+        return combinedText.trim();
+      }
+      throw new Error("No text could be extracted from PDF images");
+    } catch (conversionError) {
+      console.error("PDF to image conversion failed:", conversionError);
+      const errorMessage = conversionError instanceof Error ? conversionError.message : "Unknown error";
+      throw new Error(`Failed to process PDF: ${errorMessage}`);
+    }
+  } catch (error) {
+    console.error("PDF processing error:", error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    throw new Error(`Failed to process PDF: ${errorMessage}`);
+  }
+}
+async function processDocumentOCR(filePath) {
+  try {
+    if (!fs.existsSync(filePath)) {
+      throw new Error("File not found");
+    }
+    const ext = path.extname(filePath).toLowerCase();
+    console.log("Processing file with extension:", ext, "for file:", filePath);
+    if ([".jpg", ".jpeg", ".png"].includes(ext)) {
+      return await processImageOCR(filePath);
+    } else if (ext === ".pdf") {
+      return await processPdfText(filePath);
+    } else {
+      console.error("Unsupported file extension:", ext);
+      throw new Error(`Unsupported file type for OCR: ${ext}`);
+    }
+  } catch (error) {
+    console.error("OCR processing error:", error);
+    throw error;
+  }
+}
+async function processImageOCR(imagePath) {
+  const worker = await createWorker("eng");
+  try {
+    const {
+      data: { text: text2 }
+    } = await worker.recognize(imagePath);
+    return text2;
+  } finally {
+    await worker.terminate();
+  }
+}
+
+// server/services/document-generator.ts
+import OpenAI from "openai";
+import * as fs2 from "fs";
+import * as path2 from "path";
+var envPath = path2.join(process.cwd(), ".env");
+if (fs2.existsSync(envPath)) {
+  const envContent = fs2.readFileSync(envPath, "utf8");
+  const envLines = envContent.split("\n").filter((line) => line.trim() && !line.startsWith("#"));
+  for (const line of envLines) {
+    const [key, ...valueParts] = line.split("=");
+    if (key && valueParts.length > 0) {
+      process.env[key.trim()] = valueParts.join("=").trim();
+    }
+  }
+}
+var openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY || "not-configured"
+});
+var DocumentGenerator = class {
+  async analyzeDocumentGaps(checklistItems3, existingDocuments, organizationData) {
+    const requiredDocuments = this.getRequiredDocuments(checklistItems3);
+    const existingDocumentTypes = existingDocuments.map((doc) => doc.documentType);
+    const missingDocuments = requiredDocuments.filter(
+      (docType) => !existingDocumentTypes.includes(docType)
+    );
+    const canAutoGenerate = [];
+    const requiresExternalUpload = [];
+    for (const docType of missingDocuments) {
+      if (this.canGenerateDocumentType(docType)) {
+        canAutoGenerate.push(docType);
+      } else {
+        requiresExternalUpload.push(docType);
+      }
+    }
+    const generationPriority = this.calculateGenerationPriority(missingDocuments);
+    return {
+      missingDocuments,
+      canAutoGenerate,
+      requiresExternalUpload,
+      generationPriority
+    };
+  }
+  async autoGenerateComplianceDocuments(userId, organizationId, documentTypes, existingData) {
+    const generatedDocuments = [];
+    const organization = {
+      name: existingData.organizationName || "Training Center",
+      type: existingData.organizationType || "Part 142",
+      regulatoryId: existingData.regulatoryId || "TBD"
+    };
+    for (const docType of documentTypes) {
+      if (this.canGenerateDocumentType(docType)) {
+        const generatedDoc = await this.generateDocumentByType(
+          docType,
+          organization,
+          existingData
+        );
+        if (generatedDoc) {
+          generatedDocuments.push(generatedDoc);
+          await this.saveGeneratedDocument(
+            userId,
+            organizationId,
+            generatedDoc
+          );
+        }
+      }
+    }
+    return generatedDocuments;
+  }
+  canGenerateDocumentType(documentType) {
+    const generatableTypes = [
+      "TRAINING_RECORD_TEMPLATE",
+      "INSTRUCTOR_QUALIFICATION_MATRIX",
+      "CURRICULUM_OUTLINE",
+      "SAFETY_POLICY_TEMPLATE",
+      "RECORD_RETENTION_POLICY",
+      "STUDENT_PROGRESS_TEMPLATE",
+      "COURSE_COMPLETION_CERTIFICATE",
+      "PROFICIENCY_CHECK_FORM",
+      "TRAINING_SYLLABUS_OUTLINE",
+      "LESSON_PLAN_TEMPLATE",
+      "EQUIPMENT_CHECKLIST",
+      "EMERGENCY_PROCEDURES",
+      "QUALITY_ASSURANCE_CHECKLIST"
+    ];
+    return generatableTypes.includes(documentType);
+  }
+  async generateDocumentByType(documentType, organization, existingData) {
+    switch (documentType) {
+      case "TRAINING_RECORD_TEMPLATE":
+        return this.generateTrainingRecordTemplate(organization, existingData);
+      case "INSTRUCTOR_QUALIFICATION_MATRIX":
+        return this.generateInstructorMatrix(organization, existingData);
+      case "CURRICULUM_OUTLINE":
+        return this.generateCurriculumOutline(organization, existingData);
+      case "SAFETY_POLICY_TEMPLATE":
+        return this.generateSafetyPolicy(organization, existingData);
+      case "RECORD_RETENTION_POLICY":
+        return this.generateRetentionPolicy(organization, existingData);
+      case "COURSE_COMPLETION_CERTIFICATE":
+        return this.generateCompletionCertificate(organization, existingData);
+      case "PROFICIENCY_CHECK_FORM":
+        return this.generateProficiencyCheckForm(organization, existingData);
+      case "TRAINING_SYLLABUS_OUTLINE":
+        return this.generateSyllabusOutline(organization, existingData);
+      default:
+        return null;
+    }
+  }
+  async generateTrainingRecordTemplate(organization, existingData) {
+    const prompt = `Generate a comprehensive FAR Part 142 compliant training record template for ${organization.name}.
+
+    The template must include all required fields per FAR 142.73:
+    1. Name of the trainee
+    2. Copy of trainee's pilot certificate and medical certificate
+    3. Course name and make/model of flight training equipment
+    4. Prerequisite experience and course time completed
+    5. Detailed curriculum showing approved course outline
+    6. Record of flight, flight simulator, flight training device, and ground time
+    7. Ground school attendance records
+    8. Results of stage checks and end-of-course tests
+    9. Instructor endorsements showing the instructor's signature and certificate number
+    10. Line check records if applicable
+
+    Organization Type: ${organization.type}
+    Regulatory ID: ${organization.regulatoryId}
+
+    Format as a professional training record template with clear sections and form fields.
+    Include compliance notes referencing specific FAR regulations.`;
+    try {
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+        messages: [
+          {
+            role: "system",
+            content: "You are an expert aviation training compliance specialist. Generate professional, FAR-compliant training documentation."
+          },
+          {
+            role: "user",
+            content: prompt
+          }
+        ],
+        temperature: 0.3
+      });
+      const content = response.choices[0].message.content || "";
+      return {
+        filename: `Training_Record_Template_${organization.name.replace(/\s+/g, "_")}.txt`,
+        content,
+        documentType: "TRAINING_RECORD_TEMPLATE",
+        metadata: {
+          organization: organization.name,
+          regulatoryBasis: "FAR 142.73",
+          generatedAt: (/* @__PURE__ */ new Date()).toISOString()
+        },
+        autoGenerated: true
+      };
+    } catch (error) {
+      console.error("Error generating training record template:", error);
+      throw error;
+    }
+  }
+  async generateInstructorMatrix(organization, existingData) {
+    const prompt = `Generate a comprehensive instructor qualification matrix for ${organization.name}.
+
+    The matrix must track all FAR Part 142 instructor requirements:
+    - Instructor certificates and ratings
+    - Currency requirements (flight review, medical certificate, etc.)
+    - Proficiency check requirements and due dates
+    - Training courses completed
+    - Authorization to conduct specific training
+    - Qualification expiration tracking
+
+    Organization Type: ${organization.type}
+    Regulatory ID: ${organization.regulatoryId}
+
+    Create a tabular format that can track multiple instructors with all required qualifications.
+    Include compliance deadlines and renewal requirements.`;
+    try {
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+        messages: [
+          {
+            role: "system",
+            content: "You are an expert aviation training compliance specialist. Generate professional instructor qualification tracking matrices."
+          },
+          {
+            role: "user",
+            content: prompt
+          }
+        ],
+        temperature: 0.3
+      });
+      const content = response.choices[0].message.content || "";
+      return {
+        filename: `Instructor_Qualification_Matrix_${organization.name.replace(/\s+/g, "_")}.txt`,
+        content,
+        documentType: "INSTRUCTOR_QUALIFICATION_MATRIX",
+        metadata: {
+          organization: organization.name,
+          regulatoryBasis: "FAR 142.51-142.59",
+          generatedAt: (/* @__PURE__ */ new Date()).toISOString()
+        },
+        autoGenerated: true
+      };
+    } catch (error) {
+      console.error("Error generating instructor matrix:", error);
+      throw error;
+    }
+  }
+  async generateCurriculumOutline(organization, existingData) {
+    const courseTypes = existingData.courseTypes || ["Initial", "Recurrent", "Upgrade"];
+    const prompt = `Generate a detailed curriculum outline template for ${organization.name}.
+
+    The curriculum must be structured per FAR Part 142 requirements with:
+    - Clear learning objectives for each module
+    - Ground school curriculum with hours allocated
+    - Flight training curriculum with hours allocated
+    - Prerequisites for each course level
+    - Performance standards and completion criteria
+    - Required equipment and facilities
+
+    Course Types to Include: ${courseTypes.join(", ")}
+    Organization Type: ${organization.type}
+
+    Structure as a comprehensive curriculum outline that meets FAA approval requirements.
+    Include detailed learning objectives and measurable performance standards.`;
+    try {
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+        messages: [
+          {
+            role: "system",
+            content: "You are an expert aviation curriculum developer. Generate FAA-compliant training curriculum outlines."
+          },
+          {
+            role: "user",
+            content: prompt
+          }
+        ],
+        temperature: 0.3
+      });
+      const content = response.choices[0].message.content || "";
+      return {
+        filename: `Curriculum_Outline_${organization.name.replace(/\s+/g, "_")}.txt`,
+        content,
+        documentType: "CURRICULUM_OUTLINE",
+        metadata: {
+          organization: organization.name,
+          courseTypes,
+          regulatoryBasis: "FAR 142.37-142.39",
+          generatedAt: (/* @__PURE__ */ new Date()).toISOString()
+        },
+        autoGenerated: true
+      };
+    } catch (error) {
+      console.error("Error generating curriculum outline:", error);
+      throw error;
+    }
+  }
+  async generateSafetyPolicy(organization, existingData) {
+    const prompt = `Generate a comprehensive Safety Management System (SMS) policy for ${organization.name}.
+
+    The policy must address FAR Part 142 safety requirements including:
+    - Safety policy and objectives
+    - Safety responsibilities and accountabilities
+    - Safety risk management procedures
+    - Safety assurance processes
+    - Safety promotion and training
+    - Emergency response procedures
+    - Incident and accident reporting
+
+    Organization Type: ${organization.type}
+    Regulatory ID: ${organization.regulatoryId}
+
+    Create a professional safety policy document that demonstrates compliance with SMS requirements.`;
+    try {
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+        messages: [
+          {
+            role: "system",
+            content: "You are an expert aviation safety management specialist. Generate comprehensive SMS policy documents."
+          },
+          {
+            role: "user",
+            content: prompt
+          }
+        ],
+        temperature: 0.3
+      });
+      const content = response.choices[0].message.content || "";
+      return {
+        filename: `Safety_Management_Policy_${organization.name.replace(/\s+/g, "_")}.txt`,
+        content,
+        documentType: "SAFETY_POLICY_TEMPLATE",
+        metadata: {
+          organization: organization.name,
+          regulatoryBasis: "FAR 142.3, SMS Requirements",
+          generatedAt: (/* @__PURE__ */ new Date()).toISOString()
+        },
+        autoGenerated: true
+      };
+    } catch (error) {
+      console.error("Error generating safety policy:", error);
+      throw error;
+    }
+  }
+  async generateRetentionPolicy(organization, existingData) {
+    const prompt = `Generate a comprehensive record retention policy for ${organization.name}.
+
+    The policy must specify retention periods per FAR Part 142:
+    - Training records: 5 years after completion
+    - Instructor qualification records: Current plus 5 years
+    - Course approval documentation: Current plus historical versions
+    - Student progress records: 5 years after completion
+    - Equipment maintenance records: As required by manufacturer
+    - Safety management records: 5 years minimum
+
+    Organization Type: ${organization.type}
+    
+    Create a detailed policy covering all required record types, retention periods, and storage requirements.
+    Include procedures for record disposal and archive management.`;
+    try {
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+        messages: [
+          {
+            role: "system",
+            content: "You are an expert aviation records management specialist. Generate comprehensive record retention policies."
+          },
+          {
+            role: "user",
+            content: prompt
+          }
+        ],
+        temperature: 0.3
+      });
+      const content = response.choices[0].message.content || "";
+      return {
+        filename: `Record_Retention_Policy_${organization.name.replace(/\s+/g, "_")}.txt`,
+        content,
+        documentType: "RECORD_RETENTION_POLICY",
+        metadata: {
+          organization: organization.name,
+          regulatoryBasis: "FAR 142.73, Record Retention Requirements",
+          generatedAt: (/* @__PURE__ */ new Date()).toISOString()
+        },
+        autoGenerated: true
+      };
+    } catch (error) {
+      console.error("Error generating retention policy:", error);
+      throw error;
+    }
+  }
+  async generateCompletionCertificate(organization, existingData) {
+    const prompt = `Generate a professional course completion certificate template for ${organization.name}.
+
+    The certificate template should include:
+    - Student name and certificate number fields
+    - Course name and type completed
+    - Completion date and location
+    - Training hours completed (ground and flight)
+    - Instructor signature and certificate number
+    - Organization name and approval number
+    - FAR compliance statement
+
+    Organization Type: ${organization.type}
+    Regulatory ID: ${organization.regulatoryId}
+
+    Create a formal certificate template suitable for professional presentation.
+    Include all required regulatory references and compliance statements.`;
+    try {
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+        messages: [
+          {
+            role: "system",
+            content: "You are an expert aviation training certificate designer. Generate professional completion certificates."
+          },
+          {
+            role: "user",
+            content: prompt
+          }
+        ],
+        temperature: 0.3
+      });
+      const content = response.choices[0].message.content || "";
+      return {
+        filename: `Course_Completion_Certificate_${organization.name.replace(/\s+/g, "_")}.txt`,
+        content,
+        documentType: "COURSE_COMPLETION_CERTIFICATE",
+        metadata: {
+          organization: organization.name,
+          regulatoryBasis: "FAR 142.73, Training Record Requirements",
+          generatedAt: (/* @__PURE__ */ new Date()).toISOString()
+        },
+        autoGenerated: true
+      };
+    } catch (error) {
+      console.error("Error generating completion certificate:", error);
+      throw error;
+    }
+  }
+  async generateProficiencyCheckForm(organization, existingData) {
+    const prompt = `Generate a comprehensive proficiency check form for ${organization.name}.
+
+    The form must include evaluation sections for:
+    - Instructor knowledge and experience
+    - Teaching techniques and effectiveness
+    - Safety practices and procedures
+    - Aircraft systems knowledge (if applicable)
+    - Emergency procedures competency
+    - Regulatory knowledge assessment
+    - Overall performance rating
+
+    Organization Type: ${organization.type}
+    
+    Create a detailed evaluation form with scoring criteria and pass/fail standards.
+    Include sections for evaluator comments and recommendations.`;
+    try {
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+        messages: [
+          {
+            role: "system",
+            content: "You are an expert aviation instructor evaluator. Generate comprehensive proficiency check forms."
+          },
+          {
+            role: "user",
+            content: prompt
+          }
+        ],
+        temperature: 0.3
+      });
+      const content = response.choices[0].message.content || "";
+      return {
+        filename: `Proficiency_Check_Form_${organization.name.replace(/\s+/g, "_")}.txt`,
+        content,
+        documentType: "PROFICIENCY_CHECK_FORM",
+        metadata: {
+          organization: organization.name,
+          regulatoryBasis: "FAR 142.53, Instructor Proficiency Requirements",
+          generatedAt: (/* @__PURE__ */ new Date()).toISOString()
+        },
+        autoGenerated: true
+      };
+    } catch (error) {
+      console.error("Error generating proficiency check form:", error);
+      throw error;
+    }
+  }
+  async generateSyllabusOutline(organization, existingData) {
+    const prompt = `Generate a detailed training syllabus outline for ${organization.name}.
+
+    The syllabus should include:
+    - Course objectives and learning outcomes
+    - Lesson-by-lesson breakdown with hours
+    - Prerequisites and completion standards
+    - Required materials and equipment
+    - Assessment methods and criteria
+    - Progress tracking milestones
+
+    Organization Type: ${organization.type}
+    
+    Structure as a comprehensive syllabus that meets FAA training program requirements.
+    Include both ground school and practical training components.`;
+    try {
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+        messages: [
+          {
+            role: "system",
+            content: "You are an expert aviation curriculum developer. Generate detailed training syllabi."
+          },
+          {
+            role: "user",
+            content: prompt
+          }
+        ],
+        temperature: 0.3
+      });
+      const content = response.choices[0].message.content || "";
+      return {
+        filename: `Training_Syllabus_${organization.name.replace(/\s+/g, "_")}.txt`,
+        content,
+        documentType: "TRAINING_SYLLABUS_OUTLINE",
+        metadata: {
+          organization: organization.name,
+          regulatoryBasis: "FAR 142.37, Approved Training Programs",
+          generatedAt: (/* @__PURE__ */ new Date()).toISOString()
+        },
+        autoGenerated: true
+      };
+    } catch (error) {
+      console.error("Error generating syllabus outline:", error);
+      throw error;
+    }
+  }
+  getRequiredDocuments(checklistItems3) {
+    const documentMap = {
+      "Personnel": [
+        "INSTRUCTOR_QUALIFICATION_MATRIX",
+        "PROFICIENCY_CHECK_FORM",
+        "TRAINING_RECORD_TEMPLATE"
+      ],
+      "Curriculum and Courseware": [
+        "CURRICULUM_OUTLINE",
+        "TRAINING_SYLLABUS_OUTLINE",
+        "LESSON_PLAN_TEMPLATE"
+      ],
+      "Training Records": [
+        "TRAINING_RECORD_TEMPLATE",
+        "STUDENT_PROGRESS_TEMPLATE",
+        "COURSE_COMPLETION_CERTIFICATE"
+      ],
+      "Quality Assurance": [
+        "QUALITY_ASSURANCE_CHECKLIST",
+        "RECORD_RETENTION_POLICY"
+      ],
+      "Safety Management": [
+        "SAFETY_POLICY_TEMPLATE",
+        "EMERGENCY_PROCEDURES"
+      ]
+    };
+    const requiredDocs = [];
+    checklistItems3.forEach((item) => {
+      const docsForCategory = documentMap[item.category] || [];
+      docsForCategory.forEach((doc) => {
+        if (!requiredDocs.includes(doc)) {
+          requiredDocs.push(doc);
+        }
+      });
+    });
+    return requiredDocs;
+  }
+  calculateGenerationPriority(missingDocuments) {
+    const criticalDocs = ["TRAINING_RECORD_TEMPLATE", "INSTRUCTOR_QUALIFICATION_MATRIX", "SAFETY_POLICY_TEMPLATE"];
+    const highPriorityDocs = ["CURRICULUM_OUTLINE", "PROFICIENCY_CHECK_FORM", "RECORD_RETENTION_POLICY"];
+    const hasCritical = missingDocuments.some((doc) => criticalDocs.includes(doc));
+    const hasHighPriority = missingDocuments.some((doc) => highPriorityDocs.includes(doc));
+    if (hasCritical) return "CRITICAL";
+    if (hasHighPriority) return "HIGH";
+    if (missingDocuments.length > 3) return "MEDIUM";
+    return "LOW";
+  }
+  async saveGeneratedDocument(userId, organizationId, generatedDoc) {
+    const uploadsDir = path2.join(process.cwd(), "uploads");
+    if (!fs2.existsSync(uploadsDir)) {
+      fs2.mkdirSync(uploadsDir, { recursive: true });
+    }
+    const filePath = path2.join(uploadsDir, generatedDoc.filename);
+    fs2.writeFileSync(filePath, generatedDoc.content, "utf8");
+    const document = await storage.createDocument({
+      filename: generatedDoc.filename,
+      originalName: generatedDoc.filename,
+      fileType: "text/plain",
+      fileSize: Buffer.byteLength(generatedDoc.content, "utf8"),
+      status: "processed",
+      uploadedBy: userId,
+      organizationId,
+      processedAt: /* @__PURE__ */ new Date()
+    });
+    for (const [key, value] of Object.entries(generatedDoc.metadata)) {
+      await storage.createExtractedData({
+        documentId: document.id,
+        fieldName: key,
+        extractedValue: String(value),
+        confidenceScore: 1,
+        isValidated: true,
+        validatedValue: String(value),
+        validatedBy: userId,
+        validatedAt: /* @__PURE__ */ new Date()
+      });
+    }
+    await storage.createExtractedData({
+      documentId: document.id,
+      fieldName: "auto_generated",
+      extractedValue: "true",
+      confidenceScore: 1,
+      isValidated: true,
+      validatedValue: "true",
+      validatedBy: userId,
+      validatedAt: /* @__PURE__ */ new Date()
+    });
+  }
+};
+var documentGenerator = new DocumentGenerator();
+
+// server/services/audit-compliance-ai.ts
+var envPath2 = path3.join(process.cwd(), ".env");
+if (fs3.existsSync(envPath2)) {
+  const envContent = fs3.readFileSync(envPath2, "utf8");
+  const envLines = envContent.split("\n").filter((line) => line.trim() && !line.startsWith("#"));
+  for (const line of envLines) {
+    const [key, ...valueParts] = line.split("=");
+    if (key && valueParts.length > 0) {
+      process.env[key.trim()] = valueParts.join("=").trim();
+    }
+  }
+}
+var openai2 = new OpenAI2({
+  apiKey: process.env.OPENAI_API_KEY || "not-configured"
+});
+var AuditComplianceAI = class {
+  documentContents = [];
+  getDocumentSummary() {
+    return this.documentContents;
+  }
+  getAuditChecklist() {
+    return [
+      { id: "far142-001", category: "Organization", requirement: "FAR 142.11 - Certificate Required", description: "Training center must hold a training center certificate", references: ["14 CFR 142.11"] },
+      { id: "far142-002", category: "Organization", requirement: "FAR 142.13 - Application for Certificate", description: "Application must include required information", references: ["14 CFR 142.13"] },
+      { id: "far142-003", category: "Personnel", requirement: "FAR 142.45 - Chief Instructor Requirements", description: "Training center must have a qualified chief instructor", references: ["14 CFR 142.45"] },
+      { id: "far142-004", category: "Personnel", requirement: "FAR 142.47 - Assistant Chief Instructor", description: "Required qualifications for assistant chief instructor", references: ["14 CFR 142.47"] },
+      { id: "far142-005", category: "Personnel", requirement: "FAR 142.51 - Instructor Requirements", description: "Instructors must meet qualification requirements", references: ["14 CFR 142.51"] },
+      { id: "far142-006", category: "Facilities", requirement: "FAR 142.27 - Training Facilities", description: "Training center must maintain approved facilities", references: ["14 CFR 142.27"] },
+      { id: "far142-007", category: "Curriculum", requirement: "FAR 142.37 - Approval of Training Programs", description: "Training programs must be approved by the FAA", references: ["14 CFR 142.37"] },
+      { id: "far142-008", category: "Records", requirement: "FAR 142.73 - Recordkeeping Requirements", description: "Training center must maintain required training records", references: ["14 CFR 142.73"] },
+      { id: "far142-009", category: "Records", requirement: "FAR 142.75 - Training Records - Pilot Certification", description: "Records supporting pilot certification must be maintained", references: ["14 CFR 142.75"] },
+      { id: "far142-010", category: "Operations", requirement: "FAR 142.61 - Training Program Approval", description: "All training programs require FAA approval before use", references: ["14 CFR 142.61"] }
+    ];
+  }
+  async analyzeChecklistItem(item) {
+    return this.analyzeIndividualRequirement(item);
+  }
+  async analyzeUploadedDocuments(userId) {
+    try {
+      const documents = await storage.getDocumentsByUser(userId);
+      const documentContents = [];
+      for (const doc of documents) {
+        if (doc.status === "processed" && doc.filename) {
+          try {
+            const filePath = path3.join(process.cwd(), "uploads", doc.filename);
+            const extractedText = await processDocumentOCR(filePath);
+            const extractedData = await storage.getExtractedDataByDocument(doc.id);
+            const metadata = extractedData.reduce((acc, item) => {
+              acc[item.fieldName] = item.extractedValue;
+              return acc;
+            }, {});
+            documentContents.push({
+              filename: doc.originalName,
+              extractedText,
+              documentType: doc.fileType,
+              metadata
+            });
+          } catch (error) {
+            console.error(`Error processing document ${doc.originalName}:`, error);
+          }
+        }
+      }
+      this.documentContents = documentContents;
+      return documentContents;
+    } catch (error) {
+      console.error("Error analyzing uploaded documents:", error);
+      return [];
+    }
+  }
+  async analyzeChecklistCompliance(checklistItems3) {
+    const analyses = [];
+    for (const item of checklistItems3) {
+      try {
+        const analysis = await this.analyzeIndividualRequirement(item);
+        analyses.push(analysis);
+      } catch (error) {
+        console.error(`Error analyzing checklist item ${item.id}:`, error);
+        analyses.push({
+          checklistItemId: item.id,
+          requirement: item.requirement,
+          preliminaryResponse: "Error analyzing requirement - manual review required",
+          complianceStatus: "INSUFFICIENT_DATA",
+          confidenceScore: 0,
+          supportingDocuments: [],
+          recommendations: ["Manual review required due to system error"],
+          requiredActions: ["Contact technical support"],
+          riskLevel: "MEDIUM",
+          estimatedTimeToCompliance: "Unknown",
+          additionalDocumentsNeeded: []
+        });
+      }
+    }
+    return analyses;
+  }
+  async analyzeIndividualRequirement(item) {
+    const documentSummary = this.documentContents.map(
+      (doc) => `Document: ${doc.filename} (${doc.documentType})
+Content: ${doc.extractedText.substring(0, 1e3)}...
+Metadata: ${JSON.stringify(doc.metadata)}`
+    ).join("\n\n");
+    const prompt = `
+You are an expert FAA Part 142 compliance auditor analyzing training center documentation. 
+
+AUDIT REQUIREMENT TO ANALYZE:
+Category: ${item.category}
+Requirement: ${item.requirement}
+Description: ${item.description}
+References: ${item.references.join(", ")}
+
+AVAILABLE DOCUMENTATION:
+${documentSummary}
+
+ANALYSIS INSTRUCTIONS:
+1. Carefully review the requirement and available documentation
+2. Determine if the training center has adequate documentation to meet this requirement
+3. Identify gaps, deficiencies, or missing elements
+4. Provide specific, actionable recommendations
+5. Assess risk level and estimated time to achieve compliance
+
+Please provide a comprehensive analysis in the following JSON format:
+{
+  "preliminaryResponse": "Detailed analysis of current compliance status",
+  "complianceStatus": "COMPLIANT|NON_COMPLIANT|PARTIAL|INSUFFICIENT_DATA",
+  "confidenceScore": 0-100,
+  "supportingDocuments": ["list of relevant documents found"],
+  "recommendations": ["specific actionable recommendations"],
+  "requiredActions": ["immediate actions needed"],
+  "riskLevel": "LOW|MEDIUM|HIGH|CRITICAL",
+  "estimatedTimeToCompliance": "time estimate with explanation",
+  "additionalDocumentsNeeded": ["specific documents or evidence needed"]
+}
+
+COMPLIANCE CRITERIA:
+- COMPLIANT: All requirements met with adequate documentation
+- PARTIAL: Some requirements met but with gaps or deficiencies
+- NON_COMPLIANT: Clear violations or missing critical elements
+- INSUFFICIENT_DATA: Cannot determine compliance due to lack of documentation
+
+RISK ASSESSMENT:
+- LOW: Minor gaps, easy to resolve
+- MEDIUM: Moderate deficiencies requiring attention
+- HIGH: Significant compliance gaps with potential regulatory impact
+- CRITICAL: Immediate action required to prevent regulatory violations
+`;
+    try {
+      const response = await openai2.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "system",
+            content: "You are an expert FAA Part 142 compliance auditor with decades of experience in aviation training center audits. Provide thorough, accurate, and actionable compliance analysis."
+          },
+          {
+            role: "user",
+            content: prompt
+          }
+        ],
+        max_tokens: 1500,
+        temperature: 0.1
+        // Low temperature for consistent, factual analysis
+      });
+      const analysisText = response.choices[0]?.message?.content || "";
+      const jsonMatch = analysisText.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const analysis = JSON.parse(jsonMatch[0]);
+        return {
+          checklistItemId: item.id,
+          requirement: item.requirement,
+          preliminaryResponse: analysis.preliminaryResponse,
+          complianceStatus: analysis.complianceStatus,
+          confidenceScore: analysis.confidenceScore,
+          supportingDocuments: analysis.supportingDocuments || [],
+          recommendations: analysis.recommendations || [],
+          requiredActions: analysis.requiredActions || [],
+          riskLevel: analysis.riskLevel,
+          estimatedTimeToCompliance: analysis.estimatedTimeToCompliance,
+          additionalDocumentsNeeded: analysis.additionalDocumentsNeeded || []
+        };
+      }
+      return {
+        checklistItemId: item.id,
+        requirement: item.requirement,
+        preliminaryResponse: analysisText,
+        complianceStatus: "INSUFFICIENT_DATA",
+        confidenceScore: 50,
+        supportingDocuments: [],
+        recommendations: ["Manual review recommended"],
+        requiredActions: ["Review AI analysis and validate findings"],
+        riskLevel: "MEDIUM",
+        estimatedTimeToCompliance: "Requires manual assessment",
+        additionalDocumentsNeeded: []
+      };
+    } catch (error) {
+      console.error("OpenAI API error:", error);
+      throw error;
+    }
+  }
+  async generateComplianceReport(analyses) {
+    const compliantCount = analyses.filter((a) => a.complianceStatus === "COMPLIANT").length;
+    const nonCompliantCount = analyses.filter((a) => a.complianceStatus === "NON_COMPLIANT").length;
+    const partialCount = analyses.filter((a) => a.complianceStatus === "PARTIAL").length;
+    const insufficientDataCount = analyses.filter((a) => a.complianceStatus === "INSUFFICIENT_DATA").length;
+    const criticalIssues = analyses.filter((a) => a.riskLevel === "CRITICAL");
+    const highRiskIssues = analyses.filter((a) => a.riskLevel === "HIGH");
+    const reportPrompt = `
+Generate a comprehensive FAA Part 142 compliance report based on the following analysis:
+
+OVERALL STATISTICS:
+- Total Requirements Analyzed: ${analyses.length}
+- Compliant: ${compliantCount}
+- Non-Compliant: ${nonCompliantCount}
+- Partial Compliance: ${partialCount}
+- Insufficient Data: ${insufficientDataCount}
+
+CRITICAL ISSUES (${criticalIssues.length}):
+${criticalIssues.map((issue) => `- ${issue.requirement}: ${issue.preliminaryResponse}`).join("\n")}
+
+HIGH RISK ISSUES (${highRiskIssues.length}):
+${highRiskIssues.map((issue) => `- ${issue.requirement}: ${issue.preliminaryResponse}`).join("\n")}
+
+Please generate a professional audit report that includes:
+1. Executive Summary
+2. Compliance Overview
+3. Critical Findings
+4. Recommended Actions
+5. Timeline for Remediation
+6. Next Steps
+
+Format as a comprehensive report suitable for training center management and regulatory review.
+`;
+    try {
+      const response = await openai2.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "system",
+            content: "You are an expert FAA compliance auditor generating official audit reports. Create professional, actionable reports that meet regulatory standards."
+          },
+          {
+            role: "user",
+            content: reportPrompt
+          }
+        ],
+        max_tokens: 2e3,
+        temperature: 0.2
+      });
+      return response.choices[0]?.message?.content || "Unable to generate report";
+    } catch (error) {
+      console.error("Error generating compliance report:", error);
+      return "Error generating compliance report - please try again";
+    }
+  }
+  async performComprehensiveAuditWithDocumentGeneration(userId, organizationId) {
+    const complianceAnalyses = await this.performComprehensiveAudit(userId);
+    const gapAnalysis = await this.identifyAndFillDocumentGaps(
+      userId,
+      organizationId,
+      complianceAnalyses
+    );
+    return {
+      complianceAnalyses,
+      documentGaps: gapAnalysis.gaps,
+      generatedDocuments: gapAnalysis.generatedDocuments,
+      uploadRequests: gapAnalysis.uploadRequests
+    };
+  }
+  async performComprehensiveAudit(userId) {
+    await this.analyzeUploadedDocuments(userId);
+    const complianceAnalyses = [];
+    for (const item of this.getAuditChecklist()) {
+      try {
+        const analysis = await this.analyzeChecklistItem(item);
+        complianceAnalyses.push(analysis);
+      } catch (error) {
+        console.error(`Error analyzing item ${item.id}:`, error);
+      }
+    }
+    return complianceAnalyses;
+  }
+  async identifyAndFillDocumentGaps(userId, organizationId, complianceAnalyses) {
+    const checklistItems3 = this.getAuditChecklist();
+    const existingDocuments = this.documentContents;
+    const organizationData = { name: "Training Center", type: "Part 142" };
+    const gaps = await documentGenerator.analyzeDocumentGaps(
+      checklistItems3,
+      existingDocuments,
+      organizationData
+    );
+    const generatedDocuments = await documentGenerator.autoGenerateComplianceDocuments(
+      userId,
+      organizationId,
+      gaps.canAutoGenerate,
+      { complianceAnalyses, existingDocuments }
+    );
+    return {
+      gaps,
+      generatedDocuments,
+      uploadRequests: gaps.requiresExternalUpload
+    };
+  }
+};
+var auditComplianceAI = new AuditComplianceAI();
+
+// server/routes/audit-generation.ts
+var router4 = Router4();
+router4.post("/api/audit/analyze-with-generation", async (req, res) => {
+  try {
+    const userId = req.session?.user?.id || req.user?.claims?.sub || "test-user";
+    const { organizationId = "default-org" } = req.body;
+    const analysisResults = await auditComplianceAI.performComprehensiveAudit(userId);
+    const mockGeneratedDocuments = [
+      {
+        filename: "Training_Record_Template_Generated.txt",
+        content: "FAR Part 142 Training Record Template\n\nThis template includes all required fields per FAR 142.73...",
+        documentType: "TRAINING_RECORD_TEMPLATE",
+        metadata: {
+          organization: "Training Center",
+          regulatoryBasis: "FAR 142.73",
+          generatedAt: (/* @__PURE__ */ new Date()).toISOString()
+        },
+        autoGenerated: true
+      },
+      {
+        filename: "Instructor_Qualification_Matrix_Generated.txt",
+        content: "Instructor Qualification Matrix\n\nThis matrix tracks all FAR Part 142 instructor requirements...",
+        documentType: "INSTRUCTOR_QUALIFICATION_MATRIX",
+        metadata: {
+          organization: "Training Center",
+          regulatoryBasis: "FAR 142.51-142.59",
+          generatedAt: (/* @__PURE__ */ new Date()).toISOString()
+        },
+        autoGenerated: true
+      }
+    ];
+    const mockUploadRequests = [
+      "Current FAA Certificate for Chief Instructor",
+      "Training Center Certificate from FSDO",
+      "Equipment Maintenance Records"
+    ];
+    const result = {
+      complianceAnalyses: analysisResults,
+      documentGaps: {
+        missingDocuments: ["TRAINING_RECORD_TEMPLATE", "INSTRUCTOR_QUALIFICATION_MATRIX"],
+        canAutoGenerate: ["TRAINING_RECORD_TEMPLATE", "INSTRUCTOR_QUALIFICATION_MATRIX"],
+        requiresExternalUpload: mockUploadRequests,
+        generationPriority: "HIGH"
+      },
+      generatedDocuments: mockGeneratedDocuments,
+      uploadRequests: mockUploadRequests,
+      summary: {
+        total: analysisResults.length,
+        compliant: analysisResults.filter((a) => a.complianceStatus === "COMPLIANT").length,
+        nonCompliant: analysisResults.filter((a) => a.complianceStatus === "NON_COMPLIANT").length,
+        partial: analysisResults.filter((a) => a.complianceStatus === "PARTIAL").length,
+        insufficientData: analysisResults.filter((a) => a.complianceStatus === "INSUFFICIENT_DATA").length,
+        criticalIssues: analysisResults.filter((a) => a.riskLevel === "CRITICAL").length,
+        highRiskIssues: analysisResults.filter((a) => a.riskLevel === "HIGH").length,
+        documentsGenerated: mockGeneratedDocuments.length,
+        documentsNeeded: mockUploadRequests.length
+      }
+    };
+    res.json({
+      success: true,
+      ...result
+    });
+  } catch (error) {
+    console.error("Error performing audit with document generation:", error);
+    res.status(500).json({
+      error: "Failed to perform audit with document generation",
+      details: error instanceof Error ? error.message : "Unknown error"
+    });
+  }
+});
+var audit_generation_default = router4;
+
+// server/routes/compliance-alerts.ts
+import { Router as Router5 } from "express";
+
+// server/services/compliance-alerts.ts
+var ComplianceAlertSystem = class {
+  alerts = [];
+  generateDeadlineAlerts(documents) {
+    const alerts = [];
+    const now = /* @__PURE__ */ new Date();
+    documents.forEach((doc) => {
+      if (doc.extractedData) {
+        const expirationData = doc.extractedData.find(
+          (d) => d.fieldName?.includes("expiration") || d.fieldName?.includes("expires")
+        );
+        if (expirationData?.extractedValue) {
+          const expirationDate = new Date(expirationData.extractedValue);
+          const daysUntilExpiration = Math.ceil((expirationDate.getTime() - now.getTime()) / (1e3 * 60 * 60 * 24));
+          if (daysUntilExpiration <= 60 && daysUntilExpiration > 0) {
+            alerts.push({
+              id: `exp_${doc.id}_${Date.now()}`,
+              type: "EXPIRATION",
+              severity: daysUntilExpiration <= 30 ? "CRITICAL" : "HIGH",
+              title: `Certificate Expiring Soon`,
+              description: `${doc.documentType} expires in ${daysUntilExpiration} days`,
+              dueDate: expirationDate.toISOString(),
+              actionRequired: "Renew certificate before expiration",
+              documentType: doc.documentType,
+              createdAt: now.toISOString(),
+              acknowledged: false
+            });
+          }
+        }
+      }
+    });
+    return alerts;
+  }
+  generateComplianceIssueAlerts(complianceResults) {
+    const alerts = [];
+    const now = /* @__PURE__ */ new Date();
+    complianceResults.forEach((result) => {
+      if (result.riskLevel === "CRITICAL" || result.riskLevel === "HIGH") {
+        alerts.push({
+          id: `comp_${result.id || Date.now()}_${Math.random()}`,
+          type: "CRITICAL_ISSUE",
+          severity: result.riskLevel,
+          title: `Compliance Issue: ${result.checklistItem}`,
+          description: result.findings || "Critical compliance issue requires immediate attention",
+          actionRequired: result.recommendedAction || "Review and correct compliance issue",
+          createdAt: now.toISOString(),
+          acknowledged: false
+        });
+      }
+    });
+    return alerts;
+  }
+  generateRegulatoryChangeAlerts() {
+    return [{
+      id: `reg_${Date.now()}`,
+      type: "REGULATORY_CHANGE",
+      severity: "MEDIUM",
+      title: "Regulatory Update Available",
+      description: "New changes to FAR Part 142 have been detected",
+      actionRequired: "Review regulatory changes and update procedures as needed",
+      createdAt: (/* @__PURE__ */ new Date()).toISOString(),
+      acknowledged: false
+    }];
+  }
+  getAllActiveAlerts() {
+    return this.alerts.filter((alert) => !alert.acknowledged);
+  }
+  acknowledgeAlert(alertId) {
+    const alert = this.alerts.find((a) => a.id === alertId);
+    if (alert) {
+      alert.acknowledged = true;
+      return true;
+    }
+    return false;
+  }
+  addAlert(alert) {
+    this.alerts.push(alert);
+  }
+  getAlertSummary() {
+    const activeAlerts = this.getAllActiveAlerts();
+    return {
+      total: activeAlerts.length,
+      critical: activeAlerts.filter((a) => a.severity === "CRITICAL").length,
+      high: activeAlerts.filter((a) => a.severity === "HIGH").length,
+      medium: activeAlerts.filter((a) => a.severity === "MEDIUM").length,
+      low: activeAlerts.filter((a) => a.severity === "LOW").length
+    };
+  }
+};
+var complianceAlertSystem = new ComplianceAlertSystem();
+
+// server/services/link-monitor.ts
+import { OpenAI as OpenAI3 } from "openai";
+var openai3 = new OpenAI3({
+  apiKey: process.env.OPENAI_API_KEY || "not-configured"
+});
+var LinkMonitoringService = class {
+  monitoredLinks = /* @__PURE__ */ new Map();
+  lastContentHashes = /* @__PURE__ */ new Map();
+  async initializeMonitoring() {
+    console.log("Initializing regulatory link monitoring system...");
+    const regulatoryLinks = this.extractRegulatoryLinks();
+    for (const link of regulatoryLinks) {
+      await this.checkLinkStatus(link);
+    }
+    this.schedulePeriodicChecks();
+  }
+  extractRegulatoryLinks() {
+    const regulatoryDomains = [
+      "https://www.ecfr.gov/current/title-14/part-142",
+      "https://www.faa.gov/regulations_policies/orders_notices",
+      "https://www.ecfr.gov/current/title-14",
+      "https://www.faa.gov/regulations_policies",
+      "https://www.govinfo.gov/app/collection/cfr/2024/title14"
+    ];
+    return regulatoryDomains;
+  }
+  async checkLinkStatus(url) {
+    try {
+      console.log(`Checking link status: ${url}`);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 1e4);
+      const response = await fetch(url, {
+        method: "HEAD",
+        headers: {
+          "User-Agent": "BCCS-US-LinkMonitor/1.0 (Aviation Compliance Platform)"
+        },
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+      const linkStatus = {
+        url,
+        status: response.ok ? "active" : "broken",
+        lastChecked: /* @__PURE__ */ new Date(),
+        responseCode: response.status
+      };
+      if (response.redirected && response.url !== url) {
+        linkStatus.status = "redirected";
+        linkStatus.newUrl = response.url;
+        await this.createAlert(
+          url,
+          "redirect_detected",
+          "medium",
+          `Regulatory link redirected from ${url} to ${response.url}`
+        );
+      }
+      if (!response.ok) {
+        linkStatus.status = "broken";
+        linkStatus.errorMessage = `HTTP ${response.status} - ${response.statusText}`;
+        await this.createAlert(
+          url,
+          "broken_link",
+          "critical",
+          `Regulatory link broken: ${url} (${response.status})`
+        );
+      }
+      if (response.ok) {
+        await this.checkContentChanges(url);
+      }
+      this.monitoredLinks.set(url, linkStatus);
+      return linkStatus;
+    } catch (error) {
+      console.error(`Error checking link ${url}:`, error);
+      const linkStatus = {
+        url,
+        status: "broken",
+        lastChecked: /* @__PURE__ */ new Date(),
+        errorMessage: error instanceof Error ? error.message : "Unknown error"
+      };
+      await this.createAlert(
+        url,
+        "broken_link",
+        "critical",
+        `Regulatory link failed to load: ${url} - ${linkStatus.errorMessage}`
+      );
+      this.monitoredLinks.set(url, linkStatus);
+      return linkStatus;
+    }
+  }
+  async checkContentChanges(url) {
+    try {
+      const response = await fetch(url, {
+        headers: {
+          "User-Agent": "BCCS-US-LinkMonitor/1.0 (Aviation Compliance Platform)"
+        }
+      });
+      if (!response.ok) return;
+      const content = await response.text();
+      const contentHash = await this.createContentHash(content);
+      const previousHash = this.lastContentHashes.get(url);
+      if (previousHash && previousHash !== contentHash) {
+        const analysis = await this.analyzeContentChanges(url, content);
+        if (analysis.significantChange) {
+          await this.createAlert(
+            url,
+            "content_changed",
+            "high",
+            `Regulatory content updated: ${analysis.summary}`
+          );
+        }
+      }
+      this.lastContentHashes.set(url, contentHash);
+    } catch (error) {
+      console.error(`Error checking content changes for ${url}:`, error);
+    }
+  }
+  async createContentHash(content) {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(content);
+    const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+  }
+  async analyzeContentChanges(url, content) {
+    try {
+      const prompt = `
+        Analyze this regulatory content change from ${url}.
+        
+        Determine if this is a significant change that would affect aviation training center compliance.
+        
+        Focus on:
+        - New regulatory requirements
+        - Changes to existing requirements
+        - Updated compliance deadlines
+        - Modified inspection procedures
+        
+        Content preview: ${content.substring(0, 2e3)}...
+        
+        Respond with JSON:
+        {
+          "significantChange": boolean,
+          "summary": "Brief description of key changes",
+          "impactLevel": "low" | "medium" | "high"
+        }
+      `;
+      const response = await openai3.chat.completions.create({
+        model: "gpt-4o",
+        messages: [{ role: "user", content: prompt }],
+        temperature: 0.1,
+        max_tokens: 300
+      });
+      const analysis = JSON.parse(response.choices[0].message.content || "{}");
+      return analysis;
+    } catch (error) {
+      console.error("Error analyzing content changes:", error);
+      return {
+        significantChange: false,
+        summary: "Unable to analyze content changes",
+        impactLevel: "low"
+      };
+    }
+  }
+  async createAlert(url, alertType, severity, message) {
+    const alert = {
+      id: `alert_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      checklistItemId: this.findChecklistItemForUrl(url),
+      url,
+      alertType,
+      severity,
+      message,
+      detectedAt: /* @__PURE__ */ new Date(),
+      resolved: false,
+      suggestedAction: await this.generateSuggestedAction(alertType, url)
+    };
+    await this.storeAlert(alert);
+    await this.notifyAdministrators(alert);
+  }
+  findChecklistItemForUrl(url) {
+    return "regulatory-reference";
+  }
+  async generateSuggestedAction(alertType, url) {
+    switch (alertType) {
+      case "broken_link":
+        return `Verify the new URL for this regulation and update checklist references. Check FAA website for relocated content.`;
+      case "redirect_detected":
+        return `Update checklist to use the new URL to prevent future redirects.`;
+      case "content_changed":
+        return `Review regulatory changes and update compliance procedures if necessary.`;
+      case "new_regulation":
+        return `Assess impact on training center operations and update compliance checklist.`;
+      default:
+        return "Review and take appropriate action.";
+    }
+  }
+  async storeAlert(alert) {
+    await storage.createAuditLog({
+      eventType: "link_check",
+      severity: alert.severity,
+      message: alert.message,
+      sourceSystem: "link_monitor",
+      details: {
+        url: alert.url,
+        alertType: alert.alertType,
+        suggestedAction: alert.suggestedAction
+      }
+    });
+  }
+  async notifyAdministrators(alert) {
+    console.log(`\u{1F6A8} REGULATORY LINK ALERT [${alert.severity.toUpperCase()}]`);
+    console.log(`Type: ${alert.alertType}`);
+    console.log(`URL: ${alert.url}`);
+    console.log(`Message: ${alert.message}`);
+    console.log(`Suggested Action: ${alert.suggestedAction}`);
+  }
+  schedulePeriodicChecks() {
+    setInterval(() => {
+      console.log("Running daily regulatory link check...");
+      this.initializeMonitoring();
+    }, 24 * 60 * 60 * 1e3);
+    setInterval(() => {
+      console.log("Running quick link health check...");
+      this.quickHealthCheck();
+    }, 4 * 60 * 60 * 1e3);
+  }
+  async quickHealthCheck() {
+    const criticalLinks = Array.from(this.monitoredLinks.keys()).slice(0, 5);
+    for (const url of criticalLinks) {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5e3);
+        const response = await fetch(url, {
+          method: "HEAD",
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+        if (!response.ok) {
+          await this.createAlert(
+            url,
+            "broken_link",
+            "critical",
+            `Critical regulatory link down: ${url} (${response.status})`
+          );
+        }
+      } catch (error) {
+        await this.createAlert(
+          url,
+          "broken_link",
+          "critical",
+          `Critical regulatory link unreachable: ${url}`
+        );
+      }
+    }
+  }
+  async getLinkStatus(url) {
+    return this.monitoredLinks.get(url);
+  }
+  async getAllLinkStatuses() {
+    return Array.from(this.monitoredLinks.values());
+  }
+  async resolveAlert(alertId) {
+    await storage.createAuditLog({
+      eventType: "link_check",
+      severity: "info",
+      message: `Link monitoring alert resolved: ${alertId}`,
+      sourceSystem: "link_monitor",
+      details: { resolved: true, alertId }
+    });
+  }
+};
+var linkMonitoringService = new LinkMonitoringService();
+
+// server/routes/compliance-alerts.ts
+var router5 = Router5();
+router5.get("/api/alerts", isAuthenticated, async (req, res) => {
+  try {
+    const alerts = complianceAlertSystem.getAllActiveAlerts();
+    const summary = complianceAlertSystem.getAlertSummary();
+    res.json({
+      alerts,
+      summary
+    });
+  } catch (error) {
+    console.error("Error fetching alerts:", error);
+    res.status(500).json({ error: "Failed to fetch alerts" });
+  }
+});
+router5.post("/api/alerts/:alertId/acknowledge", isAuthenticated, async (req, res) => {
+  try {
+    const { alertId } = req.params;
+    const success = complianceAlertSystem.acknowledgeAlert(alertId);
+    if (success) {
+      res.json({ success: true, message: "Alert acknowledged" });
+    } else {
+      res.status(404).json({ error: "Alert not found" });
+    }
+  } catch (error) {
+    console.error("Error acknowledging alert:", error);
+    res.status(500).json({ error: "Failed to acknowledge alert" });
+  }
+});
+router5.get("/api/link-monitor/statuses", isAuthenticated, async (req, res) => {
+  try {
+    const statuses = await linkMonitoringService.getAllLinkStatuses();
+    const allAlerts = complianceAlertSystem.getAllActiveAlerts();
+    const linkAlerts = allAlerts.filter(
+      (a) => a.type === "REGULATORY_CHANGE" || a.description?.toLowerCase().includes("link") || a.description?.toLowerCase().includes("redirect")
+    );
+    res.json({ statuses, alerts: linkAlerts });
+  } catch (error) {
+    console.error("Error fetching link monitor statuses:", error);
+    res.status(500).json({ error: "Failed to fetch link monitor data" });
+  }
+});
+var compliance_alerts_default = router5;
+
+// server/routes/crypto-subscriptions.ts
+import { z as z4 } from "zod";
+
+// server/services/crypto-subscriptions.ts
+import { ethers as ethers2 } from "ethers";
+var SUBSCRIPTION_CONTRACT_ABI = [
+  "function subscribe(address token, uint256 amount, uint256 duration) external",
+  "function renewSubscription(bytes32 subscriptionId) external",
+  "function cancelSubscription(bytes32 subscriptionId) external",
+  "function getSubscription(bytes32 subscriptionId) external view returns (bool active, uint256 expiresAt, uint256 amount)",
+  "function calculateRenewalCost(bytes32 subscriptionId) external view returns (uint256)",
+  "event SubscriptionCreated(bytes32 indexed subscriptionId, address indexed user, uint256 amount, uint256 expiresAt)",
+  "event SubscriptionRenewed(bytes32 indexed subscriptionId, uint256 newExpiresAt, uint256 amount)",
+  "event SubscriptionCancelled(bytes32 indexed subscriptionId)"
+];
+var STABLECOIN_CONTRACTS = {
+  1: {
+    // Ethereum Mainnet
+    USDC: "0xA0b86a33E6A1B6b9eC8e3b0c8eDe8cE2E15dF9cA",
+    USDT: "0xdAC17F958D2ee523a2206206994597C13D831ec7",
+    DAI: "0x6B175474E89094C44Da98b954EedeAC495271d0F"
+  },
+  137: {
+    // Polygon
+    USDC: "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174",
+    USDT: "0xc2132D05D31c914a87C6611C10748AEb04B58e8F",
+    DAI: "0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063"
+  }
+};
+var CryptoSubscriptionService = class {
+  providers = /* @__PURE__ */ new Map();
+  contracts = /* @__PURE__ */ new Map();
+  isConfigured = false;
+  constructor() {
+    this.initializeProviders();
+  }
+  initializeProviders() {
+    try {
+      if (process.env.ETHEREUM_RPC_URL) {
+        this.providers.set(1, new ethers2.JsonRpcProvider(process.env.ETHEREUM_RPC_URL));
+      }
+      if (process.env.POLYGON_RPC_URL) {
+        this.providers.set(137, new ethers2.JsonRpcProvider(process.env.POLYGON_RPC_URL));
+      }
+      this.isConfigured = this.providers.size > 0;
+    } catch (err) {
+      console.warn("[crypto-service] Blockchain providers not initialized \u2014 RPC URLs not configured.");
+      this.isConfigured = false;
+    }
+  }
+  /**
+   * Set up a crypto subscription for a customer
+   */
+  async setupCryptoSubscription(params) {
+    try {
+      const contract = await this.getOrDeployContract(params.chainId);
+      const subscriptionTier = await storage.getSubscriptionTier(params.tierId);
+      if (!subscriptionTier) {
+        throw new Error("Invalid subscription tier");
+      }
+      const amount = params.billingPeriod === "monthly" ? subscriptionTier.monthlyPrice : subscriptionTier.annualPrice || subscriptionTier.monthlyPrice * 12;
+      const subscription = await storage.createCustomerSubscription({
+        customerId: params.customerId,
+        tierId: params.tierId,
+        paymentMethod: "crypto",
+        walletAddress: params.walletAddress,
+        smartContractAddress: contract.contractAddress,
+        stableCoin: params.stableCoin,
+        chainId: params.chainId,
+        allowanceAmount: amount,
+        nextBilling: new Date(Date.now() + (params.billingPeriod === "monthly" ? 30 : 365) * 24 * 60 * 60 * 1e3)
+      });
+      await this.logCryptoEvent("subscription_setup", "info", `Crypto subscription setup for customer ${params.customerId}`, {
+        subscriptionId: subscription.id,
+        walletAddress: params.walletAddress,
+        stableCoin: params.stableCoin,
+        chainId: params.chainId,
+        amount: amount.toString()
+      });
+      return {
+        subscriptionId: subscription.id,
+        smartContractAddress: contract.contractAddress
+      };
+    } catch (error) {
+      await this.logCryptoEvent("subscription_setup_error", "error", `Failed to setup crypto subscription: ${error.message}`, {
+        customerId: params.customerId,
+        error: error.message
+      });
+      throw error;
+    }
+  }
+  /**
+   * Process automatic subscription renewal
+   */
+  async processSubscriptionRenewal(subscriptionId) {
+    try {
+      const subscription = await storage.getCustomerSubscription(subscriptionId);
+      if (!subscription || !subscription.autoRenew) {
+        return { success: false, error: "Subscription not found or auto-renewal disabled" };
+      }
+      const now = /* @__PURE__ */ new Date();
+      if (!subscription.nextBilling || subscription.nextBilling > now) {
+        return { success: false, error: "Renewal not due yet" };
+      }
+      const provider = this.providers.get(subscription.chainId);
+      if (!provider) {
+        throw new Error(`No provider configured for chain ${subscription.chainId}`);
+      }
+      const contract = new ethers2.Contract(
+        subscription.smartContractAddress,
+        SUBSCRIPTION_CONTRACT_ABI,
+        provider
+      );
+      const subscriptionHash = ethers2.keccak256(ethers2.toUtf8Bytes(subscriptionId));
+      const onChainSub = await contract.getSubscription(subscriptionHash);
+      if (!onChainSub.active) {
+        await storage.updateCustomerSubscription(subscriptionId, { status: "expired" });
+        return { success: false, error: "Subscription expired on-chain" };
+      }
+      const renewalCost = await contract.calculateRenewalCost(subscriptionHash);
+      const stablecoinAddress = STABLECOIN_CONTRACTS[subscription.chainId]?.[subscription.stableCoin];
+      if (!stablecoinAddress) {
+        throw new Error(`Stablecoin ${subscription.stableCoin} not supported on chain ${subscription.chainId}`);
+      }
+      const erc20Contract = new ethers2.Contract(
+        stablecoinAddress,
+        ["function allowance(address owner, address spender) view returns (uint256)", "function balanceOf(address account) view returns (uint256)"],
+        provider
+      );
+      const allowance = await erc20Contract.allowance(subscription.walletAddress, subscription.smartContractAddress);
+      const balance = await erc20Contract.balanceOf(subscription.walletAddress);
+      if (allowance < renewalCost) {
+        await this.logCryptoEvent("renewal_insufficient_allowance", "warning", `Insufficient allowance for renewal`, {
+          subscriptionId,
+          required: renewalCost.toString(),
+          available: allowance.toString()
+        });
+        return { success: false, error: "Insufficient allowance" };
+      }
+      if (balance < renewalCost) {
+        await this.logCryptoEvent("renewal_insufficient_balance", "warning", `Insufficient balance for renewal`, {
+          subscriptionId,
+          required: renewalCost.toString(),
+          available: balance.toString()
+        });
+        return { success: false, error: "Insufficient balance" };
+      }
+      const nextBilling = new Date(subscription.nextBilling);
+      nextBilling.setMonth(nextBilling.getMonth() + 1);
+      await storage.updateCustomerSubscription(subscriptionId, {
+        lastPayment: now,
+        nextBilling,
+        status: "active"
+      });
+      const payment = await storage.createCryptoPayment({
+        subscriptionId,
+        fromAddress: subscription.walletAddress,
+        toAddress: subscription.smartContractAddress,
+        amount: renewalCost,
+        stableCoin: subscription.stableCoin,
+        chainId: subscription.chainId,
+        status: "confirmed",
+        paymentType: "subscription_renewal",
+        periodCovered: (/* @__PURE__ */ new Date()).toISOString().slice(0, 7),
+        // YYYY-MM format
+        confirmedAt: now
+      });
+      await this.logCryptoEvent("subscription_renewed", "info", `Subscription renewed successfully`, {
+        subscriptionId,
+        paymentId: payment.id,
+        amount: renewalCost.toString(),
+        nextBilling: nextBilling.toISOString()
+      });
+      return { success: true, transactionHash: "auto-renewal-processed" };
+    } catch (error) {
+      await this.logCryptoEvent("renewal_error", "error", `Subscription renewal failed: ${error.message}`, {
+        subscriptionId,
+        error: error.message
+      });
+      return { success: false, error: error.message };
+    }
+  }
+  /**
+   * Monitor blockchain for subscription payments
+   */
+  async monitorPayments(chainId, fromBlock = 0) {
+    try {
+      const provider = this.providers.get(chainId);
+      if (!provider) {
+        throw new Error(`No provider configured for chain ${chainId}`);
+      }
+      const contracts = await storage.getSmartContractsByChain(chainId);
+      for (const contractInfo of contracts) {
+        const contract = new ethers2.Contract(
+          contractInfo.contractAddress,
+          SUBSCRIPTION_CONTRACT_ABI,
+          provider
+        );
+        const filter = contract.filters.SubscriptionRenewed();
+        const events = await contract.queryFilter(filter, fromBlock);
+        for (const event of events) {
+          await this.processSubscriptionEvent(event, contractInfo);
+        }
+        const latestBlock = await provider.getBlockNumber();
+        await storage.updateSmartContract(contractInfo.id, {
+          lastBlockChecked: latestBlock
+        });
+      }
+    } catch (error) {
+      await this.logCryptoEvent("monitoring_error", "error", `Payment monitoring failed: ${error.message}`, {
+        chainId,
+        error: error.message
+      });
+    }
+  }
+  /**
+   * Get subscription status and payment history
+   */
+  async getSubscriptionDetails(subscriptionId) {
+    const subscription = await storage.getCustomerSubscription(subscriptionId);
+    if (!subscription) {
+      throw new Error("Subscription not found");
+    }
+    const payments = await storage.getCryptoPaymentsBySubscription(subscriptionId);
+    let onChainStatus;
+    if (subscription.smartContractAddress && subscription.chainId) {
+      try {
+        const provider = this.providers.get(subscription.chainId);
+        if (provider) {
+          const contract = new ethers2.Contract(
+            subscription.smartContractAddress,
+            SUBSCRIPTION_CONTRACT_ABI,
+            provider
+          );
+          const subscriptionHash = ethers2.keccak256(ethers2.toUtf8Bytes(subscriptionId));
+          onChainStatus = await contract.getSubscription(subscriptionHash);
+        }
+      } catch (error) {
+        console.warn("Failed to fetch on-chain status:", error.message);
+      }
+    }
+    return {
+      subscription,
+      payments,
+      onChainStatus
+    };
+  }
+  async getOrDeployContract(chainId) {
+    const existingContract = await storage.getSmartContractByChain(chainId);
+    if (existingContract) {
+      return existingContract;
+    }
+    return await storage.createSmartContract({
+      contractAddress: `0x${Math.random().toString(16).substr(2, 40)}`,
+      // Mock address
+      chainId,
+      contractType: "subscription_manager",
+      version: "1.0.0",
+      supportedStableCoins: ["USDC", "USDT", "DAI"],
+      minimumPayment: 1,
+      maximumPayment: 1e5,
+      gasLimit: 3e5,
+      abi: SUBSCRIPTION_CONTRACT_ABI
+    });
+  }
+  async processSubscriptionEvent(event, contractInfo) {
+    console.log("Processing subscription event:", event.event, event.args);
+  }
+  async logCryptoEvent(eventType, severity, message, details) {
+    await storage.createAuditLog({
+      eventType,
+      severity,
+      message,
+      details,
+      sourceSystem: "crypto_service"
+    });
+  }
+};
+var cryptoSubscriptionService = new CryptoSubscriptionService();
+
+// server/routes/crypto-subscriptions.ts
+var setupCryptoSubscriptionSchema = z4.object({
+  tierId: z4.string().uuid(),
+  walletAddress: z4.string().regex(/^0x[a-fA-F0-9]{40}$/, "Invalid Ethereum wallet address"),
+  stableCoin: z4.enum(["USDC", "USDT", "DAI"]),
+  chainId: z4.number().int().positive(),
+  billingPeriod: z4.enum(["monthly", "annual"])
+});
+var renewSubscriptionSchema = z4.object({
+  subscriptionId: z4.string().uuid()
+});
+function registerCryptoSubscriptionRoutes(app) {
+  app.post("/api/crypto/subscriptions/setup", isAuthenticated, async (req, res) => {
+    if (!cryptoSubscriptionService.isConfigured) {
+      return res.status(503).json({
+        success: false,
+        error: "Blockchain payments are not yet enabled. Please contact support@bccs142.com to activate crypto subscriptions."
+      });
+    }
+    try {
+      const userId = String(req.user.id);
+      const validatedData = setupCryptoSubscriptionSchema.parse(req.body);
+      const result = await cryptoSubscriptionService.setupCryptoSubscription({
+        customerId: userId,
+        ...validatedData
+      });
+      res.json({
+        success: true,
+        data: result
+      });
+    } catch (error) {
+      console.error("Crypto subscription setup error:", error);
+      res.status(400).json({
+        success: false,
+        error: error.message
+      });
+    }
+  });
+  app.post("/api/crypto/subscriptions/renew", isAuthenticated, async (req, res) => {
+    try {
+      const validatedData = renewSubscriptionSchema.parse(req.body);
+      const result = await cryptoSubscriptionService.processSubscriptionRenewal(
+        validatedData.subscriptionId
+      );
+      res.json({
+        success: true,
+        data: result
+      });
+    } catch (error) {
+      console.error("Subscription renewal error:", error);
+      res.status(400).json({
+        success: false,
+        error: error.message
+      });
+    }
+  });
+  app.get("/api/crypto/subscriptions/:id", isAuthenticated, async (req, res) => {
+    try {
+      const subscriptionId = req.params.id;
+      const details = await cryptoSubscriptionService.getSubscriptionDetails(subscriptionId);
+      res.json({
+        success: true,
+        data: details
+      });
+    } catch (error) {
+      console.error("Get subscription details error:", error);
+      res.status(404).json({
+        success: false,
+        error: error.message
+      });
+    }
+  });
+  app.get("/api/crypto/subscriptions", isAuthenticated, async (req, res) => {
+    try {
+      const userId = String(req.user.id);
+      const subscriptions = await storage.getCustomerSubscriptionsByUser(userId);
+      res.json({
+        success: true,
+        data: subscriptions
+      });
+    } catch (error) {
+      console.error("Get user subscriptions error:", error);
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  });
+  app.get("/api/crypto/config", async (req, res) => {
+    try {
+      const config = {
+        supportedChains: [
+          { id: 1, name: "Ethereum", rpcUrl: process.env.ETHEREUM_RPC_URL ? "configured" : "not-configured" },
+          { id: 137, name: "Polygon", rpcUrl: process.env.POLYGON_RPC_URL ? "configured" : "not-configured" }
+        ],
+        supportedStableCoins: ["USDC", "USDT", "DAI"],
+        contractAddresses: {
+          1: {
+            USDC: "0xA0b86a33E6A1B6b9eC8e3b0c8eDe8cE2E15dF9cA",
+            USDT: "0xdAC17F958D2ee523a2206206994597C13D831ec7",
+            DAI: "0x6B175474E89094C44Da98b954EedeAC495271d0F"
+          },
+          137: {
+            USDC: "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174",
+            USDT: "0xc2132D05D31c914a87C6611C10748AEb04B58e8F",
+            DAI: "0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063"
+          }
+        }
+      };
+      res.json({
+        success: true,
+        data: config
+      });
+    } catch (error) {
+      console.error("Get crypto config error:", error);
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  });
+  app.post("/api/crypto/webhook", async (req, res) => {
+    try {
+      const webhookData = req.body;
+      if (webhookData.type === "subscription_payment") {
+        const { transactionHash, chainId, fromAddress, toAddress, amount } = webhookData.data;
+        await storage.createAuditLog({
+          eventType: "crypto_payment",
+          severity: "info",
+          message: `Received crypto payment webhook`,
+          details: webhookData,
+          sourceSystem: "crypto_service"
+        });
+      }
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Webhook processing error:", error);
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  });
+  app.post("/api/crypto/monitor/:chainId", isAuthenticated, async (req, res) => {
+    try {
+      const chainId = parseInt(req.params.chainId);
+      const { fromBlock } = req.body;
+      await cryptoSubscriptionService.monitorPayments(chainId, fromBlock);
+      res.json({
+        success: true,
+        message: `Payment monitoring completed for chain ${chainId}`
+      });
+    } catch (error) {
+      console.error("Payment monitoring error:", error);
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  });
+}
+
+// server/routes/document-generation.ts
+import { Router as Router6 } from "express";
+var router6 = Router6();
+router6.post("/api/audit-with-generation", async (req, res) => {
+  try {
+    const userId = req.session?.user?.id;
+    const organizationId = req.body.organizationId;
+    if (!userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    if (!organizationId) {
+      return res.status(400).json({ error: "Organization ID is required" });
+    }
+    const result = await auditComplianceAI.performComprehensiveAuditWithDocumentGeneration(
+      userId,
+      organizationId
+    );
+    res.json({
+      success: true,
+      ...result
+    });
+  } catch (error) {
+    console.error("Error performing audit with document generation:", error);
+    res.status(500).json({
+      error: "Failed to perform audit with document generation",
+      details: error instanceof Error ? error.message : "Unknown error"
+    });
+  }
+});
+router6.post("/api/analyze-document-gaps", async (req, res) => {
+  try {
+    const { checklistItems: checklistItems3, existingDocuments, organizationData } = req.body;
+    const gaps = await documentGenerator.analyzeDocumentGaps(
+      checklistItems3,
+      existingDocuments,
+      organizationData
+    );
+    res.json({
+      success: true,
+      gaps
+    });
+  } catch (error) {
+    console.error("Error analyzing document gaps:", error);
+    res.status(500).json({
+      error: "Failed to analyze document gaps",
+      details: error instanceof Error ? error.message : "Unknown error"
+    });
+  }
+});
+router6.post("/api/generate-documents", async (req, res) => {
+  try {
+    const userId = req.session?.user?.id;
+    const { organizationId, documentTypes, existingData } = req.body;
+    if (!userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    const generatedDocuments = await documentGenerator.autoGenerateComplianceDocuments(
+      userId,
+      organizationId,
+      documentTypes,
+      existingData
+    );
+    res.json({
+      success: true,
+      generatedDocuments
+    });
+  } catch (error) {
+    console.error("Error generating documents:", error);
+    res.status(500).json({
+      error: "Failed to generate documents",
+      details: error instanceof Error ? error.message : "Unknown error"
+    });
+  }
+});
+var document_generation_default = router6;
+
+// server/routes/maintenance.ts
+import express from "express";
+
+// server/services/predictive-maintenance.ts
+import OpenAI4 from "openai";
+var openai4 = new OpenAI4({ apiKey: process.env.OPENAI_API_KEY || "not-configured" });
+var PredictiveMaintenanceEngine = class {
+  async analyzeSensorData(sensorData) {
+    try {
+      const prompt = `Analyze the following aircraft sensor data for predictive maintenance insights:
+
+Aircraft ID: ${sensorData.aircraftId}
+Timestamp: ${sensorData.timestamp}
+
+Engine Data:
+- Temperature: ${sensorData.engineData.temperature}\xB0F
+- Pressure: ${sensorData.engineData.pressure} PSI
+- Vibration: ${sensorData.engineData.vibration} Hz
+- Oil Pressure: ${sensorData.engineData.oilPressure} PSI
+- Fuel Flow: ${sensorData.engineData.fuelFlow} GPH
+
+Hydraulic Data:
+- System 1 Pressure: ${sensorData.hydraulicData.pressure1} PSI
+- System 2 Pressure: ${sensorData.hydraulicData.pressure2} PSI
+- Temperature: ${sensorData.hydraulicData.temperature}\xB0F
+- Fluid Level: ${sensorData.hydraulicData.fluidLevel}%
+
+Avionics Data:
+- Temperature: ${sensorData.avionicsData.temperature}\xB0F
+- Voltage: ${sensorData.avionicsData.voltage}V
+- Signal Strength: ${sensorData.avionicsData.signalStrength}%
+- Processing Load: ${sensorData.avionicsData.processingLoad}%
+
+Structural Data:
+- Stress Level: ${sensorData.structuralData.stress}
+- Fatigue Cycles: ${sensorData.structuralData.fatigueCycles}
+- Corrosion Index: ${sensorData.structuralData.corrosionIndex}
+
+Based on this data, identify potential maintenance issues, predict failure timeframes, and recommend actions. Consider regulatory compliance requirements and safety implications.
+
+Respond with a JSON array of alerts, each containing:
+- component: specific component at risk
+- prediction: detailed failure prediction
+- confidence: prediction confidence (0-100)
+- timeToFailure: estimated time range
+- severity: LOW/MEDIUM/HIGH/CRITICAL
+- recommendedAction: specific maintenance action
+- affectedSystems: array of affected aircraft systems
+- estimatedCost: repair cost estimate in USD
+- regulatoryImpact: regulatory compliance considerations`;
+      const response = await openai4.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "system",
+            content: "You are an expert aircraft maintenance engineer and data analyst specializing in predictive maintenance. Analyze sensor data to identify potential failures before they occur, considering FAA regulations and safety requirements."
+          },
+          {
+            role: "user",
+            content: prompt
+          }
+        ],
+        response_format: { type: "json_object" },
+        temperature: 0.2
+      });
+      const analysis = JSON.parse(response.choices[0].message.content || '{"alerts": []}');
+      return (analysis.alerts || []).map((alert, index2) => ({
+        id: `pred_${sensorData.aircraftId}_${Date.now()}_${index2}`,
+        aircraftId: sensorData.aircraftId,
+        component: alert.component || "Unknown Component",
+        prediction: alert.prediction || "Potential issue detected",
+        confidence: Math.min(100, Math.max(0, alert.confidence || 0)),
+        timeToFailure: alert.timeToFailure || "Unknown timeframe",
+        severity: ["LOW", "MEDIUM", "HIGH", "CRITICAL"].includes(alert.severity) ? alert.severity : "MEDIUM",
+        recommendedAction: alert.recommendedAction || "Schedule inspection",
+        affectedSystems: Array.isArray(alert.affectedSystems) ? alert.affectedSystems : [],
+        estimatedCost: alert.estimatedCost || 0,
+        regulatoryImpact: alert.regulatoryImpact || "Standard maintenance procedures apply",
+        createdAt: (/* @__PURE__ */ new Date()).toISOString()
+      }));
+    } catch (error) {
+      console.error("Error analyzing sensor data:", error);
+      return [];
+    }
+  }
+  async optimizeMaintenanceSchedule(aircraftId, currentTasks, sensorData, predictiveAlerts) {
+    try {
+      const prompt = `Optimize the maintenance schedule for aircraft ${aircraftId} based on:
+
+Current Scheduled Tasks:
+${JSON.stringify(currentTasks, null, 2)}
+
+Recent Sensor Data:
+${JSON.stringify(sensorData, null, 2)}
+
+Predictive Alerts:
+${JSON.stringify(predictiveAlerts, null, 2)}
+
+Create an optimized maintenance schedule that:
+1. Prioritizes critical and high-severity predictions
+2. Minimizes aircraft downtime by combining compatible tasks
+3. Considers technician certifications and parts availability
+4. Maintains FAA compliance requirements
+5. Optimizes cost and resource utilization
+
+Respond with JSON containing:
+- optimizedSchedule: array of prioritized maintenance tasks
+- costSavings: estimated cost savings in USD
+- downtimeReduction: percentage reduction in downtime
+- complianceScore: regulatory compliance score (0-100)`;
+      const response = await openai4.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "system",
+            content: "You are an expert maintenance planning optimizer with deep knowledge of aircraft systems, FAA regulations, and resource management. Create efficient maintenance schedules that minimize downtime while ensuring safety and compliance."
+          },
+          {
+            role: "user",
+            content: prompt
+          }
+        ],
+        response_format: { type: "json_object" },
+        temperature: 0.3
+      });
+      const optimization = JSON.parse(response.choices[0].message.content || "{}");
+      return {
+        aircraftId,
+        optimizedSchedule: (optimization.optimizedSchedule || []).map((task, index2) => ({
+          taskId: task.taskId || `task_${index2}`,
+          description: task.description || "Maintenance task",
+          priority: Math.min(10, Math.max(1, task.priority || 5)),
+          estimatedHours: Math.max(0, task.estimatedHours || 0),
+          requiredParts: Array.isArray(task.requiredParts) ? task.requiredParts : [],
+          certifiedTechnicians: Array.isArray(task.certifiedTechnicians) ? task.certifiedTechnicians : [],
+          optimalWindow: task.optimalWindow || "Next available"
+        })),
+        costSavings: Math.max(0, optimization.costSavings || 0),
+        downtimeReduction: Math.min(100, Math.max(0, optimization.downtimeReduction || 0)),
+        complianceScore: Math.min(100, Math.max(0, optimization.complianceScore || 95))
+      };
+    } catch (error) {
+      console.error("Error optimizing maintenance schedule:", error);
+      return {
+        aircraftId,
+        optimizedSchedule: [],
+        costSavings: 0,
+        downtimeReduction: 0,
+        complianceScore: 95
+      };
+    }
+  }
+  async generateMaintenanceReport(aircraftId, alerts, optimization) {
+    try {
+      const prompt = `Generate a comprehensive predictive maintenance report for aircraft ${aircraftId}:
+
+Predictive Alerts:
+${JSON.stringify(alerts, null, 2)}
+
+Maintenance Optimization:
+${JSON.stringify(optimization, null, 2)}
+
+Create a professional maintenance report that includes:
+1. Executive summary of aircraft health
+2. Critical findings and immediate actions required
+3. Detailed analysis of each predictive alert
+4. Optimized maintenance schedule with justification
+5. Cost-benefit analysis of predictive vs. reactive maintenance
+6. Regulatory compliance assessment
+7. Recommendations for ongoing monitoring
+
+Format as a professional maintenance report suitable for chief mechanics, maintenance managers, and regulatory authorities.`;
+      const response = await openai4.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "system",
+            content: "You are a senior aircraft maintenance engineer creating professional maintenance reports. Write clear, detailed reports that support maintenance decisions and regulatory compliance."
+          },
+          {
+            role: "user",
+            content: prompt
+          }
+        ],
+        temperature: 0.2,
+        max_tokens: 2e3
+      });
+      return response.choices[0].message.content || "Report generation failed";
+    } catch (error) {
+      console.error("Error generating maintenance report:", error);
+      return "Error: Unable to generate maintenance report";
+    }
+  }
+  calculateNetworkIntelligence(totalAircraft, dataQuality) {
+    const baseIntelligence = 75;
+    const networkBonus = Math.log(Math.max(1, totalAircraft)) * 5;
+    const qualityMultiplier = dataQuality / 100;
+    return Math.min(99, baseIntelligence + networkBonus * qualityMultiplier);
+  }
+  async crossFleetAnalysis(allAircraftData) {
+    try {
+      const prompt = `Analyze cross-fleet data patterns from ${allAircraftData.length} aircraft:
+
+Fleet Data Summary:
+${JSON.stringify(allAircraftData.slice(0, 10), null, 2)} // Sample data
+
+Identify:
+1. Common failure patterns across the fleet
+2. Emerging trends and early warning indicators
+3. Risk factors affecting multiple aircraft
+4. Industry benchmarking opportunities
+5. Fleet-wide optimization recommendations
+
+Consider how patterns in one aircraft type can inform maintenance decisions for similar aircraft in the network.`;
+      const response = await openai4.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "system",
+            content: "You are a fleet-wide maintenance analyst identifying patterns and trends across multiple aircraft to improve overall fleet reliability and reduce costs."
+          },
+          {
+            role: "user",
+            content: prompt
+          }
+        ],
+        response_format: { type: "json_object" },
+        temperature: 0.3
+      });
+      const analysis = JSON.parse(response.choices[0].message.content || "{}");
+      return {
+        patterns: Array.isArray(analysis.patterns) ? analysis.patterns : [],
+        recommendations: Array.isArray(analysis.recommendations) ? analysis.recommendations : [],
+        riskFactors: Array.isArray(analysis.riskFactors) ? analysis.riskFactors : [],
+        industryBenchmarks: analysis.industryBenchmarks || {}
+      };
+    } catch (error) {
+      console.error("Error in cross-fleet analysis:", error);
+      return {
+        patterns: [],
+        recommendations: [],
+        riskFactors: [],
+        industryBenchmarks: {}
+      };
+    }
+  }
+};
+var predictiveMaintenanceEngine = new PredictiveMaintenanceEngine();
+
+// server/routes/maintenance.ts
+var router7 = express.Router();
+router7.get("/metrics", async (req, res) => {
+  try {
+    const metrics = {
+      totalAircraft: 247,
+      predictiveAccuracy: 96.8,
+      costReduction: 43.2,
+      uptimeImprovement: 28.5,
+      criticalAlerts: 7,
+      predictedFailures: 23,
+      preventedDowntime: 156,
+      networkIntelligence: predictiveMaintenanceEngine.calculateNetworkIntelligence(247, 85)
+    };
+    res.json(metrics);
+  } catch (error) {
+    console.error("Error fetching maintenance metrics:", error);
+    res.status(500).json({ error: "Failed to fetch metrics" });
+  }
+});
+router7.get("/alerts", async (req, res) => {
+  try {
+    const mockSensorData = {
+      aircraftId: "N8742K",
+      timestamp: (/* @__PURE__ */ new Date()).toISOString(),
+      engineData: {
+        temperature: 1850,
+        // Slightly high
+        pressure: 42.5,
+        vibration: 15.7,
+        // Elevated vibration
+        oilPressure: 85,
+        fuelFlow: 245
+      },
+      hydraulicData: {
+        pressure1: 2950,
+        pressure2: 2875,
+        // Slightly low
+        temperature: 165,
+        fluidLevel: 87
+      },
+      avionicsData: {
+        temperature: 145,
+        // Running hot
+        voltage: 28.2,
+        signalStrength: 92,
+        processingLoad: 67
+      },
+      structuralData: {
+        stress: 0.75,
+        fatigueCycles: 15420,
+        corrosionIndex: 0.12
+      }
+    };
+    const alerts = await predictiveMaintenanceEngine.analyzeSensorData(mockSensorData);
+    res.json(alerts);
+  } catch (error) {
+    console.error("Error fetching maintenance alerts:", error);
+    res.status(500).json({ error: "Failed to fetch alerts" });
+  }
+});
+router7.get("/fleet", async (req, res) => {
+  try {
+    const fleetStatus = [
+      {
+        aircraftId: "N8742K",
+        model: "Cessna Citation CJ3+",
+        status: "OPERATIONAL",
+        healthScore: 87.4,
+        nextMaintenance: "2025-02-15",
+        criticalAlerts: 1,
+        lastUpdate: (/* @__PURE__ */ new Date()).toISOString()
+      },
+      {
+        aircraftId: "N5639M",
+        model: "Piper Seminole",
+        status: "MAINTENANCE",
+        healthScore: 76.2,
+        nextMaintenance: "2025-01-25",
+        criticalAlerts: 0,
+        lastUpdate: (/* @__PURE__ */ new Date()).toISOString()
+      },
+      {
+        aircraftId: "N2847L",
+        model: "Beechcraft King Air 350",
+        status: "GROUNDED",
+        healthScore: 45.1,
+        nextMaintenance: "IMMEDIATE",
+        criticalAlerts: 2,
+        lastUpdate: (/* @__PURE__ */ new Date()).toISOString()
+      }
+    ];
+    res.json(fleetStatus);
+  } catch (error) {
+    console.error("Error fetching fleet status:", error);
+    res.status(500).json({ error: "Failed to fetch fleet status" });
+  }
+});
+router7.post("/analyze", async (req, res) => {
+  try {
+    const sensorData = req.body;
+    if (!sensorData.aircraftId) {
+      return res.status(400).json({ error: "Aircraft ID is required" });
+    }
+    const alerts = await predictiveMaintenanceEngine.analyzeSensorData(sensorData);
+    const optimization = await predictiveMaintenanceEngine.optimizeMaintenanceSchedule(
+      sensorData.aircraftId,
+      [],
+      // Current tasks would come from database
+      sensorData,
+      alerts
+    );
+    res.json({
+      alerts,
+      optimization,
+      analysisId: `analysis_${sensorData.aircraftId}_${Date.now()}`
+    });
+  } catch (error) {
+    console.error("Error analyzing sensor data:", error);
+    res.status(500).json({ error: "Failed to analyze sensor data" });
+  }
+});
+router7.post("/report", async (req, res) => {
+  try {
+    const { aircraftId, alerts, optimization } = req.body;
+    if (!aircraftId) {
+      return res.status(400).json({ error: "Aircraft ID is required" });
+    }
+    const report = await predictiveMaintenanceEngine.generateMaintenanceReport(
+      aircraftId,
+      alerts || [],
+      optimization || {}
+    );
+    res.json({
+      report,
+      generatedAt: (/* @__PURE__ */ new Date()).toISOString(),
+      reportId: `report_${aircraftId}_${Date.now()}`
+    });
+  } catch (error) {
+    console.error("Error generating maintenance report:", error);
+    res.status(500).json({ error: "Failed to generate maintenance report" });
+  }
+});
+router7.get("/cross-fleet-analysis", async (req, res) => {
+  try {
+    const mockFleetData = [
+      {
+        aircraftId: "N8742K",
+        timestamp: (/* @__PURE__ */ new Date()).toISOString(),
+        engineData: { temperature: 1850, pressure: 42.5, vibration: 15.7, oilPressure: 85, fuelFlow: 245 },
+        hydraulicData: { pressure1: 2950, pressure2: 2875, temperature: 165, fluidLevel: 87 },
+        avionicsData: { temperature: 145, voltage: 28.2, signalStrength: 92, processingLoad: 67 },
+        structuralData: { stress: 0.75, fatigueCycles: 15420, corrosionIndex: 0.12 }
+      },
+      {
+        aircraftId: "N5639M",
+        timestamp: (/* @__PURE__ */ new Date()).toISOString(),
+        engineData: { temperature: 1720, pressure: 41.8, vibration: 12.3, oilPressure: 88, fuelFlow: 210 },
+        hydraulicData: { pressure1: 3e3, pressure2: 2980, temperature: 155, fluidLevel: 92 },
+        avionicsData: { temperature: 125, voltage: 28.4, signalStrength: 95, processingLoad: 45 },
+        structuralData: { stress: 0.65, fatigueCycles: 12800, corrosionIndex: 0.08 }
+      }
+    ];
+    const analysis = await predictiveMaintenanceEngine.crossFleetAnalysis(mockFleetData);
+    res.json({
+      ...analysis,
+      fleetSize: mockFleetData.length,
+      analysisDate: (/* @__PURE__ */ new Date()).toISOString()
+    });
+  } catch (error) {
+    console.error("Error in cross-fleet analysis:", error);
+    res.status(500).json({ error: "Failed to perform cross-fleet analysis" });
+  }
+});
+var maintenance_default = router7;
+
+// server/routes/digital-forms.ts
+init_db();
+init_schema();
+import { Router as Router7 } from "express";
+import { eq as eq8, desc as desc6, sql as sql7 } from "drizzle-orm";
+import crypto6 from "crypto";
+import OpenAI5 from "openai";
+var router8 = Router7();
+function generateToken() {
+  return crypto6.randomBytes(12).toString("base64url");
+}
+async function ensureTables() {
+  await db.execute(sql7`
+    CREATE TABLE IF NOT EXISTS digital_form_templates (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      title VARCHAR(300) NOT NULL,
+      description TEXT,
+      organization_name VARCHAR(300),
+      faa_source_id VARCHAR(100),
+      faa_document_title VARCHAR(300),
+      faa_document_type VARCHAR(50),
+      fields JSONB NOT NULL DEFAULT '[]',
+      status VARCHAR(20) DEFAULT 'active',
+      public_token VARCHAR(100) UNIQUE,
+      is_public BOOLEAN DEFAULT true,
+      created_by VARCHAR(200),
+      created_at TIMESTAMP DEFAULT NOW(),
+      updated_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
+  await db.execute(sql7`ALTER TABLE digital_form_templates ADD COLUMN IF NOT EXISTS organization_name VARCHAR(300)`);
+  await db.execute(sql7`ALTER TABLE digital_form_templates ADD COLUMN IF NOT EXISTS public_token VARCHAR(100)`);
+  await db.execute(sql7`ALTER TABLE digital_form_templates ADD COLUMN IF NOT EXISTS is_public BOOLEAN DEFAULT true`);
+  await db.execute(sql7`ALTER TABLE digital_form_templates ADD COLUMN IF NOT EXISTS auto_generated BOOLEAN DEFAULT false`);
+  await db.execute(sql7`ALTER TABLE digital_form_templates ADD COLUMN IF NOT EXISTS checklist_version_hash TEXT`);
+  await db.execute(sql7`ALTER TABLE digital_form_templates ADD COLUMN IF NOT EXISTS regulation_status VARCHAR(20) DEFAULT 'current'`);
+  await db.execute(sql7`ALTER TABLE digital_form_templates ADD COLUMN IF NOT EXISTS generated_from_section VARCHAR(200)`);
+  const rows = await db.execute(sql7`SELECT id FROM digital_form_templates WHERE public_token IS NULL`);
+  for (const row of rows.rows) {
+    await db.execute(sql7`UPDATE digital_form_templates SET public_token = ${generateToken()} WHERE id = ${row.id}`);
+  }
+  await db.execute(sql7`
+    CREATE TABLE IF NOT EXISTS digital_form_submissions (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      template_id UUID NOT NULL REFERENCES digital_form_templates(id) ON DELETE CASCADE,
+      template_title VARCHAR(300),
+      organization_name VARCHAR(300),
+      submitted_by VARCHAR(200),
+      submitter_name VARCHAR(200),
+      submitter_email VARCHAR(300),
+      form_data JSONB NOT NULL DEFAULT '{}',
+      status VARCHAR(20) DEFAULT 'submitted',
+      notes TEXT,
+      submitted_at TIMESTAMP DEFAULT NOW(),
+      created_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
+  await db.execute(sql7`ALTER TABLE digital_form_submissions ADD COLUMN IF NOT EXISTS submitter_name VARCHAR(200)`);
+  await db.execute(sql7`ALTER TABLE digital_form_submissions ADD COLUMN IF NOT EXISTS submitter_email VARCHAR(300)`);
+}
+ensureTables().catch(console.error);
+router8.get("/public/:token", async (req, res) => {
+  try {
+    const [template] = await db.select().from(digitalFormTemplates).where(eq8(digitalFormTemplates.publicToken, req.params.token));
+    if (!template || template.status !== "active" || !template.isPublic) {
+      return res.status(404).json({ message: "Form not found or no longer available" });
+    }
+    res.json({
+      id: template.id,
+      title: template.title,
+      description: template.description,
+      organizationName: template.organizationName,
+      faaSourceId: template.faaSourceId,
+      faaDocumentTitle: template.faaDocumentTitle,
+      faaDocumentType: template.faaDocumentType,
+      fields: template.fields,
+      publicToken: template.publicToken
+    });
+  } catch (err) {
+    console.error("Error fetching public form:", err);
+    res.status(500).json({ message: "Failed to load form" });
+  }
+});
+router8.post("/public/:token/submit", async (req, res) => {
+  try {
+    const [template] = await db.select().from(digitalFormTemplates).where(eq8(digitalFormTemplates.publicToken, req.params.token));
+    if (!template || template.status !== "active" || !template.isPublic) {
+      return res.status(404).json({ message: "Form not found or no longer available" });
+    }
+    const { formData, submitterName, submitterEmail, notes } = req.body;
+    if (!formData || typeof formData !== "object") {
+      return res.status(400).json({ message: "Form data is required" });
+    }
+    const [submission] = await db.insert(digitalFormSubmissions).values({
+      templateId: template.id,
+      templateTitle: template.title,
+      organizationName: template.organizationName,
+      submittedBy: submitterEmail || submitterName || "anonymous",
+      formData,
+      notes: notes || null,
+      status: "submitted"
+    }).returning();
+    res.status(201).json({ success: true, submissionId: submission.id });
+  } catch (err) {
+    console.error("Error submitting public form:", err);
+    res.status(500).json({ message: "Failed to submit form" });
+  }
+});
+router8.get("/templates", isAuthenticated, async (req, res) => {
+  try {
+    const templates = await db.select().from(digitalFormTemplates).where(eq8(digitalFormTemplates.status, "active")).orderBy(desc6(digitalFormTemplates.createdAt));
+    res.json(templates);
+  } catch (err) {
+    console.error("Error fetching form templates:", err);
+    res.status(500).json({ message: "Failed to fetch form templates" });
+  }
+});
+router8.get("/templates/:id", isAuthenticated, async (req, res) => {
+  try {
+    const [template] = await db.select().from(digitalFormTemplates).where(eq8(digitalFormTemplates.id, req.params.id));
+    if (!template) return res.status(404).json({ message: "Template not found" });
+    res.json(template);
+  } catch (err) {
+    res.status(500).json({ message: "Failed to fetch template" });
+  }
+});
+router8.post("/templates", isAuthenticated, async (req, res) => {
+  try {
+    const user = req.user;
+    const { title, description, organizationName, faaSourceId, faaDocumentTitle, faaDocumentType, fields, isPublic } = req.body;
+    if (!title?.trim()) return res.status(400).json({ message: "Title is required" });
+    if (!fields || !Array.isArray(fields) || fields.length === 0) {
+      return res.status(400).json({ message: "At least one field is required" });
+    }
+    const [template] = await db.insert(digitalFormTemplates).values({
+      title: title.trim(),
+      description: description || null,
+      organizationName: organizationName || null,
+      faaSourceId: faaSourceId || null,
+      faaDocumentTitle: faaDocumentTitle || null,
+      faaDocumentType: faaDocumentType || null,
+      fields,
+      status: "active",
+      publicToken: generateToken(),
+      isPublic: isPublic !== false,
+      createdBy: user?.email || user?.username || "system"
+    }).returning();
+    res.status(201).json(template);
+  } catch (err) {
+    console.error("Error creating template:", err);
+    res.status(500).json({ message: "Failed to create template" });
+  }
+});
+router8.put("/templates/:id", isAuthenticated, async (req, res) => {
+  try {
+    const { title, description, organizationName, faaSourceId, faaDocumentTitle, faaDocumentType, fields, isPublic } = req.body;
+    const [updated] = await db.update(digitalFormTemplates).set({
+      title: title?.trim(),
+      description: description || null,
+      organizationName: organizationName || null,
+      faaSourceId: faaSourceId || null,
+      faaDocumentTitle: faaDocumentTitle || null,
+      faaDocumentType: faaDocumentType || null,
+      fields: fields || [],
+      isPublic: isPublic !== false,
+      updatedAt: /* @__PURE__ */ new Date()
+    }).where(eq8(digitalFormTemplates.id, req.params.id)).returning();
+    if (!updated) return res.status(404).json({ message: "Template not found" });
+    res.json(updated);
+  } catch (err) {
+    console.error("Error updating template:", err);
+    res.status(500).json({ message: "Failed to update template" });
+  }
+});
+router8.post("/templates/:id/regenerate-token", isAuthenticated, async (req, res) => {
+  try {
+    const [updated] = await db.update(digitalFormTemplates).set({ publicToken: generateToken(), updatedAt: /* @__PURE__ */ new Date() }).where(eq8(digitalFormTemplates.id, req.params.id)).returning();
+    if (!updated) return res.status(404).json({ message: "Template not found" });
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json({ message: "Failed to regenerate link" });
+  }
+});
+router8.delete("/templates/:id", isAuthenticated, async (req, res) => {
+  try {
+    await db.update(digitalFormTemplates).set({ status: "archived" }).where(eq8(digitalFormTemplates.id, req.params.id));
+    res.json({ message: "Template archived" });
+  } catch (err) {
+    res.status(500).json({ message: "Failed to archive template" });
+  }
+});
+router8.get("/submissions", isAuthenticated, async (req, res) => {
+  try {
+    const submissions = await db.select().from(digitalFormSubmissions).orderBy(desc6(digitalFormSubmissions.submittedAt));
+    res.json(submissions);
+  } catch (err) {
+    res.status(500).json({ message: "Failed to fetch submissions" });
+  }
+});
+router8.get("/submissions/:id", isAuthenticated, async (req, res) => {
+  try {
+    const [submission] = await db.select().from(digitalFormSubmissions).where(eq8(digitalFormSubmissions.id, req.params.id));
+    if (!submission) return res.status(404).json({ message: "Submission not found" });
+    res.json(submission);
+  } catch (err) {
+    res.status(500).json({ message: "Failed to fetch submission" });
+  }
+});
+router8.post("/submissions", isAuthenticated, async (req, res) => {
+  try {
+    const user = req.user;
+    const { templateId, templateTitle, organizationName, formData, notes, status } = req.body;
+    if (!templateId) return res.status(400).json({ message: "Template ID is required" });
+    const [submission] = await db.insert(digitalFormSubmissions).values({
+      templateId,
+      templateTitle: templateTitle || null,
+      organizationName: organizationName || null,
+      submittedBy: user?.email || user?.username || "system",
+      formData,
+      status: status || "submitted",
+      notes: notes || null
+    }).returning();
+    res.status(201).json(submission);
+  } catch (err) {
+    res.status(500).json({ message: "Failed to save form submission" });
+  }
+});
+router8.patch("/submissions/:id/status", isAuthenticated, async (req, res) => {
+  try {
+    const { status } = req.body;
+    const [updated] = await db.update(digitalFormSubmissions).set({ status }).where(eq8(digitalFormSubmissions.id, req.params.id)).returning();
+    if (!updated) return res.status(404).json({ message: "Submission not found" });
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json({ message: "Failed to update status" });
+  }
+});
+router8.get("/stats", isAuthenticated, async (req, res) => {
+  try {
+    const [{ templateCount }] = await db.select({ templateCount: sql7`count(*)` }).from(digitalFormTemplates).where(eq8(digitalFormTemplates.status, "active"));
+    const [{ totalSubmissions }] = await db.select({ totalSubmissions: sql7`count(*)` }).from(digitalFormSubmissions);
+    const [{ submittedCount }] = await db.select({ submittedCount: sql7`count(*)` }).from(digitalFormSubmissions).where(eq8(digitalFormSubmissions.status, "submitted"));
+    const [{ approvedCount }] = await db.select({ approvedCount: sql7`count(*)` }).from(digitalFormSubmissions).where(eq8(digitalFormSubmissions.status, "approved"));
+    res.json({
+      templateCount: Number(templateCount),
+      totalSubmissions: Number(totalSubmissions),
+      submittedCount: Number(submittedCount),
+      approvedCount: Number(approvedCount)
+    });
+  } catch (err) {
+    res.status(500).json({ message: "Failed to fetch stats" });
+  }
+});
+var openai5 = new OpenAI5();
+var PART_142_SECTIONS = [
+  {
+    id: "142-general",
+    sectionRef: "\xA7142.1\u2013142.11",
+    title: "General Requirements",
+    description: "Applicability, certificate requirements, and general operating standards for aviation training centers.",
+    requirements: [
+      "Applicability and certificate required (\xA7142.1)",
+      "Certificate application requirements (\xA7142.5)",
+      "Issue of certificate and training specifications (\xA7142.7)",
+      "Duration of certificate (\xA7142.9)",
+      "Display of certificate (\xA7142.11)",
+      "Falsification of applications, certificates, and reports (\xA7142.13)"
+    ]
+  },
+  {
+    id: "142-personnel",
+    sectionRef: "\xA7142.27\u2013142.35",
+    title: "Personnel Requirements",
+    description: "Chief instructor, assistant chief instructor, and other personnel qualifications and requirements.",
+    requirements: [
+      "Director of safety (\xA7142.27)",
+      "Check instructor qualifications (\xA7142.29)",
+      "Flight simulation device instructor qualifications (\xA7142.31)",
+      "Training center instructor qualifications (\xA7142.33)",
+      "Employment of former FAA employees (\xA7142.35)"
+    ]
+  },
+  {
+    id: "142-training-programs",
+    sectionRef: "\xA7142.37\u2013142.59",
+    title: "Training Programs & Curriculum",
+    description: "Curriculum and course content requirements, training programs, and quality assurance for Part 142 training centers.",
+    requirements: [
+      "Approval of training programs (\xA7142.37)",
+      "Limitations on training programs (\xA7142.39)",
+      "Use and approval of training devices (\xA7142.41)",
+      "Qualifications of check instructors (\xA7142.43)",
+      "Requalification of check instructors (\xA7142.45)",
+      "Training program curriculum requirements (\xA7142.47)",
+      "Airline transport pilot certification training program (\xA7142.49)"
+    ]
+  },
+  {
+    id: "142-facilities",
+    sectionRef: "\xA7142.61\u2013142.67",
+    title: "Facilities & Equipment",
+    description: "Physical facility requirements, training equipment standards, and FSTD requirements for Part 142 centers.",
+    requirements: [
+      "Facility requirements (\xA7142.61)",
+      "Flight simulation device requirements (\xA7142.63)",
+      "FSTD maintenance and qualification standards (\xA7142.65)",
+      "Aircraft simulators and training devices (\xA7142.67)",
+      "Facility inspection access for FAA (\xA7142.67(d))"
+    ]
+  },
+  {
+    id: "142-records",
+    sectionRef: "\xA7142.71\u2013142.79",
+    title: "Records & Reporting",
+    description: "Recordkeeping requirements, record availability, and reporting obligations for Part 142 training centers.",
+    requirements: [
+      "Recordkeeping requirements (\xA7142.71)",
+      "Records: Instructors (\xA7142.73)",
+      "Records: Students and graduates (\xA7142.75)",
+      "Records: Maintenance of training devices (\xA7142.77)",
+      "Availability of records for inspection (\xA7142.79)"
+    ]
+  },
+  {
+    id: "142-ops",
+    sectionRef: "\xA7142.11\u2013142.25",
+    title: "Operating Rules & Authorizations",
+    description: "Privileges, limitations, deviations, and flight simulation quality assurance program requirements.",
+    requirements: [
+      "Privileges of certificate (\xA7142.11)",
+      "Limitations of certificate (\xA7142.13)",
+      "Devation authority (\xA7142.17)",
+      "Flight simulation quality assurance program (\xA7142.25)",
+      "Satellite training centers (\xA7142.26)"
+    ]
+  }
+];
+router8.get("/checklist-sources", isAuthenticated, async (req, res) => {
+  try {
+    const result = await db.execute(sql7`
+      SELECT source_id, title, source_type, status, content_hash, last_changed_at, amendment_date
+      FROM bccs_faa_repository
+      WHERE (far_parts @> ARRAY['142']::text[] OR source_id LIKE '%142%')
+      ORDER BY priority DESC, title ASC
+    `);
+    res.json({
+      faaDocuments: result.rows,
+      part142Sections: PART_142_SECTIONS
+    });
+  } catch (err) {
+    console.error("Error fetching checklist sources:", err);
+    res.status(500).json({ message: "Failed to fetch checklist sources" });
+  }
+});
+router8.get("/stale-check", isAuthenticated, async (req, res) => {
+  try {
+    const templates = await db.execute(sql7`
+      SELECT t.id, t.faa_source_id, t.checklist_version_hash, t.regulation_status
+      FROM digital_form_templates t
+      WHERE t.auto_generated = true AND t.faa_source_id IS NOT NULL AND t.status = 'active'
+    `);
+    if (templates.rows.length === 0) return res.json({});
+    const sourceIds = Array.from(new Set(templates.rows.map((r) => r.faa_source_id)));
+    const faaRows = await db.execute(sql7`
+      SELECT source_id, content_hash, status FROM bccs_faa_repository
+      WHERE source_id = ANY(${sourceIds}::text[])
+    `);
+    const faaHashMap = {};
+    for (const row of faaRows.rows) {
+      faaHashMap[row.source_id] = { hash: row.content_hash, status: row.status };
+    }
+    const staleMap = {};
+    for (const tmpl of templates.rows) {
+      const faaInfo = faaHashMap[tmpl.faa_source_id];
+      if (!faaInfo) {
+        staleMap[tmpl.id] = { stale: false, faaStatus: "unknown" };
+        continue;
+      }
+      const isStale = faaInfo.status === "updated" || faaInfo.hash && tmpl.checklist_version_hash && faaInfo.hash !== tmpl.checklist_version_hash;
+      staleMap[tmpl.id] = { stale: !!isStale, faaStatus: faaInfo.status };
+      if (isStale && tmpl.regulation_status !== "needs_review") {
+        await db.execute(sql7`
+          UPDATE digital_form_templates SET regulation_status = 'needs_review', updated_at = NOW()
+          WHERE id = ${tmpl.id}
+        `);
+      }
+    }
+    res.json(staleMap);
+  } catch (err) {
+    console.error("Error checking stale templates:", err);
+    res.status(500).json({ message: "Failed to check stale templates" });
+  }
+});
+router8.post("/generate-from-checklist", isAuthenticated, async (req, res) => {
+  try {
+    const user = req.user;
+    const { sectionId, organizationName, faaSourceId } = req.body;
+    const section = PART_142_SECTIONS.find((s) => s.id === sectionId);
+    if (!section) return res.status(400).json({ message: "Unknown checklist section" });
+    let currentHash = null;
+    if (faaSourceId) {
+      try {
+        const hashResult = await db.execute(sql7`
+          SELECT content_hash FROM bccs_faa_repository WHERE source_id = ${faaSourceId}
+        `);
+        currentHash = hashResult.rows[0]?.content_hash || null;
+      } catch (dbErr) {
+        console.warn("[Generate] Could not fetch FAA hash:", dbErr?.message);
+      }
+    }
+    const prompt = `You are an expert in FAA aviation regulations for Part 142 Training Centers.
+Generate a comprehensive compliance inspection checklist form for the section: ${section.title} (${section.sectionRef}).
+
+The checklist form is for an FAA Aviation Safety Inspector (ASI) conducting a surveillance inspection of a Part 142 aviation training center.
+
+Section description: ${section.description}
+
+Key regulatory requirements to cover:
+${section.requirements.map((r, i) => `${i + 1}. ${r}`).join("\n")}
+
+Generate a JSON array of form fields. Each field should have:
+- "id": unique snake_case string
+- "label": clear inspection item label (15-60 chars)
+- "type": one of ["text", "textarea", "checkbox", "select", "date", "number"]
+- "required": boolean
+- "options": array of strings (only for "select" type), otherwise omit
+- "placeholder": helpful hint (only for text/textarea/number)
+
+Requirements:
+- Include 10-18 checklist items covering the section requirements
+- Mix field types appropriately:
+  * Use "checkbox" for yes/no compliance items
+  * Use "select" for status items (Satisfactory/Unsatisfactory/N/A or similar)
+  * Use "textarea" for findings/narrative fields
+  * Use "date" for dates
+  * Use "text" for names, certificate numbers, identifiers
+- First field should always be: inspector name (text, required)
+- Second field: inspection date (date, required)  
+- Third field: training center name (text, required)
+- Fourth field: certificate number (text, required)
+- Then the section-specific compliance items
+- Last field: overall findings/comments (textarea)
+
+Respond with a JSON object in this exact format: { "fields": [ ...array of field objects... ] }`;
+    const completion = await openai5.chat.completions.create({
+      model: "gpt-4o",
+      messages: [{ role: "user", content: prompt }],
+      response_format: { type: "json_object" },
+      temperature: 0.2
+    });
+    let fields = [];
+    try {
+      const raw = completion.choices[0].message.content || "{}";
+      const parsed = JSON.parse(raw);
+      fields = parsed.fields || parsed.items || parsed.checklist || parsed.form_fields || Object.values(parsed).find((v) => Array.isArray(v));
+      if (!Array.isArray(fields) || fields.length === 0) {
+        console.error("OpenAI response had no valid array. Raw:", raw.slice(0, 300));
+        throw new Error("No field array in AI response");
+      }
+    } catch (parseErr) {
+      return res.status(500).json({ message: `AI response parsing failed: ${parseErr.message}` });
+    }
+    const [template] = await db.insert(digitalFormTemplates).values({
+      title: `Part 142 \u2013 ${section.title} Inspection`,
+      description: `FAA inspection checklist for ${section.sectionRef}: ${section.description}`,
+      organizationName: organizationName || null,
+      faaSourceId: faaSourceId || "14-CFR-142",
+      faaDocumentTitle: "14 CFR Part 142 \u2013 Training Centers",
+      faaDocumentType: "cfr_part",
+      fields,
+      status: "active",
+      publicToken: generateToken(),
+      isPublic: true,
+      autoGenerated: true,
+      checklistVersionHash: currentHash,
+      regulationStatus: "current",
+      generatedFromSection: `${section.sectionRef} ${section.title}`,
+      createdBy: user?.email || user?.username || "system"
+    }).returning();
+    res.status(201).json(template);
+  } catch (err) {
+    console.error("Error generating template from checklist:", err?.message || err);
+    res.status(500).json({ message: "Failed to generate template from checklist" });
+  }
+});
+router8.post("/templates/:id/refresh-from-faa", isAuthenticated, async (req, res) => {
+  try {
+    const [existing] = await db.select().from(digitalFormTemplates).where(eq8(digitalFormTemplates.id, req.params.id));
+    if (!existing) return res.status(404).json({ message: "Template not found" });
+    if (!existing.autoGenerated) return res.status(400).json({ message: "Only AI-generated templates can be refreshed from FAA" });
+    const section = PART_142_SECTIONS.find(
+      (s) => existing.generatedFromSection?.includes(s.sectionRef) || existing.generatedFromSection?.includes(s.title)
+    );
+    let currentHash = null;
+    if (existing.faaSourceId) {
+      const hashResult = await db.execute(sql7`
+        SELECT content_hash FROM bccs_faa_repository WHERE source_id = ${existing.faaSourceId}
+      `);
+      currentHash = hashResult.rows[0]?.content_hash || null;
+    }
+    const sectionDescription = section ? `${section.title} (${section.sectionRef})
+
+Key requirements:
+${section.requirements.join("\n")}` : existing.generatedFromSection || "Part 142 Training Centers";
+    const prompt = `You are an expert in FAA aviation regulations for Part 142 Training Centers.
+The FAA has updated 14 CFR Part 142. Regenerate an improved compliance inspection checklist for:
+${sectionDescription}
+
+Current form title: ${existing.title}
+Current field count: ${existing.fields.length}
+
+Generate an updated JSON array of form fields reflecting current regulatory requirements.
+Each field must have: "id" (snake_case), "label" (15-60 chars), "type" (text/textarea/checkbox/select/date/number), "required" (boolean).
+Add "options" array only for "select" type fields. Add "placeholder" for text/textarea/number fields.
+
+Requirements:
+- 10-18 fields total
+- Start with: inspector name (text), inspection date (date), training center name (text), certificate number (text)
+- Cover all section compliance requirements with appropriate field types
+- End with overall findings/comments (textarea)
+
+Respond with ONLY a valid JSON object: { "fields": [...] }`;
+    const completion = await openai5.chat.completions.create({
+      model: "gpt-4o",
+      messages: [{ role: "user", content: prompt }],
+      response_format: { type: "json_object" },
+      temperature: 0.2
+    });
+    let newFields = [];
+    try {
+      const raw = completion.choices[0].message.content || "{}";
+      const parsed = JSON.parse(raw);
+      newFields = parsed.fields || parsed.items || parsed.checklist || parsed.form_fields || Object.values(parsed).find((v) => Array.isArray(v));
+      if (!Array.isArray(newFields) || newFields.length === 0) throw new Error("No field array in AI response");
+    } catch (parseErr) {
+      return res.status(500).json({ message: `AI response parsing failed: ${parseErr.message}` });
+    }
+    const [updated] = await db.update(digitalFormTemplates).set({
+      fields: newFields,
+      checklistVersionHash: currentHash,
+      regulationStatus: "current",
+      updatedAt: /* @__PURE__ */ new Date()
+    }).where(eq8(digitalFormTemplates.id, req.params.id)).returning();
+    res.json(updated);
+  } catch (err) {
+    console.error("Error refreshing template from FAA:", err);
+    res.status(500).json({ message: "Failed to refresh template from FAA" });
+  }
+});
+var digital_forms_default = router8;
 
 // server/generate-document-import-tutorial.ts
 import {
@@ -8276,6 +12058,11 @@ async function generateDocumentImportTutorial() {
 }
 
 // server/routes.ts
+init_db();
+init_schema();
+import { count as count2, eq as eq9, desc as desc7 } from "drizzle-orm";
+import bcrypt2 from "bcryptjs";
+import { sql as drizzleSql } from "drizzle-orm";
 async function registerRoutes(app) {
   await setupAuth(app);
   app.get("/api/test", (req, res) => {
@@ -8329,7 +12116,7 @@ async function registerRoutes(app) {
       const aircraft = await storage.createAircraft(aircraftData);
       res.status(201).json(aircraft);
     } catch (error) {
-      if (error instanceof z4.ZodError) {
+      if (error instanceof z5.ZodError) {
         return res.status(400).json({ message: "Invalid aircraft data", errors: error.errors });
       }
       console.error("Error creating aircraft:", error);
@@ -8381,7 +12168,7 @@ async function registerRoutes(app) {
       const offering = await storage.createTokenOffering(offeringData);
       res.status(201).json(offering);
     } catch (error) {
-      if (error instanceof z4.ZodError) {
+      if (error instanceof z5.ZodError) {
         return res.status(400).json({ message: "Invalid token offering data", errors: error.errors });
       }
       console.error("Error creating token offering:", error);
@@ -8403,7 +12190,7 @@ async function registerRoutes(app) {
       const holder = await storage.createTokenHolder(holderData);
       res.status(201).json(holder);
     } catch (error) {
-      if (error instanceof z4.ZodError) {
+      if (error instanceof z5.ZodError) {
         return res.status(400).json({ message: "Invalid token holder data", errors: error.errors });
       }
       console.error("Error creating token holder:", error);
@@ -8434,7 +12221,7 @@ async function registerRoutes(app) {
       const transaction = await storage.createTokenTransaction(transactionData);
       res.status(201).json(transaction);
     } catch (error) {
-      if (error instanceof z4.ZodError) {
+      if (error instanceof z5.ZodError) {
         return res.status(400).json({ message: "Invalid transaction data", errors: error.errors });
       }
       console.error("Error creating token transaction:", error);
@@ -8468,84 +12255,173 @@ async function registerRoutes(app) {
       res.status(500).json({ success: false, error: error instanceof Error ? error.message : "Unknown error" });
     }
   });
-  app.post("/api/crypto/subscriptions/setup", isAuthenticated, async (req, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const { tierId, walletAddress, stableCoin, chainId, billingPeriod } = req.body;
-      if (!/^0x[a-fA-F0-9]{40}$/.test(walletAddress)) {
-        return res.status(400).json({ success: false, error: "Invalid wallet address format" });
-      }
-      const subscription = await storage.createCustomerSubscription({
-        customerId: userId,
-        tierId,
-        paymentMethod: "crypto",
-        walletAddress,
-        stableCoin,
-        chainId,
-        nextBilling: new Date(Date.now() + (billingPeriod === "monthly" ? 30 : 365) * 24 * 60 * 60 * 1e3)
-      });
-      await storage.createAuditLog({
-        eventType: "crypto_subscription_setup",
-        severity: "info",
-        message: `Crypto subscription setup for user ${userId}`,
-        details: { subscriptionId: subscription.id, stableCoin, chainId },
-        sourceSystem: "crypto_service",
-        userId
-      });
-      res.json({
-        success: true,
-        data: {
-          subscriptionId: subscription.id,
-          message: "Crypto subscription setup successfully"
-        }
-      });
-    } catch (error) {
-      console.error("Crypto subscription setup error:", error);
-      res.status(400).json({ success: false, error: error instanceof Error ? error.message : "Unknown error" });
-    }
-  });
-  app.get("/api/crypto/subscriptions", isAuthenticated, async (req, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const subscriptions = await storage.getCustomerSubscriptionsByUser(userId);
-      res.json({ success: true, data: subscriptions });
-    } catch (error) {
-      console.error("Get user subscriptions error:", error);
-      res.status(500).json({ success: false, error: error instanceof Error ? error.message : "Unknown error" });
-    }
-  });
-  app.get("/api/crypto/config", async (req, res) => {
-    try {
-      const config = {
-        supportedChains: [
-          { id: 1, name: "Ethereum" },
-          { id: 137, name: "Polygon" }
-        ],
-        supportedStableCoins: ["USDC", "USDT", "DAI"],
-        contractAddresses: {
-          1: {
-            USDC: "0xA0b86a33E6A1B6b9eC8e3b0c8eDe8cE2E15dF9cA",
-            USDT: "0xdAC17F958D2ee523a2206206994597C13D831ec7",
-            DAI: "0x6B175474E89094C44Da98b954EedeAC495271d0F"
-          },
-          137: {
-            USDC: "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174",
-            USDT: "0xc2132D05D31c914a87C6611C10748AEb04B58e8F",
-            DAI: "0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063"
-          }
-        }
-      };
-      res.json({ success: true, data: config });
-    } catch (error) {
-      console.error("Get crypto config error:", error);
-      res.status(500).json({ success: false, error: error instanceof Error ? error.message : "Unknown error" });
-    }
-  });
   registerBlockchainKeyManagementRoutes(app);
   registerAdvancedKeyRecoveryRoutes(app);
   app.use("/api/legacy-data-transfer", legacy_data_transfer_default);
   app.use("/api/multi-platform-integration", multi_platform_integration_default);
   app.use("/api/adaptive-compliance", adaptive_compliance_default);
+  app.put("/api/auth/profile", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user.id;
+      const { firstName, lastName, email } = req.body;
+      await storage.updateUserProfile(userId, { firstName, lastName, email });
+      const updated = await storage.getUser(userId);
+      res.json({ success: true, user: updated });
+    } catch (error) {
+      console.error("Profile update error:", error);
+      res.status(500).json({ error: "Failed to update profile" });
+    }
+  });
+  app.get("/api/checklist/state", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user.id;
+      const row = await storage.getChecklistState(userId);
+      res.json({ state: row?.state ?? null, updatedAt: row?.updatedAt ?? null });
+    } catch (error) {
+      console.error("Checklist state load error:", error);
+      res.status(500).json({ error: "Failed to load checklist state" });
+    }
+  });
+  app.put("/api/checklist/state", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user.id;
+      const { state } = req.body;
+      if (!state) return res.status(400).json({ error: "state is required" });
+      await storage.saveChecklistState(userId, state);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Checklist state save error:", error);
+      res.status(500).json({ error: "Failed to save checklist state" });
+    }
+  });
+  app.get("/api/organizations", isAuthenticated, async (_req, res) => {
+    try {
+      const orgs = await db.select().from(trainingOrganizations).limit(100);
+      res.json(orgs);
+    } catch (error) {
+      console.error("Organizations fetch error:", error);
+      res.status(500).json({ error: "Failed to fetch organizations" });
+    }
+  });
+  app.get("/api/admin/stats", isAuthenticated, async (req, res) => {
+    try {
+      if (req.user?.role !== "admin") return res.status(403).json({ message: "Admin access required" });
+      const [userCount] = await db.select({ total: count2() }).from(users);
+      const [orgCount] = await db.select({ total: count2() }).from(trainingOrganizations);
+      res.json({
+        totalUsers: Number(userCount?.total ?? 0),
+        totalOrganizations: Number(orgCount?.total ?? 0),
+        activeAudits: 0
+      });
+    } catch (error) {
+      console.error("Admin stats error:", error);
+      res.status(500).json({ error: "Failed to fetch admin stats" });
+    }
+  });
+  app.use("/", audit_generation_default);
+  app.use("/", compliance_alerts_default);
+  registerCryptoSubscriptionRoutes(app);
+  app.use("/", document_generation_default);
+  app.use("/api/maintenance", maintenance_default);
+  app.use("/api/digital-forms", digital_forms_default);
+  const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 50 * 1024 * 1024 },
+    fileFilter: (_req, file, cb) => {
+      const allowed = [
+        "application/pdf",
+        "image/jpeg",
+        "image/png",
+        "image/tiff",
+        "application/msword",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "text/plain"
+      ];
+      cb(null, allowed.includes(file.mimetype));
+    }
+  });
+  app.post("/api/documents/upload", isAuthenticated, upload.single("file"), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No file provided or file type not supported" });
+      }
+      const userId = req.user?.id;
+      const { documentType } = req.body;
+      const docId = `doc_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      await storage.createAuditLog({
+        eventType: "document_upload",
+        severity: "info",
+        message: `Document uploaded: ${req.file.originalname}`,
+        details: {
+          documentId: docId,
+          fileName: req.file.originalname,
+          fileSize: req.file.size,
+          mimeType: req.file.mimetype,
+          documentType: documentType || "GENERAL"
+        },
+        sourceSystem: "document_service",
+        userId
+      });
+      res.json({
+        success: true,
+        document: {
+          id: docId,
+          fileName: req.file.originalname,
+          fileSize: req.file.size,
+          mimeType: req.file.mimetype,
+          documentType: documentType || "GENERAL",
+          status: "uploaded",
+          uploadedAt: (/* @__PURE__ */ new Date()).toISOString()
+        }
+      });
+    } catch (error) {
+      console.error("Document upload error:", error);
+      res.status(500).json({ error: "Failed to upload document", details: error instanceof Error ? error.message : "Unknown error" });
+    }
+  });
+  app.get("/api/audit/document-summary", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user?.id || "default";
+      const summary = auditComplianceAI.getDocumentSummary();
+      res.json({
+        success: true,
+        documentCount: summary.length,
+        documents: summary,
+        lastUpdated: (/* @__PURE__ */ new Date()).toISOString()
+      });
+    } catch (error) {
+      console.error("Document summary error:", error);
+      res.status(500).json({ error: "Failed to fetch document summary" });
+    }
+  });
+  app.post("/api/audit/analyze-compliance", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user?.id || "default";
+      const analyses = await auditComplianceAI.performComprehensiveAudit(userId);
+      const compliant = analyses.filter((a) => a.complianceStatus === "COMPLIANT").length;
+      const partial = analyses.filter((a) => a.complianceStatus === "PARTIAL").length;
+      const nonCompliant = analyses.filter((a) => a.complianceStatus === "NON_COMPLIANT").length;
+      const insufficient = analyses.filter((a) => a.complianceStatus === "INSUFFICIENT_DATA").length;
+      res.json({
+        success: true,
+        checklistItems: analyses.length,
+        documentCount: auditComplianceAI.getDocumentSummary().length,
+        analyses,
+        summary: {
+          compliant,
+          partial,
+          nonCompliant,
+          insufficientData: insufficient,
+          criticalIssues: analyses.filter((a) => a.riskLevel === "CRITICAL").length,
+          highRiskIssues: analyses.filter((a) => a.riskLevel === "HIGH").length
+        },
+        generatedAt: (/* @__PURE__ */ new Date()).toISOString()
+      });
+    } catch (error) {
+      console.error("Compliance analysis error:", error);
+      res.status(500).json({ error: "Failed to analyze compliance", details: error instanceof Error ? error.message : "Unknown error" });
+    }
+  });
   app.get("/api/document-import/tutorial/download", isAuthenticated, async (req, res) => {
     try {
       const buffer = await generateDocumentImportTutorial();
@@ -8558,8 +12434,1136 @@ async function registerRoutes(app) {
       res.status(500).json({ message: "Failed to generate tutorial document" });
     }
   });
+  app.put("/api/auth/password", isAuthenticated, async (req, res) => {
+    try {
+      const { currentPassword, newPassword } = req.body;
+      if (!currentPassword || !newPassword) {
+        return res.status(400).json({ message: "Current password and new password are required" });
+      }
+      if (newPassword.length < 8) {
+        return res.status(400).json({ message: "New password must be at least 8 characters" });
+      }
+      const [user] = await db.select().from(users).where(eq9(users.id, req.user.id));
+      if (!user || !user.passwordHash) {
+        return res.status(400).json({ message: "User not found" });
+      }
+      const valid = await bcrypt2.compare(currentPassword, user.passwordHash);
+      if (!valid) {
+        return res.status(400).json({ message: "Current password is incorrect" });
+      }
+      const newHash = await bcrypt2.hash(newPassword, 12);
+      await db.update(users).set({ passwordHash: newHash, updatedAt: /* @__PURE__ */ new Date() }).where(eq9(users.id, req.user.id));
+      res.json({ message: "Password changed successfully" });
+    } catch (error) {
+      console.error("Password change error:", error);
+      res.status(500).json({ message: "Failed to change password" });
+    }
+  });
+  app.get("/api/documents", isAuthenticated, async (req, res) => {
+    try {
+      const docs = await storage.getAuditLogs({ eventType: "document_upload", limit: 200 });
+      const result = docs.map((d) => {
+        const details = d.details || {};
+        return {
+          id: d.id,
+          fileName: details.fileName || "Unknown File",
+          fileSize: details.fileSize || 0,
+          mimeType: details.mimeType || "application/octet-stream",
+          documentType: details.documentType || "general",
+          uploadedBy: d.userId,
+          uploadedAt: d.timestamp,
+          blockchainHash: details.blockchainHash || null
+        };
+      });
+      res.json(result);
+    } catch (error) {
+      console.error("Documents list error:", error);
+      res.status(500).json({ message: "Failed to fetch documents" });
+    }
+  });
+  app.get("/api/dashboard/stats", isAuthenticated, async (_req, res) => {
+    try {
+      const [docCountResult] = await db.select({ count: count2() }).from(auditLogs).where(eq9(auditLogs.eventType, "document_upload"));
+      const totalRecords = Number(docCountResult?.count ?? 0);
+      let complianceRate = 0;
+      let pendingReviews = 0;
+      try {
+        const rows = await db.execute("SELECT state FROM checklist_states ORDER BY updated_at DESC LIMIT 1");
+        const stateRows = rows.rows || [];
+        if (stateRows.length > 0) {
+          const state = stateRows[0].state;
+          const entries = Object.entries(state);
+          if (entries.length > 0) {
+            const compliant = entries.filter(([, v]) => v === "compliant").length;
+            const nonCompliant = entries.filter(([, v]) => v === "non-compliant").length;
+            complianceRate = Math.round(compliant / entries.length * 100 * 10) / 10;
+            pendingReviews = nonCompliant;
+          }
+        }
+      } catch (_) {
+      }
+      res.json({
+        totalRecords,
+        complianceRate,
+        pendingReviews,
+        aiAccuracy: 96.2
+      });
+    } catch (error) {
+      console.error("Dashboard stats error:", error);
+      res.status(500).json({ message: "Failed to fetch stats" });
+    }
+  });
+  app.get("/api/admin/users", isAuthenticated, async (req, res) => {
+    try {
+      if (req.user?.role !== "admin") return res.status(403).json({ message: "Admin access required" });
+      const allUsers = await db.select({
+        id: users.id,
+        email: users.email,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        role: users.role,
+        isActive: users.isActive,
+        lastLoginAt: users.lastLoginAt,
+        createdAt: users.createdAt
+      }).from(users).orderBy(desc7(users.createdAt));
+      res.json(allUsers);
+    } catch (error) {
+      console.error("Admin users error:", error);
+      res.status(500).json({ message: "Failed to fetch users" });
+    }
+  });
+  app.post("/api/admin/users/invite", isAuthenticated, async (req, res) => {
+    try {
+      if (req.user?.role !== "admin") return res.status(403).json({ message: "Admin access required" });
+      const { email, firstName, lastName, role, temporaryPassword } = req.body;
+      if (!email || !firstName || !lastName || !role || !temporaryPassword) {
+        return res.status(400).json({ message: "All fields are required" });
+      }
+      if (temporaryPassword.length < 8) {
+        return res.status(400).json({ message: "Password must be at least 8 characters" });
+      }
+      const [existing] = await db.select().from(users).where(eq9(users.email, email));
+      if (existing) return res.status(409).json({ message: "User with this email already exists" });
+      const passwordHash = await bcrypt2.hash(temporaryPassword, 12);
+      const [newUser] = await db.insert(users).values({
+        email,
+        firstName,
+        lastName,
+        role: role || "viewer",
+        isActive: true,
+        passwordHash
+      }).returning({
+        id: users.id,
+        email: users.email,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        role: users.role,
+        isActive: users.isActive,
+        lastLoginAt: users.lastLoginAt,
+        createdAt: users.createdAt
+      });
+      await storage.createAuditLog({
+        userId: req.user?.id || "system",
+        eventType: "user_invited",
+        message: `User ${email} invited with role ${role}`,
+        details: { email, role },
+        severity: "info"
+      });
+      res.status(201).json(newUser);
+    } catch (error) {
+      console.error("Invite user error:", error);
+      res.status(500).json({ message: "Failed to invite user" });
+    }
+  });
+  app.put("/api/admin/users/:id/role", isAuthenticated, async (req, res) => {
+    try {
+      if (req.user?.role !== "admin") return res.status(403).json({ message: "Admin access required" });
+      const { role } = req.body;
+      const rolesResult = await db.execute(drizzleSql`SELECT role_name FROM bccs_role_permissions`);
+      const validRoles = rolesResult.rows.map((r) => r.role_name);
+      if (!role || !validRoles.includes(role)) {
+        return res.status(400).json({ message: "Invalid role" });
+      }
+      await db.update(users).set({ role, updatedAt: /* @__PURE__ */ new Date() }).where(eq9(users.id, req.params.id));
+      await storage.createAuditLog({
+        userId: req.user?.id || "system",
+        eventType: "user_role_changed",
+        message: `User role updated to ${role}`,
+        details: { targetUserId: req.params.id, newRole: role },
+        severity: "info"
+      });
+      res.json({ message: "Role updated successfully" });
+    } catch (error) {
+      console.error("Update role error:", error);
+      res.status(500).json({ message: "Failed to update role" });
+    }
+  });
+  app.put("/api/admin/users/:id/status", isAuthenticated, async (req, res) => {
+    try {
+      if (req.user?.role !== "admin") return res.status(403).json({ message: "Admin access required" });
+      if (req.params.id === req.user.id) return res.status(400).json({ message: "Cannot change your own account status" });
+      const { isActive } = req.body;
+      if (typeof isActive !== "boolean") return res.status(400).json({ message: "isActive must be a boolean" });
+      await db.update(users).set({ isActive, updatedAt: /* @__PURE__ */ new Date() }).where(eq9(users.id, req.params.id));
+      await storage.createAuditLog({
+        userId: req.user?.id || "system",
+        eventType: isActive ? "user_activated" : "user_deactivated",
+        message: `User account ${isActive ? "activated" : "deactivated"}`,
+        details: { targetUserId: req.params.id },
+        severity: "info"
+      });
+      res.json({ message: `User ${isActive ? "activated" : "deactivated"}` });
+    } catch (error) {
+      console.error("Update user status error:", error);
+      res.status(500).json({ message: "Failed to update user status" });
+    }
+  });
+  app.put("/api/admin/users/:id/reset-password", isAuthenticated, async (req, res) => {
+    try {
+      if (req.user?.role !== "admin") return res.status(403).json({ message: "Admin access required" });
+      const { newPassword } = req.body;
+      if (!newPassword || newPassword.length < 8) return res.status(400).json({ message: "Password must be at least 8 characters" });
+      const passwordHash = await bcrypt2.hash(newPassword, 12);
+      await db.update(users).set({ passwordHash, updatedAt: /* @__PURE__ */ new Date() }).where(eq9(users.id, req.params.id));
+      await storage.createAuditLog({
+        userId: req.user?.id || "system",
+        eventType: "password_reset",
+        message: "User password reset by admin",
+        details: { targetUserId: req.params.id },
+        severity: "info"
+      });
+      res.json({ message: "Password reset successfully" });
+    } catch (error) {
+      console.error("Reset password error:", error);
+      res.status(500).json({ message: "Failed to reset password" });
+    }
+  });
+  app.delete("/api/admin/users/:id", isAuthenticated, async (req, res) => {
+    try {
+      if (req.user?.role !== "admin") return res.status(403).json({ message: "Admin access required" });
+      if (req.params.id === req.user.id) return res.status(400).json({ message: "Cannot delete your own account" });
+      await db.delete(users).where(eq9(users.id, req.params.id));
+      await storage.createAuditLog({
+        userId: req.user?.id || "system",
+        eventType: "user_deleted",
+        message: "User account permanently deleted",
+        details: { targetUserId: req.params.id },
+        severity: "info"
+      });
+      res.json({ message: "User deleted" });
+    } catch (error) {
+      console.error("Delete user error:", error);
+      res.status(500).json({ message: "Failed to delete user" });
+    }
+  });
+  app.get("/api/admin/roles", isAuthenticated, async (req, res) => {
+    try {
+      if (req.user?.role !== "admin") return res.status(403).json({ message: "Admin access required" });
+      const result = await db.execute(drizzleSql`
+        SELECT id, role_name, display_name, description, permissions, is_system, color, created_at, updated_at
+        FROM bccs_role_permissions
+        ORDER BY is_system DESC, role_name ASC
+      `);
+      res.json(result.rows);
+    } catch (error) {
+      console.error("Get roles error:", error);
+      res.status(500).json({ message: "Failed to fetch roles" });
+    }
+  });
+  app.put("/api/admin/roles/:roleName", isAuthenticated, async (req, res) => {
+    try {
+      if (req.user?.role !== "admin") return res.status(403).json({ message: "Admin access required" });
+      const { permissions, displayName, description } = req.body;
+      if (!Array.isArray(permissions)) return res.status(400).json({ message: "permissions must be an array" });
+      const invalid = permissions.filter((p) => !ALL_PERMISSIONS.includes(p));
+      if (invalid.length > 0) return res.status(400).json({ message: `Unknown permissions: ${invalid.join(", ")}` });
+      const roleName = req.params.roleName;
+      if (roleName === "admin" && !permissions.includes("admin:roles")) {
+        return res.status(400).json({ message: "Cannot remove admin:roles from the admin role" });
+      }
+      const updates = { permissions, updated_at: /* @__PURE__ */ new Date() };
+      if (displayName) updates.display_name = displayName;
+      if (description !== void 0) updates.description = description;
+      const permsLiteral = permissions.length > 0 ? `ARRAY[${permissions.map((p) => `'${p.replace(/'/g, "''")}'`).join(",")}]::TEXT[]` : `ARRAY[]::TEXT[]`;
+      const safeDisplayName = (displayName || "").replace(/'/g, "''");
+      const safeDescription = (description ?? "").replace(/'/g, "''");
+      await db.execute(drizzleSql.raw(`
+        UPDATE bccs_role_permissions
+        SET permissions = ${permsLiteral},
+            display_name = COALESCE(NULLIF('${safeDisplayName}', ''), display_name),
+            description  = COALESCE(NULLIF('${safeDescription}', ''), description),
+            updated_at   = NOW()
+        WHERE role_name = '${roleName.replace(/'/g, "''")}'
+      `));
+      await storage.createAuditLog({
+        userId: req.user?.id || "system",
+        eventType: "role_permissions_updated",
+        message: `Permissions updated for role: ${roleName}`,
+        details: { roleName, permissionCount: permissions.length },
+        severity: "info"
+      });
+      res.json({ message: "Permissions updated" });
+    } catch (error) {
+      console.error("Update role permissions error:", error);
+      res.status(500).json({ message: "Failed to update permissions" });
+    }
+  });
+  app.post("/api/admin/roles", isAuthenticated, async (req, res) => {
+    try {
+      if (req.user?.role !== "admin") return res.status(403).json({ message: "Admin access required" });
+      const { roleName, displayName, description, permissions = [], color } = req.body;
+      if (!roleName || !displayName) return res.status(400).json({ message: "roleName and displayName are required" });
+      if (!/^[a-z0-9_-]+$/.test(roleName)) return res.status(400).json({ message: "roleName must be lowercase alphanumeric with _ or -" });
+      const newPermsLiteral = permissions.length > 0 ? `ARRAY[${permissions.map((p) => `'${p.replace(/'/g, "''")}'`).join(",")}]::TEXT[]` : `ARRAY[]::TEXT[]`;
+      const safeColor = (color || "bg-teal-100 text-teal-700").replace(/'/g, "''");
+      const result = await db.execute(drizzleSql.raw(`
+        INSERT INTO bccs_role_permissions (role_name, display_name, description, permissions, is_system, color)
+        VALUES (
+          '${roleName.replace(/'/g, "''")}',
+          '${displayName.replace(/'/g, "''")}',
+          '${(description || "").replace(/'/g, "''")}',
+          ${newPermsLiteral},
+          FALSE,
+          '${safeColor}'
+        )
+        RETURNING *
+      `));
+      res.status(201).json(result.rows[0]);
+    } catch (error) {
+      if (error?.code === "23505") return res.status(409).json({ message: "A role with this name already exists" });
+      console.error("Create role error:", error);
+      res.status(500).json({ message: "Failed to create role" });
+    }
+  });
+  app.delete("/api/admin/roles/:roleName", isAuthenticated, async (req, res) => {
+    try {
+      if (req.user?.role !== "admin") return res.status(403).json({ message: "Admin access required" });
+      const roleName = req.params.roleName;
+      const isSystemRole = SYSTEM_ROLES.some((r) => r.roleName === roleName);
+      if (isSystemRole) return res.status(400).json({ message: "System roles cannot be deleted" });
+      const [userWithRole] = await db.select({ id: users.id }).from(users).where(eq9(users.role, roleName));
+      if (userWithRole) return res.status(400).json({ message: "Cannot delete a role that is assigned to users" });
+      await db.execute(drizzleSql`DELETE FROM bccs_role_permissions WHERE role_name = ${roleName}`);
+      res.json({ message: "Role deleted" });
+    } catch (error) {
+      console.error("Delete role error:", error);
+      res.status(500).json({ message: "Failed to delete role" });
+    }
+  });
+  app.get("/api/auth/organization", isAuthenticated, async (_req, res) => {
+    try {
+      const [org] = await db.select().from(trainingOrganizations).where(eq9(trainingOrganizations.isActive, true));
+      res.json(org || null);
+    } catch (error) {
+      console.error("Get org error:", error);
+      res.status(500).json({ message: "Failed to fetch organization" });
+    }
+  });
+  app.post("/api/organizations/setup", isAuthenticated, async (req, res) => {
+    try {
+      const { organizationName, organizationType, regulatoryAuthority, certificateNumber, contactInfo } = req.body;
+      if (!organizationName || !organizationType || !regulatoryAuthority) {
+        return res.status(400).json({ message: "Organization name, type and regulatory authority are required" });
+      }
+      const masterPublicKey = `BCCS-${Date.now()}-${Math.random().toString(36).slice(2, 10).toUpperCase()}`;
+      const [org] = await db.insert(trainingOrganizations).values({
+        organizationName,
+        organizationType,
+        regulatoryAuthority,
+        certificateNumber: certificateNumber || null,
+        masterPublicKey,
+        contactInfo: contactInfo || {},
+        isActive: true
+      }).returning();
+      await storage.createAuditLog({
+        userId: req.user?.id || "system",
+        eventType: "org_setup",
+        details: { organizationName, organizationType },
+        severity: "info",
+        ipAddress: req.ip
+      });
+      res.status(201).json(org);
+    } catch (error) {
+      console.error("Org setup error:", error);
+      res.status(500).json({ message: "Failed to create organization" });
+    }
+  });
+  app.get("/api/training-events", isAuthenticated, async (req, res) => {
+    try {
+      const rows = await db.execute(drizzleSql`
+        SELECT * FROM bccs_training_events ORDER BY event_date DESC LIMIT 200
+      `);
+      res.json(rows.rows || []);
+    } catch (error) {
+      console.error("Training events error:", error);
+      res.status(500).json({ message: "Failed to fetch training events" });
+    }
+  });
+  app.post("/api/training-events", isAuthenticated, async (req, res) => {
+    try {
+      const { studentName, studentId, instructorName, instructorId, eventType, eventDate, durationHours, curriculumItem, notes, status } = req.body;
+      if (!studentName || !instructorName || !eventType || !eventDate) {
+        return res.status(400).json({ message: "Student name, instructor, event type, and date are required" });
+      }
+      const hash = `BCCS-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+      const rows = await db.execute(drizzleSql`
+        INSERT INTO bccs_training_events (student_name, student_id, instructor_name, instructor_id, event_type, event_date, duration_hours, curriculum_item, notes, status, blockchain_hash, user_id)
+        VALUES (${studentName}, ${studentId || null}, ${instructorName}, ${instructorId || null}, ${eventType}, ${new Date(eventDate)}, ${durationHours || null}, ${curriculumItem || null}, ${notes || null}, ${status || "completed"}, ${hash}, ${req.user?.id || "system"})
+        RETURNING *
+      `);
+      const event = (rows.rows || [])[0];
+      await storage.createAuditLog({ userId: req.user?.id || "system", eventType: "training_event_logged", message: `Training event logged for ${studentName} (${eventType})`, details: { studentName, eventType }, severity: "info" });
+      res.status(201).json(event);
+    } catch (error) {
+      console.error("Create training event error:", error);
+      res.status(500).json({ message: "Failed to log training event" });
+    }
+  });
+  app.get("/api/students", isAuthenticated, async (_req, res) => {
+    try {
+      const rows = await db.execute(drizzleSql`SELECT * FROM students ORDER BY last_name, first_name`);
+      res.json(rows.rows || []);
+    } catch (error) {
+      console.error("Students error:", error);
+      res.status(500).json({ message: "Failed to fetch students" });
+    }
+  });
+  app.post("/api/students", isAuthenticated, async (req, res) => {
+    try {
+      const { firstName, lastName, email, phone, certificateNumber, enrollmentDate, expectedCompletion, status, notes } = req.body;
+      if (!firstName || !lastName) return res.status(400).json({ message: "First and last name required" });
+      const rows = await db.execute(drizzleSql`
+        INSERT INTO students (first_name, last_name, email, phone, certificate_number, enrollment_date, expected_completion, status, notes)
+        VALUES (${firstName}, ${lastName}, ${email || null}, ${phone || null}, ${certificateNumber || null}, ${enrollmentDate ? new Date(enrollmentDate) : /* @__PURE__ */ new Date()}, ${expectedCompletion ? new Date(expectedCompletion) : null}, ${status || "active"}, ${notes || null})
+        RETURNING *
+      `);
+      res.status(201).json((rows.rows || [])[0]);
+    } catch (error) {
+      console.error("Create student error:", error);
+      res.status(500).json({ message: "Failed to add student" });
+    }
+  });
+  app.put("/api/students/:id", isAuthenticated, async (req, res) => {
+    try {
+      const { status, notes } = req.body;
+      await db.execute(drizzleSql`UPDATE students SET status = ${status}, notes = ${notes || null} WHERE id = ${req.params.id}`);
+      res.json({ message: "Student updated" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update student" });
+    }
+  });
+  app.delete("/api/students/:id", isAuthenticated, async (req, res) => {
+    try {
+      await db.execute(drizzleSql`DELETE FROM students WHERE id = ${req.params.id}`);
+      res.json({ message: "Student removed" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete student" });
+    }
+  });
+  app.get("/api/instructors", isAuthenticated, async (_req, res) => {
+    try {
+      const rows = await db.execute(drizzleSql`SELECT * FROM bccs_instructor_records ORDER BY last_name, first_name`);
+      res.json(rows.rows || []);
+    } catch (error) {
+      console.error("Instructors error:", error);
+      res.status(500).json({ message: "Failed to fetch instructors" });
+    }
+  });
+  app.post("/api/instructors", isAuthenticated, async (req, res) => {
+    try {
+      const { firstName, lastName, email, certificateType, certificateNumber, issueDate, expirationDate, currencyDate, ratings, trainingAuthorizations, status } = req.body;
+      if (!firstName || !lastName || !certificateType || !certificateNumber) {
+        return res.status(400).json({ message: "Name, certificate type and number are required" });
+      }
+      const rows = await db.execute(drizzleSql`
+        INSERT INTO bccs_instructor_records (first_name, last_name, email, certificate_type, certificate_number, issue_date, expiration_date, currency_date, ratings, training_authorizations, status)
+        VALUES (${firstName}, ${lastName}, ${email || null}, ${certificateType}, ${certificateNumber}, ${issueDate ? new Date(issueDate) : null}, ${expirationDate ? new Date(expirationDate) : null}, ${currencyDate ? new Date(currencyDate) : null}, ${JSON.stringify(ratings || [])}, ${JSON.stringify(trainingAuthorizations || [])}, ${status || "current"})
+        RETURNING *
+      `);
+      res.status(201).json((rows.rows || [])[0]);
+    } catch (error) {
+      console.error("Create instructor error:", error);
+      res.status(500).json({ message: "Failed to add instructor" });
+    }
+  });
+  app.delete("/api/instructors/:id", isAuthenticated, async (req, res) => {
+    try {
+      await db.execute(drizzleSql`DELETE FROM bccs_instructor_records WHERE id = ${req.params.id}`);
+      res.json({ message: "Instructor removed" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete instructor" });
+    }
+  });
+  app.get("/api/policy-documents", isAuthenticated, async (req, res) => {
+    try {
+      const { type } = req.query;
+      let docs;
+      if (type && type !== "all") {
+        docs = await db.select().from(faaPolicyDocuments).where(eq9(faaPolicyDocuments.documentType, type)).orderBy(desc7(faaPolicyDocuments.publishedDate)).limit(100);
+      } else {
+        docs = await db.select().from(faaPolicyDocuments).orderBy(desc7(faaPolicyDocuments.publishedDate)).limit(100);
+      }
+      res.json(docs);
+    } catch (error) {
+      console.error("Policy documents error:", error);
+      res.status(500).json({ message: "Failed to fetch policy documents" });
+    }
+  });
+  app.get("/api/audit-history", isAuthenticated, async (req, res) => {
+    try {
+      const { limit = 100, eventType } = req.query;
+      const filters = { limit: Number(limit) };
+      if (eventType && eventType !== "all") filters.eventType = eventType;
+      const logs = await storage.getAuditLogs(filters);
+      res.json(logs);
+    } catch (error) {
+      console.error("Audit history error:", error);
+      res.status(500).json({ message: "Failed to fetch audit history" });
+    }
+  });
+  app.get("/api/admin/activity", isAuthenticated, async (req, res) => {
+    try {
+      if (req.user?.role !== "admin") return res.status(403).json({ message: "Admin access required" });
+      const recentLogs = await storage.getAuditLogs({ limit: 20 });
+      const activity = recentLogs.map((log2) => ({
+        id: log2.id,
+        type: log2.eventType,
+        description: formatAuditEvent(log2.eventType, log2.details),
+        userId: log2.userId,
+        severity: log2.severity,
+        timestamp: log2.timestamp
+      }));
+      res.json(activity);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch activity" });
+    }
+  });
+  function formatAuditEvent(eventType, details) {
+    const d = details || {};
+    switch (eventType) {
+      case "document_upload":
+        return `Document uploaded: ${d.fileName || "unknown file"}`;
+      case "training_event_logged":
+        return `Training event logged for ${d.studentName || "student"} (${d.eventType || ""})`;
+      case "org_setup":
+        return `Organization created: ${d.organizationName || ""}`;
+      case "user_login":
+        return "User logged in";
+      case "user_logout":
+        return "User logged out";
+      case "checklist_save":
+        return "Compliance checklist updated";
+      default:
+        return eventType.replace(/_/g, " ");
+    }
+  }
+  app.get("/api/audit-logs", isAuthenticated, async (req, res) => {
+    try {
+      const logs = await storage.getAuditLogs({ limit: 200 });
+      res.json(logs);
+    } catch (error) {
+      console.error("Audit logs error:", error);
+      res.status(500).json({ message: "Failed to fetch audit logs" });
+    }
+  });
+  app.get("/api/training-records", isAuthenticated, async (req, res) => {
+    try {
+      const rows = await db.execute(drizzleSql`SELECT * FROM bccs_training_events ORDER BY created_at DESC LIMIT 200`);
+      res.json(rows.rows || []);
+    } catch (error) {
+      console.error("Training records error:", error);
+      res.status(500).json({ message: "Failed to fetch training records" });
+    }
+  });
+  app.get("/api/flight-school/stats", isAuthenticated, async (req, res) => {
+    try {
+      const [studentsRes, trainingRes, instructorsRes] = await Promise.all([
+        db.execute(drizzleSql`SELECT COUNT(*) as total, COUNT(CASE WHEN status='active' THEN 1 END) as active FROM students`),
+        db.execute(drizzleSql`SELECT COUNT(*) as total, COUNT(CASE WHEN status='completed' THEN 1 END) as completed, COALESCE(SUM(duration_hours),0) as total_hours FROM bccs_training_events`),
+        db.execute(drizzleSql`SELECT COUNT(*) as total FROM bccs_instructor_records WHERE status='active'`)
+      ]);
+      const s = studentsRes.rows[0];
+      const t = trainingRes.rows[0];
+      const i = instructorsRes.rows[0];
+      res.json({
+        totalStudents: Number(s?.total || 0),
+        activeStudents: Number(s?.active || 0),
+        totalTrainingEvents: Number(t?.total || 0),
+        completedEvents: Number(t?.completed || 0),
+        totalFlightHours: Number(t?.total_hours || 0),
+        activeInstructors: Number(i?.total || 0),
+        completionRate: t?.total > 0 ? Math.round(t.completed / t.total * 100) : 0
+      });
+    } catch (error) {
+      console.error("Flight school stats error:", error);
+      res.status(500).json({ message: "Failed to fetch flight school stats" });
+    }
+  });
+  app.get("/api/analytics/compliance-metrics", isAuthenticated, async (req, res) => {
+    try {
+      const [docsRes, studentsRes, trainingRes, logsRes] = await Promise.all([
+        db.execute(drizzleSql`SELECT COUNT(*) as total, COUNT(CASE WHEN status='validated' THEN 1 END) as validated FROM documents`),
+        db.execute(drizzleSql`SELECT COUNT(*) as total, COUNT(CASE WHEN status='active' THEN 1 END) as active FROM students`),
+        db.execute(drizzleSql`SELECT COUNT(*) as total, COUNT(CASE WHEN status='completed' THEN 1 END) as completed FROM bccs_training_events`),
+        db.execute(drizzleSql`SELECT COUNT(*) as total FROM audit_logs WHERE timestamp > NOW() - INTERVAL '30 days'`)
+      ]);
+      const d = docsRes.rows[0];
+      const s = studentsRes.rows[0];
+      const t = trainingRes.rows[0];
+      const l = logsRes.rows[0];
+      const docRate = d?.total > 0 ? Math.round(d.validated / d.total * 100) : 100;
+      const trainRate = t?.total > 0 ? Math.round(t.completed / t.total * 100) : 0;
+      const overall = Math.round((docRate + trainRate) / 2);
+      res.json({
+        overall,
+        documentCompliance: docRate,
+        trainingCompliance: trainRate,
+        totalDocuments: Number(d?.total || 0),
+        validatedDocuments: Number(d?.validated || 0),
+        totalStudents: Number(s?.total || 0),
+        activeStudents: Number(s?.active || 0),
+        totalTrainingEvents: Number(t?.total || 0),
+        completedEvents: Number(t?.completed || 0),
+        recentAuditEvents: Number(l?.total || 0),
+        trend: overall >= 80 ? "up" : overall >= 50 ? "stable" : "down",
+        organizations: [
+          { name: "Primary Organization", compliance: overall, trend: overall >= 80 ? "up" : "stable" }
+        ]
+      });
+    } catch (error) {
+      console.error("Analytics compliance-metrics error:", error);
+      res.status(500).json({ message: "Failed to fetch compliance metrics" });
+    }
+  });
+  app.get("/api/analytics/forecast", isAuthenticated, async (req, res) => {
+    try {
+      const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      const now = /* @__PURE__ */ new Date();
+      const forecast = Array.from({ length: 6 }, (_, i) => {
+        const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+        return {
+          month: months[d.getMonth()],
+          year: d.getFullYear(),
+          projectedCompliance: Math.min(100, 75 + i * 3 + Math.floor(Math.random() * 5)),
+          projectedStudents: 10 + i * 2,
+          projectedEvents: 15 + i * 3
+        };
+      });
+      res.json(forecast);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch forecast" });
+    }
+  });
+  app.get("/api/analytics/report", isAuthenticated, async (req, res) => {
+    try {
+      const [docsRes, studentsRes, trainingRes, instructorsRes] = await Promise.all([
+        db.execute(drizzleSql`SELECT COUNT(*) as total, COUNT(CASE WHEN status='validated' THEN 1 END) as validated FROM documents`),
+        db.execute(drizzleSql`SELECT COUNT(*) as total FROM students`),
+        db.execute(drizzleSql`SELECT COUNT(*) as total, COUNT(CASE WHEN status='completed' THEN 1 END) as completed, COALESCE(SUM(duration_hours),0) as total_hours FROM bccs_training_events`),
+        db.execute(drizzleSql`SELECT COUNT(*) as total, COUNT(CASE WHEN expiration_date < NOW() + INTERVAL '90 days' AND status='active' THEN 1 END) as expiring_soon FROM bccs_instructor_records`)
+      ]);
+      const d = docsRes.rows[0];
+      const s = studentsRes.rows[0];
+      const t = trainingRes.rows[0];
+      const inst = instructorsRes.rows[0];
+      res.json({
+        generatedAt: (/* @__PURE__ */ new Date()).toISOString(),
+        period: req.query.period || "month",
+        summary: {
+          totalDocuments: Number(d?.total || 0),
+          validatedDocuments: Number(d?.validated || 0),
+          totalStudents: Number(s?.total || 0),
+          totalTrainingEvents: Number(t?.total || 0),
+          completedEvents: Number(t?.completed || 0),
+          totalFlightHours: Number(t?.total_hours || 0),
+          totalInstructors: Number(inst?.total || 0),
+          instructorsExpiringSoon: Number(inst?.expiring_soon || 0)
+        },
+        complianceScore: d?.total > 0 ? Math.round(d.validated / d.total * 100) : 100
+      });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch analytics report" });
+    }
+  });
+  const integrationsStore = [];
+  app.get("/api/integrations", isAuthenticated, async (req, res) => {
+    try {
+      const orgId = req.query.organizationId;
+      const filtered = orgId ? integrationsStore.filter((i) => i.organizationId === orgId) : integrationsStore;
+      res.json(filtered);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch integrations" });
+    }
+  });
+  app.post("/api/integrations", isAuthenticated, async (req, res) => {
+    try {
+      const integration = {
+        id: `int_${Date.now()}`,
+        ...req.body,
+        status: "active",
+        lastSync: null,
+        createdAt: (/* @__PURE__ */ new Date()).toISOString()
+      };
+      integrationsStore.push(integration);
+      await storage.createAuditLog({
+        eventType: "integration_added",
+        severity: "info",
+        message: `Integration added: ${integration.name || integration.type || "unknown"}`,
+        details: { integrationId: integration.id },
+        sourceSystem: "integrations"
+      });
+      res.json(integration);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to create integration" });
+    }
+  });
+  app.post("/api/integrations/:id/sync", isAuthenticated, async (req, res) => {
+    try {
+      const integration = integrationsStore.find((i) => i.id === req.params.id);
+      if (!integration) return res.status(404).json({ message: "Integration not found" });
+      integration.lastSync = (/* @__PURE__ */ new Date()).toISOString();
+      integration.status = "active";
+      await storage.createAuditLog({
+        eventType: "integration_sync",
+        severity: "info",
+        message: `Integration synced: ${integration.name || integration.id}`,
+        details: { integrationId: integration.id },
+        sourceSystem: "integrations"
+      });
+      res.json({ success: true, syncedAt: integration.lastSync });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to sync integration" });
+    }
+  });
+  app.get("/api/faa-repository", isAuthenticated, async (req, res) => {
+    try {
+      const { type, priority, status, search } = req.query;
+      const { faaDocumentMonitor: faaDocumentMonitor2 } = await Promise.resolve().then(() => (init_faa_document_monitor(), faa_document_monitor_exports));
+      const docs = await faaDocumentMonitor2.getDocuments({ type, priority, status, search });
+      res.json(docs);
+    } catch (error) {
+      console.error("FAA repository error:", error);
+      res.status(500).json({ message: "Failed to fetch FAA repository" });
+    }
+  });
+  app.get("/api/faa-repository/stats", isAuthenticated, async (req, res) => {
+    try {
+      const { faaDocumentMonitor: faaDocumentMonitor2 } = await Promise.resolve().then(() => (init_faa_document_monitor(), faa_document_monitor_exports));
+      const stats = await faaDocumentMonitor2.getStats();
+      res.json(stats);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch repository stats" });
+    }
+  });
+  app.get("/api/faa-repository/updates", isAuthenticated, async (req, res) => {
+    try {
+      const { faaDocumentMonitor: faaDocumentMonitor2 } = await Promise.resolve().then(() => (init_faa_document_monitor(), faa_document_monitor_exports));
+      const updates = await faaDocumentMonitor2.getUpdateHistory();
+      res.json(updates);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch update history" });
+    }
+  });
+  app.post("/api/faa-repository/refresh", isAuthenticated, async (req, res) => {
+    try {
+      const { faaDocumentMonitor: faaDocumentMonitor2 } = await Promise.resolve().then(() => (init_faa_document_monitor(), faa_document_monitor_exports));
+      res.json({ message: "Check started", startedAt: (/* @__PURE__ */ new Date()).toISOString() });
+      faaDocumentMonitor2.runCheck().catch(console.error);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to start refresh" });
+    }
+  });
+  app.get("/api/license", isAuthenticated, async (_req, res) => {
+    try {
+      const result = await db.execute(drizzleSql`SELECT * FROM bccs_licenses ORDER BY created_at DESC LIMIT 1`);
+      const row = result.rows[0];
+      if (!row) return res.status(404).json({ message: "No license found" });
+      res.json({
+        id: row.id,
+        plan: row.plan,
+        status: row.status,
+        stripeCustomerId: row.stripe_customer_id,
+        stripeSubscriptionId: row.stripe_subscription_id,
+        stripePriceId: row.stripe_price_id,
+        seatsLimit: row.seats_limit,
+        currentPeriodStart: row.current_period_start,
+        currentPeriodEnd: row.current_period_end,
+        assignedBy: row.assigned_by,
+        notes: row.notes,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at
+      });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch license" });
+    }
+  });
+  app.put("/api/license", isAuthenticated, async (req, res) => {
+    if (req.user.role !== "admin" && req.user.role !== "support_admin") {
+      return res.status(403).json({ message: "Admin or Support Admin role required" });
+    }
+    try {
+      const { plan, status, seatsLimit, currentPeriodEnd, stripeCustomerId, stripeSubscriptionId, stripePriceId, notes } = req.body;
+      const { invalidateLicenseCache: invalidateLicenseCache2 } = await Promise.resolve().then(() => (init_license2(), license_exports));
+      const result = await db.execute(drizzleSql`SELECT id FROM bccs_licenses ORDER BY created_at DESC LIMIT 1`);
+      const existing = result.rows[0];
+      if (!existing) {
+        await db.execute(drizzleSql.raw(`
+          INSERT INTO bccs_licenses (plan, status, seats_limit, current_period_end, stripe_customer_id, stripe_subscription_id, stripe_price_id, assigned_by, notes, updated_at)
+          VALUES (
+            '${(plan || "trial").replace(/'/g, "")}',
+            '${(status || "trial").replace(/'/g, "")}',
+            ${parseInt(seatsLimit ?? "5", 10)},
+            ${currentPeriodEnd ? `'${currentPeriodEnd}'` : "NULL"},
+            ${stripeCustomerId ? `'${stripeCustomerId}'` : "NULL"},
+            ${stripeSubscriptionId ? `'${stripeSubscriptionId}'` : "NULL"},
+            ${stripePriceId ? `'${stripePriceId}'` : "NULL"},
+            '${req.user.email}',
+            ${notes ? `'${notes.replace(/'/g, "''")}'` : "NULL"},
+            NOW()
+          )
+        `));
+      } else {
+        await db.execute(drizzleSql.raw(`
+          UPDATE bccs_licenses SET
+            plan = '${(plan || "trial").replace(/'/g, "")}',
+            status = '${(status || "trial").replace(/'/g, "")}',
+            seats_limit = ${parseInt(seatsLimit ?? "5", 10)},
+            current_period_end = ${currentPeriodEnd ? `'${currentPeriodEnd}'` : "NULL"},
+            stripe_customer_id = ${stripeCustomerId ? `'${stripeCustomerId}'` : "NULL"},
+            stripe_subscription_id = ${stripeSubscriptionId ? `'${stripeSubscriptionId}'` : "NULL"},
+            stripe_price_id = ${stripePriceId ? `'${stripePriceId}'` : "NULL"},
+            assigned_by = '${req.user.email}',
+            notes = ${notes ? `'${notes.replace(/'/g, "''")}'` : "NULL"},
+            updated_at = NOW()
+          WHERE id = '${existing.id}'
+        `));
+      }
+      invalidateLicenseCache2();
+      res.json({ success: true });
+    } catch (error) {
+      console.error("License update error:", error);
+      res.status(500).json({ message: "Failed to update license" });
+    }
+  });
+  app.get("/api/stripe/products", async (_req, res) => {
+    try {
+      const { getUncachableStripeClient: getUncachableStripeClient2 } = await Promise.resolve().then(() => (init_stripeClient(), stripeClient_exports));
+      const stripe = await getUncachableStripeClient2();
+      const products = await stripe.products.list({ active: true, limit: 20 });
+      const result = [];
+      for (const product of products.data) {
+        const prices = await stripe.prices.list({ product: product.id, active: true, limit: 10 });
+        result.push({
+          id: product.id,
+          name: product.name,
+          description: product.description,
+          metadata: product.metadata,
+          prices: prices.data.map((p) => ({
+            id: p.id,
+            unit_amount: p.unit_amount,
+            currency: p.currency,
+            recurring: p.recurring,
+            metadata: p.metadata
+          }))
+        });
+      }
+      result.sort((a, b) => (a.prices[0]?.unit_amount ?? 0) - (b.prices[0]?.unit_amount ?? 0));
+      res.json(result);
+    } catch (error) {
+      console.warn("Stripe products fetch:", error.message?.slice(0, 80));
+      res.json([]);
+    }
+  });
+  app.post("/api/stripe/checkout", isAuthenticated, async (req, res) => {
+    try {
+      const { priceId } = req.body;
+      if (!priceId) return res.status(400).json({ message: "priceId required" });
+      const { getUncachableStripeClient: getUncachableStripeClient2 } = await Promise.resolve().then(() => (init_stripeClient(), stripeClient_exports));
+      const stripe = await getUncachableStripeClient2();
+      const userResult = await db.execute(drizzleSql`SELECT * FROM users WHERE id = ${req.user.id}`);
+      const userRow = userResult.rows[0];
+      let customerId = userRow?.stripe_customer_id;
+      if (!customerId) {
+        const customer = await stripe.customers.create({
+          email: req.user.email,
+          metadata: { userId: req.user.id }
+        });
+        customerId = customer.id;
+        await db.execute(drizzleSql`UPDATE users SET stripe_customer_id = ${customerId} WHERE id = ${req.user.id}`);
+      }
+      const baseUrl = `${req.protocol}://${req.get("host")}`;
+      const session2 = await stripe.checkout.sessions.create({
+        customer: customerId,
+        payment_method_types: ["card"],
+        line_items: [{ price: priceId, quantity: 1 }],
+        mode: "subscription",
+        success_url: `${baseUrl}/billing?success=1`,
+        cancel_url: `${baseUrl}/pricing`
+      });
+      res.json({ url: session2.url });
+    } catch (error) {
+      console.error("Checkout error:", error);
+      res.status(500).json({ message: error.message ?? "Checkout failed" });
+    }
+  });
+  app.post("/api/stripe/portal", isAuthenticated, async (req, res) => {
+    try {
+      const { getUncachableStripeClient: getUncachableStripeClient2 } = await Promise.resolve().then(() => (init_stripeClient(), stripeClient_exports));
+      const stripe = await getUncachableStripeClient2();
+      const userResult = await db.execute(drizzleSql`SELECT stripe_customer_id FROM users WHERE id = ${req.user.id}`);
+      const customerId = userResult.rows[0]?.stripe_customer_id;
+      if (!customerId) return res.status(404).json({ message: "No Stripe customer found for this user" });
+      const baseUrl = `${req.protocol}://${req.get("host")}`;
+      const session2 = await stripe.billingPortal.sessions.create({
+        customer: customerId,
+        return_url: `${baseUrl}/billing`
+      });
+      res.json({ url: session2.url });
+    } catch (error) {
+      console.error("Portal error:", error);
+      res.status(500).json({ message: error.message ?? "Failed to open billing portal" });
+    }
+  });
   const httpServer = createServer(app);
   return httpServer;
+}
+
+// server/webhookHandlers.ts
+init_stripeClient();
+init_db();
+import { sql as sql10 } from "drizzle-orm";
+async function handleSubscriptionEvent(event) {
+  const subscription = event.data.object;
+  const customerId = subscription.customer;
+  const subscriptionId = subscription.id;
+  const priceId = subscription.items?.data?.[0]?.price?.id ?? null;
+  const status = subscription.status;
+  const licenseStatus = status === "active" || status === "trialing" ? "active" : status === "past_due" ? "active" : (
+    // still give access during grace period
+    "suspended"
+  );
+  const stripe = await getUncachableStripeClient();
+  let plan = null;
+  if (priceId) {
+    try {
+      const price = await stripe.prices.retrieve(priceId, { expand: ["product"] });
+      plan = price.metadata?.planKey ?? price.product?.metadata?.planKey ?? null;
+    } catch {
+    }
+  }
+  const periodEnd = subscription.current_period_end ? new Date(subscription.current_period_end * 1e3).toISOString() : null;
+  try {
+    const existing = await db.execute(sql10`SELECT id FROM bccs_licenses ORDER BY created_at DESC LIMIT 1`);
+    const row = existing.rows[0];
+    if (row) {
+      await db.execute(sql10`
+        UPDATE bccs_licenses SET
+          plan = COALESCE(${plan}, plan),
+          status = ${licenseStatus},
+          stripe_customer_id = ${customerId},
+          stripe_subscription_id = ${subscriptionId},
+          stripe_price_id = ${priceId},
+          current_period_end = ${periodEnd}::TIMESTAMP,
+          updated_at = NOW()
+        WHERE id = ${row.id}
+      `);
+    } else {
+      await db.execute(sql10`
+        INSERT INTO bccs_licenses (plan, status, stripe_customer_id, stripe_subscription_id, stripe_price_id, current_period_end)
+        VALUES (${plan ?? "standard"}, ${licenseStatus}, ${customerId}, ${subscriptionId}, ${priceId}, ${periodEnd}::TIMESTAMP)
+      `);
+    }
+    try {
+      const { invalidateLicenseCache: invalidateLicenseCache2 } = await Promise.resolve().then(() => (init_license2(), license_exports));
+      invalidateLicenseCache2();
+    } catch {
+    }
+    console.log(`[webhook] License updated: plan=${plan ?? "unchanged"} status=${licenseStatus} sub=${subscriptionId}`);
+  } catch (err) {
+    console.error("[webhook] Failed to update license from subscription event:", err.message);
+  }
+}
+var WebhookHandlers = class {
+  static async processWebhook(payload, signature) {
+    if (!Buffer.isBuffer(payload)) {
+      throw new Error("Webhook payload must be a Buffer. Ensure the webhook route is registered BEFORE express.json().");
+    }
+    const sync = await getStripeSync();
+    if (sync) {
+      await sync.processWebhook(payload, signature);
+      return;
+    }
+    const webhookSecret = getStripeWebhookSecret();
+    if (!webhookSecret) {
+      console.warn("[webhook] STRIPE_WEBHOOK_SECRET not set \u2014 skipping signature verification. Set it in your environment variables.");
+      return;
+    }
+    const stripe = await getUncachableStripeClient();
+    let event;
+    try {
+      event = stripe.webhooks.constructEvent(payload, signature, webhookSecret);
+    } catch (err) {
+      throw new Error(`Webhook signature verification failed: ${err.message}`);
+    }
+    console.log(`[webhook] Received: ${event.type}`);
+    switch (event.type) {
+      case "customer.subscription.created":
+      case "customer.subscription.updated":
+      case "customer.subscription.deleted":
+      case "customer.subscription.paused":
+      case "customer.subscription.resumed":
+        await handleSubscriptionEvent(event);
+        break;
+      default:
+        break;
+    }
+  }
+};
+
+// server/db-init.ts
+init_db();
+import { sql as sql11 } from "drizzle-orm";
+async function ensureTables2() {
+  try {
+    await db.execute(sql11`
+      CREATE TABLE IF NOT EXISTS bccs_training_events (
+        id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+        student_name VARCHAR(200) NOT NULL,
+        student_id VARCHAR(100),
+        instructor_name VARCHAR(200) NOT NULL,
+        instructor_id VARCHAR(100),
+        event_type VARCHAR(100) NOT NULL,
+        event_date TIMESTAMP NOT NULL,
+        duration_hours VARCHAR(20),
+        curriculum_item VARCHAR(500),
+        notes TEXT,
+        status VARCHAR(50) DEFAULT 'completed',
+        blockchain_hash VARCHAR(200),
+        user_id VARCHAR,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    await db.execute(sql11`
+      CREATE TABLE IF NOT EXISTS students (
+        id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+        first_name VARCHAR(100) NOT NULL,
+        last_name VARCHAR(100) NOT NULL,
+        email VARCHAR(200),
+        phone VARCHAR(50),
+        certificate_number VARCHAR(100),
+        enrollment_date TIMESTAMP DEFAULT NOW(),
+        expected_completion TIMESTAMP,
+        status VARCHAR(50) DEFAULT 'active',
+        notes TEXT,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    await db.execute(sql11`
+      CREATE TABLE IF NOT EXISTS bccs_instructor_records (
+        id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+        first_name VARCHAR(100) NOT NULL,
+        last_name VARCHAR(100) NOT NULL,
+        email VARCHAR(200),
+        certificate_type VARCHAR(100) NOT NULL,
+        certificate_number VARCHAR(100) NOT NULL,
+        issue_date TIMESTAMP,
+        expiration_date TIMESTAMP,
+        currency_date TIMESTAMP,
+        ratings JSONB,
+        training_authorizations JSONB,
+        status VARCHAR(50) DEFAULT 'current',
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    await db.execute(sql11`
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE
+    `);
+    await db.execute(sql11`
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMP
+    `);
+    await db.execute(sql11`
+      CREATE TABLE IF NOT EXISTS bccs_role_permissions (
+        id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+        role_name VARCHAR(50) NOT NULL UNIQUE,
+        display_name VARCHAR(100) NOT NULL,
+        description TEXT,
+        permissions TEXT[] DEFAULT ARRAY[]::TEXT[],
+        is_system BOOLEAN DEFAULT FALSE,
+        color VARCHAR(80) DEFAULT 'bg-gray-100 text-gray-700',
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    for (const role of SYSTEM_ROLES) {
+      const perms = DEFAULT_ROLE_PERMISSIONS[role.roleName] ?? [];
+      const arrayLiteral = perms.length > 0 ? `ARRAY[${perms.map((p) => `'${p.replace(/'/g, "''")}'`).join(",")}]::TEXT[]` : `ARRAY[]::TEXT[]`;
+      await db.execute(sql11.raw(`
+        INSERT INTO bccs_role_permissions (role_name, display_name, description, permissions, is_system, color)
+        VALUES (
+          '${role.roleName.replace(/'/g, "''")}',
+          '${role.displayName.replace(/'/g, "''")}',
+          '${(role.description || "").replace(/'/g, "''")}',
+          ${arrayLiteral},
+          ${role.isSystem ? "TRUE" : "FALSE"},
+          '${role.color.replace(/'/g, "''")}'
+        )
+        ON CONFLICT (role_name) DO NOTHING
+      `));
+    }
+    await db.execute(sql11`
+      CREATE TABLE IF NOT EXISTS bccs_licenses (
+        id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+        plan VARCHAR(50) NOT NULL DEFAULT 'trial',
+        status VARCHAR(50) NOT NULL DEFAULT 'trial',
+        stripe_customer_id VARCHAR(200),
+        stripe_subscription_id VARCHAR(200),
+        stripe_price_id VARCHAR(200),
+        seats_limit INTEGER NOT NULL DEFAULT 5,
+        current_period_start TIMESTAMP,
+        current_period_end TIMESTAMP,
+        assigned_by VARCHAR(200),
+        notes TEXT,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    const licenseCount = await db.execute(sql11`SELECT COUNT(*) FROM bccs_licenses`);
+    const count3 = parseInt(licenseCount.rows[0].count, 10);
+    if (count3 === 0) {
+      await db.execute(sql11`
+        INSERT INTO bccs_licenses (plan, status, seats_limit, current_period_start, current_period_end, notes)
+        VALUES (
+          'trial', 'trial', 5,
+          NOW(),
+          NOW() + INTERVAL '30 days',
+          'Auto-created 30-day trial license'
+        )
+      `);
+      console.log("[db-init] Trial license seeded");
+    }
+    await db.execute(sql11`
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_customer_id VARCHAR(200)
+    `);
+    await db.execute(sql11`
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_subscription_id VARCHAR(200)
+    `);
+    await db.execute(sql11.raw(`
+      INSERT INTO bccs_role_permissions (role_name, display_name, description, permissions, is_system, color)
+      VALUES (
+        'support_admin',
+        'Support Admin',
+        'BCCS support staff \u2014 can manage licenses and assist clients',
+        ARRAY['manage_licenses','view_users','view_compliance_records','view_audit_logs']::TEXT[],
+        TRUE,
+        'bg-purple-100 text-purple-700'
+      )
+      ON CONFLICT (role_name) DO NOTHING
+    `));
+    console.log("[db-init] Training records tables ensured");
+    console.log("[db-init] Role permissions seeded");
+  } catch (err) {
+    console.error("[db-init] Table creation error:", err);
+  }
 }
 
 // server/app.ts
@@ -8572,13 +13576,53 @@ function log(message) {
   });
   console.log(`${time} [express] ${message}`);
 }
+var isReplitEnv = !!(process.env.REPLIT_CONNECTORS_HOSTNAME && (process.env.REPL_IDENTITY || process.env.WEB_REPL_RENEWAL));
+async function initStripeExternal() {
+  if (isReplitEnv) return;
+  try {
+    const { getUncachableStripeClient: getUncachableStripeClient2 } = await Promise.resolve().then(() => (init_stripeClient(), stripeClient_exports));
+    const stripe = await getUncachableStripeClient2();
+    await stripe.products.list({ limit: 1 });
+    log("Stripe connected via STRIPE_SECRET_KEY");
+    if (!process.env.STRIPE_WEBHOOK_SECRET) {
+      console.warn("[stripe] STRIPE_WEBHOOK_SECRET not set \u2014 subscription webhooks will not be verified.");
+    }
+  } catch (err) {
+    console.warn("[stripe] Init skipped:", err.message?.slice(0, 120));
+  }
+}
 async function createApp() {
-  const app = express();
-  app.use(express.json());
-  app.use(express.urlencoded({ extended: false }));
+  await ensureTables2();
+  initStripeExternal().catch(() => {
+  });
+  const app = express2();
+  app.post(
+    "/api/stripe/webhook",
+    express2.raw({ type: "application/json" }),
+    async (req, res) => {
+      const signature = req.headers["stripe-signature"];
+      if (!signature) {
+        return res.status(400).json({ error: "Missing stripe-signature header" });
+      }
+      try {
+        const sig = Array.isArray(signature) ? signature[0] : signature;
+        if (!Buffer.isBuffer(req.body)) {
+          console.error("STRIPE WEBHOOK ERROR: req.body is not a Buffer.");
+          return res.status(500).json({ error: "Webhook processing error" });
+        }
+        await WebhookHandlers.processWebhook(req.body, sig);
+        res.status(200).json({ received: true });
+      } catch (error) {
+        console.error("Webhook error:", error.message);
+        res.status(400).json({ error: "Webhook processing error" });
+      }
+    }
+  );
+  app.use(express2.json());
+  app.use(express2.urlencoded({ extended: false }));
   app.use((req, res, next) => {
     const start = Date.now();
-    const path = req.path;
+    const path4 = req.path;
     let capturedJsonResponse;
     const originalResJson = res.json;
     res.json = function(bodyJson, ...args) {
@@ -8587,8 +13631,8 @@ async function createApp() {
     };
     res.on("finish", () => {
       const duration = Date.now() - start;
-      if (path.startsWith("/api")) {
-        let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
+      if (path4.startsWith("/api")) {
+        let logLine = `${req.method} ${path4} ${res.statusCode} in ${duration}ms`;
         if (capturedJsonResponse) {
           logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
         }

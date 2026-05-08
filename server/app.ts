@@ -1,6 +1,7 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { WebhookHandlers } from "./webhookHandlers";
+import { ensureTables } from "./db-init";
 
 function log(message: string) {
   const time = new Date().toLocaleTimeString("en-US", {
@@ -12,7 +13,37 @@ function log(message: string) {
   console.log(`${time} [express] ${message}`);
 }
 
+// Detect whether we are inside Replit (dev) or on an external host (Vercel / app.bccsworld.com)
+const isReplitEnv = !!(
+  process.env.REPLIT_CONNECTORS_HOSTNAME &&
+  (process.env.REPL_IDENTITY || process.env.WEB_REPL_RENEWAL)
+);
+
+// Non-blocking Stripe initialisation for external deployments (Vercel).
+// In Replit this is handled by server/index.ts using stripe-replit-sync.
+async function initStripeExternal(): Promise<void> {
+  if (isReplitEnv) return; // Replit init happens in server/index.ts
+  try {
+    const { getUncachableStripeClient } = await import('./stripeClient');
+    const stripe = await getUncachableStripeClient();
+    await stripe.products.list({ limit: 1 }); // connectivity check
+    log('Stripe connected via STRIPE_SECRET_KEY');
+
+    if (!process.env.STRIPE_WEBHOOK_SECRET) {
+      console.warn('[stripe] STRIPE_WEBHOOK_SECRET not set — subscription webhooks will not be verified.');
+    }
+  } catch (err: any) {
+    console.warn('[stripe] Init skipped:', err.message?.slice(0, 120));
+  }
+}
+
 export async function createApp() {
+  // Run DB migrations on every cold start (idempotent, safe)
+  await ensureTables();
+
+  // Kick off Stripe init non-blocking (only on external deployments)
+  initStripeExternal().catch(() => {});
+
   const app = express();
 
   // ── Stripe webhook MUST be registered BEFORE express.json() ──────────────

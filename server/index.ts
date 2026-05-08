@@ -21,12 +21,12 @@ if (fs.existsSync(envPath)) {
   }
 }
 
-(async () => {
-  await ensureTables();
+const isReplitEnv = !!(process.env.REPLIT_CONNECTORS_HOSTNAME && (process.env.REPL_IDENTITY || process.env.WEB_REPL_RENEWAL));
 
-  // Initialize Stripe schema & webhook (non-blocking — app runs fine without it)
-  (async () => {
-    try {
+async function initStripe(): Promise<void> {
+  try {
+    if (isReplitEnv) {
+      // Inside Replit: use stripe-replit-sync for full DB sync + managed webhooks
       const { runMigrations } = await import('stripe-replit-sync');
       const { getStripeSync } = await import('./stripeClient');
 
@@ -37,6 +37,8 @@ if (fs.existsSync(envPath)) {
       log('Stripe schema ready');
 
       const stripeSync = await getStripeSync();
+      if (!stripeSync) return;
+
       const domains = process.env.REPLIT_DOMAINS ?? '';
       const host = domains.split(',')[0] ?? 'localhost';
       const webhookUrl = `https://${host}/api/stripe/webhook`;
@@ -46,11 +48,31 @@ if (fs.existsSync(envPath)) {
       stripeSync.syncBackfill()
         .then(() => log('Stripe data synced'))
         .catch((err: any) => console.error('Stripe backfill error:', err.message));
-    } catch (err: any) {
-      // Stripe not connected yet — app continues without it
-      console.warn('[stripe] Init skipped:', err.message?.slice(0, 120));
+    } else {
+      // Outside Replit (Vercel / app.bccsworld.com): verify env vars are present
+      const { getUncachableStripeClient } = await import('./stripeClient');
+      const stripe = await getUncachableStripeClient();
+      // Quick connectivity check
+      await stripe.products.list({ limit: 1 });
+      log('Stripe connected via STRIPE_SECRET_KEY');
+
+      const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+      if (!webhookSecret) {
+        console.warn('[stripe] STRIPE_WEBHOOK_SECRET not set — subscription webhooks will not be verified. Set it in your environment variables.');
+      } else {
+        log('Stripe webhook secret configured');
+      }
     }
-  })();
+  } catch (err: any) {
+    console.warn('[stripe] Init skipped:', err.message?.slice(0, 120));
+  }
+}
+
+(async () => {
+  await ensureTables();
+
+  // Initialize Stripe (non-blocking — app runs fine without it)
+  initStripe().catch((err: any) => console.warn('[stripe] Async init error:', err.message));
 
   const app = await createApp();
   const server = createServer(app);

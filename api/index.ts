@@ -2,7 +2,7 @@
 import { createApp } from "./_server.mjs";
 import type { Express, Request, Response } from "express";
 
-const VERSION = "v9";
+const VERSION = "v10";
 
 type AppState =
   | { ready: true; app: Express }
@@ -34,10 +34,9 @@ export default async function handler(req: Request, res: Response): Promise<void
   // ── /api/healthz — always responds ───────────────────────────────────────
   if (req.url?.startsWith("/api/healthz")) {
     const state = await _warmupPromise;
-    const missing = (["DATABASE_URL", "SESSION_SECRET"] as const).filter(
-      (k) => !process.env[k]
-    );
-    const ok = state.ready && missing.length === 0;
+    const requiredEnv = ["DATABASE_URL", "SESSION_SECRET"] as const;
+    const missingRequired = requiredEnv.filter((k) => !process.env[k]);
+    const ok = state.ready && missingRequired.length === 0;
     res.status(ok ? 200 : 503).json({
       version: VERSION,
       status: ok ? "ok" : state.ready ? "missing-env" : "init-failed",
@@ -50,6 +49,10 @@ export default async function handler(req: Request, res: Response): Promise<void
         ADMIN_EMAIL: !!process.env.ADMIN_EMAIL,
         OPENAI_API_KEY: !!process.env.OPENAI_API_KEY,
         ANTHROPIC_API_KEY: !!process.env.ANTHROPIC_API_KEY,
+        // Stripe — required for payments
+        STRIPE_SECRET_KEY: !!process.env.STRIPE_SECRET_KEY,
+        STRIPE_PUBLISHABLE_KEY: !!process.env.STRIPE_PUBLISHABLE_KEY,
+        STRIPE_WEBHOOK_SECRET: !!process.env.STRIPE_WEBHOOK_SECRET,
       },
     });
     return;
