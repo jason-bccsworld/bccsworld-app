@@ -65,8 +65,8 @@ function canAccessOrg(keyRow: any, orgId: string): boolean {
 // POST /api/reviewer-keys — generate a new reviewer API key
 router.post("/", isAuthenticated, async (req: any, res) => {
   const user = req.user as any;
-  if (user?.role !== "admin" && user?.role !== "support_admin") {
-    return res.status(403).json({ message: "Admin access required" });
+  if (user?.role !== "admin") {
+    return res.status(403).json({ message: "Customer admin access required to generate reviewer keys" });
   }
 
   const { label, reviewerName, reviewerEmail, orgIds, expiresAt } = req.body;
@@ -103,8 +103,8 @@ router.post("/", isAuthenticated, async (req: any, res) => {
 // GET /api/reviewer-keys — list all keys (admin)
 router.get("/", isAuthenticated, async (req: any, res) => {
   const user = req.user as any;
-  if (user?.role !== "admin" && user?.role !== "support_admin") {
-    return res.status(403).json({ message: "Admin access required" });
+  if (user?.role !== "admin") {
+    return res.status(403).json({ message: "Customer admin access required" });
   }
 
   const rows = await db.execute(sql`
@@ -120,8 +120,8 @@ router.get("/", isAuthenticated, async (req: any, res) => {
 // DELETE /api/reviewer-keys/:id — revoke a key
 router.delete("/:id", isAuthenticated, async (req: any, res) => {
   const user = req.user as any;
-  if (user?.role !== "admin" && user?.role !== "support_admin") {
-    return res.status(403).json({ message: "Admin access required" });
+  if (user?.role !== "admin") {
+    return res.status(403).json({ message: "Customer admin access required" });
   }
 
   await db.execute(sql`UPDATE bccs_reviewer_keys SET is_active = FALSE WHERE id = ${req.params.id}`);

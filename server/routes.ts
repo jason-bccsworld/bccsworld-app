@@ -1318,10 +1318,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // PUT /api/license — update license (admin or support_admin only)
+  // PUT /api/license — update license (@bccsworld.com SuperAdmin only)
   app.put('/api/license', isAuthenticated, async (req: any, res) => {
-    if (req.user.role !== 'admin' && req.user.role !== 'support_admin') {
-      return res.status(403).json({ message: 'Admin or Support Admin role required' });
+    const email: string = req.user?.email ?? '';
+    if (!email.toLowerCase().endsWith('@bccsworld.com')) {
+      return res.status(403).json({ message: 'License management requires a @bccsworld.com account' });
     }
     try {
       const { plan, status, seatsLimit, currentPeriodEnd, stripeCustomerId, stripeSubscriptionId, stripePriceId, notes } = req.body;

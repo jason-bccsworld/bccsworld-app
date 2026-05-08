@@ -381,7 +381,9 @@ export default function AdminDashboard() {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const queryClient = useQueryClient();
   const isAdmin = (user as any)?.role === "admin";
-  const isLicenseAdmin = isAdmin || (user as any)?.role === "support_admin";
+  // SuperAdmin = internal BCCS staff identified by @bccsworld.com email — license management only
+  const isSuperAdmin = !!((user as any)?.email?.toLowerCase().endsWith("@bccsworld.com"));
+  // Customer admins see everything except the license tab; SuperAdmins see only the license tab
 
   // ── license state (for Licenses tab)
   const { license, refetch: refetchLicense, canUse } = useLicense();
@@ -655,28 +657,32 @@ export default function AdminDashboard() {
         </Card>
       </div>
 
-      {/* Main tabs */}
-      <Tabs defaultValue="users" className="space-y-4">
+      {/* Main tabs — SuperAdmin sees only License; Customer Admin sees operational tabs */}
+      <Tabs defaultValue={isSuperAdmin ? "license" : "users"} className="space-y-4">
         <TabsList className="flex flex-wrap w-full justify-start gap-2 h-auto p-2">
-          <TabsTrigger value="users">
-            <Users className="h-4 w-4 mr-1.5" /> Users
-          </TabsTrigger>
-          <TabsTrigger value="roles">
-            <Shield className="h-4 w-4 mr-1.5" /> Roles &amp; Permissions
-            {!canUse('customRoles') && <LockedBadge />}
-          </TabsTrigger>
-          <TabsTrigger value="organizations">
-            <Building className="h-4 w-4 mr-1.5" /> Organizations
-          </TabsTrigger>
-          <TabsTrigger value="system">
-            <Settings className="h-4 w-4 mr-1.5" /> System
-          </TabsTrigger>
-          {isLicenseAdmin && (
+          {!isSuperAdmin && (
+            <>
+              <TabsTrigger value="users">
+                <Users className="h-4 w-4 mr-1.5" /> Users
+              </TabsTrigger>
+              <TabsTrigger value="roles">
+                <Shield className="h-4 w-4 mr-1.5" /> Roles &amp; Permissions
+                {!canUse('customRoles') && <LockedBadge />}
+              </TabsTrigger>
+              <TabsTrigger value="organizations">
+                <Building className="h-4 w-4 mr-1.5" /> Organizations
+              </TabsTrigger>
+              <TabsTrigger value="system">
+                <Settings className="h-4 w-4 mr-1.5" /> System
+              </TabsTrigger>
+            </>
+          )}
+          {isSuperAdmin && (
             <TabsTrigger value="license">
               <CreditCard className="h-4 w-4 mr-1.5" /> License
             </TabsTrigger>
           )}
-          {isAdmin && (
+          {isAdmin && !isSuperAdmin && (
             <TabsTrigger value="api-keys">
               <Key className="h-4 w-4 mr-1.5" /> API Keys
             </TabsTrigger>
@@ -1044,7 +1050,7 @@ export default function AdminDashboard() {
         </TabsContent>
 
         {/* ── LICENSE TAB ───────────────────────────────────────────────── */}
-        {isLicenseAdmin && (
+        {isSuperAdmin && (
           <TabsContent value="license">
             <Card>
               <CardHeader>
