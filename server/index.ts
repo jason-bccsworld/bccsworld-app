@@ -23,6 +23,35 @@ if (fs.existsSync(envPath)) {
 
 (async () => {
   await ensureTables();
+
+  // Initialize Stripe schema & webhook (non-blocking — app runs fine without it)
+  (async () => {
+    try {
+      const { runMigrations } = await import('stripe-replit-sync');
+      const { getStripeSync } = await import('./stripeClient');
+
+      const databaseUrl = process.env.DATABASE_URL;
+      if (!databaseUrl) return;
+
+      await runMigrations({ databaseUrl, schema: 'stripe' });
+      log('Stripe schema ready');
+
+      const stripeSync = await getStripeSync();
+      const domains = process.env.REPLIT_DOMAINS ?? '';
+      const host = domains.split(',')[0] ?? 'localhost';
+      const webhookUrl = `https://${host}/api/stripe/webhook`;
+      await stripeSync.findOrCreateManagedWebhook(webhookUrl);
+      log('Stripe webhook configured');
+
+      stripeSync.syncBackfill()
+        .then(() => log('Stripe data synced'))
+        .catch((err: any) => console.error('Stripe backfill error:', err.message));
+    } catch (err: any) {
+      // Stripe not connected yet — app continues without it
+      console.warn('[stripe] Init skipped:', err.message?.slice(0, 120));
+    }
+  })();
+
   const app = await createApp();
   const server = createServer(app);
 

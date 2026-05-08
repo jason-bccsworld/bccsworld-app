@@ -101,6 +101,63 @@ export async function ensureTables(): Promise<void> {
       `));
     }
 
+    // ── Licenses table ────────────────────────────────────────────────────────
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS bccs_licenses (
+        id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+        plan VARCHAR(50) NOT NULL DEFAULT 'trial',
+        status VARCHAR(50) NOT NULL DEFAULT 'trial',
+        stripe_customer_id VARCHAR(200),
+        stripe_subscription_id VARCHAR(200),
+        stripe_price_id VARCHAR(200),
+        seats_limit INTEGER NOT NULL DEFAULT 5,
+        current_period_start TIMESTAMP,
+        current_period_end TIMESTAMP,
+        assigned_by VARCHAR(200),
+        notes TEXT,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+
+    // Seed a trial license if none exists
+    const licenseCount = await db.execute(sql`SELECT COUNT(*) FROM bccs_licenses`);
+    const count = parseInt((licenseCount.rows[0] as any).count, 10);
+    if (count === 0) {
+      await db.execute(sql`
+        INSERT INTO bccs_licenses (plan, status, seats_limit, current_period_start, current_period_end, notes)
+        VALUES (
+          'trial', 'trial', 5,
+          NOW(),
+          NOW() + INTERVAL '30 days',
+          'Auto-created 30-day trial license'
+        )
+      `);
+      console.log('[db-init] Trial license seeded');
+    }
+
+    // ── Stripe columns on users ───────────────────────────────────────────────
+    await db.execute(sql`
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_customer_id VARCHAR(200)
+    `);
+    await db.execute(sql`
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_subscription_id VARCHAR(200)
+    `);
+
+    // ── Support Admin role ────────────────────────────────────────────────────
+    await db.execute(sql.raw(`
+      INSERT INTO bccs_role_permissions (role_name, display_name, description, permissions, is_system, color)
+      VALUES (
+        'support_admin',
+        'Support Admin',
+        'BCCS support staff — can manage licenses and assist clients',
+        ARRAY['manage_licenses','view_users','view_compliance_records','view_audit_logs']::TEXT[],
+        TRUE,
+        'bg-purple-100 text-purple-700'
+      )
+      ON CONFLICT (role_name) DO NOTHING
+    `));
+
     console.log('[db-init] Training records tables ensured');
     console.log('[db-init] Role permissions seeded');
   } catch (err) {

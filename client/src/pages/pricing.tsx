@@ -1,227 +1,236 @@
+import { useMutation } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Check, Star } from "lucide-react";
+import { Check, Zap, Shield, Phone, Loader2 } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { useLicense } from "@/hooks/useLicense";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import { useLocation } from "wouter";
 
-const pricingTiers = [
+const PLAN_CONFIG = [
   {
-    id: "trial",
-    name: "Free Trial",
-    price: 0,
-    period: "30 days",
-    description: "Perfect for evaluating BCCS-US",
-    userLimit: "5 users",
-    documentLimit: "100 documents",
+    key: "standard",
+    name: "Standard",
+    price: 4000,
+    description: "For smaller Part 141/142 training centers getting started with digital compliance.",
+    highlight: false,
     features: [
-      "Basic document processing",
-      "OCR extraction",
-      "Mobile access",
-      "Email support"
-    ],
-    buttonText: "Start Free Trial",
-    buttonVariant: "outline" as const
-  },
-  {
-    id: "training_center",
-    name: "Training Center",
-    price: 299,
-    period: "per month",
-    description: "Ideal for Part 142 training centers",
-    userLimit: "50 users",
-    documentLimit: "1,000 documents",
-    features: [
-      "Full Part 142 compliance",
-      "AI document processing",
-      "Blockchain audit trails",
-      "Mobile PWA access",
+      "Up to 15 user accounts",
+      "Core compliance records management",
+      "FAA document repository",
+      "5 digital form templates",
+      "Student & instructor roster",
+      "Audit history & CSV export",
       "Email support",
-      "Regulatory monitoring"
     ],
-    buttonText: "Get Started",
-    buttonVariant: "default" as const,
-    isPopular: true
   },
   {
-    id: "enterprise",
+    key: "professional",
+    name: "Professional",
+    price: 9000,
+    description: "Everything you need for full Part 142 digital compliance with AI-powered automation.",
+    highlight: true,
+    features: [
+      "Up to 50 user accounts",
+      "Everything in Standard",
+      "AI document processing & OCR",
+      "AI-generated FAA form templates",
+      "Unlimited form templates",
+      "PDF compliance reports",
+      "Advanced analytics dashboard",
+      "Custom roles & permissions",
+      "Priority email support",
+    ],
+  },
+  {
+    key: "enterprise",
     name: "Enterprise",
-    price: 799,
-    period: "per month",
-    description: "For large training organizations",
-    userLimit: "Unlimited users",
-    documentLimit: "Unlimited documents",
+    price: 20000,
+    description: "Unlimited scale with blockchain-secured records and full platform access.",
+    highlight: false,
     features: [
-      "Everything in Training Center",
-      "Advanced analytics & forecasting",
-      "Multi-jurisdiction compliance",
-      "API integrations",
-      "Priority support",
-      "Custom reporting",
-      "Multi-organization management"
+      "Unlimited user accounts",
+      "Everything in Professional",
+      "Blockchain-secured training records",
+      "Universal key management system",
+      "API access for integrations",
+      "White-label options",
+      "Dedicated 24/7 support",
+      "Custom onboarding & training",
     ],
-    buttonText: "Contact Sales",
-    buttonVariant: "outline" as const
   },
-  {
-    id: "regulatory",
-    name: "Regulatory",
-    price: 1499,
-    period: "per month",
-    description: "For aviation authorities and oversight bodies",
-    userLimit: "Unlimited users",
-    documentLimit: "Unlimited documents",
-    features: [
-      "Everything in Enterprise",
-      "Multi-organization oversight",
-      "Regulatory monitoring & alerts",
-      "Advanced audit capabilities",
-      "Dedicated support",
-      "Custom compliance reports",
-      "International compliance tracking"
-    ],
-    buttonText: "Contact Sales",
-    buttonVariant: "outline" as const
-  }
 ];
 
 export default function Pricing() {
-  const handlePlanSelect = (planId: string) => {
-    if (planId === "trial") {
-      // Redirect to signup with trial parameter
-      window.location.href = "/login";
-    } else {
-      // Contact sales for paid plans
-      window.location.href = "mailto:sales@bccs142.com?subject=Interest in " + pricingTiers.find(t => t.id === planId)?.name + " Plan";
+  const { isAuthenticated } = useAuth();
+  const { plan: currentPlan } = useLicense();
+  const { toast } = useToast();
+  const [, navigate] = useLocation();
+
+  const { data: stripeProducts } = useQuery<any[]>({
+    queryKey: ["/api/stripe/products"],
+  });
+
+  const checkoutMutation = useMutation({
+    mutationFn: (priceId: string) => apiRequest("POST", "/api/stripe/checkout", { priceId }),
+    onSuccess: (data: any) => {
+      if (data?.url) window.location.href = data.url;
+    },
+    onError: (err: any) =>
+      toast({ title: "Checkout error", description: err.message, variant: "destructive" }),
+  });
+
+  function getStripePrice(planKey: string) {
+    if (!stripeProducts) return null;
+    const product = (stripeProducts as any[]).find(
+      (p: any) => p.metadata?.planKey === planKey || p.name?.toLowerCase().includes(planKey)
+    );
+    return product?.prices?.[0] ?? null;
+  }
+
+  function handleSelect(planKey: string) {
+    if (!isAuthenticated) {
+      navigate("/login");
+      return;
     }
-  };
+    const price = getStripePrice(planKey);
+    if (price) {
+      checkoutMutation.mutate(price.id);
+    } else {
+      window.location.href = "mailto:sales@bccsworld.com?subject=BCCS-US " + planKey + " Plan Inquiry";
+    }
+  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 py-16">
-      <div className="container mx-auto px-4">
-        {/* Header */}
-        <div className="text-center mb-16">
-          <h1 className="text-4xl font-bold text-slate-900 mb-4">
-            Simple, Transparent Pricing
-          </h1>
-          <p className="text-xl text-slate-600 max-w-2xl mx-auto">
-            Choose the perfect plan for your aviation training organization. 
-            All plans include our complete compliance platform with no hidden fees.
-          </p>
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
+      {/* Header */}
+      <div className="max-w-6xl mx-auto px-4 pt-16 pb-10 text-center">
+        <Badge className="mb-4 bg-blue-100 text-blue-700 border-0">Annual billing</Badge>
+        <h1 className="text-4xl font-bold text-slate-900 mb-3">
+          Simple, transparent pricing
+        </h1>
+        <p className="text-lg text-slate-500 max-w-xl mx-auto">
+          Purpose-built for Part 141, Part 142, and Part 135 aviation training organizations.
+          All plans include onboarding and core compliance features.
+        </p>
+      </div>
+
+      {/* Plans */}
+      <div className="max-w-6xl mx-auto px-4 pb-16">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+          {PLAN_CONFIG.map((plan) => {
+            const stripePrice = getStripePrice(plan.key);
+            const isCurrent = isAuthenticated && currentPlan === plan.key;
+
+            return (
+              <Card
+                key={plan.key}
+                className={`relative flex flex-col ${
+                  plan.highlight
+                    ? "border-blue-500 ring-2 ring-blue-200 shadow-lg"
+                    : "border-slate-200 shadow-sm"
+                }`}
+              >
+                {plan.highlight && (
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                    <Badge className="bg-blue-600 text-white shadow-md">Most Popular</Badge>
+                  </div>
+                )}
+                <CardHeader className="pb-4 pt-6">
+                  <CardTitle className="text-xl">{plan.name}</CardTitle>
+                  <CardDescription className="text-sm leading-relaxed">{plan.description}</CardDescription>
+                  <div className="pt-2">
+                    <span className="text-4xl font-bold text-slate-900">
+                      ${plan.price.toLocaleString()}
+                    </span>
+                    <span className="text-slate-500 text-sm"> /year</span>
+                  </div>
+                </CardHeader>
+                <CardContent className="flex flex-col flex-1 gap-4">
+                  <ul className="space-y-2">
+                    {plan.features.map((f) => (
+                      <li key={f} className="flex items-start gap-2 text-sm text-slate-700">
+                        <Check className="h-4 w-4 shrink-0 text-green-500 mt-0.5" />
+                        {f}
+                      </li>
+                    ))}
+                  </ul>
+                  <div className="mt-auto pt-2">
+                    {isCurrent ? (
+                      <Button className="w-full" variant="outline" onClick={() => navigate("/billing")}>
+                        Current Plan
+                      </Button>
+                    ) : (
+                      <Button
+                        className={`w-full ${plan.highlight ? "bg-blue-600 hover:bg-blue-700" : ""}`}
+                        disabled={checkoutMutation.isPending}
+                        onClick={() => handleSelect(plan.key)}
+                      >
+                        {checkoutMutation.isPending ? (
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        ) : null}
+                        {stripePrice ? "Get Started" : "Contact Sales"}
+                      </Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
 
-        {/* Pricing Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 max-w-7xl mx-auto">
-          {pricingTiers.map((tier) => (
-            <Card key={tier.id} className={`relative ${tier.isPopular ? 'border-aviation-blue border-2 shadow-lg' : ''}`}>
-              {tier.isPopular && (
-                <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                  <Badge className="bg-aviation-blue text-white px-3 py-1">
-                    <Star className="w-3 h-3 mr-1" />
-                    Most Popular
-                  </Badge>
-                </div>
-              )}
-              
-              <CardHeader className="text-center pb-4">
-                <CardTitle className="text-lg font-semibold">{tier.name}</CardTitle>
-                <CardDescription className="text-sm">{tier.description}</CardDescription>
-                <div className="mt-4">
-                  <div className="flex items-baseline justify-center">
-                    <span className="text-3xl font-bold text-slate-900">${tier.price}</span>
-                    <span className="text-sm text-slate-600 ml-1">/{tier.period}</span>
-                  </div>
-                </div>
-              </CardHeader>
-
-              <CardContent className="space-y-4">
-                {/* Usage Limits */}
-                <div className="text-center py-3 bg-slate-50 rounded-lg">
-                  <div className="text-sm font-medium text-slate-700">{tier.userLimit}</div>
-                  <div className="text-sm font-medium text-slate-700">{tier.documentLimit}</div>
-                </div>
-
-                {/* Features List */}
-                <div className="space-y-2">
-                  {tier.features.map((feature, index) => (
-                    <div key={index} className="flex items-start space-x-2">
-                      <Check className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
-                      <span className="text-sm text-slate-600">{feature}</span>
-                    </div>
-                  ))}
-                </div>
-
-                {/* CTA Button */}
-                <Button 
-                  className={`w-full mt-6 ${tier.isPopular ? 'bg-aviation-blue hover:bg-blue-700' : ''}`}
-                  variant={tier.buttonVariant}
-                  onClick={() => handlePlanSelect(tier.id)}
-                >
-                  {tier.buttonText}
-                </Button>
-              </CardContent>
-            </Card>
+        {/* Value props */}
+        <div className="mt-16 grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
+          {[
+            { icon: Shield, label: "FAA Compliant",    sub: "Part 141/142/135 ready" },
+            { icon: Zap,    label: "AI-Powered",        sub: "Document processing & forms" },
+            { icon: Shield, label: "Blockchain Records",sub: "Immutable audit trails" },
+            { icon: Phone,  label: "24/7 Support",      sub: "First 12 weeks included" },
+          ].map(({ icon: Icon, label, sub }) => (
+            <div key={label} className="flex flex-col items-center gap-2">
+              <div className="rounded-full bg-blue-50 p-3">
+                <Icon className="h-6 w-6 text-blue-600" />
+              </div>
+              <div className="font-semibold text-slate-800 text-sm">{label}</div>
+              <div className="text-xs text-slate-500">{sub}</div>
+            </div>
           ))}
         </div>
 
-        {/* Value Proposition */}
-        <div className="mt-16 text-center">
-          <h2 className="text-2xl font-bold text-slate-900 mb-4">
-            Why Choose BCCS-US?
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
-            <div className="text-center">
-              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mx-auto mb-4">
-                <Check className="w-6 h-6 text-green-600" />
+        {/* FAQ */}
+        <div className="mt-14 max-w-2xl mx-auto">
+          <h2 className="text-2xl font-bold text-slate-900 text-center mb-8">Frequently Asked Questions</h2>
+          <div className="space-y-6">
+            {[
+              { q: "Can I switch plans anytime?", a: "Yes, you can upgrade at any time. Changes take effect immediately and are prorated." },
+              { q: "Is there a pilot program available?", a: "Yes, we offer extended 30-day trials for training centers wanting to validate the platform with their specific workflows." },
+              { q: "What about data migration?", a: "We provide free data migration assistance for all customers, helping you import existing training records." },
+            ].map(({ q, a }) => (
+              <div key={q}>
+                <h3 className="font-semibold text-slate-900 mb-1">{q}</h3>
+                <p className="text-slate-600 text-sm">{a}</p>
               </div>
-              <h3 className="font-semibold text-slate-900 mb-2">No Setup Fees</h3>
-              <p className="text-sm text-slate-600">
-                Get started immediately with zero implementation costs. 
-                Competitors charge $50K-500K for setup.
-              </p>
-            </div>
-            
-            <div className="text-center">
-              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-4">
-                <Star className="w-6 h-6 text-blue-600" />
-              </div>
-              <h3 className="font-semibold text-slate-900 mb-2">Enterprise Features</h3>
-              <p className="text-sm text-slate-600">
-                AI processing, blockchain security, and regulatory monitoring 
-                included in all plans.
-              </p>
-            </div>
-            
-            <div className="text-center">
-              <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mx-auto mb-4">
-                <Check className="w-6 h-6 text-purple-600" />
-              </div>
-              <h3 className="font-semibold text-slate-900 mb-2">Instant Deployment</h3>
-              <p className="text-sm text-slate-600">
-                Start using BCCS-US in hours, not months. 
-                No lengthy implementation projects required.
-              </p>
-            </div>
+            ))}
           </div>
         </div>
 
-        {/* FAQ Section */}
-        <div className="mt-16 max-w-2xl mx-auto">
-          <h2 className="text-2xl font-bold text-slate-900 text-center mb-8">
-            Frequently Asked Questions
-          </h2>
-          <div className="space-y-6">
-            <div>
-              <h3 className="font-semibold text-slate-900 mb-2">Can I switch plans anytime?</h3>
-              <p className="text-slate-600">Yes, you can upgrade or downgrade your plan at any time. Changes take effect immediately.</p>
-            </div>
-            <div>
-              <h3 className="font-semibold text-slate-900 mb-2">Is there a pilot program available?</h3>
-              <p className="text-slate-600">Yes, we offer extended pilot programs for training centers wanting to validate our platform with their specific workflows.</p>
-            </div>
-            <div>
-              <h3 className="font-semibold text-slate-900 mb-2">What about data migration?</h3>
-              <p className="text-slate-600">We provide free data migration assistance for all customers, helping you import existing training records and documents.</p>
-            </div>
-          </div>
+        {/* CTA */}
+        <div className="mt-14 rounded-2xl bg-slate-900 text-white p-10 text-center">
+          <h2 className="text-2xl font-bold mb-2">Need a custom arrangement?</h2>
+          <p className="text-slate-400 mb-6 max-w-lg mx-auto">
+            We work with international aviation training centers, government programs, and
+            multi-organization consortiums. Let's talk.
+          </p>
+          <Button
+            variant="outline"
+            className="border-white text-white hover:bg-white hover:text-slate-900"
+            onClick={() => (window.location.href = "mailto:sales@bccsworld.com")}
+          >
+            Contact Sales
+          </Button>
         </div>
       </div>
     </div>

@@ -1266,6 +1266,195 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ── LICENSE ROUTES ──────────────────────────────────────────────────────────
+
+  // GET /api/license — current license (any authenticated user)
+  app.get('/api/license', isAuthenticated, async (_req, res) => {
+    try {
+      const result = await db.execute(drizzleSql`SELECT * FROM bccs_licenses ORDER BY created_at DESC LIMIT 1`);
+      const row = result.rows[0] as any;
+      if (!row) return res.status(404).json({ message: 'No license found' });
+      res.json({
+        id: row.id,
+        plan: row.plan,
+        status: row.status,
+        stripeCustomerId: row.stripe_customer_id,
+        stripeSubscriptionId: row.stripe_subscription_id,
+        stripePriceId: row.stripe_price_id,
+        seatsLimit: row.seats_limit,
+        currentPeriodStart: row.current_period_start,
+        currentPeriodEnd: row.current_period_end,
+        assignedBy: row.assigned_by,
+        notes: row.notes,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+      });
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to fetch license' });
+    }
+  });
+
+  // PUT /api/license — update license (admin or support_admin only)
+  app.put('/api/license', isAuthenticated, async (req: any, res) => {
+    if (req.user.role !== 'admin' && req.user.role !== 'support_admin') {
+      return res.status(403).json({ message: 'Admin or Support Admin role required' });
+    }
+    try {
+      const { plan, status, seatsLimit, currentPeriodEnd, stripeCustomerId, stripeSubscriptionId, stripePriceId, notes } = req.body;
+      const { invalidateLicenseCache } = await import('./middleware/license');
+      const result = await db.execute(drizzleSql`SELECT id FROM bccs_licenses ORDER BY created_at DESC LIMIT 1`);
+      const existing = result.rows[0] as any;
+      if (!existing) {
+        // Create new
+        await db.execute(drizzleSql.raw(`
+          INSERT INTO bccs_licenses (plan, status, seats_limit, current_period_end, stripe_customer_id, stripe_subscription_id, stripe_price_id, assigned_by, notes, updated_at)
+          VALUES (
+            '${(plan || 'trial').replace(/'/g,'')}',
+            '${(status || 'trial').replace(/'/g,'')}',
+            ${parseInt(seatsLimit ?? '5', 10)},
+            ${currentPeriodEnd ? `'${currentPeriodEnd}'` : 'NULL'},
+            ${stripeCustomerId ? `'${stripeCustomerId}'` : 'NULL'},
+            ${stripeSubscriptionId ? `'${stripeSubscriptionId}'` : 'NULL'},
+            ${stripePriceId ? `'${stripePriceId}'` : 'NULL'},
+            '${req.user.email}',
+            ${notes ? `'${notes.replace(/'/g, "''")}'` : 'NULL'},
+            NOW()
+          )
+        `));
+      } else {
+        await db.execute(drizzleSql.raw(`
+          UPDATE bccs_licenses SET
+            plan = '${(plan || 'trial').replace(/'/g,'')}',
+            status = '${(status || 'trial').replace(/'/g,'')}',
+            seats_limit = ${parseInt(seatsLimit ?? '5', 10)},
+            current_period_end = ${currentPeriodEnd ? `'${currentPeriodEnd}'` : 'NULL'},
+            stripe_customer_id = ${stripeCustomerId ? `'${stripeCustomerId}'` : 'NULL'},
+            stripe_subscription_id = ${stripeSubscriptionId ? `'${stripeSubscriptionId}'` : 'NULL'},
+            stripe_price_id = ${stripePriceId ? `'${stripePriceId}'` : 'NULL'},
+            assigned_by = '${req.user.email}',
+            notes = ${notes ? `'${notes.replace(/'/g, "''")}'` : 'NULL'},
+            updated_at = NOW()
+          WHERE id = '${existing.id}'
+        `));
+      }
+      invalidateLicenseCache();
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error('License update error:', error);
+      res.status(500).json({ message: 'Failed to update license' });
+    }
+  });
+
+  // ── STRIPE PAYMENT ROUTES ────────────────────────────────────────────────────
+
+  // GET /api/stripe/products — list products with prices (from stripe.* schema)
+  app.get('/api/stripe/products', async (_req, res) => {
+    try {
+      const result = await db.execute(drizzleSql`
+        WITH paginated_products AS (
+          SELECT id, name, description, metadata, active
+          FROM stripe.products
+          WHERE active = true
+          ORDER BY name
+        )
+        SELECT
+          p.id as product_id, p.name as product_name, p.description, p.metadata,
+          pr.id as price_id, pr.unit_amount, pr.currency, pr.recurring, pr.active as price_active, pr.metadata as price_metadata
+        FROM paginated_products p
+        LEFT JOIN stripe.prices pr ON pr.product = p.id AND pr.active = true
+        ORDER BY p.name, pr.unit_amount
+      `);
+
+      const map = new Map<string, any>();
+      for (const row of result.rows as any[]) {
+        if (!map.has(row.product_id)) {
+          map.set(row.product_id, {
+            id: row.product_id,
+            name: row.product_name,
+            description: row.description,
+            metadata: row.metadata,
+            prices: [],
+          });
+        }
+        if (row.price_id) {
+          map.get(row.product_id).prices.push({
+            id: row.price_id,
+            unit_amount: row.unit_amount,
+            currency: row.currency,
+            recurring: row.recurring,
+            metadata: row.price_metadata,
+          });
+        }
+      }
+      res.json(Array.from(map.values()));
+    } catch (error: any) {
+      // stripe schema may not be set up yet
+      console.warn('Stripe products fetch:', error.message?.slice(0, 80));
+      res.json([]);
+    }
+  });
+
+  // POST /api/stripe/checkout — create checkout session
+  app.post('/api/stripe/checkout', isAuthenticated, async (req: any, res) => {
+    try {
+      const { priceId } = req.body;
+      if (!priceId) return res.status(400).json({ message: 'priceId required' });
+
+      const { getUncachableStripeClient } = await import('./stripeClient');
+      const stripe = await getUncachableStripeClient();
+
+      // Get or create Stripe customer on the user row
+      const userResult = await db.execute(drizzleSql`SELECT * FROM users WHERE id = ${req.user.id}`);
+      const userRow = userResult.rows[0] as any;
+      let customerId = userRow?.stripe_customer_id;
+
+      if (!customerId) {
+        const customer = await stripe.customers.create({
+          email: req.user.email,
+          metadata: { userId: req.user.id },
+        });
+        customerId = customer.id;
+        await db.execute(drizzleSql`UPDATE users SET stripe_customer_id = ${customerId} WHERE id = ${req.user.id}`);
+      }
+
+      const baseUrl = `${req.protocol}://${req.get('host')}`;
+      const session = await stripe.checkout.sessions.create({
+        customer: customerId,
+        payment_method_types: ['card'],
+        line_items: [{ price: priceId, quantity: 1 }],
+        mode: 'subscription',
+        success_url: `${baseUrl}/billing?success=1`,
+        cancel_url: `${baseUrl}/pricing`,
+      });
+      res.json({ url: session.url });
+    } catch (error: any) {
+      console.error('Checkout error:', error);
+      res.status(500).json({ message: error.message ?? 'Checkout failed' });
+    }
+  });
+
+  // POST /api/stripe/portal — create customer portal session
+  app.post('/api/stripe/portal', isAuthenticated, async (req: any, res) => {
+    try {
+      const { getUncachableStripeClient } = await import('./stripeClient');
+      const stripe = await getUncachableStripeClient();
+
+      const userResult = await db.execute(drizzleSql`SELECT stripe_customer_id FROM users WHERE id = ${req.user.id}`);
+      const customerId = (userResult.rows[0] as any)?.stripe_customer_id;
+      if (!customerId) return res.status(404).json({ message: 'No Stripe customer found for this user' });
+
+      const baseUrl = `${req.protocol}://${req.get('host')}`;
+      const session = await stripe.billingPortal.sessions.create({
+        customer: customerId,
+        return_url: `${baseUrl}/billing`,
+      });
+      res.json({ url: session.url });
+    } catch (error: any) {
+      console.error('Portal error:', error);
+      res.status(500).json({ message: error.message ?? 'Failed to open billing portal' });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

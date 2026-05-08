@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
 import Pricing from "@/pages/pricing";
+import Billing from "@/pages/billing";
 import Tutorials from "@/pages/tutorials";
 import Dashboard from "@/pages/dashboard";
 import DocumentImport from "@/pages/document-import";
@@ -73,6 +74,11 @@ function Router() {
       </Route>
       <Route path="/login" component={Login} />
       <Route path="/pricing" component={Pricing} />
+      <Route path="/billing">
+        {!isAuthenticated ? <Redirect to="/login" /> : (
+          <DashboardLayout><Billing /></DashboardLayout>
+        )}
+      </Route>
       <Route path="/tutorials" component={Tutorials} />
       {/* Dashboard routes - available when authenticated */}
       <Route path="/dashboard">

@@ -1,5 +1,6 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
+import { WebhookHandlers } from "./webhookHandlers";
 
 function log(message: string) {
   const time = new Date().toLocaleTimeString("en-US", {
@@ -13,6 +14,32 @@ function log(message: string) {
 
 export async function createApp() {
   const app = express();
+
+  // ── Stripe webhook MUST be registered BEFORE express.json() ──────────────
+  // Stripe needs the raw Buffer body, not parsed JSON.
+  app.post(
+    '/api/stripe/webhook',
+    express.raw({ type: 'application/json' }),
+    async (req, res) => {
+      const signature = req.headers['stripe-signature'];
+      if (!signature) {
+        return res.status(400).json({ error: 'Missing stripe-signature header' });
+      }
+      try {
+        const sig = Array.isArray(signature) ? signature[0] : signature;
+        if (!Buffer.isBuffer(req.body)) {
+          console.error('STRIPE WEBHOOK ERROR: req.body is not a Buffer.');
+          return res.status(500).json({ error: 'Webhook processing error' });
+        }
+        await WebhookHandlers.processWebhook(req.body as Buffer, sig);
+        res.status(200).json({ received: true });
+      } catch (error: any) {
+        console.error('Webhook error:', error.message);
+        res.status(400).json({ error: 'Webhook processing error' });
+      }
+    }
+  );
+
   app.use(express.json());
   app.use(express.urlencoded({ extended: false }));
 

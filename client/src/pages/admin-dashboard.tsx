@@ -14,8 +14,10 @@ import {
   Settings, Users, Building, Plus, Loader2, Trash2, Shield,
   UserPlus, Search, RotateCcw, CheckCircle2, XCircle, Clock,
   ChevronDown, ChevronRight, KeyRound, AlertCircle, Eye, EyeOff,
-  ShieldCheck, Lock, Unlock, Edit2,
+  ShieldCheck, Lock, Unlock, Edit2, CreditCard, Calendar, Zap,
 } from "lucide-react";
+import { useLicense } from "@/hooks/useLicense";
+import { PLAN_DISPLAY, PLAN_FEATURES, type PlanKey } from "@shared/license";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient as qc } from "@/lib/queryClient";
@@ -78,6 +80,17 @@ export default function AdminDashboard() {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const queryClient = useQueryClient();
   const isAdmin = (user as any)?.role === "admin";
+  const isLicenseAdmin = isAdmin || (user as any)?.role === "support_admin";
+
+  // ── license state (for Licenses tab)
+  const { license, refetch: refetchLicense } = useLicense();
+  const [licPlan, setLicPlan]             = useState<PlanKey>("trial");
+  const [licStatus, setLicStatus]         = useState("trial");
+  const [licSeats, setLicSeats]           = useState("5");
+  const [licPeriodEnd, setLicPeriodEnd]   = useState("");
+  const [licNotes, setLicNotes]           = useState("");
+  const [licEditing, setLicEditing]       = useState(false);
+
 
   // ── modal state
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -257,6 +270,23 @@ export default function AdminDashboard() {
     onError: (err: any) => toast({ title: "Cannot delete", description: err.message, variant: "destructive" }),
   });
 
+  const saveLicenseMutation = useMutation({
+    mutationFn: () => apiRequest("PUT", "/api/license", {
+      plan: licPlan,
+      status: licStatus,
+      seatsLimit: parseInt(licSeats, 10),
+      currentPeriodEnd: licPeriodEnd || null,
+      notes: licNotes,
+    }),
+    onSuccess: () => {
+      toast({ title: "License updated", description: `Plan set to ${PLAN_DISPLAY[licPlan].label}.` });
+      queryClient.invalidateQueries({ queryKey: ["/api/license"] });
+      refetchLicense();
+      setLicEditing(false);
+    },
+    onError: (err: any) => toast({ title: "Failed to update license", description: err.message, variant: "destructive" }),
+  });
+
   if (authLoading) {
     return (
       <div className="flex items-center justify-center py-24">
@@ -339,6 +369,11 @@ export default function AdminDashboard() {
           <TabsTrigger value="system">
             <Settings className="h-4 w-4 mr-1.5" /> System
           </TabsTrigger>
+          {isLicenseAdmin && (
+            <TabsTrigger value="license">
+              <CreditCard className="h-4 w-4 mr-1.5" /> License
+            </TabsTrigger>
+          )}
         </TabsList>
 
         {/* ── USERS TAB ─────────────────────────────────────────────────── */}
@@ -698,6 +733,203 @@ export default function AdminDashboard() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* ── LICENSE TAB ───────────────────────────────────────────────── */}
+        {isLicenseAdmin && (
+          <TabsContent value="license">
+            <Card>
+              <CardHeader>
+                <div className="flex items-start justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <CreditCard className="h-5 w-5 text-blue-600" />
+                      License Management
+                    </CardTitle>
+                    <CardDescription>
+                      View and manage the platform license plan and status
+                    </CardDescription>
+                  </div>
+                  {!licEditing && (
+                    <Button size="sm" variant="outline" onClick={() => {
+                      if (license) {
+                        setLicPlan(license.plan);
+                        setLicStatus(license.status);
+                        setLicSeats(String(license.seatsLimit));
+                        setLicPeriodEnd(license.currentPeriodEnd ? license.currentPeriodEnd.split('T')[0] : "");
+                        setLicNotes(license.notes ?? "");
+                      }
+                      setLicEditing(true);
+                    }}>
+                      <Edit2 className="h-3.5 w-3.5 mr-1.5" /> Edit
+                    </Button>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Current license display */}
+                {license && !licEditing && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-3">
+                      <div>
+                        <p className="text-xs text-slate-500 uppercase tracking-wide font-medium mb-1">Current Plan</p>
+                        <div className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-sm font-semibold ${PLAN_DISPLAY[license.plan]?.color ?? "bg-slate-100 text-slate-700"}`}>
+                          <Zap className="h-3.5 w-3.5" />
+                          {PLAN_DISPLAY[license.plan]?.label ?? license.plan}
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-500 uppercase tracking-wide font-medium mb-1">Status</p>
+                        <Badge className={
+                          license.status === 'active' ? 'bg-green-100 text-green-700 border-0' :
+                          license.status === 'trial'  ? 'bg-sky-100 text-sky-700 border-0' :
+                          license.status === 'suspended' ? 'bg-red-100 text-red-700 border-0' :
+                          'bg-amber-100 text-amber-700 border-0'
+                        }>
+                          {license.status.charAt(0).toUpperCase() + license.status.slice(1)}
+                        </Badge>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-500 uppercase tracking-wide font-medium mb-1">Seat Limit</p>
+                        <p className="text-sm font-medium text-slate-800">
+                          {license.seatsLimit === -1 ? "Unlimited" : `${license.seatsLimit} users`}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="space-y-3">
+                      {license.currentPeriodEnd && (
+                        <div>
+                          <p className="text-xs text-slate-500 uppercase tracking-wide font-medium mb-1">Expires / Renews</p>
+                          <p className="text-sm font-medium text-slate-800 flex items-center gap-1.5">
+                            <Calendar className="h-3.5 w-3.5 text-slate-400" />
+                            {format(new Date(license.currentPeriodEnd), "MMMM d, yyyy")}
+                          </p>
+                        </div>
+                      )}
+                      {license.stripeSubscriptionId && (
+                        <div>
+                          <p className="text-xs text-slate-500 uppercase tracking-wide font-medium mb-1">Stripe Subscription</p>
+                          <p className="text-xs font-mono text-slate-600 break-all">{license.stripeSubscriptionId}</p>
+                        </div>
+                      )}
+                      {license.assignedBy && (
+                        <div>
+                          <p className="text-xs text-slate-500 uppercase tracking-wide font-medium mb-1">Last Updated By</p>
+                          <p className="text-sm text-slate-700">{license.assignedBy}</p>
+                        </div>
+                      )}
+                      {license.notes && (
+                        <div>
+                          <p className="text-xs text-slate-500 uppercase tracking-wide font-medium mb-1">Notes</p>
+                          <p className="text-sm text-slate-600 italic">{license.notes}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Edit form */}
+                {licEditing && (
+                  <div className="space-y-4 border rounded-lg p-4 bg-slate-50">
+                    <h3 className="font-semibold text-slate-800 text-sm">Update License</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <Label className="text-xs mb-1 block">Plan</Label>
+                        <Select value={licPlan} onValueChange={(v) => setLicPlan(v as PlanKey)}>
+                          <SelectTrigger className="h-9">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="trial">Trial (30 days, 5 users)</SelectItem>
+                            <SelectItem value="standard">Standard — $4,000/yr (15 users)</SelectItem>
+                            <SelectItem value="professional">Professional — $9,000/yr (50 users)</SelectItem>
+                            <SelectItem value="enterprise">Enterprise — $20,000/yr (unlimited)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label className="text-xs mb-1 block">Status</Label>
+                        <Select value={licStatus} onValueChange={setLicStatus}>
+                          <SelectTrigger className="h-9">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="trial">Trial</SelectItem>
+                            <SelectItem value="active">Active</SelectItem>
+                            <SelectItem value="suspended">Suspended</SelectItem>
+                            <SelectItem value="expired">Expired</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label className="text-xs mb-1 block">Seats Limit (override)</Label>
+                        <Input
+                          type="number"
+                          min={1}
+                          value={licSeats}
+                          onChange={e => setLicSeats(e.target.value)}
+                          className="h-9"
+                          placeholder="e.g. 15"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs mb-1 block">License Expiry Date</Label>
+                        <Input
+                          type="date"
+                          value={licPeriodEnd}
+                          onChange={e => setLicPeriodEnd(e.target.value)}
+                          className="h-9"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <Label className="text-xs mb-1 block">Internal Notes</Label>
+                      <Input
+                        value={licNotes}
+                        onChange={e => setLicNotes(e.target.value)}
+                        placeholder="e.g. Extended trial per CEO approval, 2026-06-01"
+                        className="h-9"
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        disabled={saveLicenseMutation.isPending}
+                        onClick={() => saveLicenseMutation.mutate()}
+                      >
+                        {saveLicenseMutation.isPending && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
+                        Save License
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => setLicEditing(false)}>
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Feature matrix for selected plan */}
+                <div>
+                  <p className="text-xs text-slate-500 uppercase tracking-wide font-medium mb-3">
+                    Features — {PLAN_DISPLAY[licEditing ? licPlan : (license?.plan ?? 'trial')]?.label ?? "Trial"} Plan
+                  </p>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {Object.entries(PLAN_FEATURES[licEditing ? licPlan : (license?.plan ?? 'trial')] ?? {}).map(([key, val]) => {
+                      const label = key.replace(/([A-Z])/g, ' $1').trim();
+                      const enabled = typeof val === 'boolean' ? val : (val as number) !== 0;
+                      return (
+                        <div key={key} className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs border ${enabled ? 'border-green-200 bg-green-50 text-green-800' : 'border-slate-200 bg-slate-50 text-slate-400'}`}>
+                          {enabled
+                            ? <CheckCircle2 className="h-3 w-3 text-green-500 shrink-0" />
+                            : <XCircle className="h-3 w-3 text-slate-300 shrink-0" />}
+                          {label}{typeof val === 'number' && val !== -1 && val !== 0 ? `: ${val}` : typeof val === 'number' && val === -1 ? ': ∞' : ''}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
 
         {/* ── SYSTEM TAB ────────────────────────────────────────────────── */}
         <TabsContent value="system">
