@@ -66,6 +66,7 @@ const navigationItems: NavItem[] = [
   { path: "/document-generation", icon: FileText, label: "Document Generator" },
   { path: "/admin-dashboard", icon: Users, label: "User Management" },
   { path: "/organization-setup", icon: Globe, label: "Organization Setup" },
+  { path: "/ml-training", icon: Brain, label: "ML Training Data", badge: "AI" },
   { path: "/support", icon: HelpCircle, label: "Support" },
   { path: "/settings", icon: Settings, label: "Settings" },
 ];

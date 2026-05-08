@@ -279,6 +279,62 @@ router.get("/submissions", isAuthenticated, async (req, res) => {
   }
 });
 
+// GET /api/digital-forms/submissions/export — CSV download (MUST be before /:id)
+router.get("/submissions/export", isAuthenticated, async (req, res) => {
+  try {
+    const rows = await db.execute(sql`
+      SELECT s.id, s.template_title, s.organization_name, s.submitted_by,
+             s.submitter_name, s.submitter_email,
+             s.submitted_at, s.status, s.form_data, s.notes,
+             t.faa_source_id, t.faa_document_title
+      FROM digital_form_submissions s
+      LEFT JOIN digital_form_templates t ON t.id = s.template_id
+      ORDER BY s.submitted_at DESC
+    `).then(r => (r as any).rows);
+
+    if (rows.length === 0) {
+      res.setHeader("Content-Type", "text/csv");
+      res.setHeader("Content-Disposition", `attachment; filename="form-submissions-${new Date().toISOString().split("T")[0]}.csv"`);
+      return res.send("id,template_title,organization,submitted_by,submitted_at,status\n");
+    }
+
+    const allFieldKeys = new Set<string>();
+    for (const row of rows) {
+      const data = row.form_data as Record<string, any>;
+      if (data && typeof data === "object") {
+        Object.keys(data).forEach(k => allFieldKeys.add(k));
+      }
+    }
+    const fieldKeys = Array.from(allFieldKeys).sort();
+
+    const escapeCSV = (val: any): string => {
+      if (val === null || val === undefined) return "";
+      const s = String(val);
+      if (s.includes(",") || s.includes('"') || s.includes("\n")) {
+        return `"${s.replace(/"/g, '""')}"`;
+      }
+      return s;
+    };
+
+    const staticCols = ["id", "template_title", "organization_name", "submitted_by", "submitter_name", "submitter_email", "submitted_at", "status", "notes", "faa_source_id", "faa_document_title"];
+    const header = [...staticCols, ...fieldKeys.map(k => `field_${k}`)].join(",");
+    const csvRows = rows.map(row => {
+      const data = (row.form_data as Record<string, any>) || {};
+      const staticVals = staticCols.map(c => escapeCSV((row as any)[c]));
+      const fieldVals = fieldKeys.map(k => escapeCSV(data[k]));
+      return [...staticVals, ...fieldVals].join(",");
+    });
+
+    const csv = [header, ...csvRows].join("\n");
+    res.setHeader("Content-Type", "text/csv");
+    res.setHeader("Content-Disposition", `attachment; filename="form-submissions-${new Date().toISOString().split("T")[0]}.csv"`);
+    res.send(csv);
+  } catch (err) {
+    console.error("Form export error:", err);
+    res.status(500).json({ message: "Failed to export submissions" });
+  }
+});
+
 router.get("/submissions/:id", isAuthenticated, async (req, res) => {
   try {
     const [submission] = await db
@@ -719,3 +775,4 @@ Respond with ONLY a valid JSON object: { "fields": [...] }`;
 });
 
 export default router;
+

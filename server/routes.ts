@@ -22,6 +22,7 @@ import { registerCryptoSubscriptionRoutes } from "./routes/crypto-subscriptions"
 import documentGenerationRoutes from "./routes/document-generation";
 import maintenanceRoutes from "./routes/maintenance";
 import digitalFormsRoutes from "./routes/digital-forms";
+import mlTrainingRoutes from "./routes/ml-training";
 import { generateDocumentImportTutorial } from "./generate-document-import-tutorial";
 import { auditComplianceAI } from "./services/audit-compliance-ai";
 import { db } from "./db";
@@ -348,6 +349,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ── Predictive Maintenance Routes ────────────────────────────────────────
   app.use('/api/maintenance', maintenanceRoutes);
   app.use('/api/digital-forms', digitalFormsRoutes);
+  app.use('/api/ml', mlTrainingRoutes);
 
   // ── Document Upload ──────────────────────────────────────────────────────
   const upload = multer({

@@ -18,7 +18,7 @@ import {
   FileText, Plus, Trash2, PenLine, Eye, CheckCircle2, Clock,
   FolderOpen, LayoutTemplate, Save, X, ChevronDown, ChevronUp,
   GripVertical, Filter, Search, Link2, Copy, ExternalLink, Building2, Globe,
-  Wand2, RefreshCw, AlertTriangle, Sparkles, Bot, ChevronRight
+  Wand2, RefreshCw, AlertTriangle, Sparkles, Bot, ChevronRight, Download
 } from "lucide-react";
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -1323,6 +1323,22 @@ export default function DigitalForms() {
                 <SelectItem value="draft">Draft</SelectItem>
               </SelectContent>
             </Select>
+            <Button
+              variant="outline"
+              size="sm"
+              className="ml-auto gap-1.5"
+              onClick={() => {
+                const a = document.createElement("a");
+                a.href = "/api/digital-forms/submissions/export";
+                a.download = "";
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+              }}
+            >
+              <Download size={14} />
+              Export CSV
+            </Button>
           </div>
 
           {loadingSubmissions ? (
