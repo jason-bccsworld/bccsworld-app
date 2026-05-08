@@ -25,6 +25,7 @@ import digitalFormsRoutes from "./routes/digital-forms";
 import mlTrainingRoutes from "./routes/ml-training";
 import cryptoSigningRoutes from "./routes/crypto-signing";
 import { signTrainingRecord, getOrgActiveKey } from "./services/crypto-signing";
+import reviewerRoutes from "./routes/reviewer";
 import { generateDocumentImportTutorial } from "./generate-document-import-tutorial";
 import { auditComplianceAI } from "./services/audit-compliance-ai";
 import { db } from "./db";
@@ -353,6 +354,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/api/digital-forms', digitalFormsRoutes);
   app.use('/api/ml', mlTrainingRoutes);
   app.use('/api/org-keys', cryptoSigningRoutes);
+  app.use('/api/reviewer-keys', reviewerRoutes);
 
   // ── Document Upload ──────────────────────────────────────────────────────
   const upload = multer({

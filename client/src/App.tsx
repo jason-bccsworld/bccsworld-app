@@ -48,6 +48,7 @@ import ComplianceReport from "@/pages/compliance-report";
 import FAARepository from "@/pages/faa-repository";
 import DigitalForms from "@/pages/digital-forms";
 import PublicForm from "@/pages/public-form";
+import ReviewerPortal from "@/pages/reviewer-portal";
 import Login from "@/pages/login";
 import NotFound from "@/pages/not-found";
 import DashboardLayout from "@/layouts/dashboard-layout";
@@ -456,6 +457,7 @@ function Router() {
 
       {/* Public form route — no auth required */}
       <Route path="/f/:token" component={PublicForm} />
+      <Route path="/reviewer" component={ReviewerPortal} />
 
       <Route path="/mobile-field" component={MobileField} />
       <Route component={NotFound} />

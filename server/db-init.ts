@@ -162,6 +162,24 @@ export async function ensureTables(): Promise<void> {
     // Crypto signing tables (Ed25519 key pairs + signature columns)
     await ensureCryptoTables();
 
+    // ── Reviewer API keys ─────────────────────────────────────────────────────
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS bccs_reviewer_keys (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        key_hash VARCHAR(64) NOT NULL UNIQUE,
+        key_preview VARCHAR(24) NOT NULL,
+        label VARCHAR(200) NOT NULL,
+        reviewer_name VARCHAR(200) NOT NULL,
+        reviewer_email VARCHAR(300),
+        org_ids JSONB NOT NULL DEFAULT '[]',
+        created_by VARCHAR(200),
+        created_at TIMESTAMP DEFAULT NOW(),
+        last_used_at TIMESTAMP,
+        expires_at TIMESTAMP,
+        is_active BOOLEAN DEFAULT TRUE
+      )
+    `);
+
     console.log('[db-init] Training records tables ensured');
     console.log('[db-init] Role permissions seeded');
   } catch (err) {

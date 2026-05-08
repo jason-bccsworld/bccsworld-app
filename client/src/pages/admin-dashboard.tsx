@@ -15,6 +15,7 @@ import {
   UserPlus, Search, RotateCcw, CheckCircle2, XCircle, Clock,
   ChevronDown, ChevronRight, KeyRound, AlertCircle, Eye, EyeOff,
   ShieldCheck, Lock, Unlock, Edit2, CreditCard, Calendar, Zap,
+  Key, Copy, ExternalLink, RefreshCw, Globe, User,
 } from "lucide-react";
 import { useLicense } from "@/hooks/useLicense";
 import { FeatureGate, LockedBadge } from "@/components/feature-gate";
@@ -69,6 +70,305 @@ function StatusBadge({ isActive }: { isActive: boolean }) {
     <span className="inline-flex items-center gap-1 text-xs font-medium text-slate-400">
       <XCircle className="h-3 w-3" /> Inactive
     </span>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// Reviewer API Keys Panel
+// ══════════════════════════════════════════════════════════════════════════
+
+interface ReviewerKey {
+  id: string;
+  key_preview: string;
+  label: string;
+  reviewer_name: string;
+  reviewer_email: string | null;
+  org_ids: string[];
+  created_by: string;
+  created_at: string;
+  last_used_at: string | null;
+  expires_at: string | null;
+  is_active: boolean;
+}
+
+function ReviewerKeysPanel() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  // ── State ─────────────────────────────────────────────────────────────
+  const [createOpen, setCreateOpen] = useState(false);
+  const [newLabel, setNewLabel] = useState("");
+  const [newName, setNewName] = useState("");
+  const [newEmail, setNewEmail] = useState("");
+  const [newExpiry, setNewExpiry] = useState("");
+  const [generatedKey, setGeneratedKey] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  // ── Data ──────────────────────────────────────────────────────────────
+  const { data: keys = [], isLoading } = useQuery<ReviewerKey[]>({
+    queryKey: ["/api/reviewer-keys"],
+  });
+
+  // ── Mutations ─────────────────────────────────────────────────────────
+  const createKey = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/reviewer-keys", {
+        label: newLabel.trim(),
+        reviewerName: newName.trim(),
+        reviewerEmail: newEmail.trim() || undefined,
+        orgIds: [],
+        expiresAt: newExpiry || undefined,
+      });
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/reviewer-keys"] });
+      setGeneratedKey(data.key);
+      setNewLabel(""); setNewName(""); setNewEmail(""); setNewExpiry("");
+    },
+    onError: () => toast({ title: "Failed to create key", variant: "destructive" }),
+  });
+
+  const revokeKey = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await apiRequest("DELETE", `/api/reviewer-keys/${id}`);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/reviewer-keys"] });
+      toast({ title: "Key revoked" });
+    },
+    onError: () => toast({ title: "Failed to revoke key", variant: "destructive" }),
+  });
+
+  const copyKey = async (key: string) => {
+    await navigator.clipboard.writeText(key);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const portalUrl = (key: string) =>
+    `${window.location.origin}/reviewer?key=${encodeURIComponent(key)}`;
+
+  const activeKeys = keys.filter(k => k.is_active);
+  const revokedKeys = keys.filter(k => !k.is_active);
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Key className="h-5 w-5 text-blue-600" />
+                Reviewer API Keys
+              </CardTitle>
+              <CardDescription>
+                Generate read-only keys for FAA auditors and external reviewers. Each key provides
+                secure, login-free access to a shareable reviewer portal.
+              </CardDescription>
+            </div>
+            <Button onClick={() => setCreateOpen(true)} className="bg-blue-600 hover:bg-blue-700 shrink-0">
+              <Plus className="h-4 w-4 mr-1.5" /> Generate Key
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-blue-500" /></div>
+          ) : activeKeys.length === 0 ? (
+            <div className="text-center py-10 text-slate-400">
+              <Key className="h-8 w-8 mx-auto mb-2 opacity-30" />
+              <p className="font-medium">No active reviewer keys</p>
+              <p className="text-sm mt-1">Generate a key to give an auditor read-only portal access.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {activeKeys.map((k) => (
+                <div key={k.id} className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 rounded-lg border bg-white">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-semibold text-slate-800">{k.label}</span>
+                      <Badge className="bg-green-100 text-green-700 border-0 text-xs">Active</Badge>
+                      {k.expires_at && new Date(k.expires_at) < new Date() && (
+                        <Badge className="bg-red-100 text-red-700 border-0 text-xs">Expired</Badge>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 text-xs text-slate-500">
+                      <span className="flex items-center gap-1">
+                        <User className="h-3 w-3" /> {k.reviewer_name}
+                        {k.reviewer_email && ` · ${k.reviewer_email}`}
+                      </span>
+                      <span className="font-mono text-slate-400">{k.key_preview}</span>
+                      {k.expires_at && (
+                        <span className="flex items-center gap-1">
+                          <Calendar className="h-3 w-3" />
+                          Expires {format(new Date(k.expires_at), "MMM d, yyyy")}
+                        </span>
+                      )}
+                      {k.last_used_at && (
+                        <span>Last used {formatDistanceToNow(new Date(k.last_used_at), { addSuffix: true })}</span>
+                      )}
+                      {!k.last_used_at && (
+                        <span className="text-slate-400 italic">Never used</span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Button
+                      size="sm" variant="outline"
+                      onClick={() => window.open(`/reviewer?key=${k.key_preview.replace("...", "")}`, "_blank")}
+                      title="Open reviewer portal (key preview only — share actual key separately)"
+                    >
+                      <Globe className="h-4 w-4 mr-1" /> Portal
+                    </Button>
+                    <Button
+                      size="sm" variant="outline" className="text-red-600 hover:text-red-700 hover:border-red-300"
+                      onClick={() => revokeKey.mutate(k.id)}
+                      disabled={revokeKey.isPending}
+                    >
+                      {revokeKey.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4 mr-1" />}
+                      Revoke
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {revokedKeys.length > 0 && (
+            <div className="mt-4">
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Revoked Keys ({revokedKeys.length})</p>
+              <div className="space-y-2">
+                {revokedKeys.map(k => (
+                  <div key={k.id} className="flex items-center justify-between px-4 py-2.5 rounded-lg border bg-slate-50 opacity-60">
+                    <div>
+                      <span className="text-sm font-medium text-slate-600">{k.label}</span>
+                      <span className="text-xs text-slate-400 ml-2">· {k.reviewer_name} · <span className="font-mono">{k.key_preview}</span></span>
+                    </div>
+                    <Badge className="bg-slate-200 text-slate-500 border-0 text-xs">Revoked</Badge>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* ── Generate key dialog ───────────────────────────────────────── */}
+      <Dialog open={createOpen} onOpenChange={(o) => { setCreateOpen(o); if (!o) setGeneratedKey(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Key className="h-5 w-5 text-blue-600" /> Generate Reviewer API Key
+            </DialogTitle>
+            <DialogDescription>
+              The key will be shown once. Send it to the reviewer along with the portal URL.
+            </DialogDescription>
+          </DialogHeader>
+
+          {generatedKey ? (
+            /* ── Success: show key ──────────────────────────────────────── */
+            <div className="space-y-4 py-2">
+              <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-4">
+                <p className="text-sm font-semibold text-emerald-800 mb-2">Key generated — copy it now</p>
+                <div className="flex items-center gap-2">
+                  <code className="flex-1 text-xs font-mono bg-white border rounded px-2 py-1.5 break-all text-slate-700">
+                    {generatedKey}
+                  </code>
+                  <Button size="sm" variant="outline" onClick={() => copyKey(generatedKey)}>
+                    {copied ? <CheckCircle2 className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                  </Button>
+                </div>
+                <p className="text-xs text-emerald-700 mt-2">
+                  ⚠ This key will not be shown again. Store it securely.
+                </p>
+              </div>
+              <div className="rounded-lg bg-slate-50 border p-3 space-y-1.5">
+                <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Reviewer Portal URL</p>
+                <div className="flex items-center gap-2">
+                  <code className="flex-1 text-xs font-mono bg-white border rounded px-2 py-1.5 break-all text-slate-600">
+                    {portalUrl(generatedKey)}
+                  </code>
+                  <Button size="sm" variant="outline" onClick={() => copyKey(portalUrl(generatedKey))}>
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </div>
+                <Button
+                  size="sm" variant="outline" className="w-full mt-1"
+                  onClick={() => window.open(portalUrl(generatedKey), "_blank")}
+                >
+                  <ExternalLink className="h-4 w-4 mr-1.5" /> Preview Reviewer Portal
+                </Button>
+              </div>
+              <DialogFooter>
+                <Button onClick={() => { setCreateOpen(false); setGeneratedKey(null); }}>
+                  Done
+                </Button>
+              </DialogFooter>
+            </div>
+          ) : (
+            /* ── Form ───────────────────────────────────────────────────── */
+            <div className="space-y-4 py-2">
+              <div>
+                <Label className="text-sm font-medium">Key Label <span className="text-red-500">*</span></Label>
+                <Input
+                  placeholder="e.g. FAA Annual Audit 2026"
+                  value={newLabel}
+                  onChange={e => setNewLabel(e.target.value)}
+                  className="mt-1"
+                />
+                <p className="text-xs text-slate-400 mt-1">Internal name to identify this key</p>
+              </div>
+              <div>
+                <Label className="text-sm font-medium">Reviewer Name <span className="text-red-500">*</span></Label>
+                <Input
+                  placeholder="e.g. John Smith"
+                  value={newName}
+                  onChange={e => setNewName(e.target.value)}
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label className="text-sm font-medium">Reviewer Email</Label>
+                <Input
+                  type="email"
+                  placeholder="reviewer@faa.gov"
+                  value={newEmail}
+                  onChange={e => setNewEmail(e.target.value)}
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label className="text-sm font-medium">Expiry Date</Label>
+                <Input
+                  type="date"
+                  value={newExpiry}
+                  onChange={e => setNewExpiry(e.target.value)}
+                  className="mt-1"
+                  min={new Date().toISOString().split("T")[0]}
+                />
+                <p className="text-xs text-slate-400 mt-1">Leave blank for no expiry</p>
+              </div>
+              <div className="rounded-lg bg-blue-50 border border-blue-100 p-3 text-xs text-blue-700">
+                <strong>Org scope:</strong> This key will grant access to all active organizations.
+                Per-organization scoping can be configured after key creation.
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
+                <Button
+                  onClick={() => createKey.mutate()}
+                  disabled={!newLabel.trim() || !newName.trim() || createKey.isPending}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  {createKey.isPending ? <><Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> Generating…</> : <><Key className="h-4 w-4 mr-1.5" /> Generate Key</>}
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }
 
@@ -374,6 +674,11 @@ export default function AdminDashboard() {
           {isLicenseAdmin && (
             <TabsTrigger value="license">
               <CreditCard className="h-4 w-4 mr-1.5" /> License
+            </TabsTrigger>
+          )}
+          {isAdmin && (
+            <TabsTrigger value="api-keys">
+              <Key className="h-4 w-4 mr-1.5" /> API Keys
             </TabsTrigger>
           )}
         </TabsList>
@@ -964,6 +1269,13 @@ export default function AdminDashboard() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* ── API KEYS TAB ───────────────────────────────────────────────── */}
+        {isAdmin && (
+          <TabsContent value="api-keys">
+            <ReviewerKeysPanel />
+          </TabsContent>
+        )}
       </Tabs>
 
       {/* ── INVITE DIALOG ─────────────────────────────────────────────────── */}
