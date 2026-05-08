@@ -27,27 +27,39 @@ import {
   Activity,
   ClipboardList,
   Archive,
-  PenLine
+  PenLine,
+  TrendingUp,
 } from 'lucide-react';
+import { useLicense } from '@/hooks/useLicense';
+import type { PlanFeatures } from '../../../shared/license';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
 }
 
-const navigationItems = [
+interface NavItem {
+  path: string;
+  icon: React.ElementType;
+  label: string;
+  badge?: string;
+  feature?: keyof PlanFeatures;
+}
+
+const navigationItems: NavItem[] = [
   { path: "/dashboard", icon: BarChart3, label: "Compliance Dashboard" },
   { path: "/compliance-records", icon: Clock, label: "Training Records" },
   { path: "/students", icon: BookOpen, label: "Student Roster" },
   { path: "/instructors", icon: GraduationCap, label: "Instructor Records" },
   { path: "/safo-info", icon: Bell, label: "SAFO / InFO" },
   { path: "/audit-history", icon: Activity, label: "Audit History" },
-  { path: "/compliance-report", icon: ClipboardList, label: "Compliance Report" },
+  { path: "/compliance-report", icon: ClipboardList, label: "Compliance Report", feature: "complianceReports" },
   { path: "/compliance-checklist", icon: CheckCircle, label: "Part 142 Checklist" },
   { path: "/far-compliance", icon: Shield, label: "FAR Compliance" },
-  { path: "/ai-audit-compliance", icon: Brain, label: "AI Audit Assistant", badge: "AI" },
+  { path: "/ai-audit-compliance", icon: Brain, label: "AI Audit Assistant", badge: "AI", feature: "aiDocumentProcessing" },
+  { path: "/analytics-dashboard", icon: TrendingUp, label: "Analytics Dashboard", feature: "advancedAnalytics" },
   { path: "/regulatory-alerts", icon: AlertTriangle, label: "Regulatory Alerts" },
   { path: "/link-monitor", icon: ExternalLink, label: "Link Monitor" },
-  { path: "/document-import", icon: FileText, label: "AI Document Import", badge: "AI" },
+  { path: "/document-import", icon: FileText, label: "AI Document Import", badge: "AI", feature: "aiDocumentProcessing" },
   { path: "/documents", icon: Database, label: "Document Library" },
   { path: "/faa-repository", icon: Archive, label: "FAA Repository", badge: "LIVE" },
   { path: "/digital-forms", icon: PenLine, label: "Digital Forms", badge: "NEW" },
@@ -60,6 +72,7 @@ const navigationItems = [
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [location] = useLocation();
+  const { canUse, isLoading: licenseLoading } = useLicense();
 
   return (
     <div className="dashboard-layout-new">
@@ -80,30 +93,42 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
         {/* Navigation */}
         <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-          {navigationItems.map((item) => (
-            <Link
-              key={item.path}
-              href={item.path}
-              className={`flex items-center justify-between px-4 py-3 rounded-lg text-sm transition-colors ${
-                location === item.path
-                  ? 'bg-blue-600 text-white' 
-                  : 'text-slate-300 hover:bg-slate-800 hover:text-white'
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <item.icon size={20} />
-                {item.label}
-              </div>
-              {item.badge && (
-                <span className={`text-white text-xs px-2 py-1 rounded-full ${
-                  item.badge === 'AI' ? 'bg-purple-500' : 
-                  item.badge === 'P4' ? 'bg-blue-500' : 'bg-red-500'
-                }`}>
-                  {item.badge}
-                </span>
-              )}
-            </Link>
-          ))}
+          {navigationItems.map((item) => {
+            const isActive = location === item.path;
+            const isLocked = !licenseLoading && item.feature ? !canUse(item.feature) : false;
+
+            return (
+              <Link
+                key={item.path}
+                href={item.path}
+                className={`flex items-center justify-between px-4 py-3 rounded-lg text-sm transition-colors ${
+                  isActive
+                    ? 'bg-blue-600 text-white'
+                    : isLocked
+                    ? 'text-slate-500 hover:bg-slate-800 hover:text-slate-300'
+                    : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <item.icon size={20} className={isLocked ? 'opacity-50' : ''} />
+                  <span className={isLocked ? 'opacity-60' : ''}>{item.label}</span>
+                </div>
+                {isLocked ? (
+                  <span className="flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-slate-700 text-slate-400">
+                    <Lock size={9} />
+                    Upgrade
+                  </span>
+                ) : item.badge ? (
+                  <span className={`text-white text-xs px-2 py-1 rounded-full ${
+                    item.badge === 'AI' ? 'bg-purple-500' :
+                    item.badge === 'P4' ? 'bg-blue-500' : 'bg-red-500'
+                  }`}>
+                    {item.badge}
+                  </span>
+                ) : null}
+              </Link>
+            );
+          })}
         </nav>
 
         {/* Footer */}

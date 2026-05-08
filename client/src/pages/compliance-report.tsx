@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Printer, Download, CheckCircle2, AlertTriangle, Clock } from "lucide-react";
 import { format } from "date-fns";
+import { FeatureGate } from "@/components/feature-gate";
 
 function PrintSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -43,6 +44,7 @@ export default function ComplianceReport() {
   const handlePrint = () => window.print();
 
   return (
+    <FeatureGate feature="complianceReports" featureLabel="Compliance Reports">
     <div className="space-y-6">
       {/* Screen-only controls */}
       <div className="print:hidden flex items-center justify-between">
@@ -227,5 +229,6 @@ export default function ComplianceReport() {
         </div>
       </div>
     </div>
+    </FeatureGate>
   );
 }

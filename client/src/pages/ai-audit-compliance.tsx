@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AlertCircle, CheckCircle, Clock, FileText, Brain, AlertTriangle } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
+import { FeatureGate } from '@/components/feature-gate';
 
 interface ComplianceAnalysis {
   checklistItemId: string;
@@ -131,6 +132,7 @@ export default function AIAuditCompliance() {
   };
 
   return (
+    <FeatureGate feature="aiDocumentProcessing" featureLabel="AI Audit Compliance Assistant">
     <div className="max-w-7xl mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
@@ -404,5 +406,6 @@ export default function AIAuditCompliance() {
         </div>
       )}
     </div>
+    </FeatureGate>
   );
 }

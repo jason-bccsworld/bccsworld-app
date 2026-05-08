@@ -3,6 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { useLicense } from "@/hooks/useLicense";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -925,6 +926,7 @@ function GenerateChecklistDialog({
 export default function DigitalForms() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { canUse } = useLicense();
 
   const [activeTab, setActiveTab] = useState("templates");
   const [showBuilder, setShowBuilder] = useState(false);
@@ -1026,13 +1028,25 @@ export default function DigitalForms() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            onClick={() => setShowGenerateDialog(true)}
-            className="border-violet-300 text-violet-700 hover:bg-violet-50"
-          >
-            <Sparkles size={15} className="mr-2" /> Generate from FAA Checklist
-          </Button>
+          {canUse('aiFormGeneration') ? (
+            <Button
+              variant="outline"
+              onClick={() => setShowGenerateDialog(true)}
+              className="border-violet-300 text-violet-700 hover:bg-violet-50"
+            >
+              <Sparkles size={15} className="mr-2" /> Generate from FAA Checklist
+            </Button>
+          ) : (
+            <Button
+              variant="outline"
+              disabled
+              title="Upgrade to Professional or Enterprise to use AI form generation"
+              className="border-slate-200 text-slate-400 cursor-not-allowed opacity-60"
+            >
+              <Sparkles size={15} className="mr-2" /> Generate from FAA Checklist
+              <span className="ml-2 text-[10px] bg-slate-200 text-slate-500 px-1.5 py-0.5 rounded">PRO</span>
+            </Button>
+          )}
           <Button
             onClick={() => { setEditTemplate(null); setShowBuilder(true); }}
             className="bg-blue-600 hover:bg-blue-700"

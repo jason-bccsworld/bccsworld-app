@@ -17,6 +17,7 @@ import {
   ShieldCheck, Lock, Unlock, Edit2, CreditCard, Calendar, Zap,
 } from "lucide-react";
 import { useLicense } from "@/hooks/useLicense";
+import { FeatureGate, LockedBadge } from "@/components/feature-gate";
 import { PLAN_DISPLAY, PLAN_FEATURES, type PlanKey } from "@shared/license";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -83,7 +84,7 @@ export default function AdminDashboard() {
   const isLicenseAdmin = isAdmin || (user as any)?.role === "support_admin";
 
   // ── license state (for Licenses tab)
-  const { license, refetch: refetchLicense } = useLicense();
+  const { license, refetch: refetchLicense, canUse } = useLicense();
   const [licPlan, setLicPlan]             = useState<PlanKey>("trial");
   const [licStatus, setLicStatus]         = useState("trial");
   const [licSeats, setLicSeats]           = useState("5");
@@ -362,6 +363,7 @@ export default function AdminDashboard() {
           </TabsTrigger>
           <TabsTrigger value="roles">
             <Shield className="h-4 w-4 mr-1.5" /> Roles &amp; Permissions
+            {!canUse('customRoles') && <LockedBadge />}
           </TabsTrigger>
           <TabsTrigger value="organizations">
             <Building className="h-4 w-4 mr-1.5" /> Organizations
@@ -481,6 +483,7 @@ export default function AdminDashboard() {
 
         {/* ── ROLES & PERMISSIONS TAB ───────────────────────────────────── */}
         <TabsContent value="roles">
+          <FeatureGate feature="customRoles" featureLabel="Custom Roles & Permissions">
           {!isAdmin ? (
             <Card>
               <CardContent className="py-10 text-center text-slate-500">
@@ -693,6 +696,7 @@ export default function AdminDashboard() {
               </div>
             </div>
           )}
+          </FeatureGate>
         </TabsContent>
 
         {/* ── ORGANIZATIONS TAB ─────────────────────────────────────────── */}

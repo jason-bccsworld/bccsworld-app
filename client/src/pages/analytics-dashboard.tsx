@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { FeatureGate } from "@/components/feature-gate";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -79,6 +80,7 @@ export default function AnalyticsDashboard() {
   ];
 
   return (
+    <FeatureGate feature="advancedAnalytics" featureLabel="Advanced Analytics">
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -423,5 +425,6 @@ export default function AnalyticsDashboard() {
         </TabsContent>
       </Tabs>
     </div>
+    </FeatureGate>
   );
 }
