@@ -153,7 +153,7 @@ export default function DocumentImport() {
                       <div className="min-w-0">
                         <h4 className="font-medium text-slate-900 truncate">{doc.originalName}</h4>
                         <p className="text-sm text-slate-600">
-                          {format(new Date(doc.createdAt), "MMM dd, yyyy 'at' hh:mm a")}
+                          {doc.createdAt ? format(new Date(doc.createdAt), "MMM dd, yyyy 'at' hh:mm a") : "—"}
                         </p>
                       </div>
                     </div>
