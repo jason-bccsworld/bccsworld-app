@@ -180,9 +180,281 @@ export async function ensureTables(): Promise<void> {
       )
     `);
 
+    // ── AIEOS / GATE governance engine ──────────────────────────────────────────
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS governance_policies (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        action_type VARCHAR(100) NOT NULL UNIQUE,
+        label VARCHAR(200) NOT NULL,
+        description TEXT NOT NULL,
+        required_authority VARCHAR(50) NOT NULL,
+        decision_rule VARCHAR(20) NOT NULL DEFAULT 'refuse',
+        is_protected BOOLEAN DEFAULT FALSE,
+        regulatory_basis VARCHAR(200) NOT NULL,
+        regulatory_text TEXT,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS governance_decisions (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        action_type VARCHAR(100) NOT NULL,
+        action_description TEXT NOT NULL,
+        requested_by VARCHAR(200) NOT NULL,
+        requester_authority VARCHAR(50) NOT NULL,
+        policy_id UUID REFERENCES governance_policies(id),
+        decision VARCHAR(20) NOT NULL,
+        reasoning TEXT NOT NULL,
+        regulatory_basis VARCHAR(200),
+        org_id VARCHAR(200),
+        context JSONB DEFAULT '{}',
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS governance_escalations (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        decision_id UUID REFERENCES governance_decisions(id) NOT NULL,
+        required_approver_role VARCHAR(50) NOT NULL,
+        status VARCHAR(20) NOT NULL DEFAULT 'pending',
+        requested_by VARCHAR(200) NOT NULL,
+        approved_by VARCHAR(200),
+        resolution_note TEXT,
+        created_at TIMESTAMP DEFAULT NOW(),
+        resolved_at TIMESTAMP
+      )
+    `);
+
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS agent_events (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        agent_name VARCHAR(100) NOT NULL,
+        event_type VARCHAR(50) NOT NULL,
+        message TEXT NOT NULL,
+        related_event_id UUID,
+        org_id VARCHAR(200),
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+
+    // Seed governance demo data (policies, prior decisions, agent activity)
+    await seedGovernanceData();
+
     console.log('[db-init] Training records tables ensured');
     console.log('[db-init] Role permissions seeded');
+    console.log('[db-init] Governance (GATE/AIEOS) tables ensured');
   } catch (err) {
     console.error('[db-init] Table creation error:', err);
   }
+}
+
+// ── Governance seed data (AIEOS / GATE demo context) ─────────────────────────
+const DEMO_ORG = "demo-org-142";
+
+const SEED_POLICIES = [
+  {
+    action_type: "modify_evidence",
+    label: "Modify audit evidence",
+    description: "Alter or overwrite a document, extracted field, or evidence artifact already attached to a compliance record.",
+    required_authority: "admin",
+    decision_rule: "refuse",
+    is_protected: true,
+    regulatory_basis: "14 CFR 142.45",
+    regulatory_text: "Each training center must maintain accurate records of each student and make them available. Evidence integrity is non-negotiable.",
+  },
+  {
+    action_type: "delete_audit_record",
+    label: "Delete an audit-trail record",
+    description: "Permanently remove an entry from the immutable audit history.",
+    required_authority: "faa_designated_examiner",
+    decision_rule: "refuse",
+    is_protected: true,
+    regulatory_basis: "14 CFR 142.47",
+    regulatory_text: "Records must be retained for the required retention period. Deletion of audit history is categorically inadmissible.",
+  },
+  {
+    action_type: "issue_certificate_without_checkride",
+    label: "Issue certificate without a completed checkride",
+    description: "Grant a course-completion certificate to a student who has not passed the required practical test.",
+    required_authority: "faa_designated_examiner",
+    decision_rule: "refuse",
+    is_protected: false,
+    regulatory_basis: "14 CFR 61.43",
+    regulatory_text: "Completion of a practical test is required before a certificate or rating may be issued.",
+  },
+  {
+    action_type: "waive_required_training_hours",
+    label: "Waive required training hours",
+    description: "Reduce or waive the minimum training hours specified in the approved training program.",
+    required_authority: "chief_pilot",
+    decision_rule: "escalate",
+    is_protected: false,
+    regulatory_basis: "14 CFR 142.53",
+    regulatory_text: "Training programs must meet the curriculum and hour requirements approved by the Administrator.",
+  },
+  {
+    action_type: "sign_training_record_without_instructor",
+    label: "Sign a training record without instructor verification",
+    description: "Finalize a training record that is missing the required instructor signature.",
+    required_authority: "instructor",
+    decision_rule: "refuse",
+    is_protected: false,
+    regulatory_basis: "14 CFR 142.61",
+    regulatory_text: "Training records must reflect instruction given and be signed by the authorized instructor.",
+  },
+  {
+    action_type: "approve_checkride_extension",
+    label: "Approve a checkride deadline extension",
+    description: "Extend the allowable time window for a student to complete a required practical test.",
+    required_authority: "chief_pilot",
+    decision_rule: "escalate",
+    is_protected: false,
+    regulatory_basis: "14 CFR 142.59",
+    regulatory_text: "Deviations from the approved training schedule require appropriate authority approval.",
+  },
+  {
+    action_type: "modify_enrollment_after_completion",
+    label: "Modify enrollment after course completion",
+    description: "Change a student's enrollment or completion status after the course has been marked complete.",
+    required_authority: "admin",
+    decision_rule: "escalate",
+    is_protected: true,
+    regulatory_basis: "14 CFR 142.45",
+    regulatory_text: "Completed-course records are protected. Post-completion changes require governance approval and full audit logging.",
+  },
+  {
+    action_type: "export_compliance_data_external",
+    label: "Export compliance data to an external party",
+    description: "Send compliance records or evidence packages to a recipient outside the organization.",
+    required_authority: "admin",
+    decision_rule: "escalate",
+    is_protected: false,
+    regulatory_basis: "Data Governance Policy DG-04",
+    regulatory_text: "External disclosure of compliance data requires documented authorization and an audit record.",
+  },
+];
+
+export async function resetGovernanceDemo(): Promise<void> {
+  // Wipe runtime + seed rows and restore fresh seed state (for repeatable demos).
+  await db.execute(sql`
+    TRUNCATE governance_escalations, governance_decisions, agent_events RESTART IDENTITY CASCADE
+  `);
+  await db.execute(sql`DELETE FROM governance_policies`);
+  await seedGovernanceData();
+}
+
+export async function seedGovernanceData(): Promise<void> {
+  // Only seed once — check for existing policies
+  const existing = await db
+    .execute(sql`SELECT COUNT(*)::int AS n FROM governance_policies`)
+    .then((r) => (r as any).rows[0]?.n ?? 0);
+  if (existing > 0) return;
+
+  // 1) Policies
+  for (const p of SEED_POLICIES) {
+    await db.execute(sql`
+      INSERT INTO governance_policies
+        (action_type, label, description, required_authority, decision_rule, is_protected, regulatory_basis, regulatory_text)
+      VALUES
+        (${p.action_type}, ${p.label}, ${p.description}, ${p.required_authority}, ${p.decision_rule},
+         ${p.is_protected}, ${p.regulatory_basis}, ${p.regulatory_text})
+      ON CONFLICT (action_type) DO NOTHING
+    `);
+  }
+
+  // Map action_type -> policy id for decision seeding
+  const policyRows = await db
+    .execute(sql`SELECT id, action_type, regulatory_basis FROM governance_policies`)
+    .then((r) => (r as any).rows as any[]);
+  const policyByAction: Record<string, any> = {};
+  for (const row of policyRows) policyByAction[row.action_type] = row;
+
+  // 2) Prior governance decisions (Enterprise Memory)
+  const seedDecisions = [
+    {
+      action_type: "waive_required_training_hours",
+      action_description: "Instructor requested waiving 4 simulator hours for student S-1042 citing prior military experience.",
+      requested_by: "J. Alvarez (instructor)",
+      requester_authority: "instructor",
+      decision: "escalated",
+      reasoning: "Authority insufficient: hour waivers require chief pilot authority under 14 CFR 142.53. Routed for human approval; approved with documented military logbook credit.",
+      daysAgo: 34,
+    },
+    {
+      action_type: "issue_certificate_without_checkride",
+      action_description: "Attempt to issue Part 142 course completion for student S-0987 before practical test.",
+      requested_by: "M. Chen (instructor)",
+      requester_authority: "instructor",
+      decision: "refused",
+      reasoning: "Inadmissible under 14 CFR 61.43 — a practical test must be completed before a certificate is issued. No authority level can override this requirement.",
+      daysAgo: 21,
+    },
+    {
+      action_type: "modify_evidence",
+      action_description: "Request to replace an uploaded curriculum PDF already linked to a compliance record.",
+      requested_by: "K. Osei (auditor)",
+      requester_authority: "auditor",
+      decision: "refused",
+      reasoning: "Evidence is protected state under 14 CFR 142.45. Overwriting attached evidence is refused; a new version must be appended with full audit trail instead.",
+      daysAgo: 12,
+    },
+    {
+      action_type: "approve_checkride_extension",
+      action_description: "14-day checkride extension requested for student S-1103 due to weather cancellations.",
+      requested_by: "R. Silva (instructor)",
+      requester_authority: "instructor",
+      decision: "escalated",
+      reasoning: "Schedule deviation under 14 CFR 142.59 requires chief pilot authority. Escalated and approved with weather-cancellation documentation attached.",
+      daysAgo: 6,
+    },
+    {
+      action_type: "export_compliance_data_external",
+      action_description: "Export of Q1 compliance package to a partner airline's training department.",
+      requested_by: "T. Nakamura (admin)",
+      requester_authority: "admin",
+      decision: "allowed",
+      reasoning: "Requester holds admin authority; external export authorized per DG-04 with an audit record generated and recipient logged.",
+      daysAgo: 3,
+    },
+  ];
+
+  for (const d of seedDecisions) {
+    const pol = policyByAction[d.action_type];
+    await db.execute(sql`
+      INSERT INTO governance_decisions
+        (action_type, action_description, requested_by, requester_authority, policy_id, decision, reasoning, regulatory_basis, org_id, created_at)
+      VALUES
+        (${d.action_type}, ${d.action_description}, ${d.requested_by}, ${d.requester_authority},
+         ${pol?.id ?? null}, ${d.decision}, ${d.reasoning}, ${pol?.regulatory_basis ?? null}, ${DEMO_ORG},
+         NOW() - (${d.daysAgo} || ' days')::interval)
+    `);
+  }
+
+  // 3) Agent activity feed (Shared Enterprise Awareness) — one detection propagating to peers
+  const detection = await db
+    .execute(sql`
+      INSERT INTO agent_events (agent_name, event_type, message, org_id, created_at)
+      VALUES ('Regulatory Watch Agent', 'detected_change',
+        'Detected FAA update affecting 14 CFR 142.45 recordkeeping — new evidence-retention clause published.',
+        ${DEMO_ORG}, NOW() - interval '2 hours')
+      RETURNING id
+    `)
+    .then((r) => (r as any).rows[0].id);
+
+  const reactions = [
+    ["Compliance Agent", "updated_checklist", "Updated 3 Part 142 checklist items to reference the revised 142.45 retention clause."],
+    ["Records Agent", "flagged_records", "Flagged 7 training records and 2 evidence packages for retention-period review."],
+    ["Governance Agent", "policy_synced", "Confirmed modify_evidence policy still enforces protected state under revised 142.45."],
+    ["Dashboard", "dashboard_synced", "Enterprise compliance dashboard refreshed — audit readiness recalculated."],
+  ];
+  for (const [agent, type, msg] of reactions) {
+    await db.execute(sql`
+      INSERT INTO agent_events (agent_name, event_type, message, related_event_id, org_id, created_at)
+      VALUES (${agent}, ${type}, ${msg}, ${detection}, ${DEMO_ORG}, NOW() - interval '1 hour')
+    `);
+  }
+
+  console.log('[db-init] Governance demo data seeded');
 }
