@@ -7,7 +7,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { AlertCircle, CheckCircle, Clock, FileText, Brain, AlertTriangle, Gavel, Sparkles } from 'lucide-react';
+import { AlertCircle, CheckCircle, Clock, FileText, Brain, AlertTriangle, Gavel, Sparkles, History } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
@@ -147,6 +147,37 @@ export default function AIAuditCompliance() {
       toast({ title: 'Could not evaluate', description: error.message, variant: 'destructive' });
     },
   });
+
+  // ── Enterprise Memory recall (backward-looking precedent search) ──────────
+  const [memoryQuery, setMemoryQuery] = useState('');
+  const [memoryResult, setMemoryResult] = useState<{
+    summary: string;
+    aiPowered: boolean;
+    decisions: RecallDecision[];
+  } | null>(null);
+
+  const memoryMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest('POST', '/api/governance/memory-recall', { query: memoryQuery });
+      return res.json();
+    },
+    onSuccess: (data) => setMemoryResult(data),
+    onError: (error: any) => {
+      toast({ title: 'Could not recall memory', description: error.message, variant: 'destructive' });
+    },
+  });
+
+  const EXAMPLE_MEMORY_QUERIES = [
+    'What have we decided about waiving training hours?',
+    'How do we handle requests to modify evidence?',
+    'Have we ever refused to issue a certificate?',
+    'What is our precedent on exporting compliance data?',
+  ];
+
+  const handleRecall = () => {
+    if (!memoryQuery.trim()) return;
+    memoryMutation.mutate();
+  };
 
   const EXAMPLE_QUESTIONS = [
     'Can an instructor waive required training hours?',
@@ -290,6 +321,78 @@ export default function AIAuditCompliance() {
                   Enterprise Memory — prior rulings on this action
                 </p>
                 <RecallList items={askResult.recall} />
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Enterprise Memory — backward-looking precedent recall */}
+      <Card className="border-indigo-100">
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <History className="w-5 h-5 mr-2 text-indigo-600" />
+            Enterprise Memory
+          </CardTitle>
+          <p className="text-sm text-gray-500">
+            Ask what the organization has decided before. The engine searches every prior governance
+            ruling and shows the <span className="font-medium">precedent</span> — so decisions stay consistent.
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex flex-wrap gap-2">
+            {EXAMPLE_MEMORY_QUERIES.map((q) => (
+              <button
+                key={q}
+                type="button"
+                onClick={() => setMemoryQuery(q)}
+                className="text-xs px-2.5 py-1 rounded-full border border-slate-200 text-slate-600 hover:bg-slate-50"
+                data-testid="button-example-memory"
+              >
+                {q}
+              </button>
+            ))}
+          </div>
+          <Textarea
+            value={memoryQuery}
+            onChange={(e) => setMemoryQuery(e.target.value)}
+            placeholder="e.g. What have we decided about waiving required training hours?"
+            rows={2}
+            data-testid="input-memory-query"
+          />
+          <Button
+            onClick={handleRecall}
+            disabled={memoryMutation.isPending || !memoryQuery.trim()}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white"
+            data-testid="button-recall-memory"
+          >
+            {memoryMutation.isPending ? (
+              <>
+                <Brain className="w-4 h-4 mr-2 animate-spin" /> Searching…
+              </>
+            ) : (
+              <>
+                <History className="w-4 h-4 mr-2" /> Recall Precedent
+              </>
+            )}
+          </Button>
+
+          {memoryResult && (
+            <div className="space-y-4 pt-2" data-testid="memory-result">
+              <div className="rounded-lg border border-indigo-100 bg-indigo-50/50 p-3">
+                <div className="flex items-center gap-2 mb-1">
+                  <p className="text-sm font-semibold text-indigo-800">What we've decided before</p>
+                  {memoryResult.aiPowered && (
+                    <span className="inline-flex items-center gap-1 text-xs text-purple-600">
+                      <Sparkles className="h-3.5 w-3.5" /> AI synthesis
+                    </span>
+                  )}
+                </div>
+                <p className="text-sm text-gray-700">{memoryResult.summary}</p>
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-slate-700 mb-2">Cited prior rulings</p>
+                <RecallList items={memoryResult.decisions} />
               </div>
             </div>
           )}

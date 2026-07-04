@@ -22,6 +22,9 @@ const router = Router();
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || "not-configured" });
 
+// Org id used by the seeded governance demo agent-event stream.
+const DEMO_ORG_ID = "demo-org-142";
+
 // Deterministic keyword match of a free-text question against known policies.
 // Returns the best-scoring policy's action_type, or null when nothing matches.
 function keywordMatchPolicy(question: string, policies: any[]): string | null {
@@ -398,6 +401,299 @@ router.get("/evidence", isAuthenticated, async (req: any, res) => {
   } catch (err: any) {
     console.error("[governance] evidence error:", err);
     res.status(500).json({ message: "Failed to build evidence package", error: err?.message });
+  }
+});
+
+// ── Regulation Update Impact Analysis (Demo 7) + live-feed beat (Demo 8) ──────
+// Given an FAA repository document (source_id like "14-CFR-142"), measure the
+// enterprise compliance footprint of a regulation change against REAL governance
+// data, produce an AI (or deterministic) impact summary, and propagate a live
+// agent-awareness chain so the Shared Awareness feed animates the response.
+router.post("/regulation-impact", isAuthenticated, async (req: any, res) => {
+  try {
+    const user = req.user as any;
+    const { sourceId, title } = req.body;
+    if (!sourceId || typeof sourceId !== "string") {
+      return res.status(400).json({ message: "sourceId is required" });
+    }
+
+    // Resolve the CFR part number from a repository source_id ("14-CFR-142" -> "142").
+    const part = sourceId.replace(/^14-CFR-/i, "").trim();
+    const isCfrPart = /^\d+$/.test(part);
+    const regLabel = isCfrPart ? `14 CFR ${part}` : sourceId;
+
+    // Anchored match so part "61" does NOT falsely match "14 CFR 142.61".
+    const likePattern = `14 CFR ${part}.%`;
+    const eqPattern = `14 CFR ${part}`;
+    const match = isCfrPart
+      ? sql`(regulatory_basis LIKE ${likePattern} OR regulatory_basis = ${eqPattern})`
+      : sql`FALSE`;
+
+    const affectedPolicies = await db
+      .execute(sql`
+        SELECT id, action_type, label, required_authority, decision_rule, is_protected, regulatory_basis
+        FROM governance_policies
+        WHERE ${match}
+        ORDER BY is_protected DESC, label ASC
+      `)
+      .then((r) => (r as any).rows);
+
+    const priorDecisions = await db
+      .execute(sql`
+        SELECT id, action_type, requester_authority, decision, reasoning, regulatory_basis, created_at
+        FROM governance_decisions
+        WHERE ${match}
+        ORDER BY created_at DESC
+        LIMIT 10
+      `)
+      .then((r) => (r as any).rows);
+
+    const signedRecords = await db
+      .execute(sql`SELECT COUNT(*)::int AS n FROM bccs_training_events WHERE signature IS NOT NULL`)
+      .then((r) => (r as any).rows[0]?.n ?? 0);
+
+    const protectedPolicies = affectedPolicies.filter((p: any) => p.is_protected).length;
+
+    // Deterministic impact summary from the measured counts (AI-independent fallback).
+    const plural = (n: number, s: string, p = s + "s") => `${n} ${n === 1 ? s : p}`;
+    let summary =
+      `${plural(affectedPolicies.length, "governance policy", "governance policies")} and ` +
+      `${plural(priorDecisions.length, "prior decision")} are tied to ${regLabel}. ` +
+      `${plural(signedRecords, "signed training record")} fall under its recordkeeping scope and should be ` +
+      `reviewed for continued compliance` +
+      (protectedPolicies > 0 ? `, including ${plural(protectedPolicies, "protected-state control")}.` : ".");
+    let recommendedActions: string[] = [
+      `Review the ${plural(affectedPolicies.length, "affected policy", "affected policies")} against the revised ${regLabel} text.`,
+      `Re-verify ${plural(signedRecords, "signed training record")} for retention and evidence compliance.`,
+      protectedPolicies > 0
+        ? `Confirm ${plural(protectedPolicies, "protected-state control")} still block inadmissible edits under ${regLabel}.`
+        : `Confirm no protected-state controls require adjustment for ${regLabel}.`,
+    ];
+    let aiPowered = false;
+
+    if (process.env.OPENAI_API_KEY) {
+      try {
+        const completion = await openai.chat.completions.create({
+          model: "gpt-4o",
+          temperature: 0.2,
+          response_format: { type: "json_object" },
+          messages: [
+            {
+              role: "system",
+              content:
+                "You are an FAA Part 142 compliance analyst. Given a regulation update and its measured " +
+                "enterprise impact, write a concise plain-language impact summary (2-3 sentences) and 3-5 " +
+                'concrete recommended actions. Respond ONLY as JSON: {"summary": string, "recommendedActions": string[]}.',
+            },
+            {
+              role: "user",
+              content:
+                `Regulation: ${regLabel}${title ? ` (${title})` : ""}.\n` +
+                `Measured impact:\n` +
+                `- Affected governance policies: ${affectedPolicies.length}` +
+                (affectedPolicies.length ? ` (${affectedPolicies.map((p: any) => p.label).join("; ")})` : "") +
+                `\n- Protected-state policies: ${protectedPolicies}` +
+                `\n- Prior governance decisions citing this regulation: ${priorDecisions.length}` +
+                `\n- Signed training records under recordkeeping scope: ${signedRecords}`,
+            },
+          ],
+        });
+        const parsed = JSON.parse(completion.choices[0]?.message?.content || "{}");
+        if (parsed.summary && typeof parsed.summary === "string") {
+          summary = parsed.summary;
+          aiPowered = true;
+        }
+        if (Array.isArray(parsed.recommendedActions) && parsed.recommendedActions.length) {
+          const clean = parsed.recommendedActions.filter((a: any) => typeof a === "string" && a.trim());
+          if (clean.length) recommendedActions = clean;
+        }
+      } catch (aiErr: any) {
+        console.warn("[governance] regulation-impact OpenAI fallback:", aiErr?.message);
+      }
+    }
+
+    // Debounce: don't flood the 50-row agent feed if the same regulation was
+    // analyzed within the last 10 minutes.
+    const recent = await db
+      .execute(sql`
+        SELECT 1 FROM agent_events
+        WHERE event_type = 'detected_change'
+          AND message ILIKE ${"%" + regLabel + "%"}
+          AND created_at > NOW() - interval '10 minutes'
+        LIMIT 1
+      `)
+      .then((r) => (r as any).rows);
+
+    let propagated = false;
+    if (recent.length === 0) {
+      propagated = true;
+      const detectionId = await db
+        .execute(sql`
+          INSERT INTO agent_events (agent_name, event_type, message, org_id)
+          VALUES ('Regulatory Watch Agent', 'detected_change',
+            ${`Detected FAA update to ${regLabel} — running enterprise compliance impact analysis.`},
+            ${DEMO_ORG_ID})
+          RETURNING id
+        `)
+        .then((r) => (r as any).rows[0].id);
+
+      const reactions: [string, string, string][] = [
+        ["Compliance Agent", "updated_checklist", `Cross-checked ${plural(affectedPolicies.length, "governance policy", "governance policies")} governed by ${regLabel}.`],
+        ["Records Agent", "flagged_records", `Flagged ${plural(signedRecords, "signed training record")} for ${regLabel} retention review.`],
+        ["Governance Agent", "policy_synced", `Confirmed ${plural(protectedPolicies, "protected-state control")} still enforced under ${regLabel}.`],
+        ["Dashboard", "dashboard_synced", `Enterprise dashboard refreshed — ${regLabel} impact folded into audit readiness.`],
+      ];
+      // Stagger the reactions so successive feed polls animate the propagation live.
+      reactions.forEach(([agent, type, msg], i) => {
+        setTimeout(() => {
+          db.execute(sql`
+            INSERT INTO agent_events (agent_name, event_type, message, related_event_id, org_id)
+            VALUES (${agent}, ${type}, ${msg}, ${detectionId}, ${DEMO_ORG_ID})
+          `).catch((err) => console.error("[governance] reaction event write failed:", err));
+        }, (i + 1) * 2000);
+      });
+    }
+
+    // Analysis footprint — bridged to the audit trail only. This is analysis, NOT
+    // a governed action, so it is deliberately kept out of governance_decisions
+    // (Enterprise Memory) and out of the apex compliance counters.
+    await db
+      .execute(sql`
+        INSERT INTO audit_logs (event_type, severity, message, details, source_system, user_id, timestamp)
+        VALUES ('regulation_impact_analysis', 'info',
+          ${`Regulation impact analyzed for ${regLabel}`},
+          ${JSON.stringify({
+            sourceId,
+            regulation: regLabel,
+            affectedPolicies: affectedPolicies.length,
+            priorDecisions: priorDecisions.length,
+            signedRecords,
+            propagated,
+          })},
+          'gate_engine', ${user?.id ?? "system"}, NOW())
+      `)
+      .catch((err) => console.error("[governance] impact audit write failed:", err));
+
+    res.json({
+      regulation: regLabel,
+      sourceId,
+      title: title ?? regLabel,
+      aiPowered,
+      summary,
+      recommendedActions,
+      propagated,
+      impact: {
+        affectedPolicies,
+        protectedPolicies,
+        priorDecisions,
+        signedRecordsForReview: signedRecords,
+      },
+    });
+  } catch (err: any) {
+    console.error("[governance] regulation-impact error:", err);
+    res.status(500).json({ message: "Failed to analyze regulation impact", error: err?.message });
+  }
+});
+
+// ── Enterprise Memory recall (Demo 9) ────────────────────────────────────────
+// Backward-looking precedent search over governance_decisions. Distinct from
+// /ask (forward-looking admissibility): given a plain-language question, the AI
+// synthesizes what the organization has decided before and cites the specific
+// prior rulings. Degrades to keyword-matched decisions if the AI is unavailable.
+router.post("/memory-recall", isAuthenticated, async (req: any, res) => {
+  try {
+    const { query } = req.body;
+    if (!query || typeof query !== "string" || !query.trim()) {
+      return res.status(400).json({ message: "query is required" });
+    }
+
+    const decisions = await db
+      .execute(sql`
+        SELECT id, action_type, action_description, requested_by, requester_authority,
+               decision, reasoning, regulatory_basis, created_at
+        FROM governance_decisions
+        ORDER BY created_at DESC
+        LIMIT 40
+      `)
+      .then((r) => (r as any).rows);
+
+    if (decisions.length === 0) {
+      return res.json({
+        query,
+        summary: "No prior governance decisions are on record yet.",
+        aiPowered: false,
+        decisions: [],
+      });
+    }
+
+    // Deterministic keyword ranking (fallback + guarantees a sensible default set).
+    const STOPWORDS = new Set([
+      "the", "a", "an", "to", "of", "for", "and", "or", "is", "it", "can", "i",
+      "we", "do", "does", "my", "our", "this", "that", "with", "without", "on",
+      "in", "be", "am", "are", "should", "would", "could", "may", "if", "you",
+      "what", "have", "has", "about", "when", "who", "how", "was", "were", "did",
+    ]);
+    const terms = query
+      .toLowerCase()
+      .split(/[^a-z0-9]+/)
+      .filter((w: string) => w.length > 2 && !STOPWORDS.has(w));
+    const ranked = decisions
+      .map((d: any) => {
+        const hay = `${d.action_type} ${d.action_description} ${d.reasoning} ${d.regulatory_basis ?? ""}`.toLowerCase();
+        return { d, score: terms.filter((t: string) => hay.includes(t)).length };
+      })
+      .sort((a: { score: number }, b: { score: number }) => b.score - a.score);
+    let cited = (ranked[0]?.score > 0 ? ranked.filter((x: { score: number }) => x.score > 0) : ranked)
+      .slice(0, 5)
+      .map((x: { d: any }) => x.d);
+
+    let summary = "Showing keyword-matched prior decisions (AI synthesis unavailable).";
+    let aiPowered = false;
+
+    if (process.env.OPENAI_API_KEY) {
+      try {
+        const list = decisions
+          .map(
+            (d: any, i: number) =>
+              `[${i + 1}] ${String(d.decision).toUpperCase()} — ${d.action_type}: ${d.reasoning} (${d.regulatory_basis ?? "no basis"})`,
+          )
+          .join("\n");
+        const completion = await openai.chat.completions.create({
+          model: "gpt-4o",
+          temperature: 0.2,
+          response_format: { type: "json_object" },
+          messages: [
+            {
+              role: "system",
+              content:
+                "You are the Enterprise Memory of an FAA Part 142 compliance system. Given a numbered list of " +
+                "prior governance decisions and a question about past precedent, synthesize what the organization " +
+                "has decided before (2-4 sentences). Cite only the item numbers that are actually relevant; if none " +
+                'are relevant, say so plainly. Respond ONLY as JSON: {"summary": string, "citedIndexes": number[]}.',
+            },
+            { role: "user", content: `Prior decisions:\n${list}\n\nQuestion: "${query}"` },
+          ],
+        });
+        const parsed = JSON.parse(completion.choices[0]?.message?.content || "{}");
+        if (parsed.summary && typeof parsed.summary === "string") {
+          summary = parsed.summary;
+          aiPowered = true;
+        }
+        if (Array.isArray(parsed.citedIndexes)) {
+          const mapped = parsed.citedIndexes
+            .map((n: any) => decisions[Number(n) - 1])
+            .filter(Boolean);
+          if (mapped.length) cited = mapped;
+        }
+      } catch (aiErr: any) {
+        console.warn("[governance] memory-recall OpenAI fallback:", aiErr?.message);
+      }
+    }
+
+    res.json({ query, summary, aiPowered, decisions: cited });
+  } catch (err: any) {
+    console.error("[governance] memory-recall error:", err);
+    res.status(500).json({ message: "Failed to recall enterprise memory", error: err?.message });
   }
 });
 

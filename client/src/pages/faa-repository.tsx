@@ -11,9 +11,10 @@ import { useToast } from "@/hooks/use-toast";
 import {
   FileText, RefreshCw, Search, ExternalLink, CheckCircle, AlertTriangle,
   Clock, BookOpen, Shield, AlertCircle, TrendingUp, Database, Activity,
-  Filter, ChevronDown, ChevronRight
+  Filter, ChevronDown, ChevronRight, Scale, Sparkles
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
+import { AgentFeed, RecallList } from "@/components/governance-widgets";
 
 const TYPE_CONFIG: Record<string, { label: string; color: string; icon: any }> = {
   cfr_part: { label: "14 CFR Part", color: "bg-blue-100 text-blue-800 border-blue-200", icon: BookOpen },
@@ -57,7 +58,7 @@ function TypeBadge({ type }: { type: string }) {
   );
 }
 
-function DocumentCard({ doc }: { doc: any }) {
+function DocumentCard({ doc, onAnalyze, analyzing }: { doc: any; onAnalyze?: (doc: any) => void; analyzing?: boolean }) {
   const [expanded, setExpanded] = useState(false);
   const typeCfg = TYPE_CONFIG[doc.source_type] || {};
   const TypeIcon = typeCfg.icon || FileText;
@@ -101,7 +102,7 @@ function DocumentCard({ doc }: { doc: any }) {
               </div>
             )}
 
-            <div className="flex items-center gap-2 mt-2">
+            <div className="flex flex-wrap items-center gap-2 mt-2">
               <a
                 href={doc.source_url}
                 target="_blank"
@@ -115,6 +116,22 @@ function DocumentCard({ doc }: { doc: any }) {
                 <span className="text-xs text-amber-600">
                   Last updated {format(parseISO(doc.last_changed_at), 'MMM d, yyyy')}
                 </span>
+              )}
+              {doc.source_type === 'cfr_part' && onAnalyze && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                  onClick={() => onAnalyze(doc)}
+                  disabled={analyzing}
+                  data-testid={`button-analyze-impact-${doc.source_id}`}
+                >
+                  {analyzing ? (
+                    <><RefreshCw className="h-3 w-3 mr-1 animate-spin" /> Analyzing…</>
+                  ) : (
+                    <><Scale className="h-3 w-3 mr-1" /> Analyze Compliance Impact</>
+                  )}
+                </Button>
               )}
             </div>
           </div>
@@ -185,6 +202,30 @@ export default function FAARepository() {
   const typeOrder = ['cfr_part', 'faa_order', 'safo', 'info', 'advisory_circular'];
   const updatedCount = Number(stats?.updated_count || 0);
 
+  // ── Runtime Governance: regulation impact + shared awareness (Demos 7 & 8) ──
+  const [impactDoc, setImpactDoc] = useState<any | null>(null);
+  const [impactResult, setImpactResult] = useState<any | null>(null);
+  const impactMutation = useMutation({
+    mutationFn: async (doc: any) => {
+      const res = await apiRequest('POST', '/api/governance/regulation-impact', {
+        sourceId: doc.source_id,
+        title: doc.title,
+      });
+      return res.json();
+    },
+    onSuccess: (data) => {
+      setImpactResult(data);
+      queryClient.invalidateQueries({ queryKey: ['/api/governance/agent-events'] });
+    },
+    onError: () => toast({ title: 'Error', description: 'Could not analyze regulation impact', variant: 'destructive' }),
+  });
+  const handleAnalyzeImpact = (doc: any) => {
+    setImpactDoc(doc);
+    setImpactResult(null);
+    impactMutation.mutate(doc);
+    if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -240,6 +281,108 @@ export default function FAARepository() {
           </div>
         </div>
       )}
+
+      {/* Runtime Governance — Regulation Impact + Shared Awareness (Demos 7 & 8) */}
+      <div className="grid gap-4 lg:grid-cols-3">
+        <Card className="lg:col-span-2 border-emerald-100">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center text-base">
+              <Scale className="w-5 h-5 mr-2 text-emerald-600" />
+              Regulation Impact Analysis
+            </CardTitle>
+            <p className="text-sm text-gray-500">
+              Pick any 14 CFR Part below and click <span className="font-medium">Analyze Compliance Impact</span>.
+              The governance engine measures exactly what a rule change touches — before anyone reacts.
+            </p>
+          </CardHeader>
+          <CardContent>
+            {impactMutation.isPending ? (
+              <div className="space-y-3" data-testid="impact-loading">
+                <div className="h-4 w-2/3 bg-gray-100 rounded animate-pulse" />
+                <div className="h-16 bg-gray-100 rounded animate-pulse" />
+                <div className="h-10 bg-gray-100 rounded animate-pulse" />
+              </div>
+            ) : impactResult ? (
+              <div className="space-y-4" data-testid="impact-result">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge className="bg-emerald-100 text-emerald-800">{impactResult.regulation}</Badge>
+                  {impactDoc?.title && <span className="text-xs text-gray-500 truncate">{impactDoc.title}</span>}
+                  {impactResult.aiPowered && (
+                    <span className="inline-flex items-center gap-1 text-xs text-purple-600">
+                      <Sparkles className="h-3.5 w-3.5" /> AI analysis
+                    </span>
+                  )}
+                  {impactResult.propagated && (
+                    <span className="text-xs text-emerald-600">• broadcast to enterprise agents →</span>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {[
+                    { label: 'Affected policies', value: impactResult.impact.affectedPolicies.length },
+                    { label: 'Protected controls', value: impactResult.impact.protectedPolicies },
+                    { label: 'Prior decisions', value: impactResult.impact.priorDecisions.length },
+                    { label: 'Signed records', value: impactResult.impact.signedRecordsForReview },
+                  ].map((s) => (
+                    <div key={s.label} className="rounded-lg border bg-slate-50 p-2 text-center">
+                      <div className="text-lg font-bold text-gray-900">{s.value}</div>
+                      <div className="text-[11px] text-gray-500">{s.label}</div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="rounded-lg border border-emerald-100 bg-emerald-50/50 p-3">
+                  <p className="text-sm text-gray-700">{impactResult.summary}</p>
+                </div>
+
+                {impactResult.recommendedActions?.length > 0 && (
+                  <div>
+                    <p className="text-sm font-semibold text-gray-700 mb-1.5">Recommended actions</p>
+                    <ul className="space-y-1">
+                      {impactResult.recommendedActions.map((a: string, i: number) => (
+                        <li key={i} className="flex items-start text-sm text-gray-600">
+                          <CheckCircle className="h-3.5 w-3.5 text-emerald-500 mt-0.5 mr-2 shrink-0" />
+                          {a}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {impactResult.impact.affectedPolicies.length > 0 && (
+                  <div>
+                    <p className="text-sm font-semibold text-gray-700 mb-1.5">Governed actions affected</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {impactResult.impact.affectedPolicies.map((p: any) => (
+                        <span
+                          key={p.id}
+                          className={`text-xs px-2 py-0.5 rounded-full border ${p.is_protected ? 'bg-red-50 text-red-700 border-red-200' : 'bg-slate-50 text-slate-600 border-slate-200'}`}
+                        >
+                          {p.label}{p.is_protected ? ' · protected' : ''}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {impactResult.impact.priorDecisions.length > 0 && (
+                  <div>
+                    <p className="text-sm font-semibold text-gray-700 mb-1.5">Prior rulings under this regulation</p>
+                    <RecallList items={impactResult.impact.priorDecisions} />
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-sm text-gray-400">
+                <Scale className="h-8 w-8 mx-auto mb-2 text-gray-300" />
+                Select a 14 CFR Part below and click “Analyze Compliance Impact.”
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <AgentFeed pollMs={5000} limit={6} />
+      </div>
 
       {/* Last Check Info */}
       {stats?.last_check_at && (
@@ -354,7 +497,12 @@ export default function FAARepository() {
                     </div>
                     <div className="space-y-2">
                       {groupedDocs[type].map((doc: any) => (
-                        <DocumentCard key={doc.source_id} doc={doc} />
+                        <DocumentCard
+                          key={doc.source_id}
+                          doc={doc}
+                          onAnalyze={handleAnalyzeImpact}
+                          analyzing={impactMutation.isPending && impactDoc?.source_id === doc.source_id}
+                        />
                       ))}
                     </div>
                   </div>
@@ -364,7 +512,12 @@ export default function FAARepository() {
           ) : (
             <div className="space-y-2">
               {docs.map((doc: any) => (
-                <DocumentCard key={doc.source_id} doc={doc} />
+                <DocumentCard
+                  key={doc.source_id}
+                  doc={doc}
+                  onAnalyze={handleAnalyzeImpact}
+                  analyzing={impactMutation.isPending && impactDoc?.source_id === doc.source_id}
+                />
               ))}
             </div>
           )}
