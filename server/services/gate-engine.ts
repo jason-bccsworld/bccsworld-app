@@ -164,6 +164,22 @@ export async function evaluateAction(input: EvaluateActionInput): Promise<GateDe
   // Bridge to the existing audit trail
   await logToAuditTrail(decision, input, reasoning, regulatoryBasis);
 
+  // Emit a live agent event so Shared Enterprise Awareness (agent feed) reflects
+  // this decision in real time — the cross-demo beat where a Q&A check moves the feed.
+  const verb = decision === "allowed" ? "admitted" : decision === "refused" ? "refused" : "escalated";
+  await db
+    .execute(sql`
+      INSERT INTO agent_events (agent_name, event_type, message, related_event_id, org_id)
+      VALUES (
+        ${"GATE Sentinel"},
+        ${`action_${decision}`},
+        ${`Evaluated "${policy?.label ?? input.actionType}" for ${input.requestedBy} (${input.requesterAuthority}) → ${verb}${regulatoryBasis ? ` · ${regulatoryBasis}` : ""}`},
+        ${decisionId},
+        ${input.orgId ?? null}
+      )
+    `)
+    .catch((err) => console.error("[gate-engine] agent event write failed:", err));
+
   let escalationId: string | undefined;
   let requiredApproverRole: string | undefined;
 

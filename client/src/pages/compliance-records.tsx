@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Eye, Download, Filter, Search, Plus, Loader2, CheckCircle2, Clock,
@@ -68,6 +68,7 @@ export default function ComplianceRecords() {
   const [verifyResult, setVerifyResult] = useState<{ result: VerifyResult; eventId: string } | null>(null);
   const [verifyingId, setVerifyingId] = useState<string | null>(null);
   const [signingId, setSigningId] = useState<string | null>(null);
+  const [evidenceOpen, setEvidenceOpen] = useState(false);
 
   // Form state
   const [studentName, setStudentName] = useState("");
@@ -96,6 +97,11 @@ export default function ComplianceRecords() {
   const { data: orgKey } = useQuery<any>({
     queryKey: ["/api/org-keys/current"],
     enabled: isAuthenticated,
+  });
+
+  const { data: evidence, isLoading: evidenceLoading, refetch: refetchEvidence } = useQuery<any>({
+    queryKey: ["/api/governance/evidence"],
+    enabled: isAuthenticated && evidenceOpen,
   });
 
   const logMutation = useMutation({
@@ -197,6 +203,9 @@ export default function ComplianceRecords() {
           )}
           <Button variant="outline" onClick={() => exportCSV(filtered)} disabled={filtered.length === 0}>
             <Download className="h-4 w-4 mr-2" /> Export CSV
+          </Button>
+          <Button variant="outline" onClick={() => setEvidenceOpen(true)} data-testid="button-evidence-package">
+            <ShieldCheck className="h-4 w-4 mr-2" /> Evidence Package
           </Button>
           <Button onClick={() => setLogOpen(true)}>
             <Plus className="h-4 w-4 mr-2" /> Log Training Event
@@ -356,6 +365,130 @@ export default function ComplianceRecords() {
           )}
         </CardContent>
       </Card>
+
+      {/* Evidence Package Dialog */}
+      <Dialog open={evidenceOpen} onOpenChange={setEvidenceOpen}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ShieldCheck className="h-5 w-5 text-emerald-600" />
+              Evidence-on-Demand Package
+            </DialogTitle>
+            <DialogDescription>
+              A single verifiable artifact for an auditor — signed records batch-verified server-side,
+              plus the governance decision log and audit trail behind them.
+            </DialogDescription>
+          </DialogHeader>
+
+          {evidenceLoading ? (
+            <div className="flex items-center gap-2 text-slate-500 py-8 justify-center">
+              <Loader2 className="h-5 w-5 animate-spin" /> Assembling and verifying evidence…
+            </div>
+          ) : evidence ? (
+            <div className="space-y-5">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="rounded-lg border p-3 text-center">
+                  <p className="text-2xl font-bold text-slate-800">{evidence.integrity.total}</p>
+                  <p className="text-xs text-slate-500">Records</p>
+                </div>
+                <div className="rounded-lg border p-3 text-center">
+                  <p className="text-2xl font-bold text-blue-600">{evidence.integrity.signed}</p>
+                  <p className="text-xs text-slate-500">Signed</p>
+                </div>
+                <div className="rounded-lg border p-3 text-center">
+                  <p className="text-2xl font-bold text-emerald-600">{evidence.integrity.verified}</p>
+                  <p className="text-xs text-slate-500">Crypto-Verified</p>
+                </div>
+                <div className="rounded-lg border p-3 text-center">
+                  <p className="text-2xl font-bold text-amber-600">{evidence.integrity.unsigned}</p>
+                  <p className="text-xs text-slate-500">Unsigned</p>
+                </div>
+              </div>
+
+              <div>
+                <p className="text-sm font-semibold text-slate-700 mb-2">
+                  Training Records ({evidence.trainingEvents.length})
+                </p>
+                {evidence.trainingEvents.length === 0 ? (
+                  <p className="text-sm text-slate-400">No training records logged yet.</p>
+                ) : (
+                  <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                    {evidence.trainingEvents.map((e: any) => (
+                      <div key={e.id} className="flex items-center justify-between text-sm border rounded-md px-3 py-2">
+                        <div className="min-w-0">
+                          <span className="font-medium text-slate-800">{e.student_name}</span>
+                          <span className="text-slate-400"> · {e.event_type}</span>
+                        </div>
+                        {e.verificationValid ? (
+                          <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200 border gap-1">
+                            <CheckCircle2 className="h-3.5 w-3.5" /> Verified
+                          </Badge>
+                        ) : e.isSigned ? (
+                          <Badge className="bg-red-100 text-red-800 border-red-200 border gap-1">
+                            <ShieldX className="h-3.5 w-3.5" /> Failed
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-amber-700 border-amber-300 gap-1">
+                            <ShieldAlert className="h-3.5 w-3.5" /> Unsigned
+                          </Badge>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <p className="text-sm font-semibold text-slate-700 mb-2">
+                  Governance Decisions ({evidence.governanceDecisions.length})
+                </p>
+                {evidence.governanceDecisions.length === 0 ? (
+                  <p className="text-sm text-slate-400">No governance decisions recorded yet.</p>
+                ) : (
+                  <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                    {evidence.governanceDecisions.map((d: any) => (
+                      <div key={d.id} className="flex items-start gap-2 text-sm border rounded-md px-3 py-2">
+                        <Badge
+                          className={`border gap-1 ${
+                            d.decision === "allowed"
+                              ? "bg-emerald-100 text-emerald-800 border-emerald-200"
+                              : d.decision === "refused"
+                              ? "bg-red-100 text-red-800 border-red-200"
+                              : "bg-amber-100 text-amber-800 border-amber-200"
+                          }`}
+                        >
+                          {d.decision === "allowed" ? "ADMISSIBLE" : d.decision.toUpperCase()}
+                        </Badge>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-slate-700 truncate">{d.action_description}</p>
+                          <p className="text-xs text-slate-400">
+                            {d.requester_authority?.replace(/_/g, " ")}
+                            {d.regulatory_basis ? ` · ${d.regulatory_basis}` : ""}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <p className="text-xs text-slate-400">
+                Generated {new Date(evidence.generatedAt).toLocaleString()} · Scope: {evidence.scope}
+              </p>
+            </div>
+          ) : (
+            <p className="text-sm text-slate-400 py-8 text-center">No evidence available.</p>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => refetchEvidence()} disabled={evidenceLoading}>
+              <Loader2 className={`h-4 w-4 mr-2 ${evidenceLoading ? "animate-spin" : "hidden"}`} />
+              Refresh
+            </Button>
+            <Button variant="outline" onClick={() => setEvidenceOpen(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Verify Result Dialog */}
       <Dialog open={!!verifyResult} onOpenChange={() => setVerifyResult(null)}>

@@ -5,10 +5,14 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { AlertCircle, CheckCircle, Clock, FileText, Brain, AlertTriangle } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { AlertCircle, CheckCircle, Clock, FileText, Brain, AlertTriangle, Gavel, Sparkles } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
+import { apiRequest } from '@/lib/queryClient';
 import { FeatureGate } from '@/components/feature-gate';
+import { DecisionCard, RecallList, type GateDecision, type RecallDecision } from '@/components/governance-widgets';
 
 interface ComplianceAnalysis {
   checklistItemId: string;
@@ -116,6 +120,46 @@ export default function AIAuditCompliance() {
   // Store analysis results
   const [complianceReport, setComplianceReport] = useState<ComplianceReport | null>(null);
 
+  // ── Governance Q&A (runtime admissibility check) ──────────────────────────
+  const [question, setQuestion] = useState('');
+  const [askAuthority, setAskAuthority] = useState('instructor');
+  const [askResult, setAskResult] = useState<{
+    matchedActionType: string | null;
+    matchedVia: 'keyword' | 'ai' | 'none';
+    decision: GateDecision;
+    recall: RecallDecision[];
+  } | null>(null);
+
+  const askMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest('POST', '/api/governance/ask', {
+        question,
+        asAuthority: askAuthority,
+      });
+      return res.json();
+    },
+    onSuccess: (data) => {
+      setAskResult(data);
+      queryClient.invalidateQueries({ queryKey: ['/api/governance/agent-events'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/governance/apex-summary'] });
+    },
+    onError: (error: any) => {
+      toast({ title: 'Could not evaluate', description: error.message, variant: 'destructive' });
+    },
+  });
+
+  const EXAMPLE_QUESTIONS = [
+    'Can an instructor waive required training hours?',
+    'Is it OK to delete an audit-trail record?',
+    'Can I export our compliance data for an auditor?',
+    'May I modify a signed evidence record?',
+  ];
+
+  const handleAsk = () => {
+    if (!question.trim()) return;
+    askMutation.mutate();
+  };
+
   const handleAnalyzeCompliance = async () => {
     try {
       const result = await analyzeComplianceMutation.mutateAsync();
@@ -159,6 +203,98 @@ export default function AIAuditCompliance() {
           )}
         </Button>
       </div>
+
+      {/* Governance Q&A — runtime admissibility check */}
+      <Card className="border-emerald-100">
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <Gavel className="w-5 h-5 mr-2 text-emerald-600" />
+            Ask Before You Act
+          </CardTitle>
+          <p className="text-sm text-gray-500">
+            Ask a compliance question in plain English. The governance engine proves whether the
+            action is <span className="font-medium">admissible</span> — before anyone does it.
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex flex-wrap gap-2">
+            {EXAMPLE_QUESTIONS.map((q) => (
+              <button
+                key={q}
+                type="button"
+                onClick={() => setQuestion(q)}
+                className="text-xs px-2.5 py-1 rounded-full border border-slate-200 text-slate-600 hover:bg-slate-50"
+                data-testid="button-example-question"
+              >
+                {q}
+              </button>
+            ))}
+          </div>
+          <Textarea
+            value={question}
+            onChange={(e) => setQuestion(e.target.value)}
+            placeholder="e.g. Can an instructor waive required training hours for a student?"
+            rows={2}
+            data-testid="input-governance-question"
+          />
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-slate-500">Acting as</span>
+              <Select value={askAuthority} onValueChange={setAskAuthority}>
+                <SelectTrigger className="w-44" data-testid="select-ask-authority">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="viewer">Viewer</SelectItem>
+                  <SelectItem value="instructor">Instructor</SelectItem>
+                  <SelectItem value="auditor">Auditor</SelectItem>
+                  <SelectItem value="support_admin">Support Admin</SelectItem>
+                  <SelectItem value="admin">Admin</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <Button
+              onClick={handleAsk}
+              disabled={askMutation.isPending || !question.trim()}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+              data-testid="button-ask-governance"
+            >
+              {askMutation.isPending ? (
+                <>
+                  <Brain className="w-4 h-4 mr-2 animate-spin" /> Checking…
+                </>
+              ) : (
+                <>
+                  <Gavel className="w-4 h-4 mr-2" /> Check Admissibility
+                </>
+              )}
+            </Button>
+          </div>
+
+          {askResult && (
+            <div className="space-y-4 pt-2">
+              <DecisionCard decision={askResult.decision} />
+              <div className="flex items-center gap-2 text-xs text-slate-400">
+                {askResult.matchedVia === 'ai' && (
+                  <span className="flex items-center gap-1 text-purple-500">
+                    <Sparkles className="h-3.5 w-3.5" /> matched by AI
+                  </span>
+                )}
+                {askResult.matchedVia === 'keyword' && <span>matched by policy keyword</span>}
+                {askResult.matchedVia === 'none' && (
+                  <span className="text-amber-500">no known policy — safely escalated</span>
+                )}
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-slate-700 mb-2">
+                  Enterprise Memory — prior rulings on this action
+                </p>
+                <RecallList items={askResult.recall} />
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Document Summary */}
       <Card>

@@ -24,3 +24,12 @@ The customer **`admin`** (accountable manager) and SuperAdmin are the **designat
 - `/evaluate` accepts `asAuthority` so demos can impersonate a LOWER authority to show refusal/escalation. It's whitelisted (must be a known rank) and can only downgrade (rank ≤ caller's real rank) — never privilege-escalate.
 - `POST /api/governance/demo-reset` (admin-only) truncates decisions/escalations/agent_events + re-seeds, so investor/BMA rehearsals start clean (APEX metrics otherwise accumulate refusals monotonically and only degrade).
 - Every decision bridges into existing `audit_logs` (event_type `governance_decision` / `governance_escalation_resolved`).
+
+## Free-text Q&A mapping (`POST /api/governance/ask`)
+Natural-language compliance questions map to a governed action via a 3-stage cascade: **(1) deterministic keyword match** against policy label + action_type (zero-latency hot path for scripted demos), **(2) OpenAI gpt-4o JSON fallback** for ad-libbed questions (validated against the real policy list before use — prompt-injection safe, guarded on OPENAI_API_KEY), **(3) no match → slugify the raw phrase** so the GATE engine's no-policy branch safely escalates.
+**Why:** demos must be reliable for scripted questions yet handle improvised ones; unknown actions must fail safe (escalate, never silently allow).
+**How to apply:** keep keyword-first ordering; never let the AI fallback bypass the policy-list validation.
+
+## Enterprise Memory recall ordering
+In `/ask`, fetch `recallDecisions()` **before** `evaluateAction()` persists, so the "prior rulings" list is genuinely prior and excludes the decision just made.
+**Why:** otherwise the recall shows the current decision, making "Enterprise Memory" look like it's citing itself.
