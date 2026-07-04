@@ -25,6 +25,7 @@ import digitalFormsRoutes from "./routes/digital-forms";
 import mlTrainingRoutes from "./routes/ml-training";
 import cryptoSigningRoutes from "./routes/crypto-signing";
 import { signTrainingRecord, getOrgActiveKey } from "./services/crypto-signing";
+import { evaluateAction, authorityRank, isValidAuthority } from "./services/gate-engine";
 import reviewerRoutes from "./routes/reviewer";
 import governanceRoutes from "./routes/governance";
 import { generateDocumentImportTutorial } from "./generate-document-import-tutorial";
@@ -906,6 +907,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Create training event error:', error);
       res.status(500).json({ message: 'Failed to log training event' });
+    }
+  });
+
+  // GATE-guarded delete: every deletion attempt is evaluated for ADMISSIBILITY before it runs.
+  // Signed records are protected state (refused at any authority); unsigned drafts require
+  // admin authority (escalated otherwise). The record's real DB state — never the client —
+  // decides which policy applies.
+  app.delete('/api/training-events/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { asAuthority } = req.body || {};
+
+      const rows = await db.execute(drizzleSql`SELECT * FROM bccs_training_events WHERE id = ${id}`);
+      const record = ((rows as any).rows || [])[0];
+      if (!record) return res.status(404).json({ message: 'Training record not found' });
+
+      const isSigned = !!(record.signature || record.signed_data_hash);
+      const actionType = isSigned ? 'delete_signed_training_record' : 'delete_training_record';
+
+      // Real authority from the app role, with demo downgrade-only impersonation
+      // (never escalate above the caller's actual authority).
+      const realAuthority = req.user?.role || 'viewer';
+      let requesterAuthority = realAuthority;
+      if (asAuthority && isValidAuthority(asAuthority) && authorityRank(asAuthority) <= authorityRank(realAuthority)) {
+        requesterAuthority = asAuthority;
+      }
+
+      const requestedBy = `${req.user?.firstName ?? ''} ${req.user?.lastName ?? ''}`.trim() || req.user?.email || req.user?.id || 'system';
+      const decision = await evaluateAction({
+        actionType,
+        actionDescription: `Delete ${isSigned ? 'signed/protected' : 'unsigned draft'} training record for ${record.student_name} (${record.event_type})`,
+        requestedBy,
+        requesterAuthority,
+        userId: req.user?.id,
+        orgId: 'demo-org-142',
+        context: { recordId: id, isSigned },
+      });
+
+      if (decision.decision === 'allowed') {
+        await db.execute(drizzleSql`DELETE FROM bccs_training_events WHERE id = ${id}`);
+        return res.status(200).json({ deleted: true, decision });
+      }
+      if (decision.decision === 'escalated') {
+        return res.status(202).json({ deleted: false, decision });
+      }
+      return res.status(403).json({ deleted: false, decision });
+    } catch (error) {
+      console.error('Delete training event error:', error);
+      res.status(500).json({ message: 'Failed to process delete request' });
     }
   });
 

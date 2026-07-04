@@ -15,7 +15,7 @@ import {
   UserPlus, Search, RotateCcw, CheckCircle2, XCircle, Clock,
   ChevronDown, ChevronRight, KeyRound, AlertCircle, Eye, EyeOff,
   ShieldCheck, Lock, Unlock, Edit2, CreditCard, Calendar, Zap,
-  Key, Copy, ExternalLink, RefreshCw, Globe, User,
+  Key, Copy, ExternalLink, RefreshCw, Globe, User, Gavel,
 } from "lucide-react";
 import { useLicense } from "@/hooks/useLicense";
 import { FeatureGate, LockedBadge } from "@/components/feature-gate";
@@ -25,6 +25,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient as qc } from "@/lib/queryClient";
 import { format, formatDistanceToNow } from "date-fns";
 import { PERMISSION_DEFINITIONS, PERMISSION_GROUPS, getRoleDisplay, ALL_PERMISSIONS } from "@shared/permissions";
+import { ApexSummaryCards, AgentFeed } from "@/components/governance-widgets";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -376,6 +377,153 @@ function ReviewerKeysPanel() {
 // Main Component
 // ══════════════════════════════════════════════════════════════════════════
 
+// ── Governance: escalation queue (human sovereignty) ─────────────────────────
+function GovernanceTab() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [notes, setNotes] = useState<Record<string, string>>({});
+
+  const { data: escalations = [], isLoading } = useQuery<any[]>({
+    queryKey: ["/api/governance/escalations"],
+    refetchInterval: 8000,
+  });
+
+  const resolve = useMutation({
+    mutationFn: ({ id, action, note }: { id: string; action: "approve" | "reject"; note?: string }) =>
+      apiRequest("POST", `/api/governance/escalations/${id}/resolve`, { action, note }),
+    onSuccess: (_d, vars) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/governance/escalations"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/governance/apex-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/governance/agent-events"] });
+      toast({
+        title: vars.action === "approve" ? "Escalation approved" : "Escalation rejected",
+        description: "Your decision was recorded in the audit trail.",
+      });
+    },
+    onError: (err: any) => toast({ title: "Could not resolve", description: err.message, variant: "destructive" }),
+  });
+
+  const pending = escalations.filter((e) => e.status === "pending");
+  const resolved = escalations.filter((e) => e.status !== "pending");
+  const busy = (id: string) => resolve.isPending && (resolve.variables as any)?.id === id;
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h3 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
+          <Gavel className="h-5 w-5 text-blue-600" /> Runtime Governance
+        </h3>
+        <p className="text-sm text-slate-600">
+          Actions the GATE could not auto-admit are blocked and routed here for a human decision. As the
+          accountable manager, you hold final authority — your approval or rejection is recorded in the audit trail.
+        </p>
+      </div>
+
+      <ApexSummaryCards />
+
+      <div className="grid gap-6 lg:grid-cols-3">
+        <div className="lg:col-span-2 space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Clock className="h-4 w-4 text-amber-500" /> Pending Approvals ({pending.length})
+              </CardTitle>
+              <CardDescription>Each item was escalated by the GATE and awaits your decision.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {isLoading ? (
+                <div className="flex items-center justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-blue-600" /></div>
+              ) : pending.length === 0 ? (
+                <div className="text-center py-10 text-slate-500">
+                  <CheckCircle2 className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                  <p className="text-sm">No pending approvals — the queue is clear.</p>
+                </div>
+              ) : (
+                pending.map((e) => (
+                  <div key={e.id} className="rounded-lg border border-amber-200 bg-amber-50/40 p-4 space-y-3" data-testid={`escalation-${e.id}`}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="font-medium text-slate-800 capitalize">{String(e.action_type || "").replace(/_/g, " ")}</p>
+                        <p className="text-sm text-slate-600">{e.action_description}</p>
+                      </div>
+                      <Badge className="bg-amber-100 text-amber-800 whitespace-nowrap">Pending</Badge>
+                    </div>
+                    {e.reasoning && (
+                      <p className="text-xs text-slate-600 bg-white border rounded p-2 leading-relaxed">{e.reasoning}</p>
+                    )}
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
+                      <span>Requested by: <span className="font-medium text-slate-700">{e.requested_by}</span></span>
+                      {e.requester_authority && <span>Authority: <span className="capitalize">{String(e.requester_authority).replace(/_/g, " ")}</span></span>}
+                      {e.required_approver_role && <span>Requires: <span className="capitalize font-medium text-slate-700">{String(e.required_approver_role).replace(/_/g, " ")}</span></span>}
+                      {e.regulatory_basis && <span className="flex items-center gap-1"><Gavel className="h-3 w-3" />{e.regulatory_basis}</span>}
+                    </div>
+                    <Input
+                      placeholder="Optional note (recorded in the audit trail)…"
+                      value={notes[e.id] || ""}
+                      onChange={(ev) => setNotes((n) => ({ ...n, [e.id]: ev.target.value }))}
+                      className="h-8 text-sm"
+                    />
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        className="bg-emerald-600 hover:bg-emerald-700"
+                        onClick={() => resolve.mutate({ id: e.id, action: "approve", note: notes[e.id] })}
+                        disabled={busy(e.id)}
+                        data-testid={`button-approve-${e.id}`}
+                      >
+                        {busy(e.id) ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5 mr-1" />}
+                        Approve
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-red-600 border-red-200 hover:bg-red-50"
+                        onClick={() => resolve.mutate({ id: e.id, action: "reject", note: notes[e.id] })}
+                        disabled={busy(e.id)}
+                        data-testid={`button-reject-${e.id}`}
+                      >
+                        <XCircle className="h-3.5 w-3.5 mr-1" /> Reject
+                      </Button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </CardContent>
+          </Card>
+
+          {resolved.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Recently Resolved</CardTitle>
+                <CardDescription>Human decisions on escalated actions.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {resolved.slice(0, 8).map((e) => (
+                  <div key={e.id} className="flex items-center justify-between gap-3 text-sm border-b last:border-0 py-2">
+                    <div className="min-w-0">
+                      <p className="font-medium text-slate-700 capitalize truncate">{String(e.action_type || "").replace(/_/g, " ")}</p>
+                      <p className="text-xs text-slate-400">
+                        {e.approved_by ? `by ${e.approved_by}` : ""}{e.resolved_at ? ` · ${formatDistanceToNow(new Date(e.resolved_at), { addSuffix: true })}` : ""}
+                      </p>
+                    </div>
+                    <Badge className={e.status === "approved" ? "bg-emerald-100 text-emerald-800" : "bg-red-100 text-red-800"}>
+                      {e.status}
+                    </Badge>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+        </div>
+
+        <div>
+          <AgentFeed />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminDashboard() {
   const { toast } = useToast();
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
@@ -675,6 +823,9 @@ export default function AdminDashboard() {
               <TabsTrigger value="system">
                 <Settings className="h-4 w-4 mr-1.5" /> System
               </TabsTrigger>
+              <TabsTrigger value="governance">
+                <Gavel className="h-4 w-4 mr-1.5" /> Governance
+              </TabsTrigger>
             </>
           )}
           {isSuperAdmin && (
@@ -688,6 +839,11 @@ export default function AdminDashboard() {
             </TabsTrigger>
           )}
         </TabsList>
+
+        {/* ── GOVERNANCE TAB ────────────────────────────────────────────── */}
+        <TabsContent value="governance">
+          <GovernanceTab />
+        </TabsContent>
 
         {/* ── USERS TAB ─────────────────────────────────────────────────── */}
         <TabsContent value="users">

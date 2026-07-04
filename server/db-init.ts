@@ -1,7 +1,7 @@
 import { db } from "./db";
 import { sql } from "drizzle-orm";
 import { DEFAULT_ROLE_PERMISSIONS, SYSTEM_ROLES } from "../shared/permissions";
-import { ensureCryptoTables } from "./services/crypto-signing";
+import { ensureCryptoTables, getOrgActiveKey, generateAndStoreOrgKeyPair, signTrainingRecord } from "./services/crypto-signing";
 
 export async function ensureTables(): Promise<void> {
   try {
@@ -334,6 +334,26 @@ const SEED_POLICIES = [
     regulatory_basis: "Data Governance Policy DG-04",
     regulatory_text: "External disclosure of compliance data requires documented authorization and an audit record.",
   },
+  {
+    action_type: "delete_signed_training_record",
+    label: "Delete a signed (protected) training record",
+    description: "Permanently remove a cryptographically signed training record from the compliance ledger.",
+    required_authority: "faa_designated_examiner",
+    decision_rule: "refuse",
+    is_protected: true,
+    regulatory_basis: "14 CFR 142.45",
+    regulatory_text: "Signed training records are protected state. They may not be deleted at any authority level; corrections must be appended as a new, fully audited version.",
+  },
+  {
+    action_type: "delete_training_record",
+    label: "Delete an unsigned draft training record",
+    description: "Remove a draft training record that has not yet been cryptographically signed.",
+    required_authority: "admin",
+    decision_rule: "escalate",
+    is_protected: false,
+    regulatory_basis: "14 CFR 142.45",
+    regulatory_text: "Draft records may be removed, but deletion requires administrator authority and a documented audit record.",
+  },
 ];
 
 export async function resetGovernanceDemo(): Promise<void> {
@@ -343,16 +363,74 @@ export async function resetGovernanceDemo(): Promise<void> {
   `);
   await db.execute(sql`DELETE FROM governance_policies`);
   await seedGovernanceData();
+
+  // Rebuild the demo training records so runtime-governance demos always have the right
+  // subjects: genuinely signed (protected) records the GATE must refuse to delete, plus one
+  // unsigned draft the GATE is allowed to delete. Clear prior demo rows so resets stay idempotent.
+  const DEMO_ORG = "bccs.us"; // matches resolveOrgId's fallback (login email domain) for the demo account
+  await ensureCryptoTables();
+  if (!(await getOrgActiveKey(DEMO_ORG))) {
+    await generateAndStoreOrgKeyPair(DEMO_ORG);
+  }
+
+  // The unsigned draft is never part of the signature chain, so it is always safe to reset.
+  await db.execute(sql`DELETE FROM bccs_training_events WHERE blockchain_hash = 'BCCS-DEMO-UNSIGNED-DRAFT'`);
+
+  // Deleting a signed record breaks verification of any record signed AFTER it, because
+  // verifyTrainingRecord re-derives prevChainHash from the previous row by signed_at (globally,
+  // with no org/marker filter). So only tear down + reseed the demo signed rows when NO real
+  // (non-demo) signed record exists that could have chained onto them. When real signed records
+  // are present, leave existing demo rows intact and append fresh ones only if none exist —
+  // appending at the end of the chain never disturbs earlier records.
+  const realSigned = await db
+    .execute(sql`SELECT COUNT(*)::int AS n FROM bccs_training_events
+                 WHERE signature IS NOT NULL AND blockchain_hash IS DISTINCT FROM 'BCCS-DEMO-SIGNED'`)
+    .then((r) => (r as any).rows[0]?.n ?? 0);
+  if (realSigned === 0) {
+    await db.execute(sql`DELETE FROM bccs_training_events WHERE blockchain_hash = 'BCCS-DEMO-SIGNED'`);
+  }
+  const demoSignedCount = await db
+    .execute(sql`SELECT COUNT(*)::int AS n FROM bccs_training_events WHERE blockchain_hash = 'BCCS-DEMO-SIGNED'`)
+    .then((r) => (r as any).rows[0]?.n ?? 0);
+
+  // Signed, blockchain-protected records — subjects for the runtime-refusal / protected-state
+  // demo AND real crypto-verified rows for the evidence package. Each is Ed25519-signed.
+  const signedSeeds = [
+    { student: "Alice Rivera", instructor: "Capt. James Holt", type: "flight", hours: 2.0,
+      curriculum: "Part 142 — Simulator Session 4 (ILS approaches)" },
+    { student: "Marcus Chen", instructor: "Capt. James Holt", type: "checkride", hours: 1.5,
+      curriculum: "Part 142 — Type Rating Practical Test" },
+  ];
+  if (demoSignedCount === 0) {
+    for (const s of signedSeeds) {
+      const inserted = await db.execute(sql`
+        INSERT INTO bccs_training_events
+          (student_name, instructor_name, event_type, event_date, duration_hours, curriculum_item, notes, status, blockchain_hash, user_id)
+        VALUES
+          (${s.student}, ${s.instructor}, ${s.type}, NOW(), ${s.hours}, ${s.curriculum},
+           'Signed, blockchain-protected record — protected state under 14 CFR 142.45.',
+           'completed', 'BCCS-DEMO-SIGNED', 'system')
+        RETURNING id
+      `).then((r) => (r as any).rows);
+      await signTrainingRecord(inserted[0].id, DEMO_ORG);
+    }
+  }
+
+  // One unsigned draft — the GATE admits an admin's delete, and escalates a lower authority's.
+  await db.execute(sql`
+    INSERT INTO bccs_training_events
+      (student_name, instructor_name, event_type, event_date, duration_hours, curriculum_item, notes, status, blockchain_hash, user_id)
+    VALUES
+      ('Demo Student (Draft)', 'Demo Instructor', 'ground', NOW(), 1.5,
+       'Draft ground lesson — not yet signed',
+       'Unsigned draft used to demonstrate that the GATE admits a permitted delete.',
+       'pending', 'BCCS-DEMO-UNSIGNED-DRAFT', 'system')
+  `);
 }
 
 export async function seedGovernanceData(): Promise<void> {
-  // Only seed once — check for existing policies
-  const existing = await db
-    .execute(sql`SELECT COUNT(*)::int AS n FROM governance_policies`)
-    .then((r) => (r as any).rows[0]?.n ?? 0);
-  if (existing > 0) return;
-
-  // 1) Policies
+  // 1) Policies — always upsert (idempotent) so newly added policies land on existing
+  // installs too, not just fresh databases. ON CONFLICT keeps this safe to run every boot.
   for (const p of SEED_POLICIES) {
     await db.execute(sql`
       INSERT INTO governance_policies
@@ -363,6 +441,13 @@ export async function seedGovernanceData(): Promise<void> {
       ON CONFLICT (action_type) DO NOTHING
     `);
   }
+
+  // The demo decisions + agent feed carry timestamps and would duplicate on every boot,
+  // so seed them only once — gate on whether any decisions already exist.
+  const existing = await db
+    .execute(sql`SELECT COUNT(*)::int AS n FROM governance_decisions`)
+    .then((r) => (r as any).rows[0]?.n ?? 0);
+  if (existing > 0) return;
 
   // Map action_type -> policy id for decision seeding
   const policyRows = await db

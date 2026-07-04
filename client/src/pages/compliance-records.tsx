@@ -11,12 +11,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Eye, Download, Filter, Search, Plus, Loader2, CheckCircle2, Clock,
-  Shield, ShieldCheck, ShieldAlert, ShieldX, Lock, ExternalLink
+  Shield, ShieldCheck, ShieldAlert, ShieldX, Lock, ExternalLink, Trash2, AlertTriangle
 } from "lucide-react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { useEffect } from "react";
+import { DecisionCard } from "@/components/governance-widgets";
 
 const EVENT_TYPES = [
   { value: "ground", label: "Ground Training" },
@@ -69,6 +70,10 @@ export default function ComplianceRecords() {
   const [verifyingId, setVerifyingId] = useState<string | null>(null);
   const [signingId, setSigningId] = useState<string | null>(null);
   const [evidenceOpen, setEvidenceOpen] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState<any | null>(null);
+  const [deleteAuthority, setDeleteAuthority] = useState<string>("");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteDecision, setDeleteDecision] = useState<any | null>(null);
 
   // Form state
   const [studentName, setStudentName] = useState("");
@@ -159,6 +164,38 @@ export default function ComplianceRecords() {
       toast({ title: "Signing failed", description: err.message, variant: "destructive" });
     } finally {
       setSigningId(null);
+    }
+  };
+
+  // Runtime-refusal delete: the request goes through the GATE, which decides ADMISSIBILITY
+  // before anything is removed. We use a raw fetch (not apiRequest) so we can read the
+  // decision body on a 403 (refused) / 202 (escalated) instead of throwing it away.
+  const handleDelete = async (event: any) => {
+    setDeletingId(event.id);
+    try {
+      const res = await fetch(`/api/training-events/${event.id}`, {
+        method: "DELETE",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ asAuthority: deleteAuthority || undefined }),
+      });
+      const data = await res.json();
+      setConfirmDelete(null);
+      // Keep the enterprise governance widgets live — every attempt moves the feed.
+      queryClient.invalidateQueries({ queryKey: ["/api/governance/apex-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/governance/agent-events"] });
+      if (data.deleted) {
+        queryClient.invalidateQueries({ queryKey: ["/api/training-events"] });
+        toast({ title: "Deletion admitted", description: "The GATE admitted this action and the record was removed." });
+      } else if (data.decision) {
+        setDeleteDecision(data.decision);
+      } else {
+        toast({ title: "Delete failed", description: data.message || "Unknown error", variant: "destructive" });
+      }
+    } catch (err: any) {
+      toast({ title: "Delete failed", description: err.message, variant: "destructive" });
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -311,13 +348,18 @@ export default function ComplianceRecords() {
                         </td>
                         <td className="py-3 px-4">
                           {isSigned ? (
-                            <span className="flex items-center gap-1 text-xs text-emerald-700 font-medium">
-                              <ShieldCheck className="h-3.5 w-3.5" />
-                              <span>Signed</span>
-                              {event.key_fingerprint && (
-                                <code className="text-[10px] text-slate-400 ml-1">{event.key_fingerprint.slice(0, 11)}…</code>
-                              )}
-                            </span>
+                            <div className="flex flex-col gap-1">
+                              <span className="flex items-center gap-1 text-xs text-emerald-700 font-medium">
+                                <ShieldCheck className="h-3.5 w-3.5" />
+                                <span>Signed</span>
+                                {event.key_fingerprint && (
+                                  <code className="text-[10px] text-slate-400 ml-1">{event.key_fingerprint.slice(0, 11)}…</code>
+                                )}
+                              </span>
+                              <span className="flex items-center gap-1 w-fit text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5">
+                                <Lock className="h-2.5 w-2.5" /> PROTECTED STATE
+                              </span>
+                            </div>
                           ) : (
                             <span className="flex items-center gap-1 text-xs text-slate-400">
                               <ShieldX className="h-3.5 w-3.5" />
@@ -354,6 +396,19 @@ export default function ComplianceRecords() {
                                 }
                               </Button>
                             ) : null}
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 px-2 text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
+                              onClick={() => { setDeleteAuthority(""); setConfirmDelete(event); }}
+                              disabled={deletingId === event.id}
+                              data-testid={`button-delete-${event.id}`}
+                            >
+                              {deletingId === event.id
+                                ? <Loader2 className="h-3 w-3 animate-spin" />
+                                : <><Trash2 className="h-3 w-3 mr-1" />Delete</>
+                              }
+                            </Button>
                           </div>
                         </td>
                       </tr>
@@ -526,6 +581,76 @@ export default function ComplianceRecords() {
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setVerifyResult(null)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete confirmation — the request is evaluated by the GATE before anything is removed */}
+      <Dialog open={!!confirmDelete} onOpenChange={(o) => { if (!o) setConfirmDelete(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Trash2 className="h-5 w-5 text-red-500" /> Delete Training Record
+            </DialogTitle>
+            <DialogDescription>
+              This request will be checked by the GATE for admissibility <strong>before</strong> anything is deleted.
+            </DialogDescription>
+          </DialogHeader>
+          {confirmDelete && (
+            <div className="space-y-4 py-1">
+              <div className="rounded-lg border bg-slate-50 p-3 text-sm">
+                <p className="font-medium text-slate-800">{confirmDelete.student_name || confirmDelete.studentName}</p>
+                <p className="text-slate-500 capitalize">{(confirmDelete.event_type || confirmDelete.eventType || "").replace("_", " ")}</p>
+                {(confirmDelete.signature || confirmDelete.signed_data_hash) && (
+                  <p className="flex items-center gap-1 mt-2 text-xs font-semibold text-amber-700">
+                    <Lock className="h-3 w-3" /> Signed record — protected state
+                  </p>
+                )}
+              </div>
+              <div>
+                <Label className="text-xs text-slate-500">Attempt as authority</Label>
+                <Select value={deleteAuthority || "self"} onValueChange={(v) => setDeleteAuthority(v === "self" ? "" : v)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="self">Your current authority</SelectItem>
+                    <SelectItem value="auditor">Auditor</SelectItem>
+                    <SelectItem value="instructor">Instructor</SelectItem>
+                    <SelectItem value="viewer">Viewer</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-[11px] text-slate-400 mt-1">
+                  For demonstration — you can only act at or below your real authority.
+                </p>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmDelete(null)}>Cancel</Button>
+            <Button
+              variant="destructive"
+              onClick={() => confirmDelete && handleDelete(confirmDelete)}
+              disabled={!!deletingId}
+            >
+              {deletingId ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Checking…</> : "Request Deletion"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* GATE decision on a blocked/escalated deletion (runtime refusal) */}
+      <Dialog open={!!deleteDecision} onOpenChange={(o) => { if (!o) setDeleteDecision(null); }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-500" /> Action Stopped by the GATE
+            </DialogTitle>
+            <DialogDescription>
+              The deletion was evaluated at runtime and was not admitted. The record is unchanged.
+            </DialogDescription>
+          </DialogHeader>
+          {deleteDecision && <DecisionCard decision={deleteDecision} />}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteDecision(null)}>Close</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
