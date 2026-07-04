@@ -9,6 +9,9 @@ import {
   Gavel,
   BookMarked,
   Radio,
+  Layers,
+  Lock,
+  FileSignature,
 } from "lucide-react";
 
 /* ── Types (backend returns snake_case rows) ─────────────────────────────── */
@@ -50,6 +53,8 @@ export interface ApexSummary {
   governanceHealth: number;
   pendingApprovals: number;
   refusals: number;
+  policies: { total: number; protected: number };
+  signedRecords: number;
 }
 
 /* ── Decision styling helpers ────────────────────────────────────────────── */
@@ -238,6 +243,87 @@ export function ApexSummaryCards({ pollMs = 8000 }: { pollMs?: number }) {
           </Card>
         );
       })}
+    </div>
+  );
+}
+
+/* ── APEX detail strip: decision mix, escalation status, enterprise scope ── */
+export function ApexDetailStrip({ pollMs = 8000 }: { pollMs?: number }) {
+  const { data } = useQuery<ApexSummary>({
+    queryKey: ["/api/governance/apex-summary"],
+    refetchInterval: pollMs,
+  });
+
+  const d = data?.decisions ?? { allowed: 0, refused: 0, escalated: 0 };
+  const total = d.allowed + d.refused + d.escalated;
+  const pct = (n: number) => (total === 0 ? 0 : Math.round((n / total) * 100));
+  const esc = data?.escalations ?? { pending: 0, approved: 0, rejected: 0 };
+
+  const scope = [
+    { label: "Policies governed", value: data?.policies?.total ?? 0, icon: Layers, color: "text-blue-600" },
+    { label: "Protected controls", value: data?.policies?.protected ?? 0, icon: Lock, color: "text-red-600" },
+    { label: "Signed records", value: data?.signedRecords ?? 0, icon: FileSignature, color: "text-emerald-600" },
+    { label: "Governance health", value: data ? `${data.governanceHealth}%` : "—", icon: Activity, color: "text-teal-600" },
+  ];
+
+  return (
+    <div className="grid gap-4 lg:grid-cols-3" data-testid="apex-detail-strip">
+      {/* Decision mix + escalation status */}
+      <Card className="lg:col-span-2">
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-sm font-semibold text-slate-700">Runtime decisions</p>
+            <p className="text-xs text-slate-400">
+              {total} governed {total === 1 ? "action" : "actions"}
+            </p>
+          </div>
+          <div className="flex h-3 w-full overflow-hidden rounded-full bg-slate-100">
+            <div className="bg-emerald-500" style={{ width: `${pct(d.allowed)}%` }} />
+            <div className="bg-amber-500" style={{ width: `${pct(d.escalated)}%` }} />
+            <div className="bg-red-500" style={{ width: `${pct(d.refused)}%` }} />
+          </div>
+          <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-xs">
+            <span className="flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" /> Admitted{" "}
+              <span className="font-semibold text-slate-700">{d.allowed}</span>
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-full bg-amber-500" /> Escalated{" "}
+              <span className="font-semibold text-slate-700">{d.escalated}</span>
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-full bg-red-500" /> Refused{" "}
+              <span className="font-semibold text-slate-700">{d.refused}</span>
+            </span>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Badge className="bg-amber-100 text-amber-800">Escalations pending: {esc.pending}</Badge>
+            <Badge className="bg-emerald-100 text-emerald-800">Approved: {esc.approved}</Badge>
+            <Badge className="bg-red-100 text-red-800">Rejected: {esc.rejected}</Badge>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Enterprise scope */}
+      <Card>
+        <CardContent className="p-4">
+          <p className="text-sm font-semibold text-slate-700 mb-3">Enterprise scope</p>
+          <div className="grid grid-cols-2 gap-3">
+            {scope.map((s) => {
+              const Icon = s.icon;
+              return (
+                <div key={s.label} className="flex items-center gap-2">
+                  <Icon className={`h-5 w-5 ${s.color} opacity-70`} />
+                  <div>
+                    <p className={`text-lg font-bold ${s.color}`}>{s.value}</p>
+                    <p className="text-[11px] text-slate-400 leading-tight">{s.label}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

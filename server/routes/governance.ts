@@ -206,7 +206,7 @@ router.get("/agent-events", isAuthenticated, async (_req, res) => {
 
 // ── APEX enterprise governance rollup ────────────────────────────────────────
 router.get("/apex-summary", isAuthenticated, async (_req, res) => {
-  const [decisions, escalations, agents] = await Promise.all([
+  const [decisions, escalations, agents, policyScope, signedRecords] = await Promise.all([
     db
       .execute(sql`
         SELECT decision, COUNT(*)::int AS n
@@ -223,6 +223,16 @@ router.get("/apex-summary", isAuthenticated, async (_req, res) => {
       .then((r) => (r as any).rows),
     db
       .execute(sql`SELECT COUNT(DISTINCT agent_name)::int AS n FROM agent_events`)
+      .then((r) => (r as any).rows[0]?.n ?? 0),
+    db
+      .execute(sql`
+        SELECT COUNT(*)::int AS total,
+               COUNT(*) FILTER (WHERE is_protected)::int AS protected
+        FROM governance_policies
+      `)
+      .then((r) => (r as any).rows[0]),
+    db
+      .execute(sql`SELECT COUNT(*)::int AS n FROM bccs_training_events WHERE signature IS NOT NULL`)
       .then((r) => (r as any).rows[0]?.n ?? 0),
   ]);
 
@@ -248,6 +258,8 @@ router.get("/apex-summary", isAuthenticated, async (_req, res) => {
     governanceHealth,
     pendingApprovals: escalationCounts.pending,
     refusals: decisionCounts.refused,
+    policies: { total: policyScope?.total ?? 0, protected: policyScope?.protected ?? 0 },
+    signedRecords,
   });
 });
 

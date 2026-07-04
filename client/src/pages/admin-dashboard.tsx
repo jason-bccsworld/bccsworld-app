@@ -16,6 +16,7 @@ import {
   ChevronDown, ChevronRight, KeyRound, AlertCircle, Eye, EyeOff,
   ShieldCheck, Lock, Unlock, Edit2, CreditCard, Calendar, Zap,
   Key, Copy, ExternalLink, RefreshCw, Globe, User, Gavel,
+  PlayCircle, LayoutDashboard,
 } from "lucide-react";
 import { useLicense } from "@/hooks/useLicense";
 import { FeatureGate, LockedBadge } from "@/components/feature-gate";
@@ -25,7 +26,8 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient as qc } from "@/lib/queryClient";
 import { format, formatDistanceToNow } from "date-fns";
 import { PERMISSION_DEFINITIONS, PERMISSION_GROUPS, getRoleDisplay, ALL_PERMISSIONS } from "@shared/permissions";
-import { ApexSummaryCards, AgentFeed } from "@/components/governance-widgets";
+import { ApexSummaryCards, ApexDetailStrip, AgentFeed } from "@/components/governance-widgets";
+import { OperationalStoryDialog } from "@/components/operational-story";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -382,6 +384,7 @@ function GovernanceTab() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [notes, setNotes] = useState<Record<string, string>>({});
+  const [storyOpen, setStoryOpen] = useState(false);
 
   const { data: escalations = [], isLoading } = useQuery<any[]>({
     queryKey: ["/api/governance/escalations"],
@@ -409,17 +412,26 @@ function GovernanceTab() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h3 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
-          <Gavel className="h-5 w-5 text-blue-600" /> Runtime Governance
-        </h3>
-        <p className="text-sm text-slate-600">
-          Actions the GATE could not auto-admit are blocked and routed here for a human decision. As the
-          accountable manager, you hold final authority — your approval or rejection is recorded in the audit trail.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h3 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
+            <LayoutDashboard className="h-5 w-5 text-blue-600" /> APEX — Enterprise Visibility
+          </h3>
+          <p className="text-sm text-slate-600 max-w-2xl">
+            The board-level view of runtime governance. Every action the GATE checks, refuses, or escalates
+            rolls up here in real time. Actions that couldn't be auto-admitted are routed below for your decision —
+            as the accountable manager, your approval or rejection is recorded in the audit trail.
+          </p>
+        </div>
+        <Button onClick={() => setStoryOpen(true)} className="shrink-0" data-testid="button-open-story">
+          <PlayCircle className="h-4 w-4 mr-2" /> Run the Complete Operational Story
+        </Button>
       </div>
 
       <ApexSummaryCards />
+      <ApexDetailStrip />
+
+      <OperationalStoryDialog open={storyOpen} onOpenChange={setStoryOpen} />
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-4">
