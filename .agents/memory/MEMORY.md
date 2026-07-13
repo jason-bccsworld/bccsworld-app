@@ -3,3 +3,4 @@
 - [Neon cloud DB migrations](neon-db-migrations.md) — runtime DB is Neon cloud, never `db:push`; schema changes only via additive DDL in db-init; local and Neon schemas can drift.
 - [Tenant context pattern](tenant-context.md) — req.orgId from resolveTenant is the tenant seam; null means deny; staff = email-domain check, guard every email-setting route.
 - [Dev environment quirks](dev-environment-quirks.md) — app runs on NEON_DATABASE_URL (local DATABASE_URL is a stale separate DB); unmatched /api methods hit the SPA catch-all and return 200 HTML.
+- [Lockfile portability](lockfile-portability.md) — Replit-generated package-lock.json can contain package-firewall.replit.local URLs that crash npm on external CI (Vercel etc.); rewrite to registry.npmjs.org.
