@@ -12,4 +12,6 @@ Tenant resolution lives in `server/middleware/tenant.ts` (`resolveTenant`, mount
 
 **Platform staff = email-domain check** (`@bccsworld.com` via `isPlatformStaff`), which grants cross-tenant powers. Any route that lets a user set/change an email must reject staff-domain emails for non-staff (invite and profile routes already do). Long-term fix: replace domain sniffing with an explicit staff flag/column.
 
+**Global role gates become escalation paths under self-serve signup.** Every self-serve signup hands out a global `role: 'admin'` user, so any check of the form "role === 'admin' may do X" silently grants X across all tenants (seen in admin user mutations, the role permission matrix, and org key generation). **Why:** an attacker can mint an admin account in seconds via `/signup`. **How to apply:** in multi-tenant mode, admin-role checks must additionally require either platform staff or verified active membership in the target's org (`canManageTargetUser` in server/routes.ts is the pattern); never let global role alone authorize a cross-org or platform-wide mutation.
+
 Caches (default org 60s, memberships 30s, per-org license 30s) have invalidate helpers — call them after membership/org/license writes, and remember the 30s TTL when verifying license changes end-to-end.

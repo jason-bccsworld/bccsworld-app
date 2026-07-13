@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -559,6 +560,7 @@ export default function AdminDashboard() {
   const { toast } = useToast();
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const queryClient = useQueryClient();
+  const [, setLocation] = useLocation();
   const isAdmin = (user as any)?.role === "admin";
   // SuperAdmin = internal BCCS staff identified by @bccsworld.com email — license management only
   const isSuperAdmin = !!((user as any)?.email?.toLowerCase().endsWith("@bccsworld.com"));
@@ -670,6 +672,35 @@ export default function AdminDashboard() {
       setAssignLicOrg(null);
     },
     onError: (err: any) => toast({ title: "Could not assign license", description: err.message, variant: "destructive" }),
+  });
+
+  // ── staff tenant console mutations
+  const orgStatusMutation = useMutation({
+    mutationFn: async ({ orgId, isActive }: { orgId: string; isActive: boolean }) => {
+      const res = await apiRequest("PUT", `/api/organizations/${orgId}/status`, { isActive });
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/organizations"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/stats"] });
+      toast({
+        title: data.isActive ? "Organization activated" : "Organization deactivated",
+        description: `${data.organizationName} is now ${data.isActive ? "active" : "inactive"}.`,
+      });
+    },
+    onError: (err: any) => toast({ title: "Could not update organization", description: err.message, variant: "destructive" }),
+  });
+
+  const enterOrgMutation = useMutation({
+    mutationFn: async (orgId: string) => {
+      const res = await apiRequest("POST", "/api/session/active-org", { organizationId: orgId });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.clear();
+      setLocation("/dashboard");
+    },
+    onError: (err: any) => toast({ title: "Could not enter organization", description: err.message, variant: "destructive" }),
   });
 
   const openAssignDialog = (org: any, existingLic: any | undefined) => {
@@ -1293,18 +1324,25 @@ export default function AdminDashboard() {
                   {organizations.map((org: any) => {
                     const orgLic = orgLicenses.find((l: any) => l.organization_id === org.id);
                     return (
-                      <div key={org.id} className="flex flex-wrap items-center justify-between gap-3 p-4 border rounded-lg" data-testid={`row-org-${org.id}`}>
+                      <div key={org.id} className={`flex flex-wrap items-center justify-between gap-3 p-4 border rounded-lg ${org.isActive === false ? "opacity-70 bg-slate-50" : ""}`} data-testid={`row-org-${org.id}`}>
                         <div>
-                          <p className="font-semibold">{org.organizationName}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="font-semibold">{org.organizationName}</p>
+                            {org.isActive === false && (
+                              <Badge className="bg-red-100 text-red-700 border-0 text-[11px]">Inactive</Badge>
+                            )}
+                          </div>
                           <p className="text-sm text-slate-500">
                             {org.organizationType?.replace(/_/g, " ").toUpperCase()} ·{" "}
                             {org.regulatoryAuthority?.toUpperCase()}
                           </p>
-                          {org.certificateNumber && (
-                            <p className="text-xs text-slate-400">Cert: {org.certificateNumber}</p>
-                          )}
+                          <p className="text-xs text-slate-400">
+                            {org.certificateNumber ? <>Cert: {org.certificateNumber} · </> : null}
+                            <Users className="inline h-3 w-3 mb-0.5" />{" "}
+                            {org.memberCount ?? 0}{orgLic?.seats_limit ? ` of ${orgLic.seats_limit}` : ""} member{(org.memberCount ?? 0) === 1 ? "" : "s"}
+                          </p>
                         </div>
-                        <div className="flex items-center gap-3">
+                        <div className="flex flex-wrap items-center gap-3">
                           {orgLic ? (
                             <div className="text-right">
                               <span className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-semibold ${PLAN_DISPLAY[orgLic.plan as PlanKey]?.color ?? "bg-slate-100 text-slate-700"}`}>
@@ -1320,9 +1358,36 @@ export default function AdminDashboard() {
                             <Badge variant="outline" className="text-slate-500">No license</Badge>
                           )}
                           {isSuperAdmin && (
-                            <Button size="sm" variant="outline" onClick={() => openAssignDialog(org, orgLic)} data-testid={`button-assign-license-${org.id}`}>
-                              <CreditCard className="h-4 w-4 mr-1.5" /> {orgLic ? "Change License" : "Assign License"}
-                            </Button>
+                            <>
+                              <Button size="sm" variant="outline" onClick={() => openAssignDialog(org, orgLic)} data-testid={`button-assign-license-${org.id}`}>
+                                <CreditCard className="h-4 w-4 mr-1.5" /> {orgLic ? "Change License" : "Assign License"}
+                              </Button>
+                              {org.isActive !== false && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => enterOrgMutation.mutate(org.id)}
+                                  disabled={enterOrgMutation.isPending}
+                                  data-testid={`button-enter-org-${org.id}`}
+                                >
+                                  <LayoutDashboard className="h-4 w-4 mr-1.5" /> Enter Org
+                                </Button>
+                              )}
+                              <Button
+                                size="sm"
+                                variant={org.isActive === false ? "default" : "outline"}
+                                className={org.isActive === false ? "" : "text-red-600 border-red-200 hover:bg-red-50"}
+                                onClick={() => orgStatusMutation.mutate({ orgId: org.id, isActive: org.isActive === false })}
+                                disabled={orgStatusMutation.isPending}
+                                data-testid={`button-toggle-org-${org.id}`}
+                              >
+                                {org.isActive === false ? (
+                                  <><PlayCircle className="h-4 w-4 mr-1.5" /> Activate</>
+                                ) : (
+                                  <><XCircle className="h-4 w-4 mr-1.5" /> Deactivate</>
+                                )}
+                              </Button>
+                            </>
                           )}
                         </div>
                       </div>

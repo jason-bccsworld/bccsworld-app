@@ -18,3 +18,11 @@ Requests to `/api/...` paths with a method that has no registered Express route 
 **Why:** During security testing, a cross-org PATCH appeared to "succeed" (200) but was actually the SPA fallback; the database row was untouched.
 
 **How to apply:** When curl-testing API endpoints, confirm the real route method first (grep the router), and treat a 200 with HTML body as "no such route", not success.
+
+# Bash-spawned servers die between invocations
+
+Any server started in a bash tool call is killed when that invocation ends — a follow-up curl in a new invocation hits a dead port.
+
+**Why:** E2E-testing a temp server (`npx tsx server/index.ts` on a spare port) only worked when start, curl checks, and kill were chained in ONE bash command.
+
+**How to apply:** For temp-server E2E tests, do `start & sleep, curl..., kill` in a single invocation. For the dev workflow, code edits don't hot-reload the tsx server — call restart_workflow explicitly before re-testing.

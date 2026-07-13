@@ -2,8 +2,8 @@ import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useLocation } from "wouter";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useLocation, Link } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,6 +24,10 @@ export default function Login() {
   const queryClient = useQueryClient();
   const { isAuthenticated } = useAuth();
   const [error, setError] = useState<string | null>(null);
+
+  const { data: config } = useQuery<{ multiTenant: boolean }>({
+    queryKey: ["/api/config"],
+  });
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -149,9 +153,19 @@ export default function Login() {
             </Form>
 
             <div className="mt-6 pt-4 border-t border-white/10">
-              <p className="text-xs text-slate-500 text-center">
-                Contact your administrator for account access
-              </p>
+              {config?.multiTenant ? (
+                <p className="text-xs text-slate-500 text-center">
+                  New here?{" "}
+                  <Link href="/signup" className="text-blue-400 hover:text-blue-300 font-medium">
+                    Create your organization
+                  </Link>{" "}
+                  — free 30-day trial
+                </p>
+              ) : (
+                <p className="text-xs text-slate-500 text-center">
+                  Contact your administrator for account access
+                </p>
+              )}
             </div>
           </CardContent>
         </Card>

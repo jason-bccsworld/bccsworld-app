@@ -11,6 +11,7 @@ import {
 } from "../services/crypto-signing";
 import { db } from "../db";
 import { sql } from "drizzle-orm";
+import { isPlatformStaff, getUserMemberships } from "../middleware/tenant";
 
 const router = Router();
 
@@ -149,10 +150,19 @@ router.get("/chain", isAuthenticated, async (req: any, res) => {
 });
 
 // POST /api/org-keys/generate-for-org — generate key for a specific org (org setup flow)
+// Only platform staff or an admin member of that organization may (re)generate its key.
 router.post("/generate-for-org", isAuthenticated, async (req: any, res) => {
   try {
     const { orgId } = req.body;
     if (!orgId) return res.status(400).json({ message: "orgId required" });
+    if (!isPlatformStaff(req.user?.email)) {
+      const memberships = await getUserMemberships(req.user.id);
+      const membership = memberships.find((m) => m.organizationId === orgId);
+      const isOrgAdmin = membership && membership.orgRole === "admin";
+      if (!isOrgAdmin) {
+        return res.status(403).json({ message: "Only an admin of this organization can generate its signing keys" });
+      }
+    }
     const result = await generateAndStoreOrgKeyPair(orgId);
     res.json({ success: true, ...result });
   } catch (err: any) {

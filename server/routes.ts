@@ -102,6 +102,150 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ message: "Aircraft Registry & Tokenization Platform", timestamp: new Date().toISOString() });
   });
 
+  // ── Public Config ────────────────────────────────────────────────────────
+  // Lets the (pre-auth) client know the deployment mode so it can show or
+  // hide multi-tenant chrome like the self-serve signup link.
+  app.get('/api/config', (_req, res) => {
+    res.json({ multiTenant: isMultiTenant() });
+  });
+
+  // ── Self-Serve Organization Signup (multi-tenant mode only) ─────────────
+  // Creates the organization, its first admin account, the admin's membership,
+  // and a 30-day Trial license in one transaction, then generates the org's
+  // Ed25519 signing key and logs the new admin in on a fresh session.
+  const signupAttempts = new Map<string, { count: number; resetAt: number }>();
+  function signupRateLimited(ip: string): boolean {
+    const now = Date.now();
+    const entry = signupAttempts.get(ip);
+    if (!entry || entry.resetAt < now) {
+      signupAttempts.set(ip, { count: 1, resetAt: now + 15 * 60_000 });
+      return false;
+    }
+    entry.count += 1;
+    return entry.count > 10;
+  }
+
+  const signupSchema = z.object({
+    organizationName: z.string().trim().min(2, 'Organization name is required').max(200),
+    organizationType: z.enum(['part_142', 'part_141', 'part_121', 'part_135', 'mro', 'atc']),
+    regulatoryAuthority: z.enum(['faa', 'easa', 'transport_canada', 'casa']),
+    certificateNumber: z.string().trim().max(100).optional(),
+    firstName: z.string().trim().min(1, 'First name is required').max(100),
+    lastName: z.string().trim().min(1, 'Last name is required').max(100),
+    email: z.string().trim().email('A valid email is required').max(255),
+    password: z.string().min(8, 'Password must be at least 8 characters').max(200),
+  });
+
+  app.post('/api/signup', async (req: any, res) => {
+    // In single-workspace mode this endpoint does not exist.
+    if (!isMultiTenant()) return res.status(404).json({ message: 'Not found' });
+    try {
+      if (signupRateLimited(req.ip || 'unknown')) {
+        return res.status(429).json({ message: 'Too many signup attempts. Please try again later.' });
+      }
+      const parsed = signupSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: parsed.error.errors[0]?.message ?? 'Invalid signup data', errors: parsed.error.errors });
+      }
+      const data = parsed.data;
+      const email = data.email.toLowerCase();
+      if (isPlatformStaff(email)) {
+        return res.status(403).json({ message: 'This email domain is reserved for BCCS staff' });
+      }
+      const [existing] = await db.select({ id: users.id }).from(users).where(eq(users.email, email));
+      if (existing) {
+        return res.status(409).json({ message: 'An account with this email already exists. Try signing in instead.' });
+      }
+
+      const passwordHash = await bcrypt.hash(data.password, 12);
+      const masterPublicKey = `BCCS-${Date.now()}-${Math.random().toString(36).slice(2, 10).toUpperCase()}`;
+
+      let user: any, org: any;
+      try {
+        const result = await db.transaction(async (tx) => {
+          const [newUser] = await tx.insert(users).values({
+            email,
+            firstName: data.firstName,
+            lastName: data.lastName,
+            role: 'admin',
+            isActive: true,
+            passwordHash,
+          }).returning();
+          const [newOrg] = await tx.insert(trainingOrganizations).values({
+            organizationName: data.organizationName,
+            organizationType: data.organizationType,
+            regulatoryAuthority: data.regulatoryAuthority,
+            certificateNumber: data.certificateNumber || null,
+            masterPublicKey,
+            contactInfo: { email },
+            isActive: true,
+          }).returning();
+          await tx.execute(drizzleSql`
+            INSERT INTO user_organizations (user_id, organization_id, org_role)
+            VALUES (${newUser.id}, ${newOrg.id}::uuid, 'admin')
+          `);
+          await tx.execute(drizzleSql`
+            INSERT INTO bccs_licenses
+              (organization_id, plan, status, seats_limit, current_period_start, current_period_end, assigned_by, notes, updated_at)
+            VALUES
+              (${newOrg.id}::uuid, 'trial', 'trial', 5, NOW(), NOW() + INTERVAL '30 days', 'self-serve signup', 'Self-serve trial — awaiting plan assignment', NOW())
+          `);
+          return { user: newUser, org: newOrg };
+        });
+        user = result.user;
+        org = result.org;
+      } catch (txErr: any) {
+        if (txErr?.code === '23505') {
+          return res.status(409).json({ message: 'An account with this email already exists. Try signing in instead.' });
+        }
+        throw txErr;
+      }
+
+      invalidateDefaultOrgCache();
+      invalidateMembershipCache(user.id);
+      const { invalidateLicenseCache } = await import('./middleware/license');
+      invalidateLicenseCache();
+
+      // Generate the organization's Ed25519 signing key (non-fatal — can be
+      // regenerated later from Organization Setup).
+      try {
+        const { generateAndStoreOrgKeyPair } = await import('./services/crypto-signing');
+        await generateAndStoreOrgKeyPair(org.id);
+      } catch (keyErr) {
+        console.error('Signup key generation failed (non-fatal):', keyErr);
+      }
+
+      await storage.createAuditLog({
+        userId: user.id,
+        eventType: 'org_signup',
+        message: `Self-serve signup: ${data.organizationName} (${email})`,
+        details: { organizationId: org.id, organizationName: data.organizationName },
+        severity: 'info',
+        organizationId: org.id,
+      } as any).catch((err: any) => console.error('Signup audit log failed (non-fatal):', err));
+
+      // Fresh session for the new admin (avoids session fixation), then login.
+      req.session.regenerate((regenErr: any) => {
+        if (regenErr) {
+          console.error('Signup session regenerate error:', regenErr);
+          return res.status(201).json({ success: true, requiresLogin: true, message: 'Account created — please sign in' });
+        }
+        req.logIn(user, (loginErr: any) => {
+          if (loginErr) {
+            console.error('Signup auto-login error:', loginErr);
+            return res.status(201).json({ success: true, requiresLogin: true, message: 'Account created — please sign in' });
+          }
+          req.session.activeOrgId = org.id;
+          const { passwordHash: _ph, ...safeUser } = user;
+          res.status(201).json({ success: true, user: safeUser, organization: org });
+        });
+      });
+    } catch (error) {
+      console.error('Signup error:', error);
+      res.status(500).json({ message: 'Signup failed. Please try again.' });
+    }
+  });
+
   // Auth routes
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
     try {
@@ -378,19 +522,80 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ── Admin Endpoints ──────────────────────────────────────────────────────
-  app.get('/api/organizations', isAuthenticated, async (_req, res) => {
+  // Organizations list with member counts. Platform staff (and single-workspace
+  // installs) see all organizations; in multi-tenant mode other users see only
+  // the organizations they belong to.
+  app.get('/api/organizations', isAuthenticated, async (req: any, res) => {
     try {
-      const orgs = await db.select().from(trainingOrganizations).limit(100);
-      res.json(orgs);
+      let orgs = await db.select().from(trainingOrganizations).orderBy(trainingOrganizations.createdAt).limit(200);
+      if (isMultiTenant() && !isPlatformStaff(req.user?.email)) {
+        const memberships = await getUserMemberships(req.user.id);
+        const memberOrgIds = new Set(memberships.map((m) => m.organizationId));
+        orgs = orgs.filter((o) => memberOrgIds.has(o.id));
+      }
+      const countsResult = await db.execute(drizzleSql`
+        SELECT organization_id, COUNT(*)::int AS member_count
+        FROM user_organizations WHERE is_active = TRUE
+        GROUP BY organization_id
+      `);
+      const counts = new Map<string, number>(
+        ((countsResult as any).rows || []).map((r: any) => [r.organization_id, Number(r.member_count)])
+      );
+      res.json(orgs.map((o) => ({ ...o, memberCount: counts.get(o.id) ?? 0 })));
     } catch (error) {
       console.error('Organizations fetch error:', error);
       res.status(500).json({ error: 'Failed to fetch organizations' });
     }
   });
 
+  // PUT /api/organizations/:id/status — activate/deactivate a tenant (platform staff only)
+  app.put('/api/organizations/:id/status', isAuthenticated, async (req: any, res) => {
+    try {
+      if (!isPlatformStaff(req.user?.email)) {
+        return res.status(403).json({ message: 'Tenant status management requires a @bccsworld.com account' });
+      }
+      const { isActive } = req.body;
+      if (typeof isActive !== 'boolean') return res.status(400).json({ message: 'isActive must be a boolean' });
+      const [org] = await db.update(trainingOrganizations)
+        .set({ isActive, updatedAt: new Date() })
+        .where(eq(trainingOrganizations.id, req.params.id))
+        .returning();
+      if (!org) return res.status(404).json({ message: 'Organization not found' });
+      invalidateDefaultOrgCache();
+      invalidateMembershipCache(); // memberships of an inactive org no longer resolve
+      await storage.createAuditLog({
+        userId: req.user?.id || 'system',
+        eventType: isActive ? 'org_activated' : 'org_deactivated',
+        message: `Organization ${org.organizationName} ${isActive ? 'activated' : 'deactivated'} by ${req.user?.email}`,
+        details: { organizationId: org.id },
+        severity: 'warning',
+        organizationId: org.id,
+      } as any).catch((err: any) => console.error('Org status audit log failed (non-fatal):', err));
+      res.json(org);
+    } catch (error) {
+      console.error('Org status update error:', error);
+      res.status(500).json({ message: 'Failed to update organization status' });
+    }
+  });
+
   app.get('/api/admin/stats', isAuthenticated, async (req: any, res) => {
     try {
       if (req.user?.role !== 'admin') return res.status(403).json({ message: 'Admin access required' });
+      // Multi-tenant mode: customer admins see counts for their active org only.
+      // Platform staff (and single-workspace installs) see platform-wide totals.
+      if (isMultiTenant() && !isPlatformStaff(req.user?.email)) {
+        const orgId = requireOrg(req, res);
+        if (!orgId) return;
+        const result = await db.execute(drizzleSql`
+          SELECT COUNT(*)::int AS total FROM user_organizations
+          WHERE organization_id = ${orgId} AND is_active = TRUE
+        `);
+        return res.json({
+          totalUsers: Number((result as any).rows?.[0]?.total ?? 0),
+          totalOrganizations: 1,
+          activeAudits: 0
+        });
+      }
       const [userCount] = await db.select({ total: count() }).from(users);
       const [orgCount] = await db.select({ total: count() }).from(trainingOrganizations);
       res.json({
@@ -636,6 +841,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/admin/users', isAuthenticated, async (req: any, res) => {
     try {
       if (req.user?.role !== 'admin') return res.status(403).json({ message: 'Admin access required' });
+      // Multi-tenant mode: only members of the active organization are listed.
+      // Single-workspace mode keeps the full user list (one shared org).
+      if (isMultiTenant()) {
+        const orgId = requireOrg(req, res);
+        if (!orgId) return;
+        const result = await db.execute(drizzleSql`
+          SELECT u.id, u.email, u.first_name AS "firstName", u.last_name AS "lastName",
+                 u.role, u.is_active AS "isActive", u.last_login_at AS "lastLoginAt",
+                 u.created_at AS "createdAt"
+          FROM users u
+          JOIN user_organizations uo ON uo.user_id = u.id
+          WHERE uo.organization_id = ${orgId} AND uo.is_active = TRUE
+          ORDER BY u.created_at DESC
+        `);
+        return res.json((result as any).rows || []);
+      }
       const allUsers = await db.select({
         id: users.id,
         email: users.email,
@@ -706,9 +927,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  /**
+   * Multi-tenant guard for admin user mutations. In multi-tenant mode a
+   * non-staff admin may only act on active members of their own active
+   * organization, and never on platform staff accounts. Sends the error
+   * response itself; callers must early-return when this resolves false.
+   */
+  async function canManageTargetUser(req: any, res: any): Promise<boolean> {
+    if (!isMultiTenant() || isPlatformStaff(req.user?.email)) return true;
+    const orgId = requireOrg(req, res);
+    if (!orgId) return false;
+    const result = await db.execute(drizzleSql`
+      SELECT u.email
+      FROM users u
+      JOIN user_organizations uo ON uo.user_id = u.id
+      WHERE u.id = ${req.params.id}
+        AND uo.organization_id = ${orgId}::uuid
+        AND uo.is_active = TRUE
+      LIMIT 1
+    `);
+    const row = result.rows[0] as any;
+    if (!row) {
+      res.status(404).json({ message: 'User not found in your organization' });
+      return false;
+    }
+    if (isPlatformStaff(row.email)) {
+      res.status(403).json({ message: 'Platform staff accounts cannot be managed here' });
+      return false;
+    }
+    return true;
+  }
+
   app.put('/api/admin/users/:id/role', isAuthenticated, async (req: any, res) => {
     try {
       if (req.user?.role !== 'admin') return res.status(403).json({ message: 'Admin access required' });
+      if (!(await canManageTargetUser(req, res))) return;
       const { role } = req.body;
       // Get valid roles dynamically from role permissions table
       const rolesResult = await db.execute(drizzleSql`SELECT role_name FROM bccs_role_permissions`);
@@ -735,6 +988,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       if (req.user?.role !== 'admin') return res.status(403).json({ message: 'Admin access required' });
       if (req.params.id === req.user.id) return res.status(400).json({ message: 'Cannot change your own account status' });
+      if (!(await canManageTargetUser(req, res))) return;
       const { isActive } = req.body;
       if (typeof isActive !== 'boolean') return res.status(400).json({ message: 'isActive must be a boolean' });
       await db.update(users).set({ isActive, updatedAt: new Date() }).where(eq(users.id, req.params.id));
@@ -755,6 +1009,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put('/api/admin/users/:id/reset-password', isAuthenticated, async (req: any, res) => {
     try {
       if (req.user?.role !== 'admin') return res.status(403).json({ message: 'Admin access required' });
+      if (!(await canManageTargetUser(req, res))) return;
       const { newPassword } = req.body;
       if (!newPassword || newPassword.length < 8) return res.status(400).json({ message: 'Password must be at least 8 characters' });
       const passwordHash = await bcrypt.hash(newPassword, 12);
@@ -777,6 +1032,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       if (req.user?.role !== 'admin') return res.status(403).json({ message: 'Admin access required' });
       if (req.params.id === req.user.id) return res.status(400).json({ message: 'Cannot delete your own account' });
+      if (!(await canManageTargetUser(req, res))) return;
       await db.delete(users).where(eq(users.id, req.params.id));
       await storage.createAuditLog({
         userId: req.user?.id || 'system',
@@ -811,6 +1067,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put('/api/admin/roles/:roleName', isAuthenticated, async (req: any, res) => {
     try {
       if (req.user?.role !== 'admin') return res.status(403).json({ message: 'Admin access required' });
+      // The permission matrix is platform-wide state — in multi-tenant mode only staff may change it
+      if (isMultiTenant() && !isPlatformStaff(req.user?.email)) {
+        return res.status(403).json({ message: 'Only platform staff can modify role permissions' });
+      }
       const { permissions, displayName, description } = req.body;
       if (!Array.isArray(permissions)) return res.status(400).json({ message: 'permissions must be an array' });
       // Validate all permissions are known
@@ -854,6 +1114,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/admin/roles', isAuthenticated, async (req: any, res) => {
     try {
       if (req.user?.role !== 'admin') return res.status(403).json({ message: 'Admin access required' });
+      if (isMultiTenant() && !isPlatformStaff(req.user?.email)) {
+        return res.status(403).json({ message: 'Only platform staff can create roles' });
+      }
       const { roleName, displayName, description, permissions = [], color } = req.body;
       if (!roleName || !displayName) return res.status(400).json({ message: 'roleName and displayName are required' });
       if (!/^[a-z0-9_-]+$/.test(roleName)) return res.status(400).json({ message: 'roleName must be lowercase alphanumeric with _ or -' });
@@ -884,6 +1147,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete('/api/admin/roles/:roleName', isAuthenticated, async (req: any, res) => {
     try {
       if (req.user?.role !== 'admin') return res.status(403).json({ message: 'Admin access required' });
+      if (isMultiTenant() && !isPlatformStaff(req.user?.email)) {
+        return res.status(403).json({ message: 'Only platform staff can delete roles' });
+      }
       const roleName = req.params.roleName;
       // Cannot delete system roles
       const isSystemRole = SYSTEM_ROLES.some(r => r.roleName === roleName);
@@ -900,8 +1166,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ── Organization Setup ───────────────────────────────────────────────────
-  app.get('/api/auth/organization', isAuthenticated, async (_req, res) => {
+  app.get('/api/auth/organization', isAuthenticated, async (req: any, res) => {
     try {
+      // Prefer the request's active organization (tenant context); fall back
+      // to the first active org for legacy single-workspace behavior.
+      if (req.orgId) {
+        const [activeOrg] = await db.select().from(trainingOrganizations).where(eq(trainingOrganizations.id, req.orgId));
+        if (activeOrg) return res.json(activeOrg);
+      }
       const [org] = await db.select().from(trainingOrganizations).where(eq(trainingOrganizations.isActive, true));
       res.json(org || null);
     } catch (error) {
@@ -1503,40 +1775,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { plan, status, seatsLimit, currentPeriodEnd, stripeCustomerId, stripeSubscriptionId, stripePriceId, notes } = req.body;
       const { invalidateLicenseCache } = await import('./middleware/license');
+
+      const validPlans = ['trial', 'standard', 'professional', 'enterprise'];
+      const validStatuses = ['active', 'trial', 'suspended', 'expired'];
+      const effectivePlan = validPlans.includes(plan) ? plan : 'trial';
+      const effectiveStatus = validStatuses.includes(status) ? status : 'trial';
+      const seats = Number.isFinite(parseInt(seatsLimit, 10)) ? parseInt(seatsLimit, 10) : 5;
+      const periodEnd = currentPeriodEnd ? new Date(currentPeriodEnd) : null;
+      if (currentPeriodEnd && isNaN(periodEnd!.getTime())) {
+        return res.status(400).json({ message: 'currentPeriodEnd is not a valid date' });
+      }
+
       const result = await db.execute(drizzleSql`SELECT id FROM bccs_licenses WHERE organization_id IS NULL ORDER BY created_at DESC LIMIT 1`);
       const existing = result.rows[0] as any;
       if (!existing) {
-        // Create new
-        await db.execute(drizzleSql.raw(`
+        await db.execute(drizzleSql`
           INSERT INTO bccs_licenses (plan, status, seats_limit, current_period_end, stripe_customer_id, stripe_subscription_id, stripe_price_id, assigned_by, notes, updated_at)
-          VALUES (
-            '${(plan || 'trial').replace(/'/g,'')}',
-            '${(status || 'trial').replace(/'/g,'')}',
-            ${parseInt(seatsLimit ?? '5', 10)},
-            ${currentPeriodEnd ? `'${currentPeriodEnd}'` : 'NULL'},
-            ${stripeCustomerId ? `'${stripeCustomerId}'` : 'NULL'},
-            ${stripeSubscriptionId ? `'${stripeSubscriptionId}'` : 'NULL'},
-            ${stripePriceId ? `'${stripePriceId}'` : 'NULL'},
-            '${req.user.email}',
-            ${notes ? `'${notes.replace(/'/g, "''")}'` : 'NULL'},
-            NOW()
-          )
-        `));
+          VALUES (${effectivePlan}, ${effectiveStatus}, ${seats}, ${periodEnd}, ${stripeCustomerId ?? null}, ${stripeSubscriptionId ?? null}, ${stripePriceId ?? null}, ${req.user.email}, ${notes ?? null}, NOW())
+        `);
       } else {
-        await db.execute(drizzleSql.raw(`
+        await db.execute(drizzleSql`
           UPDATE bccs_licenses SET
-            plan = '${(plan || 'trial').replace(/'/g,'')}',
-            status = '${(status || 'trial').replace(/'/g,'')}',
-            seats_limit = ${parseInt(seatsLimit ?? '5', 10)},
-            current_period_end = ${currentPeriodEnd ? `'${currentPeriodEnd}'` : 'NULL'},
-            stripe_customer_id = ${stripeCustomerId ? `'${stripeCustomerId}'` : 'NULL'},
-            stripe_subscription_id = ${stripeSubscriptionId ? `'${stripeSubscriptionId}'` : 'NULL'},
-            stripe_price_id = ${stripePriceId ? `'${stripePriceId}'` : 'NULL'},
-            assigned_by = '${req.user.email}',
-            notes = ${notes ? `'${notes.replace(/'/g, "''")}'` : 'NULL'},
+            plan = ${effectivePlan},
+            status = ${effectiveStatus},
+            seats_limit = ${seats},
+            current_period_end = ${periodEnd},
+            stripe_customer_id = ${stripeCustomerId ?? null},
+            stripe_subscription_id = ${stripeSubscriptionId ?? null},
+            stripe_price_id = ${stripePriceId ?? null},
+            assigned_by = ${req.user.email},
+            notes = ${notes ?? null},
             updated_at = NOW()
-          WHERE id = '${existing.id}'
-        `));
+          WHERE id = ${existing.id}
+        `);
       }
       invalidateLicenseCache();
       res.json({ success: true });

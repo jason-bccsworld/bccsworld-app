@@ -31,6 +31,7 @@ import {
   TrendingUp,
 } from 'lucide-react';
 import { useLicense } from '@/hooks/useLicense';
+import OrgSwitcher from '@/components/org-switcher';
 import type { PlanFeatures } from '../../../shared/license';
 
 interface DashboardLayoutProps {
@@ -91,6 +92,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             </div>
           </div>
         </div>
+
+        {/* Active organization / switcher (multi-tenant mode only) */}
+        <OrgSwitcher />
 
         {/* Navigation */}
         <nav className="flex-1 p-4 space-y-2 overflow-y-auto">

@@ -51,3 +51,6 @@ integrations = ["javascript_anthropic:1.0.0", "javascript_object_storage:1.0.0",
 
 [userenv.shared]
 ADMIN_EMAIL = "tom@bccsworld.com"
+
+[userenv.development]
+MULTI_TENANT = "true"

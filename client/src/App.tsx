@@ -50,6 +50,7 @@ import DigitalForms from "@/pages/digital-forms";
 import PublicForm from "@/pages/public-form";
 import ReviewerPortal from "@/pages/reviewer-portal";
 import Login from "@/pages/login";
+import Signup from "@/pages/signup";
 import NotFound from "@/pages/not-found";
 import DashboardLayout from "@/layouts/dashboard-layout";
 import SupportChat from "@/components/support-chat";
@@ -74,6 +75,7 @@ function Router() {
         {isAuthenticated ? <Redirect to="/dashboard" /> : <Redirect to="/login" />}
       </Route>
       <Route path="/login" component={Login} />
+      <Route path="/signup" component={Signup} />
       <Route path="/pricing" component={Pricing} />
       <Route path="/billing">
         {!isAuthenticated ? <Redirect to="/login" /> : (
