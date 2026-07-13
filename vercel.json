@@ -1,7 +1,7 @@
 {
   "version": 2,
   "framework": null,
-  "installCommand": "npm ci --no-audit --no-fund",
+  "installCommand": "npm ci --include=dev --no-audit --no-fund",
   "buildCommand": "vite build && npx esbuild server/app.ts --bundle --platform=node --target=node20 --format=esm --outfile=api/_server.mjs --packages=external",
   "outputDirectory": "dist/public",
   "functions": {
