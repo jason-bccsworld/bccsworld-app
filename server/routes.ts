@@ -1826,6 +1826,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(403).json({ message: 'Admin access required' });
     }
     try {
+      if (isMultiTenant() && !isStaff) {
+        // Non-staff tenant admins may only see licenses for orgs they belong to
+        const memberships = await getUserMemberships(req.user.id);
+        const orgIds = memberships.map((m: any) => m.organizationId).filter(Boolean);
+        if (orgIds.length === 0) {
+          return res.json([]);
+        }
+        const scoped = await db.execute(drizzleSql`
+          SELECT id, organization_id, plan, status, seats_limit, current_period_start,
+                 current_period_end, assigned_by, notes, updated_at
+          FROM bccs_licenses
+          WHERE organization_id IN ${drizzleSql`(${drizzleSql.join(orgIds.map((id: string) => drizzleSql`${id}`), drizzleSql`, `)})`}
+          ORDER BY updated_at DESC
+        `);
+        return res.json((scoped as any).rows || []);
+      }
       const result = await db.execute(drizzleSql`
         SELECT id, organization_id, plan, status, seats_limit, current_period_start,
                current_period_end, assigned_by, notes, updated_at
