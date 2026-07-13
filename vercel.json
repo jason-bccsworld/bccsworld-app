@@ -1,7 +1,7 @@
 {
   "version": 2,
   "framework": null,
-  "installCommand": "npm install --no-audit --no-fund",
+  "installCommand": "rm -rf node_modules && npm install --cache /tmp/npm-fresh-cache --no-audit --no-fund",
   "buildCommand": "vite build && npx esbuild server/app.ts --bundle --platform=node --target=node20 --format=esm --outfile=api/_server.mjs --packages=external",
   "outputDirectory": "dist/public",
   "functions": {
