@@ -59,6 +59,8 @@ function userAuthority(user: any): string {
 // ── GATE: evaluate an action ─────────────────────────────────────────────────
 router.post("/evaluate", isAuthenticated, async (req: any, res) => {
   try {
+    const activeOrgId = requireOrg(req, res);
+    if (!activeOrgId) return;
     const user = req.user as any;
     const { actionType, actionDescription, orgId, context, asAuthority } = req.body;
     if (!actionType) {
@@ -76,11 +78,9 @@ router.post("/evaluate", isAuthenticated, async (req: any, res) => {
       requesterAuthority = asAuthority;
     }
 
-    // Tenant isolation: non-staff callers may only stamp audit rows into their
-    // own active organization — ignore any client-supplied orgId.
-    const effectiveOrgId = isPlatformStaff(user.email)
-      ? (orgId ?? req.orgId ?? null)
-      : (req.orgId ?? null);
+    // Tenant isolation: non-staff callers may only stamp governance rows into
+    // their own active organization — ignore any client-supplied orgId.
+    const effectiveOrgId = isPlatformStaff(user.email) ? (orgId ?? activeOrgId) : activeOrgId;
 
     const result = await evaluateAction({
       actionType,
@@ -108,6 +108,8 @@ router.get("/policies", isAuthenticated, async (_req, res) => {
 
 // ── Decisions (Enterprise Memory / GATE log) ─────────────────────────────────
 router.get("/decisions", isAuthenticated, async (req: any, res) => {
+  const orgId = requireOrg(req, res);
+  if (!orgId) return;
   const { decision, actionType, limit } = req.query;
   const lim = Math.min(Number(limit) || 50, 200);
   const rows = await db
@@ -115,7 +117,8 @@ router.get("/decisions", isAuthenticated, async (req: any, res) => {
       SELECT d.*, p.label AS policy_label, p.is_protected
       FROM governance_decisions d
       LEFT JOIN governance_policies p ON p.id = d.policy_id
-      WHERE (${decision ?? null}::text IS NULL OR d.decision = ${decision ?? null})
+      WHERE d.org_id = ${orgId}
+        AND (${decision ?? null}::text IS NULL OR d.decision = ${decision ?? null})
         AND (${actionType ?? null}::text IS NULL OR d.action_type = ${actionType ?? null})
       ORDER BY d.created_at DESC
       LIMIT ${lim}
@@ -126,12 +129,16 @@ router.get("/decisions", isAuthenticated, async (req: any, res) => {
 
 // ── Enterprise Memory recall for a single action type ────────────────────────
 router.get("/recall/:actionType", isAuthenticated, async (req, res) => {
-  const rows = await recallDecisions(req.params.actionType, 5);
+  const orgId = requireOrg(req, res);
+  if (!orgId) return;
+  const rows = await recallDecisions(req.params.actionType, 5, orgId);
   res.json(rows);
 });
 
 // ── Escalations ──────────────────────────────────────────────────────────────
 router.get("/escalations", isAuthenticated, async (req: any, res) => {
+  const orgId = requireOrg(req, res);
+  if (!orgId) return;
   const { status } = req.query;
   const rows = await db
     .execute(sql`
@@ -139,7 +146,8 @@ router.get("/escalations", isAuthenticated, async (req: any, res) => {
              d.requester_authority
       FROM governance_escalations e
       JOIN governance_decisions d ON d.id = e.decision_id
-      WHERE (${status ?? null}::text IS NULL OR e.status = ${status ?? null})
+      WHERE d.org_id = ${orgId}
+        AND (${status ?? null}::text IS NULL OR e.status = ${status ?? null})
       ORDER BY e.created_at DESC
     `)
     .then((r) => (r as any).rows);
@@ -148,6 +156,8 @@ router.get("/escalations", isAuthenticated, async (req: any, res) => {
 
 // ── Resolve an escalation (human sovereignty — admin only) ───────────────────
 router.post("/escalations/:id/resolve", isAuthenticated, async (req: any, res) => {
+  const orgId = requireOrg(req, res);
+  if (!orgId) return;
   const user = req.user as any;
   const { action, note } = req.body; // action: 'approve' | 'reject'
   if (!["approve", "reject"].includes(action)) {
@@ -155,8 +165,13 @@ router.post("/escalations/:id/resolve", isAuthenticated, async (req: any, res) =
   }
 
   // Load the pending escalation first so we can verify approval authority.
+  // Tenant isolation: cross-org escalations are indistinguishable from missing ones (404).
   const escRows = await db
-    .execute(sql`SELECT * FROM governance_escalations WHERE id = ${req.params.id}`)
+    .execute(sql`
+      SELECT e.* FROM governance_escalations e
+      JOIN governance_decisions d ON d.id = e.decision_id
+      WHERE e.id = ${req.params.id} AND d.org_id = ${orgId}
+    `)
     .then((r) => (r as any).rows);
   const esc = escRows[0];
   if (!esc) return res.status(404).json({ message: "Escalation not found" });
@@ -180,10 +195,12 @@ router.post("/escalations/:id/resolve", isAuthenticated, async (req: any, res) =
 
   const rows = await db
     .execute(sql`
-      UPDATE governance_escalations
+      UPDATE governance_escalations e
       SET status = ${status}, approved_by = ${approver}, resolution_note = ${note ?? null}, resolved_at = NOW()
-      WHERE id = ${req.params.id} AND status = 'pending'
-      RETURNING *
+      FROM governance_decisions d
+      WHERE e.id = ${req.params.id} AND e.status = 'pending'
+        AND d.id = e.decision_id AND d.org_id = ${orgId}
+      RETURNING e.*
     `)
     .then((r) => (r as any).rows);
 
@@ -204,9 +221,11 @@ router.post("/escalations/:id/resolve", isAuthenticated, async (req: any, res) =
 });
 
 // ── Agent activity feed (Shared Enterprise Awareness) ────────────────────────
-router.get("/agent-events", isAuthenticated, async (_req, res) => {
+router.get("/agent-events", isAuthenticated, async (req, res) => {
+  const orgId = requireOrg(req, res);
+  if (!orgId) return;
   const rows = await db
-    .execute(sql`SELECT * FROM agent_events ORDER BY created_at DESC LIMIT 50`)
+    .execute(sql`SELECT * FROM agent_events WHERE org_id = ${orgId} ORDER BY created_at DESC LIMIT 50`)
     .then((r) => (r as any).rows);
   res.json(rows);
 });
@@ -220,18 +239,21 @@ router.get("/apex-summary", isAuthenticated, async (req, res) => {
       .execute(sql`
         SELECT decision, COUNT(*)::int AS n
         FROM governance_decisions
+        WHERE org_id = ${orgId}
         GROUP BY decision
       `)
       .then((r) => (r as any).rows),
     db
       .execute(sql`
-        SELECT status, COUNT(*)::int AS n
-        FROM governance_escalations
-        GROUP BY status
+        SELECT e.status, COUNT(*)::int AS n
+        FROM governance_escalations e
+        JOIN governance_decisions d ON d.id = e.decision_id
+        WHERE d.org_id = ${orgId}
+        GROUP BY e.status
       `)
       .then((r) => (r as any).rows),
     db
-      .execute(sql`SELECT COUNT(DISTINCT agent_name)::int AS n FROM agent_events`)
+      .execute(sql`SELECT COUNT(DISTINCT agent_name)::int AS n FROM agent_events WHERE org_id = ${orgId}`)
       .then((r) => (r as any).rows[0]?.n ?? 0),
     db
       .execute(sql`
@@ -277,6 +299,8 @@ router.get("/apex-summary", isAuthenticated, async (req, res) => {
 // fallback), runs the GATE check, and returns the decision + Enterprise Memory recall.
 router.post("/ask", isAuthenticated, async (req: any, res) => {
   try {
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
     const user = req.user as any;
     const { question, asAuthority } = req.body;
     if (!question || typeof question !== "string" || !question.trim()) {
@@ -331,7 +355,7 @@ router.post("/ask", isAuthenticated, async (req: any, res) => {
 
     // Fetch prior rulings BEFORE evaluating, so "Enterprise Memory" shows
     // genuinely prior decisions and not the one we are about to make.
-    const recall = await recallDecisions(effectiveActionType, 5);
+    const recall = await recallDecisions(effectiveActionType, 5, orgId);
 
     const decision = await evaluateAction({
       actionType: effectiveActionType,
@@ -339,6 +363,7 @@ router.post("/ask", isAuthenticated, async (req: any, res) => {
       requestedBy: `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim() || user.email || user.id,
       requesterAuthority,
       userId: user.id,
+      orgId,
       context: { question, matchedVia },
     });
 
@@ -398,7 +423,9 @@ router.get("/evidence", isAuthenticated, async (req: any, res) => {
       .execute(sql`
         SELECT id, action_type, action_description, requester_authority, decision,
                reasoning, regulatory_basis, created_at
-        FROM governance_decisions ORDER BY created_at DESC LIMIT 15
+        FROM governance_decisions
+        WHERE org_id = ${orgId}
+        ORDER BY created_at DESC LIMIT 15
       `)
       .then((r) => (r as any).rows);
 
@@ -469,7 +496,7 @@ router.post("/regulation-impact", isAuthenticated, async (req: any, res) => {
       .execute(sql`
         SELECT id, action_type, requester_authority, decision, reasoning, regulatory_basis, created_at
         FROM governance_decisions
-        WHERE ${match}
+        WHERE ${match} AND org_id = ${orgId}
         ORDER BY created_at DESC
         LIMIT 10
       `)
@@ -629,6 +656,8 @@ router.post("/regulation-impact", isAuthenticated, async (req: any, res) => {
 // prior rulings. Degrades to keyword-matched decisions if the AI is unavailable.
 router.post("/memory-recall", isAuthenticated, async (req: any, res) => {
   try {
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
     const { query } = req.body;
     if (!query || typeof query !== "string" || !query.trim()) {
       return res.status(400).json({ message: "query is required" });
@@ -639,6 +668,7 @@ router.post("/memory-recall", isAuthenticated, async (req: any, res) => {
         SELECT id, action_type, action_description, requested_by, requester_authority,
                decision, reasoning, regulatory_basis, created_at
         FROM governance_decisions
+        WHERE org_id = ${orgId}
         ORDER BY created_at DESC
         LIMIT 40
       `)

@@ -322,6 +322,14 @@ export async function ensureTables(): Promise<void> {
           `UPDATE ${table} SET organization_id = '${defaultOrgId}' WHERE organization_id IS NULL`
         ));
       }
+      // Governance tables use org_id (VARCHAR). Attach legacy/seed rows
+      // (NULL or the pre-tenant demo marker) to the default org so scoped
+      // reads keep serving them in single-workspace mode.
+      for (const table of ['governance_decisions', 'agent_events']) {
+        await db.execute(sql.raw(
+          `UPDATE ${table} SET org_id = '${defaultOrgId}' WHERE org_id IS NULL OR org_id = 'demo-org-142'`
+        ));
+      }
       await db.execute(sql`
         INSERT INTO user_organizations (user_id, organization_id, org_role)
         SELECT u.id, ${defaultOrgId}::uuid, COALESCE(u.role, 'viewer')
@@ -551,6 +559,13 @@ export async function seedGovernanceData(): Promise<void> {
     .then((r) => (r as any).rows[0]?.n ?? 0);
   if (existing > 0) return;
 
+  // Stamp seeds with the default (earliest active) org so org-scoped
+  // governance reads serve them; fall back to the legacy demo marker
+  // (backfill will reattach it once an org exists).
+  const seedOrg = await db
+    .execute(sql`SELECT id FROM training_organizations WHERE is_active = TRUE ORDER BY created_at ASC LIMIT 1`)
+    .then((r) => ((r as any).rows[0]?.id as string | undefined) ?? DEMO_ORG);
+
   // Map action_type -> policy id for decision seeding
   const policyRows = await db
     .execute(sql`SELECT id, action_type, regulatory_basis FROM governance_policies`)
@@ -614,7 +629,7 @@ export async function seedGovernanceData(): Promise<void> {
         (action_type, action_description, requested_by, requester_authority, policy_id, decision, reasoning, regulatory_basis, org_id, created_at)
       VALUES
         (${d.action_type}, ${d.action_description}, ${d.requested_by}, ${d.requester_authority},
-         ${pol?.id ?? null}, ${d.decision}, ${d.reasoning}, ${pol?.regulatory_basis ?? null}, ${DEMO_ORG},
+         ${pol?.id ?? null}, ${d.decision}, ${d.reasoning}, ${pol?.regulatory_basis ?? null}, ${seedOrg},
          NOW() - (${d.daysAgo} || ' days')::interval)
     `);
   }
@@ -625,7 +640,7 @@ export async function seedGovernanceData(): Promise<void> {
       INSERT INTO agent_events (agent_name, event_type, message, org_id, created_at)
       VALUES ('Regulatory Watch Agent', 'detected_change',
         'Detected FAA update affecting 14 CFR 142.45 recordkeeping — new evidence-retention clause published.',
-        ${DEMO_ORG}, NOW() - interval '2 hours')
+        ${seedOrg}, NOW() - interval '2 hours')
       RETURNING id
     `)
     .then((r) => (r as any).rows[0].id);
@@ -639,7 +654,7 @@ export async function seedGovernanceData(): Promise<void> {
   for (const [agent, type, msg] of reactions) {
     await db.execute(sql`
       INSERT INTO agent_events (agent_name, event_type, message, related_event_id, org_id, created_at)
-      VALUES (${agent}, ${type}, ${msg}, ${detection}, ${DEMO_ORG}, NOW() - interval '1 hour')
+      VALUES (${agent}, ${type}, ${msg}, ${detection}, ${seedOrg}, NOW() - interval '1 hour')
     `);
   }
 

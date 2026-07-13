@@ -157,7 +157,7 @@ export async function evaluateAction(input: EvaluateActionInput): Promise<GateDe
         (action_type, action_description, requested_by, requester_authority, policy_id, decision, reasoning, regulatory_basis, org_id, context)
       VALUES
         (${input.actionType}, ${description}, ${input.requestedBy}, ${input.requesterAuthority},
-         ${policy?.id ?? null}, ${decision}, ${reasoning}, ${regulatoryBasis}, ${input.orgId ?? null},
+         ${policy?.id ?? null}, ${decision}, ${reasoning}, ${regulatoryBasis}, ${input.orgId ?? getCurrentOrgId()},
          ${JSON.stringify(input.context ?? {})})
       RETURNING id
     `)
@@ -177,7 +177,7 @@ export async function evaluateAction(input: EvaluateActionInput): Promise<GateDe
         ${`action_${decision}`},
         ${`Evaluated "${policy?.label ?? input.actionType}" for ${input.requestedBy} (${input.requesterAuthority}) → ${verb}${regulatoryBasis ? ` · ${regulatoryBasis}` : ""}`},
         ${decisionId},
-        ${input.orgId ?? null}
+        ${input.orgId ?? getCurrentOrgId()}
       )
     `)
     .catch((err) => console.error("[gate-engine] agent event write failed:", err));
@@ -223,14 +223,18 @@ export async function evaluateAction(input: EvaluateActionInput): Promise<GateDe
 
 /**
  * Recall prior decisions for a given action type (Enterprise Memory / Demo 9).
+ * Tenant isolation: results are always scoped to the caller's organization —
+ * no org context means no rows.
  */
-export async function recallDecisions(actionType: string, limit = 5): Promise<any[]> {
+export async function recallDecisions(actionType: string, limit = 5, orgId?: string | null): Promise<any[]> {
+  const org = orgId ?? getCurrentOrgId();
+  if (!org) return [];
   return db
     .execute(sql`
       SELECT id, action_type, action_description, requested_by, requester_authority,
              decision, reasoning, regulatory_basis, created_at
       FROM governance_decisions
-      WHERE action_type = ${actionType}
+      WHERE action_type = ${actionType} AND org_id = ${org}
       ORDER BY created_at DESC
       LIMIT ${limit}
     `)
