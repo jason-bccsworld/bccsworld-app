@@ -28,6 +28,20 @@ export function isPlatformStaff(email?: string | null): boolean {
   return String(email ?? '').toLowerCase().endsWith('@bccsworld.com');
 }
 
+/**
+ * Tenant guard for route handlers. Returns the active organization id, or
+ * sends a 403 and returns null when the request has no resolved organization.
+ * Callers must early-return when null — tenant data is NEVER served unscoped.
+ */
+export function requireOrg(req: Request, res: Response): string | null {
+  const orgId = ((req as any).orgId as string | null | undefined) ?? null;
+  if (!orgId) {
+    res.status(403).json({ message: 'No active organization for this session' });
+    return null;
+  }
+  return orgId;
+}
+
 export interface OrgMembership {
   organizationId: string;
   orgRole: string;

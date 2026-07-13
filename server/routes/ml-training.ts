@@ -2,36 +2,39 @@ import { Router } from "express";
 import { db } from "../db";
 import { sql } from "drizzle-orm";
 import { isAuthenticated } from "../localAuth";
+import { requireOrg } from "../middleware/tenant";
 
 const router = Router();
 
 // GET /api/ml/metrics — aggregate stats from all data sources
-router.get("/metrics", isAuthenticated, async (_req, res) => {
+router.get("/metrics", isAuthenticated, async (req, res) => {
   try {
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
     const [submissions] = await db.execute(sql`
-      SELECT COUNT(*) AS total FROM digital_form_submissions
+      SELECT COUNT(*) AS total FROM digital_form_submissions WHERE organization_id = ${orgId}
     `).then(r => (r as any).rows);
 
     const [templates] = await db.execute(sql`
-      SELECT COUNT(*) AS total FROM digital_form_templates WHERE status = 'active'
+      SELECT COUNT(*) AS total FROM digital_form_templates WHERE status = 'active' AND organization_id = ${orgId}
     `).then(r => (r as any).rows);
 
     const [events] = await db.execute(sql`
-      SELECT COUNT(*) AS total FROM bccs_training_events
+      SELECT COUNT(*) AS total FROM bccs_training_events WHERE organization_id = ${orgId}
     `).then(r => (r as any).rows);
 
     const [students] = await db.execute(sql`
-      SELECT COUNT(*) AS total FROM students
+      SELECT COUNT(*) AS total FROM students WHERE organization_id = ${orgId}
     `).then(r => (r as any).rows);
 
     const [instructors] = await db.execute(sql`
-      SELECT COUNT(*) AS total FROM bccs_instructor_records
+      SELECT COUNT(*) AS total FROM bccs_instructor_records WHERE organization_id = ${orgId}
     `).then(r => (r as any).rows);
 
     // Pull approved submissions for field accuracy breakdown
     const approvedRows = await db.execute(sql`
       SELECT form_data FROM digital_form_submissions
-      WHERE status = 'approved'
+      WHERE status = 'approved' AND organization_id = ${orgId}
       LIMIT 200
     `).then(r => (r as any).rows);
 
@@ -115,15 +118,18 @@ router.post("/train", isAuthenticated, async (_req, res) => {
   }
 });
 
-// GET /api/ml/export-data — download all training data as structured JSON
-router.get("/export-data", isAuthenticated, async (_req, res) => {
+// GET /api/ml/export-data — download the active org's training data as structured JSON
+router.get("/export-data", isAuthenticated, async (req, res) => {
   try {
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
     const submissions = await db.execute(sql`
       SELECT s.id, s.template_title, s.organization_name, s.submitted_by,
              s.submitted_at, s.status, s.form_data,
              t.fields AS template_fields, t.faa_source_id, t.faa_document_title
       FROM digital_form_submissions s
       LEFT JOIN digital_form_templates t ON t.id = s.template_id
+      WHERE s.organization_id = ${orgId}
       ORDER BY s.submitted_at DESC
     `).then(r => (r as any).rows);
 
@@ -131,18 +137,21 @@ router.get("/export-data", isAuthenticated, async (_req, res) => {
       SELECT student_name, student_id, instructor_name, event_type,
              event_date, duration_hours, curriculum_item, status, blockchain_hash
       FROM bccs_training_events
+      WHERE organization_id = ${orgId}
       ORDER BY event_date DESC
     `).then(r => (r as any).rows);
 
     const students = await db.execute(sql`
       SELECT first_name, last_name, email, enrollment_date, status
       FROM students
+      WHERE organization_id = ${orgId}
       ORDER BY last_name
     `).then(r => (r as any).rows);
 
     const instructors = await db.execute(sql`
       SELECT first_name, last_name, email, certificate_number, certificate_type, expiration_date
       FROM bccs_instructor_records
+      WHERE organization_id = ${orgId}
       ORDER BY last_name
     `).then(r => (r as any).rows);
 

@@ -12,6 +12,7 @@
  */
 import { db } from "../db";
 import { sql } from "drizzle-orm";
+import { getCurrentOrgId } from "../middleware/tenant";
 
 // Authority hierarchy — higher rank can perform lower-rank actions.
 const AUTHORITY_RANK: Record<string, number> = {
@@ -80,7 +81,7 @@ async function logToAuditTrail(
   const severity = decision === "refused" ? "warning" : decision === "escalated" ? "info" : "info";
   await db
     .execute(sql`
-      INSERT INTO audit_logs (event_type, severity, message, details, source_system, user_id, timestamp)
+      INSERT INTO audit_logs (event_type, severity, message, details, source_system, user_id, organization_id, timestamp)
       VALUES (
         ${"governance_decision"},
         ${severity},
@@ -97,6 +98,7 @@ async function logToAuditTrail(
         })},
         ${"gate_engine"},
         ${input.userId ?? input.requestedBy},
+        ${input.orgId ?? getCurrentOrgId()},
         NOW()
       )
     `)

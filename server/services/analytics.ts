@@ -57,7 +57,7 @@ export interface AnalyticsReport {
 export class AnalyticsService {
   async generateComplianceMetrics(organizationId?: string): Promise<ComplianceMetrics> {
     const documents = await storage.getDocumentsByUser(organizationId || "all");
-    const auditLogs = await storage.getAuditLogs(100);
+    const auditLogs = await storage.getAuditLogs({ limit: 100 });
     
     // Calculate compliance score based on document processing success rate
     const processedDocs = documents.filter(doc => doc.status === 'processed');
@@ -142,7 +142,7 @@ export class AnalyticsService {
 
   async generateAnalyticsReport(period: "week" | "month" | "quarter" = "month"): Promise<AnalyticsReport> {
     const documents = await storage.getDocumentsByUser("all");
-    const auditLogs = await storage.getAuditLogs(500);
+    const auditLogs = await storage.getAuditLogs({ limit: 500 });
     
     // Filter data by period
     const startDate = period === "week" ? startOfWeek(new Date()) :

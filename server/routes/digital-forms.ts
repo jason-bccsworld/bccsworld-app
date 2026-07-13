@@ -1,8 +1,9 @@
 import { Router } from "express";
 import { db } from "../db";
 import { digitalFormTemplates, digitalFormSubmissions } from "@shared/schema";
-import { eq, desc, sql } from "drizzle-orm";
+import { eq, and, desc, sql } from "drizzle-orm";
 import { isAuthenticated } from "../localAuth";
+import { requireOrg } from "../middleware/tenant";
 import crypto from "crypto";
 import OpenAI from "openai";
 
@@ -41,6 +42,7 @@ async function ensureTables() {
   await db.execute(sql`ALTER TABLE digital_form_templates ADD COLUMN IF NOT EXISTS checklist_version_hash TEXT`);
   await db.execute(sql`ALTER TABLE digital_form_templates ADD COLUMN IF NOT EXISTS regulation_status VARCHAR(20) DEFAULT 'current'`);
   await db.execute(sql`ALTER TABLE digital_form_templates ADD COLUMN IF NOT EXISTS generated_from_section VARCHAR(200)`);
+  await db.execute(sql`ALTER TABLE digital_form_templates ADD COLUMN IF NOT EXISTS organization_id UUID`);
 
   // Back-fill public tokens for existing templates that don't have one
   const rows = await db.execute(sql`SELECT id FROM digital_form_templates WHERE public_token IS NULL`);
@@ -68,6 +70,7 @@ async function ensureTables() {
   // Add submitter columns if they don't exist
   await db.execute(sql`ALTER TABLE digital_form_submissions ADD COLUMN IF NOT EXISTS submitter_name VARCHAR(200)`);
   await db.execute(sql`ALTER TABLE digital_form_submissions ADD COLUMN IF NOT EXISTS submitter_email VARCHAR(300)`);
+  await db.execute(sql`ALTER TABLE digital_form_submissions ADD COLUMN IF NOT EXISTS organization_id UUID`);
 }
 
 ensureTables().catch(console.error);
@@ -148,10 +151,12 @@ router.post("/public/:token/submit", async (req, res) => {
 // GET all templates
 router.get("/templates", isAuthenticated, async (req, res) => {
   try {
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
     const templates = await db
       .select()
       .from(digitalFormTemplates)
-      .where(eq(digitalFormTemplates.status, "active"))
+      .where(and(eq(digitalFormTemplates.status, "active"), eq(digitalFormTemplates.organizationId, orgId)))
       .orderBy(desc(digitalFormTemplates.createdAt));
     res.json(templates);
   } catch (err) {
@@ -163,10 +168,12 @@ router.get("/templates", isAuthenticated, async (req, res) => {
 // GET single template
 router.get("/templates/:id", isAuthenticated, async (req, res) => {
   try {
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
     const [template] = await db
       .select()
       .from(digitalFormTemplates)
-      .where(eq(digitalFormTemplates.id, req.params.id));
+      .where(and(eq(digitalFormTemplates.id, req.params.id), eq(digitalFormTemplates.organizationId, orgId)));
     if (!template) return res.status(404).json({ message: "Template not found" });
     res.json(template);
   } catch (err) {
@@ -177,6 +184,8 @@ router.get("/templates/:id", isAuthenticated, async (req, res) => {
 // POST create template
 router.post("/templates", isAuthenticated, async (req, res) => {
   try {
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
     const user = req.user as any;
     const { title, description, organizationName, faaSourceId, faaDocumentTitle, faaDocumentType, fields, isPublic } = req.body;
 
@@ -191,7 +200,7 @@ router.post("/templates", isAuthenticated, async (req, res) => {
         title: title.trim(),
         description: description || null,
         organizationName: organizationName || null,
-        organizationId: (req as any).orgId ?? null,
+        organizationId: orgId,
         faaSourceId: faaSourceId || null,
         faaDocumentTitle: faaDocumentTitle || null,
         faaDocumentType: faaDocumentType || null,
@@ -213,6 +222,8 @@ router.post("/templates", isAuthenticated, async (req, res) => {
 // PUT update template
 router.put("/templates/:id", isAuthenticated, async (req, res) => {
   try {
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
     const { title, description, organizationName, faaSourceId, faaDocumentTitle, faaDocumentType, fields, isPublic } = req.body;
 
     const [updated] = await db
@@ -228,7 +239,7 @@ router.put("/templates/:id", isAuthenticated, async (req, res) => {
         isPublic: isPublic !== false,
         updatedAt: new Date(),
       })
-      .where(eq(digitalFormTemplates.id, req.params.id))
+      .where(and(eq(digitalFormTemplates.id, req.params.id), eq(digitalFormTemplates.organizationId, orgId)))
       .returning();
 
     if (!updated) return res.status(404).json({ message: "Template not found" });
@@ -242,10 +253,12 @@ router.put("/templates/:id", isAuthenticated, async (req, res) => {
 // POST regenerate public link
 router.post("/templates/:id/regenerate-token", isAuthenticated, async (req, res) => {
   try {
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
     const [updated] = await db
       .update(digitalFormTemplates)
       .set({ publicToken: generateToken(), updatedAt: new Date() })
-      .where(eq(digitalFormTemplates.id, req.params.id))
+      .where(and(eq(digitalFormTemplates.id, req.params.id), eq(digitalFormTemplates.organizationId, orgId)))
       .returning();
     if (!updated) return res.status(404).json({ message: "Template not found" });
     res.json(updated);
@@ -257,10 +270,14 @@ router.post("/templates/:id/regenerate-token", isAuthenticated, async (req, res)
 // DELETE (archive) template
 router.delete("/templates/:id", isAuthenticated, async (req, res) => {
   try {
-    await db
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
+    const [archived] = await db
       .update(digitalFormTemplates)
       .set({ status: "archived" })
-      .where(eq(digitalFormTemplates.id, req.params.id));
+      .where(and(eq(digitalFormTemplates.id, req.params.id), eq(digitalFormTemplates.organizationId, orgId)))
+      .returning();
+    if (!archived) return res.status(404).json({ message: "Template not found" });
     res.json({ message: "Template archived" });
   } catch (err) {
     res.status(500).json({ message: "Failed to archive template" });
@@ -271,9 +288,12 @@ router.delete("/templates/:id", isAuthenticated, async (req, res) => {
 
 router.get("/submissions", isAuthenticated, async (req, res) => {
   try {
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
     const submissions = await db
       .select()
       .from(digitalFormSubmissions)
+      .where(eq(digitalFormSubmissions.organizationId, orgId))
       .orderBy(desc(digitalFormSubmissions.submittedAt));
     res.json(submissions);
   } catch (err) {
@@ -284,6 +304,8 @@ router.get("/submissions", isAuthenticated, async (req, res) => {
 // GET /api/digital-forms/submissions/export — CSV download (MUST be before /:id)
 router.get("/submissions/export", isAuthenticated, async (req, res) => {
   try {
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
     const rows = await db.execute(sql`
       SELECT s.id, s.template_title, s.organization_name, s.submitted_by,
              s.submitter_name, s.submitter_email,
@@ -291,6 +313,7 @@ router.get("/submissions/export", isAuthenticated, async (req, res) => {
              t.faa_source_id, t.faa_document_title
       FROM digital_form_submissions s
       LEFT JOIN digital_form_templates t ON t.id = s.template_id
+      WHERE s.organization_id = ${orgId}
       ORDER BY s.submitted_at DESC
     `).then(r => (r as any).rows);
 
@@ -339,10 +362,12 @@ router.get("/submissions/export", isAuthenticated, async (req, res) => {
 
 router.get("/submissions/:id", isAuthenticated, async (req, res) => {
   try {
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
     const [submission] = await db
       .select()
       .from(digitalFormSubmissions)
-      .where(eq(digitalFormSubmissions.id, req.params.id));
+      .where(and(eq(digitalFormSubmissions.id, req.params.id), eq(digitalFormSubmissions.organizationId, orgId)));
     if (!submission) return res.status(404).json({ message: "Submission not found" });
     res.json(submission);
   } catch (err) {
@@ -353,9 +378,18 @@ router.get("/submissions/:id", isAuthenticated, async (req, res) => {
 // Internal (authenticated) submission — for admins filling forms themselves
 router.post("/submissions", isAuthenticated, async (req, res) => {
   try {
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
     const user = req.user as any;
     const { templateId, templateTitle, organizationName, formData, notes, status } = req.body;
     if (!templateId) return res.status(400).json({ message: "Template ID is required" });
+
+    // The template being filled must belong to the active organization.
+    const [template] = await db
+      .select({ id: digitalFormTemplates.id })
+      .from(digitalFormTemplates)
+      .where(and(eq(digitalFormTemplates.id, templateId), eq(digitalFormTemplates.organizationId, orgId)));
+    if (!template) return res.status(404).json({ message: "Template not found" });
 
     const [submission] = await db
       .insert(digitalFormSubmissions)
@@ -363,7 +397,7 @@ router.post("/submissions", isAuthenticated, async (req, res) => {
         templateId,
         templateTitle: templateTitle || null,
         organizationName: organizationName || null,
-        organizationId: (req as any).orgId ?? null,
+        organizationId: orgId,
         submittedBy: user?.email || user?.username || "system",
         formData,
         status: status || "submitted",
@@ -379,11 +413,13 @@ router.post("/submissions", isAuthenticated, async (req, res) => {
 
 router.patch("/submissions/:id/status", isAuthenticated, async (req, res) => {
   try {
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
     const { status } = req.body;
     const [updated] = await db
       .update(digitalFormSubmissions)
       .set({ status })
-      .where(eq(digitalFormSubmissions.id, req.params.id))
+      .where(and(eq(digitalFormSubmissions.id, req.params.id), eq(digitalFormSubmissions.organizationId, orgId)))
       .returning();
     if (!updated) return res.status(404).json({ message: "Submission not found" });
     res.json(updated);
@@ -394,24 +430,27 @@ router.patch("/submissions/:id/status", isAuthenticated, async (req, res) => {
 
 router.get("/stats", isAuthenticated, async (req, res) => {
   try {
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
     const [{ templateCount }] = await db
       .select({ templateCount: sql<number>`count(*)` })
       .from(digitalFormTemplates)
-      .where(eq(digitalFormTemplates.status, "active"));
+      .where(and(eq(digitalFormTemplates.status, "active"), eq(digitalFormTemplates.organizationId, orgId)));
 
     const [{ totalSubmissions }] = await db
       .select({ totalSubmissions: sql<number>`count(*)` })
-      .from(digitalFormSubmissions);
+      .from(digitalFormSubmissions)
+      .where(eq(digitalFormSubmissions.organizationId, orgId));
 
     const [{ submittedCount }] = await db
       .select({ submittedCount: sql<number>`count(*)` })
       .from(digitalFormSubmissions)
-      .where(eq(digitalFormSubmissions.status, "submitted"));
+      .where(and(eq(digitalFormSubmissions.status, "submitted"), eq(digitalFormSubmissions.organizationId, orgId)));
 
     const [{ approvedCount }] = await db
       .select({ approvedCount: sql<number>`count(*)` })
       .from(digitalFormSubmissions)
-      .where(eq(digitalFormSubmissions.status, "approved"));
+      .where(and(eq(digitalFormSubmissions.status, "approved"), eq(digitalFormSubmissions.organizationId, orgId)));
 
     res.json({
       templateCount: Number(templateCount),
@@ -536,11 +575,14 @@ router.get("/checklist-sources", isAuthenticated, async (req, res) => {
 // GET stale check — returns regulation_status for all auto-generated templates
 router.get("/stale-check", isAuthenticated, async (req, res) => {
   try {
-    // Get all auto-generated templates that link to FAA docs
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
+    // Get this org's auto-generated templates that link to FAA docs
     const templates = await db.execute(sql`
       SELECT t.id, t.faa_source_id, t.checklist_version_hash, t.regulation_status
       FROM digital_form_templates t
       WHERE t.auto_generated = true AND t.faa_source_id IS NOT NULL AND t.status = 'active'
+        AND t.organization_id = ${orgId}
     `);
 
     if (templates.rows.length === 0) return res.json({});
@@ -587,6 +629,8 @@ router.get("/stale-check", isAuthenticated, async (req, res) => {
 // POST generate templates from FAA Part 142 checklist section
 router.post("/generate-from-checklist", isAuthenticated, async (req, res) => {
   try {
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
     const user = req.user as any;
     const { sectionId, organizationName, faaSourceId } = req.body;
 
@@ -671,7 +715,7 @@ Respond with a JSON object in this exact format: { "fields": [ ...array of field
         title: `Part 142 – ${section.title} Inspection`,
         description: `FAA inspection checklist for ${section.sectionRef}: ${section.description}`,
         organizationName: organizationName || null,
-        organizationId: (req as any).orgId ?? null,
+        organizationId: orgId,
         faaSourceId: faaSourceId || "14-CFR-142",
         faaDocumentTitle: "14 CFR Part 142 – Training Centers",
         faaDocumentType: "cfr_part",
@@ -697,10 +741,12 @@ Respond with a JSON object in this exact format: { "fields": [ ...array of field
 // POST refresh a single template from FAA regulation (AI re-generate fields)
 router.post("/templates/:id/refresh-from-faa", isAuthenticated, async (req, res) => {
   try {
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
     const [existing] = await db
       .select()
       .from(digitalFormTemplates)
-      .where(eq(digitalFormTemplates.id, req.params.id));
+      .where(and(eq(digitalFormTemplates.id, req.params.id), eq(digitalFormTemplates.organizationId, orgId)));
 
     if (!existing) return res.status(404).json({ message: "Template not found" });
     if (!existing.autoGenerated) return res.status(400).json({ message: "Only AI-generated templates can be refreshed from FAA" });
@@ -768,7 +814,7 @@ Respond with ONLY a valid JSON object: { "fields": [...] }`;
         regulationStatus: "current",
         updatedAt: new Date(),
       } as any)
-      .where(eq(digitalFormTemplates.id, req.params.id))
+      .where(and(eq(digitalFormTemplates.id, req.params.id), eq(digitalFormTemplates.organizationId, orgId)))
       .returning();
 
     res.json(updated);

@@ -31,9 +31,9 @@ import governanceRoutes from "./routes/governance";
 import { generateDocumentImportTutorial } from "./generate-document-import-tutorial";
 import { auditComplianceAI } from "./services/audit-compliance-ai";
 import { db } from "./db";
-import { resolveTenant, isMultiTenant, isPlatformStaff, getUserMemberships, getDefaultOrgId, invalidateMembershipCache, invalidateDefaultOrgCache } from "./middleware/tenant";
+import { resolveTenant, isMultiTenant, isPlatformStaff, getUserMemberships, getDefaultOrgId, invalidateMembershipCache, invalidateDefaultOrgCache, requireOrg } from "./middleware/tenant";
 import { users, trainingOrganizations, auditLogs, faaPolicyDocuments } from "@shared/schema";
-import { count, eq, desc } from "drizzle-orm";
+import { count, eq, desc, and } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { sql as drizzleSql } from "drizzle-orm";
 
@@ -79,6 +79,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (!org || org.isActive === false) return res.status(404).json({ message: 'Organization not found or inactive' });
       }
       req.session.activeOrgId = organizationId;
+      // Staff cross-tenant switches are audited (stamped to the org being entered).
+      if (staff) {
+        await storage.createAuditLog({
+          userId: req.user?.id || 'system',
+          eventType: 'staff_org_switch',
+          message: `Platform staff ${req.user?.email} switched active organization`,
+          details: { organizationId, previousOrganizationId: req.orgId ?? null },
+          severity: 'info',
+          organizationId,
+        } as any).catch((err: any) => console.error('Staff org switch audit log failed (non-fatal):', err));
+      }
       res.json({ success: true, activeOrganizationId: organizationId });
     } catch (error) {
       console.error('Active org switch error:', error);
@@ -579,16 +590,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ── Dashboard Stats (real data) ──────────────────────────────────────────
-  app.get('/api/dashboard/stats', isAuthenticated, async (_req, res) => {
+  app.get('/api/dashboard/stats', isAuthenticated, async (req: any, res) => {
     try {
-      const [docCountResult] = await db.select({ count: count() }).from(auditLogs).where(eq(auditLogs.eventType, 'document_upload'));
+      const orgId = requireOrg(req, res);
+      if (!orgId) return;
+      const [docCountResult] = await db.select({ count: count() }).from(auditLogs)
+        .where(and(eq(auditLogs.eventType, 'document_upload'), eq(auditLogs.organizationId, orgId)));
       const totalRecords = Number(docCountResult?.count ?? 0);
 
       // Attempt to read compliance from checklist_states table
       let complianceRate = 0;
       let pendingReviews = 0;
       try {
-        const rows = await db.execute('SELECT state FROM checklist_states ORDER BY updated_at DESC LIMIT 1' as any);
+        const rows = await db.execute(drizzleSql`SELECT state FROM checklist_states WHERE organization_id = ${orgId} ORDER BY updated_at DESC LIMIT 1`);
         const stateRows = (rows as any).rows || [];
         if (stateRows.length > 0) {
           const state = stateRows[0].state as Record<string, string>;
@@ -935,8 +949,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ── Training Events ──────────────────────────────────────────────────────
   app.get('/api/training-events', isAuthenticated, async (req: any, res) => {
     try {
+      const orgId = requireOrg(req, res);
+      if (!orgId) return;
       const rows = await db.execute(drizzleSql`
-        SELECT * FROM bccs_training_events ORDER BY event_date DESC LIMIT 200
+        SELECT * FROM bccs_training_events WHERE organization_id = ${orgId} ORDER BY event_date DESC LIMIT 200
       `);
       res.json((rows as any).rows || []);
     } catch (error) {
@@ -947,6 +963,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/training-events', isAuthenticated, async (req: any, res) => {
     try {
+      const orgId = requireOrg(req, res);
+      if (!orgId) return;
       const { studentName, studentId, instructorName, instructorId, eventType, eventDate, durationHours, curriculumItem, notes, status } = req.body;
       if (!studentName || !instructorName || !eventType || !eventDate) {
         return res.status(400).json({ message: 'Student name, instructor, event type, and date are required' });
@@ -954,17 +972,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const hash = `BCCS-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
       const rows = await db.execute(drizzleSql`
         INSERT INTO bccs_training_events (student_name, student_id, instructor_name, instructor_id, event_type, event_date, duration_hours, curriculum_item, notes, status, blockchain_hash, user_id, organization_id)
-        VALUES (${studentName}, ${studentId || null}, ${instructorName}, ${instructorId || null}, ${eventType}, ${new Date(eventDate)}, ${durationHours || null}, ${curriculumItem || null}, ${notes || null}, ${status || 'completed'}, ${hash}, ${req.user?.id || 'system'}, ${req.orgId ?? null})
+        VALUES (${studentName}, ${studentId || null}, ${instructorName}, ${instructorId || null}, ${eventType}, ${new Date(eventDate)}, ${durationHours || null}, ${curriculumItem || null}, ${notes || null}, ${status || 'completed'}, ${hash}, ${req.user?.id || 'system'}, ${orgId})
         RETURNING *
       `);
       const event = ((rows as any).rows || [])[0];
 
-      // Auto-sign with org Ed25519 key if one exists
+      // Auto-sign with the active org's Ed25519 key if one exists
       if (event?.id) {
         try {
-          const orgRows = await db.execute(drizzleSql`SELECT id FROM training_organizations WHERE is_active = TRUE ORDER BY created_at ASC LIMIT 1`);
-          const org = ((orgRows as any).rows || [])[0];
-          const orgId = org?.id ?? (req.user as any)?.email?.split('@')[1] ?? 'default-org';
           const hasKey = await getOrgActiveKey(orgId);
           if (hasKey) {
             await signTrainingRecord(event.id, orgId);
@@ -991,8 +1006,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const { asAuthority } = req.body || {};
+      const orgId = requireOrg(req, res);
+      if (!orgId) return;
 
-      const rows = await db.execute(drizzleSql`SELECT * FROM bccs_training_events WHERE id = ${id}`);
+      // Cross-org records are indistinguishable from missing ones (404).
+      const rows = await db.execute(drizzleSql`SELECT * FROM bccs_training_events WHERE id = ${id} AND organization_id = ${orgId}`);
       const record = ((rows as any).rows || [])[0];
       if (!record) return res.status(404).json({ message: 'Training record not found' });
 
@@ -1014,12 +1032,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         requestedBy,
         requesterAuthority,
         userId: req.user?.id,
-        orgId: 'demo-org-142',
+        orgId,
         context: { recordId: id, isSigned },
       });
 
       if (decision.decision === 'allowed') {
-        await db.execute(drizzleSql`DELETE FROM bccs_training_events WHERE id = ${id}`);
+        await db.execute(drizzleSql`DELETE FROM bccs_training_events WHERE id = ${id} AND organization_id = ${orgId}`);
         return res.status(200).json({ deleted: true, decision });
       }
       if (decision.decision === 'escalated') {
@@ -1033,9 +1051,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ── Student Roster ────────────────────────────────────────────────────────
-  app.get('/api/students', isAuthenticated, async (_req, res) => {
+  app.get('/api/students', isAuthenticated, async (req: any, res) => {
     try {
-      const rows = await db.execute(drizzleSql`SELECT * FROM students ORDER BY last_name, first_name`);
+      const orgId = requireOrg(req, res);
+      if (!orgId) return;
+      const rows = await db.execute(drizzleSql`SELECT * FROM students WHERE organization_id = ${orgId} ORDER BY last_name, first_name`);
       res.json((rows as any).rows || []);
     } catch (error) {
       console.error('Students error:', error);
@@ -1045,11 +1065,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/students', isAuthenticated, async (req: any, res) => {
     try {
+      const orgId = requireOrg(req, res);
+      if (!orgId) return;
       const { firstName, lastName, email, phone, certificateNumber, enrollmentDate, expectedCompletion, status, notes } = req.body;
       if (!firstName || !lastName) return res.status(400).json({ message: 'First and last name required' });
       const rows = await db.execute(drizzleSql`
         INSERT INTO students (first_name, last_name, email, phone, certificate_number, enrollment_date, expected_completion, status, notes, organization_id)
-        VALUES (${firstName}, ${lastName}, ${email || null}, ${phone || null}, ${certificateNumber || null}, ${enrollmentDate ? new Date(enrollmentDate) : new Date()}, ${expectedCompletion ? new Date(expectedCompletion) : null}, ${status || 'active'}, ${notes || null}, ${req.orgId ?? null})
+        VALUES (${firstName}, ${lastName}, ${email || null}, ${phone || null}, ${certificateNumber || null}, ${enrollmentDate ? new Date(enrollmentDate) : new Date()}, ${expectedCompletion ? new Date(expectedCompletion) : null}, ${status || 'active'}, ${notes || null}, ${orgId})
         RETURNING *
       `);
       res.status(201).json(((rows as any).rows || [])[0]);
@@ -1061,8 +1083,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put('/api/students/:id', isAuthenticated, async (req: any, res) => {
     try {
+      const orgId = requireOrg(req, res);
+      if (!orgId) return;
       const { status, notes } = req.body;
-      await db.execute(drizzleSql`UPDATE students SET status = ${status}, notes = ${notes || null} WHERE id = ${req.params.id}`);
+      const result = await db.execute(drizzleSql`UPDATE students SET status = ${status}, notes = ${notes || null} WHERE id = ${req.params.id} AND organization_id = ${orgId} RETURNING id`);
+      if (((result as any).rows || []).length === 0) return res.status(404).json({ message: 'Student not found' });
       res.json({ message: 'Student updated' });
     } catch (error) {
       res.status(500).json({ message: 'Failed to update student' });
@@ -1071,7 +1096,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete('/api/students/:id', isAuthenticated, async (req: any, res) => {
     try {
-      await db.execute(drizzleSql`DELETE FROM students WHERE id = ${req.params.id}`);
+      const orgId = requireOrg(req, res);
+      if (!orgId) return;
+      const result = await db.execute(drizzleSql`DELETE FROM students WHERE id = ${req.params.id} AND organization_id = ${orgId} RETURNING id`);
+      if (((result as any).rows || []).length === 0) return res.status(404).json({ message: 'Student not found' });
       res.json({ message: 'Student removed' });
     } catch (error) {
       res.status(500).json({ message: 'Failed to delete student' });
@@ -1079,9 +1107,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ── Instructor Records ────────────────────────────────────────────────────
-  app.get('/api/instructors', isAuthenticated, async (_req, res) => {
+  app.get('/api/instructors', isAuthenticated, async (req: any, res) => {
     try {
-      const rows = await db.execute(drizzleSql`SELECT * FROM bccs_instructor_records ORDER BY last_name, first_name`);
+      const orgId = requireOrg(req, res);
+      if (!orgId) return;
+      const rows = await db.execute(drizzleSql`SELECT * FROM bccs_instructor_records WHERE organization_id = ${orgId} ORDER BY last_name, first_name`);
       res.json((rows as any).rows || []);
     } catch (error) {
       console.error('Instructors error:', error);
@@ -1091,13 +1121,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/instructors', isAuthenticated, async (req: any, res) => {
     try {
+      const orgId = requireOrg(req, res);
+      if (!orgId) return;
       const { firstName, lastName, email, certificateType, certificateNumber, issueDate, expirationDate, currencyDate, ratings, trainingAuthorizations, status } = req.body;
       if (!firstName || !lastName || !certificateType || !certificateNumber) {
         return res.status(400).json({ message: 'Name, certificate type and number are required' });
       }
       const rows = await db.execute(drizzleSql`
         INSERT INTO bccs_instructor_records (first_name, last_name, email, certificate_type, certificate_number, issue_date, expiration_date, currency_date, ratings, training_authorizations, status, organization_id)
-        VALUES (${firstName}, ${lastName}, ${email || null}, ${certificateType}, ${certificateNumber}, ${issueDate ? new Date(issueDate) : null}, ${expirationDate ? new Date(expirationDate) : null}, ${currencyDate ? new Date(currencyDate) : null}, ${JSON.stringify(ratings || [])}, ${JSON.stringify(trainingAuthorizations || [])}, ${status || 'current'}, ${req.orgId ?? null})
+        VALUES (${firstName}, ${lastName}, ${email || null}, ${certificateType}, ${certificateNumber}, ${issueDate ? new Date(issueDate) : null}, ${expirationDate ? new Date(expirationDate) : null}, ${currencyDate ? new Date(currencyDate) : null}, ${JSON.stringify(ratings || [])}, ${JSON.stringify(trainingAuthorizations || [])}, ${status || 'current'}, ${orgId})
         RETURNING *
       `);
       res.status(201).json(((rows as any).rows || [])[0]);
@@ -1109,7 +1141,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete('/api/instructors/:id', isAuthenticated, async (req: any, res) => {
     try {
-      await db.execute(drizzleSql`DELETE FROM bccs_instructor_records WHERE id = ${req.params.id}`);
+      const orgId = requireOrg(req, res);
+      if (!orgId) return;
+      const result = await db.execute(drizzleSql`DELETE FROM bccs_instructor_records WHERE id = ${req.params.id} AND organization_id = ${orgId} RETURNING id`);
+      if (((result as any).rows || []).length === 0) return res.status(404).json({ message: 'Instructor not found' });
       res.json({ message: 'Instructor removed' });
     } catch (error) {
       res.status(500).json({ message: 'Failed to delete instructor' });
@@ -1193,7 +1228,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ── Training Records (alias for flight-school-dashboard) ──────────────────
   app.get('/api/training-records', isAuthenticated, async (req: any, res) => {
     try {
-      const rows = await db.execute(drizzleSql`SELECT * FROM bccs_training_events ORDER BY created_at DESC LIMIT 200`);
+      const orgId = requireOrg(req, res);
+      if (!orgId) return;
+      const rows = await db.execute(drizzleSql`SELECT * FROM bccs_training_events WHERE organization_id = ${orgId} ORDER BY created_at DESC LIMIT 200`);
       res.json(rows.rows || []);
     } catch (error) {
       console.error('Training records error:', error);
@@ -1204,10 +1241,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ── Flight School Stats ───────────────────────────────────────────────────
   app.get('/api/flight-school/stats', isAuthenticated, async (req: any, res) => {
     try {
+      const orgId = requireOrg(req, res);
+      if (!orgId) return;
       const [studentsRes, trainingRes, instructorsRes] = await Promise.all([
-        db.execute(drizzleSql`SELECT COUNT(*) as total, COUNT(CASE WHEN status='active' THEN 1 END) as active FROM students`),
-        db.execute(drizzleSql`SELECT COUNT(*) as total, COUNT(CASE WHEN status='completed' THEN 1 END) as completed, COALESCE(SUM(duration_hours),0) as total_hours FROM bccs_training_events`),
-        db.execute(drizzleSql`SELECT COUNT(*) as total FROM bccs_instructor_records WHERE status='active'`),
+        db.execute(drizzleSql`SELECT COUNT(*) as total, COUNT(CASE WHEN status='active' THEN 1 END) as active FROM students WHERE organization_id = ${orgId}`),
+        db.execute(drizzleSql`SELECT COUNT(*) as total, COUNT(CASE WHEN status='completed' THEN 1 END) as completed, COALESCE(SUM(duration_hours),0) as total_hours FROM bccs_training_events WHERE organization_id = ${orgId}`),
+        db.execute(drizzleSql`SELECT COUNT(*) as total FROM bccs_instructor_records WHERE status='active' AND organization_id = ${orgId}`),
       ]);
       const s = studentsRes.rows[0] as any;
       const t = trainingRes.rows[0] as any;
@@ -1230,11 +1269,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ── Analytics Endpoints ───────────────────────────────────────────────────
   app.get('/api/analytics/compliance-metrics', isAuthenticated, async (req: any, res) => {
     try {
+      const orgId = requireOrg(req, res);
+      if (!orgId) return;
       const [docsRes, studentsRes, trainingRes, logsRes] = await Promise.all([
         db.execute(drizzleSql`SELECT COUNT(*) as total, COUNT(CASE WHEN status='validated' THEN 1 END) as validated FROM documents`),
-        db.execute(drizzleSql`SELECT COUNT(*) as total, COUNT(CASE WHEN status='active' THEN 1 END) as active FROM students`),
-        db.execute(drizzleSql`SELECT COUNT(*) as total, COUNT(CASE WHEN status='completed' THEN 1 END) as completed FROM bccs_training_events`),
-        db.execute(drizzleSql`SELECT COUNT(*) as total FROM audit_logs WHERE timestamp > NOW() - INTERVAL '30 days'`),
+        db.execute(drizzleSql`SELECT COUNT(*) as total, COUNT(CASE WHEN status='active' THEN 1 END) as active FROM students WHERE organization_id = ${orgId}`),
+        db.execute(drizzleSql`SELECT COUNT(*) as total, COUNT(CASE WHEN status='completed' THEN 1 END) as completed FROM bccs_training_events WHERE organization_id = ${orgId}`),
+        db.execute(drizzleSql`SELECT COUNT(*) as total FROM audit_logs WHERE timestamp > NOW() - INTERVAL '30 days' AND organization_id = ${orgId}`),
       ]);
       const d = docsRes.rows[0] as any;
       const s = studentsRes.rows[0] as any;
@@ -1287,11 +1328,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/analytics/report', isAuthenticated, async (req: any, res) => {
     try {
+      const orgId = requireOrg(req, res);
+      if (!orgId) return;
       const [docsRes, studentsRes, trainingRes, instructorsRes] = await Promise.all([
         db.execute(drizzleSql`SELECT COUNT(*) as total, COUNT(CASE WHEN status='validated' THEN 1 END) as validated FROM documents`),
-        db.execute(drizzleSql`SELECT COUNT(*) as total FROM students`),
-        db.execute(drizzleSql`SELECT COUNT(*) as total, COUNT(CASE WHEN status='completed' THEN 1 END) as completed, COALESCE(SUM(duration_hours),0) as total_hours FROM bccs_training_events`),
-        db.execute(drizzleSql`SELECT COUNT(*) as total, COUNT(CASE WHEN expiration_date < NOW() + INTERVAL '90 days' AND status='active' THEN 1 END) as expiring_soon FROM bccs_instructor_records`),
+        db.execute(drizzleSql`SELECT COUNT(*) as total FROM students WHERE organization_id = ${orgId}`),
+        db.execute(drizzleSql`SELECT COUNT(*) as total, COUNT(CASE WHEN status='completed' THEN 1 END) as completed, COALESCE(SUM(duration_hours),0) as total_hours FROM bccs_training_events WHERE organization_id = ${orgId}`),
+        db.execute(drizzleSql`SELECT COUNT(*) as total, COUNT(CASE WHEN expiration_date < NOW() + INTERVAL '90 days' AND status='active' THEN 1 END) as expiring_soon FROM bccs_instructor_records WHERE organization_id = ${orgId}`),
       ]);
       const d = docsRes.rows[0] as any;
       const s = studentsRes.rows[0] as any;

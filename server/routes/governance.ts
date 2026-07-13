@@ -14,6 +14,7 @@ import OpenAI from "openai";
 import { db } from "../db";
 import { sql } from "drizzle-orm";
 import { isAuthenticated } from "../localAuth";
+import { getCurrentOrgId, requireOrg, isPlatformStaff } from "../middleware/tenant";
 import { evaluateAction, recallDecisions, authorityRank, isValidAuthority } from "../services/gate-engine";
 import { verifyTrainingRecord } from "../services/crypto-signing";
 import { resetGovernanceDemo } from "../db-init";
@@ -75,13 +76,19 @@ router.post("/evaluate", isAuthenticated, async (req: any, res) => {
       requesterAuthority = asAuthority;
     }
 
+    // Tenant isolation: non-staff callers may only stamp audit rows into their
+    // own active organization — ignore any client-supplied orgId.
+    const effectiveOrgId = isPlatformStaff(user.email)
+      ? (orgId ?? req.orgId ?? null)
+      : (req.orgId ?? null);
+
     const result = await evaluateAction({
       actionType,
       actionDescription,
       requestedBy: `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim() || user.email || user.id,
       requesterAuthority,
       userId: user.id,
-      orgId,
+      orgId: effectiveOrgId,
       context,
     });
     res.json(result);
@@ -186,11 +193,11 @@ router.post("/escalations/:id/resolve", isAuthenticated, async (req: any, res) =
 
   // Log the human decision to the audit trail
   await db.execute(sql`
-    INSERT INTO audit_logs (event_type, severity, message, details, source_system, user_id, timestamp)
+    INSERT INTO audit_logs (event_type, severity, message, details, source_system, user_id, organization_id, timestamp)
     VALUES ('governance_escalation_resolved', 'info',
       ${`Escalation ${status} by ${approver}`},
       ${JSON.stringify({ escalationId: req.params.id, status, note: note ?? null })},
-      'gate_engine', ${user.id}, NOW())
+      'gate_engine', ${user.id}, ${(req as any).orgId ?? getCurrentOrgId()}, NOW())
   `);
 
   res.json({ success: true, escalation: rows[0] });
@@ -205,7 +212,9 @@ router.get("/agent-events", isAuthenticated, async (_req, res) => {
 });
 
 // ── APEX enterprise governance rollup ────────────────────────────────────────
-router.get("/apex-summary", isAuthenticated, async (_req, res) => {
+router.get("/apex-summary", isAuthenticated, async (req, res) => {
+  const orgId = requireOrg(req, res);
+  if (!orgId) return;
   const [decisions, escalations, agents, policyScope, signedRecords] = await Promise.all([
     db
       .execute(sql`
@@ -232,7 +241,7 @@ router.get("/apex-summary", isAuthenticated, async (_req, res) => {
       `)
       .then((r) => (r as any).rows[0]),
     db
-      .execute(sql`SELECT COUNT(*)::int AS n FROM bccs_training_events WHERE signature IS NOT NULL`)
+      .execute(sql`SELECT COUNT(*)::int AS n FROM bccs_training_events WHERE signature IS NOT NULL AND organization_id = ${orgId}`)
       .then((r) => (r as any).rows[0]?.n ?? 0),
   ]);
 
@@ -345,6 +354,8 @@ router.post("/ask", isAuthenticated, async (req: any, res) => {
 // decisions + audit trail + integrity rollup. Ready to print/export for an auditor.
 router.get("/evidence", isAuthenticated, async (req: any, res) => {
   try {
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
     const student = typeof req.query.student === "string" ? req.query.student.trim() : "";
     const limit = Math.min(parseInt(String(req.query.limit ?? "50"), 10) || 50, 100);
 
@@ -354,11 +365,12 @@ router.get("/evidence", isAuthenticated, async (req: any, res) => {
           ? sql`SELECT id, student_name, instructor_name, event_type, event_date, duration_hours,
                        curriculum_item, status, blockchain_hash, signature, key_fingerprint, signed_at
                 FROM bccs_training_events
-                WHERE student_name ILIKE ${"%" + student + "%"}
+                WHERE student_name ILIKE ${"%" + student + "%"} AND organization_id = ${orgId}
                 ORDER BY event_date DESC LIMIT ${limit}`
           : sql`SELECT id, student_name, instructor_name, event_type, event_date, duration_hours,
                        curriculum_item, status, blockchain_hash, signature, key_fingerprint, signed_at
                 FROM bccs_training_events
+                WHERE organization_id = ${orgId}
                 ORDER BY event_date DESC LIMIT ${limit}`,
       )
       .then((r) => (r as any).rows);
@@ -394,7 +406,8 @@ router.get("/evidence", isAuthenticated, async (req: any, res) => {
       .execute(sql`
         SELECT id, event_type, severity, message, source_system, timestamp
         FROM audit_logs
-        WHERE source_system = 'gate_engine' OR event_type LIKE 'training%' OR event_type LIKE 'record%'
+        WHERE (source_system = 'gate_engine' OR event_type LIKE 'training%' OR event_type LIKE 'record%')
+          AND organization_id = ${orgId}
         ORDER BY timestamp DESC LIMIT 25
       `)
       .then((r) => (r as any).rows);
@@ -423,6 +436,8 @@ router.get("/evidence", isAuthenticated, async (req: any, res) => {
 // agent-awareness chain so the Shared Awareness feed animates the response.
 router.post("/regulation-impact", isAuthenticated, async (req: any, res) => {
   try {
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
     const user = req.user as any;
     const { sourceId, title } = req.body;
     if (!sourceId || typeof sourceId !== "string") {
@@ -461,7 +476,7 @@ router.post("/regulation-impact", isAuthenticated, async (req: any, res) => {
       .then((r) => (r as any).rows);
 
     const signedRecords = await db
-      .execute(sql`SELECT COUNT(*)::int AS n FROM bccs_training_events WHERE signature IS NOT NULL`)
+      .execute(sql`SELECT COUNT(*)::int AS n FROM bccs_training_events WHERE signature IS NOT NULL AND organization_id = ${orgId}`)
       .then((r) => (r as any).rows[0]?.n ?? 0);
 
     const protectedPolicies = affectedPolicies.filter((p: any) => p.is_protected).length;
@@ -571,7 +586,7 @@ router.post("/regulation-impact", isAuthenticated, async (req: any, res) => {
     // (Enterprise Memory) and out of the apex compliance counters.
     await db
       .execute(sql`
-        INSERT INTO audit_logs (event_type, severity, message, details, source_system, user_id, timestamp)
+        INSERT INTO audit_logs (event_type, severity, message, details, source_system, user_id, organization_id, timestamp)
         VALUES ('regulation_impact_analysis', 'info',
           ${`Regulation impact analyzed for ${regLabel}`},
           ${JSON.stringify({
@@ -582,7 +597,7 @@ router.post("/regulation-impact", isAuthenticated, async (req: any, res) => {
             signedRecords,
             propagated,
           })},
-          'gate_engine', ${user?.id ?? "system"}, NOW())
+          'gate_engine', ${user?.id ?? "system"}, ${orgId}, NOW())
       `)
       .catch((err) => console.error("[governance] impact audit write failed:", err));
 

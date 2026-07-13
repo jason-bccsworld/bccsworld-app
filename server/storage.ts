@@ -301,10 +301,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getComplianceChecksByAircraft(aircraftId: string): Promise<ComplianceCheck[]> {
+    // Tenant isolation: compliance checks are org-scoped. No org context → no rows.
+    const orgId = getCurrentOrgId();
+    if (!orgId) return [];
     return await db
       .select()
       .from(complianceChecks)
-      .where(eq(complianceChecks.aircraftId, aircraftId))
+      .where(and(eq(complianceChecks.aircraftId, aircraftId), eq(complianceChecks.organizationId, orgId)))
       .orderBy(desc(complianceChecks.checkDate));
   }
 
@@ -351,8 +354,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAuditLogs(filters?: { eventType?: string; severity?: string; limit?: number }): Promise<AuditLog[]> {
-    const conditions = [];
-    
+    // Tenant isolation: audit logs are always scoped to the active organization.
+    // No resolved org → no rows, never an unfiltered read.
+    const orgId = getCurrentOrgId();
+    if (!orgId) return [];
+
+    const conditions = [eq(auditLogs.organizationId, orgId)];
+
     if (filters?.eventType) {
       conditions.push(eq(auditLogs.eventType, filters.eventType));
     }
@@ -362,7 +370,7 @@ export class DatabaseStorage implements IStorage {
     }
     
     return await db.select().from(auditLogs)
-      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .where(and(...conditions))
       .orderBy(desc(auditLogs.timestamp))
       .limit(filters?.limit ?? 1000);
   }
@@ -558,7 +566,7 @@ export class DatabaseStorage implements IStorage {
       .values({ userId, state, organizationId: getCurrentOrgId() })
       .onConflictDoUpdate({
         target: checklistStates.userId,
-        set: { state, updatedAt: new Date() },
+        set: { state, organizationId: getCurrentOrgId(), updatedAt: new Date() },
       });
   }
 

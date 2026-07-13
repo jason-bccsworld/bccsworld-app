@@ -181,10 +181,10 @@ router.get("/org/:orgId/summary", requireReviewerKey, async (req: any, res) => {
 
       db.execute(sql`
         SELECT
-          (SELECT COUNT(*) FROM digital_form_templates) AS templates,
-          (SELECT COUNT(*) FROM digital_form_submissions) AS submissions,
-          (SELECT COUNT(*) FROM digital_form_submissions WHERE status = 'approved') AS approved,
-          (SELECT COUNT(*) FROM digital_form_submissions WHERE status = 'submitted') AS pending
+          (SELECT COUNT(*) FROM digital_form_templates WHERE organization_id = ${req.params.orgId}) AS templates,
+          (SELECT COUNT(*) FROM digital_form_submissions WHERE organization_id = ${req.params.orgId}) AS submissions,
+          (SELECT COUNT(*) FROM digital_form_submissions WHERE status = 'approved' AND organization_id = ${req.params.orgId}) AS approved,
+          (SELECT COUNT(*) FROM digital_form_submissions WHERE status = 'submitted' AND organization_id = ${req.params.orgId}) AS pending
       `).then(r => (r as any).rows),
 
       db.execute(sql`
@@ -192,6 +192,7 @@ router.get("/org/:orgId/summary", requireReviewerKey, async (req: any, res) => {
           SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) AS completed,
           SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) AS pending
         FROM bccs_training_events
+        WHERE organization_id = ${req.params.orgId}
       `).then(r => (r as any).rows),
 
       db.execute(sql`
@@ -199,12 +200,14 @@ router.get("/org/:orgId/summary", requireReviewerKey, async (req: any, res) => {
           SUM(CASE WHEN expiration_date < NOW() THEN 1 ELSE 0 END) AS expired,
           SUM(CASE WHEN expiration_date BETWEEN NOW() AND NOW() + INTERVAL '90 days' THEN 1 ELSE 0 END) AS expiring_soon
         FROM bccs_instructor_records
+        WHERE organization_id = ${req.params.orgId}
       `).then(r => (r as any).rows),
 
-      db.execute(sql`SELECT COUNT(*) AS total FROM students`).then(r => (r as any).rows),
+      db.execute(sql`SELECT COUNT(*) AS total FROM students WHERE organization_id = ${req.params.orgId}`).then(r => (r as any).rows),
 
       db.execute(sql`
-        SELECT COUNT(*) AS signed FROM bccs_training_events WHERE signature IS NOT NULL
+        SELECT COUNT(*) AS signed FROM bccs_training_events
+        WHERE signature IS NOT NULL AND organization_id = ${req.params.orgId}
       `).then(r => (r as any).rows),
     ]);
 
@@ -244,6 +247,7 @@ router.get("/org/:orgId/forms", requireReviewerKey, async (req: any, res) => {
       SELECT id, title, faa_source_id, faa_document_title, status, regulation_status,
              auto_generated, generated_from_section, created_at, updated_at, fields
       FROM digital_form_templates
+      WHERE organization_id = ${req.params.orgId}
       ORDER BY updated_at DESC
     `).then(r => (r as any).rows),
 
@@ -252,6 +256,7 @@ router.get("/org/:orgId/forms", requireReviewerKey, async (req: any, res) => {
              s.submitted_by, s.submitter_name, s.submitter_email,
              s.submitted_at, s.status, s.notes, s.form_data
       FROM digital_form_submissions s
+      WHERE s.organization_id = ${req.params.orgId}
       ORDER BY s.submitted_at DESC
       LIMIT 200
     `).then(r => (r as any).rows),
@@ -271,6 +276,7 @@ router.get("/org/:orgId/compliance-records", requireReviewerKey, async (req: any
            duration_hours, curriculum_item, status, blockchain_hash,
            signature, key_fingerprint, chain_hash, signed_at, created_at
     FROM bccs_training_events
+    WHERE organization_id = ${req.params.orgId}
     ORDER BY event_date DESC
     LIMIT 500
   `).then(r => (r as any).rows);
@@ -288,6 +294,7 @@ router.get("/org/:orgId/instructors", requireReviewerKey, async (req: any, res) 
     SELECT id, first_name, last_name, email, certificate_type, certificate_number,
            issue_date, expiration_date, status, ratings, notes
     FROM bccs_instructor_records
+    WHERE organization_id = ${req.params.orgId}
     ORDER BY last_name, first_name
   `).then(r => (r as any).rows);
 
@@ -304,6 +311,7 @@ router.get("/org/:orgId/students", requireReviewerKey, async (req: any, res) => 
     SELECT id, first_name, last_name, email, certificate_number,
            enrollment_date, expected_completion, status, notes
     FROM students
+    WHERE organization_id = ${req.params.orgId}
     ORDER BY last_name, first_name
   `).then(r => (r as any).rows);
 
