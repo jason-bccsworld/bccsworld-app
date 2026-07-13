@@ -1052,11 +1052,14 @@ export type InsertRegulatoryCoverageMatrix = z.infer<typeof insertRegulatoryCove
 
 export const checklistStates = pgTable("checklist_states", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").notNull().unique(),
+  userId: varchar("user_id").notNull(),
   state: jsonb("state").notNull(),
   organizationId: uuid("organization_id"),
   updatedAt: timestamp("updated_at").defaultNow(),
-});
+}, (t) => [
+  // One checklist state per user per organization — tenant-isolated.
+  unique("checklist_states_user_org_key").on(t.userId, t.organizationId),
+]);
 
 export const insertChecklistStateSchema = createInsertSchema(checklistStates).omit({ id: true, updatedAt: true });
 export type ChecklistState = typeof checklistStates.$inferSelect;

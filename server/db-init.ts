@@ -249,11 +249,18 @@ export async function ensureTables(): Promise<void> {
     await db.execute(sql`
       CREATE TABLE IF NOT EXISTS checklist_states (
         id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
-        user_id VARCHAR NOT NULL UNIQUE,
+        user_id VARCHAR NOT NULL,
         state JSONB NOT NULL,
         organization_id UUID,
         updated_at TIMESTAMP DEFAULT NOW()
       )
+    `);
+    // Migrate legacy uniqueness (one row per user globally) to per-org
+    // uniqueness so a user's checklist in one org never overwrites another.
+    await db.execute(sql`ALTER TABLE checklist_states DROP CONSTRAINT IF EXISTS checklist_states_user_id_key`);
+    await db.execute(sql`
+      CREATE UNIQUE INDEX IF NOT EXISTS checklist_states_user_org_key
+      ON checklist_states (user_id, organization_id)
     `);
 
     // 1) organization_id columns on all tenant-owned operational tables.

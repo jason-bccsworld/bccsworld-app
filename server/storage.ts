@@ -556,17 +556,25 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getChecklistState(userId: string): Promise<ChecklistState | null> {
-    const [row] = await db.select().from(checklistStates).where(eq(checklistStates.userId, userId));
+    // Tenant isolation: checklist state is per user per organization.
+    const orgId = getCurrentOrgId();
+    if (!orgId) return null;
+    const [row] = await db
+      .select()
+      .from(checklistStates)
+      .where(and(eq(checklistStates.userId, userId), eq(checklistStates.organizationId, orgId)));
     return row ?? null;
   }
 
   async saveChecklistState(userId: string, state: any): Promise<void> {
+    const orgId = getCurrentOrgId();
+    if (!orgId) throw new Error("No active organization — cannot save checklist state");
     await db
       .insert(checklistStates)
-      .values({ userId, state, organizationId: getCurrentOrgId() })
+      .values({ userId, state, organizationId: orgId })
       .onConflictDoUpdate({
-        target: checklistStates.userId,
-        set: { state, organizationId: getCurrentOrgId(), updatedAt: new Date() },
+        target: [checklistStates.userId, checklistStates.organizationId],
+        set: { state, updatedAt: new Date() },
       });
   }
 

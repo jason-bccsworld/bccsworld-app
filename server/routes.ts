@@ -351,6 +351,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ── Compliance Checklist State ───────────────────────────────────────────
   app.get('/api/checklist/state', isAuthenticated, async (req: any, res) => {
     try {
+      const orgId = requireOrg(req, res);
+      if (!orgId) return;
       const userId = req.user.id;
       const row = await storage.getChecklistState(userId);
       res.json({ state: row?.state ?? null, updatedAt: row?.updatedAt ?? null });
@@ -362,6 +364,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put('/api/checklist/state', isAuthenticated, async (req: any, res) => {
     try {
+      const orgId = requireOrg(req, res);
+      if (!orgId) return;
       const userId = req.user.id;
       const { state } = req.body;
       if (!state) return res.status(400).json({ error: 'state is required' });
@@ -1245,7 +1249,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!orgId) return;
       const [studentsRes, trainingRes, instructorsRes] = await Promise.all([
         db.execute(drizzleSql`SELECT COUNT(*) as total, COUNT(CASE WHEN status='active' THEN 1 END) as active FROM students WHERE organization_id = ${orgId}`),
-        db.execute(drizzleSql`SELECT COUNT(*) as total, COUNT(CASE WHEN status='completed' THEN 1 END) as completed, COALESCE(SUM(duration_hours),0) as total_hours FROM bccs_training_events WHERE organization_id = ${orgId}`),
+        db.execute(drizzleSql`SELECT COUNT(*) as total, COUNT(CASE WHEN status='completed' THEN 1 END) as completed, COALESCE(SUM(CASE WHEN duration_hours ~ '^[0-9]+(\.[0-9]+)?$' THEN duration_hours::numeric ELSE 0 END),0) as total_hours FROM bccs_training_events WHERE organization_id = ${orgId}`),
         db.execute(drizzleSql`SELECT COUNT(*) as total FROM bccs_instructor_records WHERE status='active' AND organization_id = ${orgId}`),
       ]);
       const s = studentsRes.rows[0] as any;
@@ -1272,7 +1276,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const orgId = requireOrg(req, res);
       if (!orgId) return;
       const [docsRes, studentsRes, trainingRes, logsRes] = await Promise.all([
-        db.execute(drizzleSql`SELECT COUNT(*) as total, COUNT(CASE WHEN status='validated' THEN 1 END) as validated FROM documents`),
+        // Document metrics come from the org's form submission repository
+        // (the legacy `documents` table does not exist on runtime databases).
+        db.execute(drizzleSql`SELECT COUNT(*) as total, COUNT(CASE WHEN status='approved' THEN 1 END) as validated FROM digital_form_submissions WHERE organization_id = ${orgId}`),
         db.execute(drizzleSql`SELECT COUNT(*) as total, COUNT(CASE WHEN status='active' THEN 1 END) as active FROM students WHERE organization_id = ${orgId}`),
         db.execute(drizzleSql`SELECT COUNT(*) as total, COUNT(CASE WHEN status='completed' THEN 1 END) as completed FROM bccs_training_events WHERE organization_id = ${orgId}`),
         db.execute(drizzleSql`SELECT COUNT(*) as total FROM audit_logs WHERE timestamp > NOW() - INTERVAL '30 days' AND organization_id = ${orgId}`),
@@ -1331,9 +1337,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const orgId = requireOrg(req, res);
       if (!orgId) return;
       const [docsRes, studentsRes, trainingRes, instructorsRes] = await Promise.all([
-        db.execute(drizzleSql`SELECT COUNT(*) as total, COUNT(CASE WHEN status='validated' THEN 1 END) as validated FROM documents`),
+        // Document metrics come from the org's form submission repository
+        // (the legacy `documents` table does not exist on runtime databases).
+        db.execute(drizzleSql`SELECT COUNT(*) as total, COUNT(CASE WHEN status='approved' THEN 1 END) as validated FROM digital_form_submissions WHERE organization_id = ${orgId}`),
         db.execute(drizzleSql`SELECT COUNT(*) as total FROM students WHERE organization_id = ${orgId}`),
-        db.execute(drizzleSql`SELECT COUNT(*) as total, COUNT(CASE WHEN status='completed' THEN 1 END) as completed, COALESCE(SUM(duration_hours),0) as total_hours FROM bccs_training_events WHERE organization_id = ${orgId}`),
+        db.execute(drizzleSql`SELECT COUNT(*) as total, COUNT(CASE WHEN status='completed' THEN 1 END) as completed, COALESCE(SUM(CASE WHEN duration_hours ~ '^[0-9]+(\.[0-9]+)?$' THEN duration_hours::numeric ELSE 0 END),0) as total_hours FROM bccs_training_events WHERE organization_id = ${orgId}`),
         db.execute(drizzleSql`SELECT COUNT(*) as total, COUNT(CASE WHEN expiration_date < NOW() + INTERVAL '90 days' AND status='active' THEN 1 END) as expiring_soon FROM bccs_instructor_records WHERE organization_id = ${orgId}`),
       ]);
       const d = docsRes.rows[0] as any;
