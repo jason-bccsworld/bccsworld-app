@@ -22,20 +22,48 @@ export interface LicenseRow {
 let cachedLicense: LicenseRow | null = null;
 let cacheExpiry = 0;
 
+/**
+ * Resolve the effective license.
+ * Priority: license assigned to the primary (earliest active) organization,
+ * falling back to the most recent unassigned (platform-wide) license.
+ */
 export async function getActiveLicense(): Promise<LicenseRow | null> {
   const now = Date.now();
   if (cachedLicense && now < cacheExpiry) return cachedLicense;
 
-  const result = await db.execute(sql`
-    SELECT * FROM bccs_licenses
-    ORDER BY created_at DESC
+  const orgScoped = await db.execute(sql`
+    SELECT l.* FROM bccs_licenses l
+    JOIN training_organizations o ON o.id = l.organization_id
+    WHERE o.is_active = TRUE
+    ORDER BY o.created_at ASC, l.updated_at DESC
     LIMIT 1
   `);
 
-  const row = result.rows[0] as LicenseRow | undefined;
+  let row = orgScoped.rows[0] as unknown as LicenseRow | undefined;
+  if (!row) {
+    const fallback = await db.execute(sql`
+      SELECT * FROM bccs_licenses
+      WHERE organization_id IS NULL
+      ORDER BY created_at DESC
+      LIMIT 1
+    `);
+    row = fallback.rows[0] as unknown as LicenseRow | undefined;
+  }
+
   cachedLicense = row ?? null;
   cacheExpiry = now + 30_000; // 30-second cache
   return cachedLicense;
+}
+
+/** License assigned to a specific organization (no cache). */
+export async function getLicenseForOrg(orgId: string): Promise<LicenseRow | null> {
+  const result = await db.execute(sql`
+    SELECT * FROM bccs_licenses
+    WHERE organization_id = ${orgId}
+    ORDER BY updated_at DESC
+    LIMIT 1
+  `);
+  return (result.rows[0] as unknown as LicenseRow | undefined) ?? null;
 }
 
 export function invalidateLicenseCache() {

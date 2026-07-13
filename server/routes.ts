@@ -595,6 +595,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (temporaryPassword.length < 8) {
         return res.status(400).json({ message: 'Password must be at least 8 characters' });
       }
+      if (String(email).toLowerCase().endsWith('@bccsworld.com')) {
+        return res.status(403).json({ message: 'This email domain is reserved for BCCS staff and cannot be invited here' });
+      }
       const [existing] = await db.select().from(users).where(eq(users.email, email));
       if (existing) return res.status(409).json({ message: 'User with this email already exists' });
 
@@ -848,10 +851,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.createAuditLog({
         userId: req.user?.id || 'system',
         eventType: 'org_setup',
+        message: `Organization created: ${organizationName} (${organizationType})`,
         details: { organizationName, organizationType },
         severity: 'info',
-        ipAddress: req.ip,
-      });
+      }).catch((err) => console.error('Org setup audit log failed (non-fatal):', err));
       res.status(201).json(org);
     } catch (error) {
       console.error('Org setup error:', error);
@@ -1344,11 +1347,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // ── LICENSE ROUTES ──────────────────────────────────────────────────────────
 
-  // GET /api/license — current license (any authenticated user)
+  // GET /api/license — effective license (org-assigned first, platform fallback)
   app.get('/api/license', isAuthenticated, async (_req, res) => {
     try {
-      const result = await db.execute(drizzleSql`SELECT * FROM bccs_licenses ORDER BY created_at DESC LIMIT 1`);
-      const row = result.rows[0] as any;
+      const { getActiveLicense } = await import('./middleware/license');
+      const row = (await getActiveLicense()) as any;
       if (!row) return res.status(404).json({ message: 'No license found' });
       res.json({
         id: row.id,
@@ -1379,7 +1382,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { plan, status, seatsLimit, currentPeriodEnd, stripeCustomerId, stripeSubscriptionId, stripePriceId, notes } = req.body;
       const { invalidateLicenseCache } = await import('./middleware/license');
-      const result = await db.execute(drizzleSql`SELECT id FROM bccs_licenses ORDER BY created_at DESC LIMIT 1`);
+      const result = await db.execute(drizzleSql`SELECT id FROM bccs_licenses WHERE organization_id IS NULL ORDER BY created_at DESC LIMIT 1`);
       const existing = result.rows[0] as any;
       if (!existing) {
         // Create new
@@ -1419,6 +1422,111 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error('License update error:', error);
       res.status(500).json({ message: 'Failed to update license' });
+    }
+  });
+
+  // ── ORGANIZATION LICENSES ───────────────────────────────────────────────────
+
+  // GET /api/organizations/licenses — all org-assigned licenses (admins only)
+  app.get('/api/organizations/licenses', isAuthenticated, async (req: any, res) => {
+    const isStaff = String(req.user?.email ?? '').toLowerCase().endsWith('@bccsworld.com');
+    if (req.user?.role !== 'admin' && !isStaff) {
+      return res.status(403).json({ message: 'Admin access required' });
+    }
+    try {
+      const result = await db.execute(drizzleSql`
+        SELECT id, organization_id, plan, status, seats_limit, current_period_start,
+               current_period_end, assigned_by, notes, updated_at
+        FROM bccs_licenses
+        WHERE organization_id IS NOT NULL
+        ORDER BY updated_at DESC
+      `);
+      res.json((result as any).rows || []);
+    } catch (error) {
+      console.error('Org licenses fetch error:', error);
+      res.status(500).json({ message: 'Failed to fetch organization licenses' });
+    }
+  });
+
+  // PUT /api/organizations/:id/license — assign or update an organization's license
+  // (@bccsworld.com SuperAdmin only)
+  app.put('/api/organizations/:id/license', isAuthenticated, async (req: any, res) => {
+    const email: string = req.user?.email ?? '';
+    if (!email.toLowerCase().endsWith('@bccsworld.com')) {
+      return res.status(403).json({ message: 'License assignment requires a @bccsworld.com account' });
+    }
+    try {
+      const orgId = req.params.id;
+      const { plan, status, seatsLimit, currentPeriodEnd, notes } = req.body;
+
+      const validPlans = ['trial', 'standard', 'professional', 'enterprise'];
+      const validStatuses = ['active', 'trial', 'suspended', 'expired'];
+      if (!plan || !validPlans.includes(plan)) {
+        return res.status(400).json({ message: `Plan must be one of: ${validPlans.join(', ')}` });
+      }
+      const effectiveStatus = status || 'active';
+      if (!validStatuses.includes(effectiveStatus)) {
+        return res.status(400).json({ message: `Status must be one of: ${validStatuses.join(', ')}` });
+      }
+      const seats = Number.isFinite(parseInt(seatsLimit, 10)) ? parseInt(seatsLimit, 10) : 5;
+      const periodEnd = currentPeriodEnd ? new Date(currentPeriodEnd) : null;
+      if (currentPeriodEnd && isNaN(periodEnd!.getTime())) {
+        return res.status(400).json({ message: 'currentPeriodEnd is not a valid date' });
+      }
+
+      const orgResult = await db.execute(drizzleSql`
+        SELECT id, organization_name FROM training_organizations WHERE id = ${orgId}
+      `);
+      const org = (orgResult as any).rows?.[0];
+      if (!org) return res.status(404).json({ message: 'Organization not found' });
+
+      const existingResult = await db.execute(drizzleSql`
+        SELECT id FROM bccs_licenses WHERE organization_id = ${orgId} ORDER BY updated_at DESC LIMIT 1
+      `);
+      const existing = (existingResult as any).rows?.[0];
+
+      let licenseRow: any;
+      if (existing) {
+        const updated = await db.execute(drizzleSql`
+          UPDATE bccs_licenses SET
+            plan = ${plan},
+            status = ${effectiveStatus},
+            seats_limit = ${seats},
+            current_period_start = COALESCE(current_period_start, NOW()),
+            current_period_end = ${periodEnd},
+            assigned_by = ${email},
+            notes = ${notes ?? null},
+            updated_at = NOW()
+          WHERE id = ${existing.id}
+          RETURNING *
+        `);
+        licenseRow = (updated as any).rows?.[0];
+      } else {
+        const inserted = await db.execute(drizzleSql`
+          INSERT INTO bccs_licenses
+            (organization_id, plan, status, seats_limit, current_period_start, current_period_end, assigned_by, notes, updated_at)
+          VALUES
+            (${orgId}, ${plan}, ${effectiveStatus}, ${seats}, NOW(), ${periodEnd}, ${email}, ${notes ?? null}, NOW())
+          RETURNING *
+        `);
+        licenseRow = (inserted as any).rows?.[0];
+      }
+
+      const { invalidateLicenseCache: invalidate } = await import('./middleware/license');
+      invalidate();
+
+      await storage.createAuditLog({
+        userId: req.user?.id || 'system',
+        eventType: 'license_assigned',
+        message: `License assigned to ${org.organization_name}: ${plan} (${effectiveStatus}, ${seats} seats)`,
+        details: { organizationId: orgId, plan, status: effectiveStatus, seatsLimit: seats },
+        severity: 'info',
+      }).catch((err) => console.error('License audit log failed (non-fatal):', err));
+
+      res.json(licenseRow);
+    } catch (error: any) {
+      console.error('Org license assignment error:', error);
+      res.status(500).json({ message: 'Failed to assign license' });
     }
   });
 

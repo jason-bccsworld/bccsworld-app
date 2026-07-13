@@ -121,6 +121,11 @@ export async function ensureTables(): Promise<void> {
       )
     `);
 
+    // Per-organization license assignment (NULL = platform-wide/default license)
+    await db.execute(sql`
+      ALTER TABLE bccs_licenses ADD COLUMN IF NOT EXISTS organization_id UUID
+    `);
+
     // Seed a trial license if none exists
     const licenseCount = await db.execute(sql`SELECT COUNT(*) FROM bccs_licenses`);
     const count = parseInt((licenseCount.rows[0] as any).count, 10);

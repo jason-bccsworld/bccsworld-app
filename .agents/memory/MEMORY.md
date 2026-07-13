@@ -1,1 +1,2 @@
 - [Signature chain re-derivation](signature-chain-rederivation.md) — deleting any signed training record breaks verification of all records signed after it; guard demo-reset teardowns.
+- [License resolution & SuperAdmin model](licensing-model.md) — org license beats platform row; @bccsworld.com invites must stay blocked; audit_logs.message is NOT NULL.

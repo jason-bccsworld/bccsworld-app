@@ -29,6 +29,25 @@ import { PERMISSION_DEFINITIONS, PERMISSION_GROUPS, getRoleDisplay, ALL_PERMISSI
 import { ApexSummaryCards, ApexDetailStrip, AgentFeed } from "@/components/governance-widgets";
 import { OperationalStoryDialog } from "@/components/operational-story";
 
+// ── Org creation options (kept in sync with organization-setup page) ───────
+
+const ORG_TYPES = [
+  { value: "part_141", label: "Part 141 – Pilot School" },
+  { value: "part_142", label: "Part 142 – Training Center" },
+  { value: "part_121", label: "Part 121 – Airline Operations" },
+  { value: "part_135", label: "Part 135 – Commuter/On-Demand" },
+  { value: "mro", label: "MRO – Maintenance, Repair & Overhaul" },
+  { value: "atc", label: "ATC – Air Traffic Control" },
+];
+
+const ORG_AUTHORITIES = [
+  { value: "faa", label: "FAA – Federal Aviation Administration" },
+  { value: "easa", label: "EASA – European Union Aviation Safety Agency" },
+  { value: "transport_canada", label: "Transport Canada" },
+  { value: "casa", label: "CASA – Civil Aviation Safety Authority" },
+  { value: "gcaa", label: "GCAA – General Civil Aviation Authority" },
+];
+
 // ── Types ──────────────────────────────────────────────────────────────────
 
 interface UserRecord {
@@ -554,6 +573,18 @@ export default function AdminDashboard() {
   const [licNotes, setLicNotes]           = useState("");
   const [licEditing, setLicEditing]       = useState(false);
 
+  // ── organizations & license assignment state
+  const [createOrgOpen, setCreateOrgOpen] = useState(false);
+  const [orgName, setOrgName]             = useState("");
+  const [orgType, setOrgType]             = useState("part_142");
+  const [orgAuthority, setOrgAuthority]   = useState("faa");
+  const [orgCert, setOrgCert]             = useState("");
+  const [assignLicOrg, setAssignLicOrg]   = useState<any | null>(null);
+  const [assignPlan, setAssignPlan]       = useState<PlanKey>("standard");
+  const [assignStatus, setAssignStatus]   = useState("active");
+  const [assignSeats, setAssignSeats]     = useState("5");
+  const [assignPeriodEnd, setAssignPeriodEnd] = useState("");
+  const [assignNotes, setAssignNotes]     = useState("");
 
   // ── modal state
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -591,6 +622,64 @@ export default function AdminDashboard() {
   // ── queries
   const { data: stats } = useQuery({ queryKey: ["/api/admin/stats"], enabled: isAuthenticated });
   const { data: organizations } = useQuery({ queryKey: ["/api/organizations"], enabled: isAuthenticated });
+  const { data: orgLicenses = [] } = useQuery<any[]>({ queryKey: ["/api/organizations/licenses"], enabled: isAuthenticated });
+
+  // ── org & license mutations
+  const createOrgMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/organizations/setup", {
+        organizationName: orgName.trim(),
+        organizationType: orgType,
+        regulatoryAuthority: orgAuthority,
+        certificateNumber: orgCert.trim() || undefined,
+      });
+      return res.json();
+    },
+    onSuccess: async (data: any) => {
+      try {
+        await apiRequest("POST", "/api/org-keys/generate-for-org", { orgId: data.id });
+      } catch {
+        // Key can be generated later from Organization Setup page
+      }
+      queryClient.invalidateQueries({ queryKey: ["/api/organizations"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/organization"] });
+      setCreateOrgOpen(false);
+      setOrgName(""); setOrgCert("");
+      toast({ title: "Organization created", description: `${data.organizationName} is registered and ready for a license.` });
+    },
+    onError: (err: any) => toast({ title: "Could not create organization", description: err.message, variant: "destructive" }),
+  });
+
+  const assignLicenseMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("PUT", `/api/organizations/${assignLicOrg.id}/license`, {
+        plan: assignPlan,
+        status: assignStatus,
+        seatsLimit: parseInt(assignSeats, 10) || 5,
+        currentPeriodEnd: assignPeriodEnd || undefined,
+        notes: assignNotes.trim() || undefined,
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/organizations/licenses"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/license"] });
+      refetchLicense();
+      toast({ title: "License assigned", description: `${PLAN_DISPLAY[assignPlan].label} plan is now active for ${assignLicOrg?.organizationName}.` });
+      setAssignLicOrg(null);
+    },
+    onError: (err: any) => toast({ title: "Could not assign license", description: err.message, variant: "destructive" }),
+  });
+
+  const openAssignDialog = (org: any, existingLic: any | undefined) => {
+    setAssignLicOrg(org);
+    setAssignPlan((existingLic?.plan as PlanKey) ?? "standard");
+    setAssignStatus(existingLic?.status ?? "active");
+    setAssignSeats(String(existingLic?.seats_limit ?? 5));
+    setAssignPeriodEnd(existingLic?.current_period_end ? String(existingLic.current_period_end).slice(0, 10) : "");
+    setAssignNotes(existingLic?.notes ?? "");
+  };
 
   const {
     data: userList = [],
@@ -829,9 +918,13 @@ export default function AdminDashboard() {
                 <Shield className="h-4 w-4 mr-1.5" /> Roles &amp; Permissions
                 {!canUse('customRoles') && <LockedBadge />}
               </TabsTrigger>
-              <TabsTrigger value="organizations">
-                <Building className="h-4 w-4 mr-1.5" /> Organizations
-              </TabsTrigger>
+            </>
+          )}
+          <TabsTrigger value="organizations">
+            <Building className="h-4 w-4 mr-1.5" /> Organizations
+          </TabsTrigger>
+          {!isSuperAdmin && (
+            <>
               <TabsTrigger value="system">
                 <Settings className="h-4 w-4 mr-1.5" /> System
               </TabsTrigger>
@@ -1181,35 +1274,67 @@ export default function AdminDashboard() {
         {/* ── ORGANIZATIONS TAB ─────────────────────────────────────────── */}
         <TabsContent value="organizations">
           <Card>
-            <CardHeader>
-              <CardTitle>Organization Management</CardTitle>
-              <CardDescription>Configure your registered training organization</CardDescription>
+            <CardHeader className="flex flex-row items-start justify-between space-y-0">
+              <div>
+                <CardTitle>Organization Management</CardTitle>
+                <CardDescription>
+                  {isSuperAdmin
+                    ? "Create customer organizations and assign the licenses that unlock their features"
+                    : "Configure your registered training organization"}
+                </CardDescription>
+              </div>
+              <Button size="sm" onClick={() => setCreateOrgOpen(true)} data-testid="button-create-org">
+                <Plus className="h-4 w-4 mr-2" /> Create Organization
+              </Button>
             </CardHeader>
             <CardContent>
               {Array.isArray(organizations) && organizations.length > 0 ? (
                 <div className="space-y-3">
-                  {organizations.map((org: any) => (
-                    <div key={org.id} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div>
-                        <p className="font-semibold">{org.organizationName}</p>
-                        <p className="text-sm text-slate-500">
-                          {org.organizationType?.replace(/_/g, " ").toUpperCase()} ·{" "}
-                          {org.regulatoryAuthority}
-                        </p>
-                        {org.certificateNumber && (
-                          <p className="text-xs text-slate-400">Cert: {org.certificateNumber}</p>
-                        )}
+                  {organizations.map((org: any) => {
+                    const orgLic = orgLicenses.find((l: any) => l.organization_id === org.id);
+                    return (
+                      <div key={org.id} className="flex flex-wrap items-center justify-between gap-3 p-4 border rounded-lg" data-testid={`row-org-${org.id}`}>
+                        <div>
+                          <p className="font-semibold">{org.organizationName}</p>
+                          <p className="text-sm text-slate-500">
+                            {org.organizationType?.replace(/_/g, " ").toUpperCase()} ·{" "}
+                            {org.regulatoryAuthority?.toUpperCase()}
+                          </p>
+                          {org.certificateNumber && (
+                            <p className="text-xs text-slate-400">Cert: {org.certificateNumber}</p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-3">
+                          {orgLic ? (
+                            <div className="text-right">
+                              <span className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-semibold ${PLAN_DISPLAY[orgLic.plan as PlanKey]?.color ?? "bg-slate-100 text-slate-700"}`}>
+                                <CreditCard className="h-3 w-3" />
+                                {PLAN_DISPLAY[orgLic.plan as PlanKey]?.label ?? orgLic.plan}
+                              </span>
+                              <p className="text-xs text-slate-400 mt-1">
+                                {orgLic.status} · {orgLic.seats_limit} seats
+                                {orgLic.current_period_end ? ` · until ${format(new Date(orgLic.current_period_end), "MMM d, yyyy")}` : ""}
+                              </p>
+                            </div>
+                          ) : (
+                            <Badge variant="outline" className="text-slate-500">No license</Badge>
+                          )}
+                          {isSuperAdmin && (
+                            <Button size="sm" variant="outline" onClick={() => openAssignDialog(org, orgLic)} data-testid={`button-assign-license-${org.id}`}>
+                              <CreditCard className="h-4 w-4 mr-1.5" /> {orgLic ? "Change License" : "Assign License"}
+                            </Button>
+                          )}
+                        </div>
                       </div>
-                      <Badge variant="secondary">Active</Badge>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="text-center py-10">
                   <Building className="w-12 h-12 text-slate-300 mx-auto mb-3" />
                   <p className="text-slate-500 mb-4">No organization configured yet.</p>
-                  <Button variant="outline" onClick={() => window.location.href = "/organization-setup"}>
-                    <Plus className="h-4 w-4 mr-2" /> Set Up Organization
+                  <Button variant="outline" onClick={() => setCreateOrgOpen(true)} data-testid="button-create-org-empty">
+                    <Plus className="h-4 w-4 mr-2" /> Create Organization
                   </Button>
                 </div>
               )}
@@ -1451,6 +1576,151 @@ export default function AdminDashboard() {
           </TabsContent>
         )}
       </Tabs>
+
+      {/* ── CREATE ORGANIZATION DIALOG ────────────────────────────────────── */}
+      <Dialog open={createOrgOpen} onOpenChange={setCreateOrgOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Building className="h-5 w-5" /> Create Organization
+            </DialogTitle>
+            <DialogDescription>
+              Register a training organization. A signing key pair is generated automatically.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-1">
+            <div>
+              <Label className="text-xs">Organization Name</Label>
+              <Input value={orgName} onChange={e => setOrgName(e.target.value)} placeholder="e.g. Skyline Flight Academy" data-testid="input-org-name" />
+            </div>
+            <div>
+              <Label className="text-xs">Organization Type</Label>
+              <Select value={orgType} onValueChange={setOrgType}>
+                <SelectTrigger data-testid="select-org-type"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {ORG_TYPES.map(t => (
+                    <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs">Regulatory Authority</Label>
+              <Select value={orgAuthority} onValueChange={setOrgAuthority}>
+                <SelectTrigger data-testid="select-org-authority"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {ORG_AUTHORITIES.map(a => (
+                    <SelectItem key={a.value} value={a.value}>{a.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs">Certificate Number (optional)</Label>
+              <Input value={orgCert} onChange={e => setOrgCert(e.target.value)} placeholder="e.g. BCCS-142-0087" data-testid="input-org-cert" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateOrgOpen(false)}>Cancel</Button>
+            <Button
+              onClick={() => createOrgMutation.mutate()}
+              disabled={!orgName.trim() || createOrgMutation.isPending}
+              data-testid="button-confirm-create-org"
+            >
+              {createOrgMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Create Organization
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── ASSIGN LICENSE DIALOG ─────────────────────────────────────────── */}
+      <Dialog open={!!assignLicOrg} onOpenChange={(open) => { if (!open) setAssignLicOrg(null); }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CreditCard className="h-5 w-5" /> Assign License
+            </DialogTitle>
+            <DialogDescription>
+              {assignLicOrg ? `Set the plan for ${assignLicOrg.organizationName}. Features unlock immediately.` : ""}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-1">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs">Plan</Label>
+                <Select value={assignPlan} onValueChange={(v) => setAssignPlan(v as PlanKey)}>
+                  <SelectTrigger data-testid="select-assign-plan"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {(Object.keys(PLAN_DISPLAY) as PlanKey[]).map(p => (
+                      <SelectItem key={p} value={p}>{PLAN_DISPLAY[p].label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs">Status</Label>
+                <Select value={assignStatus} onValueChange={setAssignStatus}>
+                  <SelectTrigger data-testid="select-assign-status"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="trial">Trial</SelectItem>
+                    <SelectItem value="suspended">Suspended</SelectItem>
+                    <SelectItem value="expired">Expired</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs">Seat Limit</Label>
+                <Input type="number" min="1" value={assignSeats} onChange={e => setAssignSeats(e.target.value)} data-testid="input-assign-seats" />
+              </div>
+              <div>
+                <Label className="text-xs">Valid Until (optional)</Label>
+                <Input type="date" value={assignPeriodEnd} onChange={e => setAssignPeriodEnd(e.target.value)} data-testid="input-assign-period-end" />
+              </div>
+            </div>
+            <div>
+              <Label className="text-xs">Notes (optional)</Label>
+              <Input value={assignNotes} onChange={e => setAssignNotes(e.target.value)} placeholder="e.g. Annual contract, PO #1234" data-testid="input-assign-notes" />
+            </div>
+            <div className="rounded-lg border bg-slate-50 p-3">
+              <p className="text-xs font-semibold text-slate-600 mb-2">
+                Features included — {PLAN_DISPLAY[assignPlan].label}
+              </p>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                {Object.entries(PLAN_FEATURES[assignPlan]).map(([key, val]) => {
+                  const label = key.replace(/([A-Z])/g, " $1").replace(/^./, c => c.toUpperCase());
+                  const isNum = typeof val === "number";
+                  const enabled = isNum ? (val as number) !== 0 : !!val;
+                  return (
+                    <div key={key} className="flex items-center gap-1.5 text-xs">
+                      {enabled
+                        ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                        : <XCircle className="h-3.5 w-3.5 text-slate-300 shrink-0" />}
+                      <span className={enabled ? "text-slate-700" : "text-slate-400"}>
+                        {label}{isNum ? `: ${(val as number) === -1 ? "Unlimited" : val}` : ""}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAssignLicOrg(null)}>Cancel</Button>
+            <Button
+              onClick={() => assignLicenseMutation.mutate()}
+              disabled={assignLicenseMutation.isPending}
+              data-testid="button-confirm-assign-license"
+            >
+              {assignLicenseMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Assign License
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* ── INVITE DIALOG ─────────────────────────────────────────────────── */}
       <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>

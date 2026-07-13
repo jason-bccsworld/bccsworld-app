@@ -56,13 +56,14 @@ export default function OrganizationSetup() {
 
   const setupMutation = useMutation({
     mutationFn: async () => {
-      return apiRequest("POST", "/api/organizations/setup", {
+      const res = await apiRequest("POST", "/api/organizations/setup", {
         organizationName: orgName,
         organizationType: orgType,
         regulatoryAuthority: authority,
         certificateNumber: certNumber || undefined,
         contactInfo: { city, country, phone, email: contactEmail },
       });
+      return res.json();
     },
     onSuccess: async (data: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/auth/organization"] });
