@@ -23,9 +23,6 @@ const router = Router();
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || "not-configured" });
 
-// Org id used by the seeded governance demo agent-event stream.
-const DEMO_ORG_ID = "demo-org-142";
-
 // Deterministic keyword match of a free-text question against known policies.
 // Returns the best-scoring policy's action_type, or null when nothing matches.
 function keywordMatchPolicy(question: string, policies: any[]): string | null {
@@ -567,11 +564,13 @@ router.post("/regulation-impact", isAuthenticated, async (req: any, res) => {
     }
 
     // Debounce: don't flood the 50-row agent feed if the same regulation was
-    // analyzed within the last 10 minutes.
+    // analyzed within the last 10 minutes. Scoped per-org so one tenant's
+    // analysis never suppresses another tenant's propagation.
     const recent = await db
       .execute(sql`
         SELECT 1 FROM agent_events
         WHERE event_type = 'detected_change'
+          AND org_id = ${orgId}
           AND message ILIKE ${"%" + regLabel + "%"}
           AND created_at > NOW() - interval '10 minutes'
         LIMIT 1
@@ -586,7 +585,7 @@ router.post("/regulation-impact", isAuthenticated, async (req: any, res) => {
           INSERT INTO agent_events (agent_name, event_type, message, org_id)
           VALUES ('Regulatory Watch Agent', 'detected_change',
             ${`Detected FAA update to ${regLabel} — running enterprise compliance impact analysis.`},
-            ${DEMO_ORG_ID})
+            ${orgId})
           RETURNING id
         `)
         .then((r) => (r as any).rows[0].id);
@@ -602,7 +601,7 @@ router.post("/regulation-impact", isAuthenticated, async (req: any, res) => {
         setTimeout(() => {
           db.execute(sql`
             INSERT INTO agent_events (agent_name, event_type, message, related_event_id, org_id)
-            VALUES (${agent}, ${type}, ${msg}, ${detectionId}, ${DEMO_ORG_ID})
+            VALUES (${agent}, ${type}, ${msg}, ${detectionId}, ${orgId})
           `).catch((err) => console.error("[governance] reaction event write failed:", err));
         }, (i + 1) * 2000);
       });
