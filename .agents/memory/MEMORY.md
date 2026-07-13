@@ -1,2 +1,4 @@
 - [Signature chain re-derivation](signature-chain-rederivation.md) — deleting any signed training record breaks verification of all records signed after it; guard demo-reset teardowns.
 - [License resolution & SuperAdmin model](licensing-model.md) — org license beats platform row; @bccsworld.com invites must stay blocked; audit_logs.message is NOT NULL.
+- [Neon cloud DB migrations](neon-db-migrations.md) — runtime DB is Neon cloud, never `db:push`; schema changes only via additive DDL in db-init; local and Neon schemas can drift.
+- [Tenant context pattern](tenant-context.md) — req.orgId from resolveTenant is the tenant seam; null means deny; staff = email-domain check, guard every email-setting route.

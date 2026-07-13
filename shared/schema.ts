@@ -11,6 +11,7 @@ import {
   boolean,
   uuid,
   primaryKey,
+  unique,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -41,6 +42,25 @@ export const users = pgTable("users", {
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
+
+// User ↔ Organization memberships (multi-tenant foundation).
+// A user may belong to multiple organizations, each with a per-org role.
+export const userOrganizations = pgTable("user_organizations", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  organizationId: uuid("organization_id").notNull(),
+  orgRole: varchar("org_role", { length: 50 }).notNull().default("viewer"), // admin, instructor, auditor, viewer
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("IDX_user_org_user").on(table.userId),
+  index("IDX_user_org_org").on(table.organizationId),
+  unique("user_organizations_user_id_organization_id_key").on(table.userId, table.organizationId),
+]);
+
+export const insertUserOrganizationSchema = createInsertSchema(userOrganizations).omit({ id: true, createdAt: true });
+export type UserOrganization = typeof userOrganizations.$inferSelect;
+export type InsertUserOrganization = z.infer<typeof insertUserOrganizationSchema>;
 
 // Role permissions table – one row per role, stores the list of granted permissions
 export const rolePermissions = pgTable("bccs_role_permissions", {
@@ -168,6 +188,7 @@ export const complianceChecks = pgTable("compliance_checks", {
   checkDate: timestamp("check_date").defaultNow(),
   nextCheckDate: timestamp("next_check_date"),
   performedBy: varchar("performed_by"),
+  organizationId: uuid("organization_id"),
 });
 
 export const registryAnalytics = pgTable("registry_analytics", {
@@ -189,6 +210,7 @@ export const auditLogs = pgTable("audit_logs", {
   sourceSystem: varchar("source_system"), // regulatory_monitor, link_monitor, compliance_engine, crypto_service
   userId: varchar("user_id"),
   aircraftId: uuid("aircraft_id"),
+  organizationId: uuid("organization_id"),
   timestamp: timestamp("timestamp").defaultNow(),
 });
 
@@ -1032,6 +1054,7 @@ export const checklistStates = pgTable("checklist_states", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().unique(),
   state: jsonb("state").notNull(),
+  organizationId: uuid("organization_id"),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
@@ -1057,6 +1080,7 @@ export const trainingEvents = pgTable("bccs_training_events", {
   status: varchar("status", { length: 50 }).default("completed"), // completed, pending, failed
   blockchainHash: varchar("blockchain_hash", { length: 200 }),
   userId: varchar("user_id").notNull(),
+  organizationId: uuid("organization_id"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -1075,6 +1099,7 @@ export const students = pgTable("students", {
   expectedCompletion: timestamp("expected_completion"),
   status: varchar("status", { length: 50 }).default("active"), // active, completed, suspended
   notes: text("notes"),
+  organizationId: uuid("organization_id"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -1095,6 +1120,7 @@ export const instructorRecords = pgTable("bccs_instructor_records", {
   ratings: jsonb("ratings"),
   trainingAuthorizations: jsonb("training_authorizations"),
   status: varchar("status", { length: 50 }).default("current"), // current, expired, suspended
+  organizationId: uuid("organization_id"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -1153,6 +1179,7 @@ export const digitalFormTemplates = pgTable("digital_form_templates", {
   regulationStatus: varchar("regulation_status", { length: 20 }).default("current"), // 'current' | 'needs_review'
   generatedFromSection: varchar("generated_from_section", { length: 200 }),           // e.g. "§142.27 Personnel"
   createdBy: varchar("created_by", { length: 200 }),
+  organizationId: uuid("organization_id"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -1166,6 +1193,7 @@ export const digitalFormSubmissions = pgTable("digital_form_submissions", {
   formData: jsonb("form_data").notNull().default({}),
   status: varchar("status", { length: 20 }).default("submitted"),
   notes: text("notes"),
+  organizationId: uuid("organization_id"),
   submittedAt: timestamp("submitted_at").defaultNow(),
   createdAt: timestamp("created_at").defaultNow(),
 });

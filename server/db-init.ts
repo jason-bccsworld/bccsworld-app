@@ -244,6 +244,87 @@ export async function ensureTables(): Promise<void> {
       )
     `);
 
+    // ── Multi-tenant foundation ──────────────────────────────────────────────
+    // 0) checklist_states may not exist yet on fresh/cloud databases
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS checklist_states (
+        id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id VARCHAR NOT NULL UNIQUE,
+        state JSONB NOT NULL,
+        organization_id UUID,
+        updated_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+
+    // 1) organization_id columns on all tenant-owned operational tables.
+    //    Each ALTER runs independently so one missing table can't abort the rest.
+    const tenantTables = [
+      'students',
+      'bccs_instructor_records',
+      'bccs_training_events',
+      'checklist_states',
+      'digital_form_templates',
+      'digital_form_submissions',
+      'audit_logs',
+      'compliance_checks',
+    ];
+    for (const table of tenantTables) {
+      try {
+        await db.execute(sql.raw(`ALTER TABLE ${table} ADD COLUMN IF NOT EXISTS organization_id UUID`));
+      } catch (err: any) {
+        console.error(`[db-init] Could not add organization_id to ${table} (non-fatal):`, err?.message ?? err);
+      }
+    }
+
+    // 2) User ↔ organization membership table (per-org roles)
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS user_organizations (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id VARCHAR NOT NULL,
+        organization_id UUID NOT NULL,
+        org_role VARCHAR(50) NOT NULL DEFAULT 'viewer',
+        is_active BOOLEAN DEFAULT TRUE,
+        created_at TIMESTAMP DEFAULT NOW(),
+        UNIQUE (user_id, organization_id)
+      )
+    `);
+    await db.execute(sql`CREATE INDEX IF NOT EXISTS "IDX_user_org_user" ON user_organizations (user_id)`);
+    await db.execute(sql`CREATE INDEX IF NOT EXISTS "IDX_user_org_org" ON user_organizations (organization_id)`);
+
+    // 3) Backfill: attach existing data + users to the default (earliest active) org.
+    //    Idempotent — only touches rows that have no organization yet.
+    //    Skipped in multi-tenant mode: with multiple orgs active, NULL-org rows must
+    //    not be silently reassigned to the earliest org (data misattribution risk).
+    const multiTenantMode = process.env.MULTI_TENANT === 'true';
+    const defaultOrgResult = await db.execute(sql`
+      SELECT id FROM training_organizations
+      WHERE is_active = TRUE
+      ORDER BY created_at ASC
+      LIMIT 1
+    `);
+    const defaultOrgId = (defaultOrgResult.rows[0] as any)?.id as string | undefined;
+    if (multiTenantMode) {
+      console.log('[db-init] Multi-tenant mode: org backfill skipped');
+    } else if (defaultOrgId) {
+      for (const table of tenantTables) {
+        await db.execute(sql.raw(
+          `UPDATE ${table} SET organization_id = '${defaultOrgId}' WHERE organization_id IS NULL`
+        ));
+      }
+      await db.execute(sql`
+        INSERT INTO user_organizations (user_id, organization_id, org_role)
+        SELECT u.id, ${defaultOrgId}::uuid, COALESCE(u.role, 'viewer')
+        FROM users u
+        WHERE NOT EXISTS (
+          SELECT 1 FROM user_organizations uo WHERE uo.user_id = u.id
+        )
+        ON CONFLICT (user_id, organization_id) DO NOTHING
+      `);
+      console.log('[db-init] Multi-tenant backfill complete (default org:', defaultOrgId + ')');
+    } else {
+      console.log('[db-init] Multi-tenant backfill skipped — no active organization yet');
+    }
+
     // Seed governance demo data (policies, prior decisions, agent activity)
     await seedGovernanceData();
 

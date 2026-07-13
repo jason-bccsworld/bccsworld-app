@@ -19,40 +19,56 @@ export interface LicenseRow {
   updated_at: string;
 }
 
-let cachedLicense: LicenseRow | null = null;
-let cacheExpiry = 0;
+// Per-org license cache. Keys: org UUID, 'platform' (unassigned fallback),
+// or 'legacy' (no tenant context — earliest active org wins).
+const licenseCache = new Map<string, { row: LicenseRow | null; expiry: number }>();
+const CACHE_TTL = 30_000; // 30 seconds
+
+async function fetchPlatformLicense(): Promise<LicenseRow | null> {
+  const fallback = await db.execute(sql`
+    SELECT * FROM bccs_licenses
+    WHERE organization_id IS NULL
+    ORDER BY created_at DESC
+    LIMIT 1
+  `);
+  return (fallback.rows[0] as unknown as LicenseRow | undefined) ?? null;
+}
 
 /**
  * Resolve the effective license.
- * Priority: license assigned to the primary (earliest active) organization,
- * falling back to the most recent unassigned (platform-wide) license.
+ * - With an orgId: that organization's license, falling back to the
+ *   platform-wide (unassigned) license if the org has none.
+ * - Without an orgId (legacy / no tenant context): license of the earliest
+ *   active organization, falling back to the platform-wide license.
+ * Results are cached for 30 seconds per organization.
  */
-export async function getActiveLicense(): Promise<LicenseRow | null> {
+export async function getActiveLicense(orgId?: string | null): Promise<LicenseRow | null> {
+  const key = orgId ?? 'legacy';
   const now = Date.now();
-  if (cachedLicense && now < cacheExpiry) return cachedLicense;
+  const cached = licenseCache.get(key);
+  if (cached && now < cached.expiry) return cached.row;
 
-  const orgScoped = await db.execute(sql`
-    SELECT l.* FROM bccs_licenses l
-    JOIN training_organizations o ON o.id = l.organization_id
-    WHERE o.is_active = TRUE
-    ORDER BY o.created_at ASC, l.updated_at DESC
-    LIMIT 1
-  `);
-
-  let row = orgScoped.rows[0] as unknown as LicenseRow | undefined;
-  if (!row) {
-    const fallback = await db.execute(sql`
-      SELECT * FROM bccs_licenses
-      WHERE organization_id IS NULL
-      ORDER BY created_at DESC
+  let row: LicenseRow | undefined;
+  if (orgId) {
+    row = (await getLicenseForOrg(orgId)) ?? undefined;
+  } else {
+    const orgScoped = await db.execute(sql`
+      SELECT l.* FROM bccs_licenses l
+      JOIN training_organizations o ON o.id = l.organization_id
+      WHERE o.is_active = TRUE
+      ORDER BY o.created_at ASC, l.updated_at DESC
       LIMIT 1
     `);
-    row = fallback.rows[0] as unknown as LicenseRow | undefined;
+    row = orgScoped.rows[0] as unknown as LicenseRow | undefined;
   }
 
-  cachedLicense = row ?? null;
-  cacheExpiry = now + 30_000; // 30-second cache
-  return cachedLicense;
+  if (!row) {
+    row = (await fetchPlatformLicense()) ?? undefined;
+  }
+
+  const result = row ?? null;
+  licenseCache.set(key, { row: result, expiry: now + CACHE_TTL });
+  return result;
 }
 
 /** License assigned to a specific organization (no cache). */
@@ -67,8 +83,7 @@ export async function getLicenseForOrg(orgId: string): Promise<LicenseRow | null
 }
 
 export function invalidateLicenseCache() {
-  cachedLicense = null;
-  cacheExpiry = 0;
+  licenseCache.clear();
 }
 
 export function isLicenseExpired(license: LicenseRow): boolean {
@@ -82,11 +97,12 @@ export function getLicenseFeatures(license: LicenseRow): PlanFeatures {
 }
 
 /**
- * Express middleware: adds req.license to every request
+ * Express middleware: adds req.license to every request, scoped to the
+ * request's active organization when tenant context is present.
  */
 export async function attachLicense(req: Request, _res: Response, next: NextFunction) {
   try {
-    (req as any).license = await getActiveLicense();
+    (req as any).license = await getActiveLicense((req as any).orgId ?? undefined);
   } catch {
     (req as any).license = null;
   }
@@ -98,7 +114,7 @@ export async function attachLicense(req: Request, _res: Response, next: NextFunc
  */
 export function requireFeature(feature: keyof PlanFeatures) {
   return async (req: Request, res: Response, next: NextFunction) => {
-    const license: LicenseRow | null = (req as any).license ?? await getActiveLicense();
+    const license: LicenseRow | null = (req as any).license ?? await getActiveLicense((req as any).orgId ?? undefined);
     if (!license) {
       return res.status(402).json({ message: 'No license found. Please contact support.', feature });
     }

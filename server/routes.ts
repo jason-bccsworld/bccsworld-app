@@ -31,6 +31,7 @@ import governanceRoutes from "./routes/governance";
 import { generateDocumentImportTutorial } from "./generate-document-import-tutorial";
 import { auditComplianceAI } from "./services/audit-compliance-ai";
 import { db } from "./db";
+import { resolveTenant, isMultiTenant, isPlatformStaff, getUserMemberships, getDefaultOrgId, invalidateMembershipCache, invalidateDefaultOrgCache } from "./middleware/tenant";
 import { users, trainingOrganizations, auditLogs, faaPolicyDocuments } from "@shared/schema";
 import { count, eq, desc } from "drizzle-orm";
 import bcrypt from "bcryptjs";
@@ -39,6 +40,51 @@ import { sql as drizzleSql } from "drizzle-orm";
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
   await setupAuth(app);
+
+  // Tenant context — resolves the active organization for every request
+  app.use(resolveTenant);
+
+  // ── Tenant Session Endpoints ─────────────────────────────────────────────
+  // Current tenant context: active org, deployment mode, user's memberships
+  app.get('/api/session/tenant', isAuthenticated, async (req: any, res) => {
+    try {
+      const memberships = await getUserMemberships(req.user.id);
+      res.json({
+        multiTenant: isMultiTenant(),
+        activeOrganizationId: req.orgId ?? null,
+        isPlatformStaff: isPlatformStaff(req.user?.email),
+        organizations: memberships,
+      });
+    } catch (error) {
+      console.error('Tenant session error:', error);
+      res.status(500).json({ message: 'Failed to load tenant context' });
+    }
+  });
+
+  // Switch the active organization for this session
+  app.post('/api/session/active-org', isAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId } = req.body;
+      if (!organizationId || typeof organizationId !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(organizationId)) {
+        return res.status(400).json({ message: 'A valid organizationId is required' });
+      }
+      const staff = isPlatformStaff(req.user?.email);
+      if (!staff) {
+        const memberships = await getUserMemberships(req.user.id);
+        if (!memberships.some((m) => m.organizationId === organizationId)) {
+          return res.status(403).json({ message: 'You are not a member of that organization' });
+        }
+      } else {
+        const [org] = await db.select().from(trainingOrganizations).where(eq(trainingOrganizations.id, organizationId));
+        if (!org || org.isActive === false) return res.status(404).json({ message: 'Organization not found or inactive' });
+      }
+      req.session.activeOrgId = organizationId;
+      res.json({ success: true, activeOrganizationId: organizationId });
+    } catch (error) {
+      console.error('Active org switch error:', error);
+      res.status(500).json({ message: 'Failed to switch organization' });
+    }
+  });
 
   // Test route
   app.get("/api/test", (req, res) => {
@@ -278,6 +324,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.id;
       const { firstName, lastName, email } = req.body;
+      // Prevent privilege escalation: only existing platform staff may hold a staff-domain email
+      if (email && isPlatformStaff(email) && !isPlatformStaff(req.user?.email)) {
+        return res.status(403).json({ error: 'This email domain is reserved for platform staff' });
+      }
       await storage.updateUserProfile(userId, { firstName, lastName, email });
       const updated = await storage.getUser(userId);
       res.json({ success: true, user: updated });
@@ -614,6 +664,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         lastName: users.lastName, role: users.role, isActive: users.isActive,
         lastLoginAt: users.lastLoginAt, createdAt: users.createdAt,
       });
+      // Link the new user to the inviter's active organization (non-fatal)
+      const inviteOrgId = req.orgId ?? await getDefaultOrgId();
+      if (inviteOrgId) {
+        await db.execute(drizzleSql`
+          INSERT INTO user_organizations (user_id, organization_id, org_role)
+          VALUES (${newUser.id}, ${inviteOrgId}::uuid, ${role || 'viewer'})
+          ON CONFLICT (user_id, organization_id) DO NOTHING
+        `).catch((err) => console.error('Membership insert failed (non-fatal):', err));
+        invalidateMembershipCache(newUser.id);
+      }
       await storage.createAuditLog({
         userId: req.user?.id || 'system',
         eventType: 'user_invited',
@@ -848,6 +908,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         contactInfo: contactInfo || {},
         isActive: true,
       }).returning();
+      invalidateDefaultOrgCache();
+      // The creator becomes an admin member of the new organization (non-fatal)
+      if (req.user?.id && org?.id) {
+        await db.execute(drizzleSql`
+          INSERT INTO user_organizations (user_id, organization_id, org_role)
+          VALUES (${req.user.id}, ${org.id}::uuid, 'admin')
+          ON CONFLICT (user_id, organization_id) DO NOTHING
+        `).catch((err) => console.error('Creator membership insert failed (non-fatal):', err));
+        invalidateMembershipCache(req.user.id);
+      }
       await storage.createAuditLog({
         userId: req.user?.id || 'system',
         eventType: 'org_setup',
@@ -1347,11 +1417,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // ── LICENSE ROUTES ──────────────────────────────────────────────────────────
 
-  // GET /api/license — effective license (org-assigned first, platform fallback)
-  app.get('/api/license', isAuthenticated, async (_req, res) => {
+  // GET /api/license — effective license for the requester's active org
+  app.get('/api/license', isAuthenticated, async (req: any, res) => {
     try {
       const { getActiveLicense } = await import('./middleware/license');
-      const row = (await getActiveLicense()) as any;
+      const row = (await getActiveLicense(req.orgId ?? undefined)) as any;
       if (!row) return res.status(404).json({ message: 'No license found' });
       res.json({
         id: row.id,
