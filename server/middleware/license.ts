@@ -19,8 +19,8 @@ export interface LicenseRow {
   updated_at: string;
 }
 
-// Per-org license cache. Keys: org UUID, 'platform' (unassigned fallback),
-// or 'legacy' (no tenant context — earliest active org wins).
+// Per-org license cache. Keys: org UUID, or 'platform' (no tenant context —
+// platform-wide unassigned license only, never another org's license).
 const licenseCache = new Map<string, { row: LicenseRow | null; expiry: number }>();
 const CACHE_TTL = 30_000; // 30 seconds
 
@@ -38,12 +38,13 @@ async function fetchPlatformLicense(): Promise<LicenseRow | null> {
  * Resolve the effective license.
  * - With an orgId: that organization's license, falling back to the
  *   platform-wide (unassigned) license if the org has none.
- * - Without an orgId (legacy / no tenant context): license of the earliest
- *   active organization, falling back to the platform-wide license.
+ * - Without tenant context (null/undefined orgId): the platform-wide license
+ *   ONLY. Never another organization's license — a user with no resolved org
+ *   must not be gated (or granted features) by an unrelated org's plan.
  * Results are cached for 30 seconds per organization.
  */
 export async function getActiveLicense(orgId?: string | null): Promise<LicenseRow | null> {
-  const key = orgId ?? 'legacy';
+  const key = orgId ?? 'platform';
   const now = Date.now();
   const cached = licenseCache.get(key);
   if (cached && now < cached.expiry) return cached.row;
@@ -51,17 +52,7 @@ export async function getActiveLicense(orgId?: string | null): Promise<LicenseRo
   let row: LicenseRow | undefined;
   if (orgId) {
     row = (await getLicenseForOrg(orgId)) ?? undefined;
-  } else {
-    const orgScoped = await db.execute(sql`
-      SELECT l.* FROM bccs_licenses l
-      JOIN training_organizations o ON o.id = l.organization_id
-      WHERE o.is_active = TRUE
-      ORDER BY o.created_at ASC, l.updated_at DESC
-      LIMIT 1
-    `);
-    row = orgScoped.rows[0] as unknown as LicenseRow | undefined;
   }
-
   if (!row) {
     row = (await fetchPlatformLicense()) ?? undefined;
   }
@@ -102,7 +93,7 @@ export function getLicenseFeatures(license: LicenseRow): PlanFeatures {
  */
 export async function attachLicense(req: Request, _res: Response, next: NextFunction) {
   try {
-    (req as any).license = await getActiveLicense((req as any).orgId ?? undefined);
+    (req as any).license = await getActiveLicense((req as any).orgId ?? null);
   } catch {
     (req as any).license = null;
   }
@@ -114,7 +105,7 @@ export async function attachLicense(req: Request, _res: Response, next: NextFunc
  */
 export function requireFeature(feature: keyof PlanFeatures) {
   return async (req: Request, res: Response, next: NextFunction) => {
-    const license: LicenseRow | null = (req as any).license ?? await getActiveLicense((req as any).orgId ?? undefined);
+    const license: LicenseRow | null = (req as any).license ?? await getActiveLicense((req as any).orgId ?? null);
     if (!license) {
       return res.status(402).json({ message: 'No license found. Please contact support.', feature });
     }

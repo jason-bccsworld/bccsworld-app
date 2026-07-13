@@ -1,6 +1,18 @@
 import { Request, Response, NextFunction } from 'express';
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { db } from '../db';
 import { sql } from 'drizzle-orm';
+
+/**
+ * Async-local tenant context. Lets code without direct access to the request
+ * (e.g. the storage layer) stamp writes with the active organization.
+ */
+export const tenantContext = new AsyncLocalStorage<{ orgId: string | null }>();
+
+/** Active organization for the current request, or null outside a request / when unresolved. */
+export function getCurrentOrgId(): string | null {
+  return tenantContext.getStore()?.orgId ?? null;
+}
 
 /**
  * Deployment mode flag.
@@ -85,34 +97,30 @@ export function invalidateMembershipCache(userId?: string) {
  *    membership, else the default org for platform staff only.
  */
 export async function resolveTenant(req: Request, _res: Response, next: NextFunction) {
+  let orgId: string | null = null;
   try {
     const user = (req as any).user;
-    if (!(req as any).isAuthenticated?.() || !user) {
-      (req as any).orgId = null;
-      return next();
-    }
+    if ((req as any).isAuthenticated?.() && user) {
+      if (!isMultiTenant()) {
+        orgId = await getDefaultOrgId();
+      } else {
+        const session: any = (req as any).session;
+        const staff = isPlatformStaff(user.email);
+        const memberships = await getUserMemberships(user.id);
+        const selected: string | undefined = session?.activeOrgId;
 
-    if (!isMultiTenant()) {
-      (req as any).orgId = await getDefaultOrgId();
-      return next();
+        if (selected && (staff || memberships.some((m) => m.organizationId === selected))) {
+          orgId = selected;
+        } else {
+          orgId = memberships[0]?.organizationId ?? (staff ? await getDefaultOrgId() : null);
+          if (session && orgId) session.activeOrgId = orgId;
+        }
+      }
     }
-
-    const session: any = (req as any).session;
-    const staff = isPlatformStaff(user.email);
-    const memberships = await getUserMemberships(user.id);
-    const selected: string | undefined = session?.activeOrgId;
-
-    if (selected && (staff || memberships.some((m) => m.organizationId === selected))) {
-      (req as any).orgId = selected;
-    } else {
-      const resolved = memberships[0]?.organizationId ?? (staff ? await getDefaultOrgId() : null);
-      (req as any).orgId = resolved;
-      if (session && resolved) session.activeOrgId = resolved;
-    }
-    next();
   } catch (err) {
     console.error('[tenant] Failed to resolve tenant context:', err);
-    (req as any).orgId = null;
-    next();
+    orgId = null;
   }
+  (req as any).orgId = orgId;
+  tenantContext.run({ orgId }, () => next());
 }

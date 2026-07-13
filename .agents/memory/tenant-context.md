@@ -6,8 +6,9 @@ description: Multi-tenant seams and security contract for org scoping in this ap
 Tenant resolution lives in `server/middleware/tenant.ts` (`resolveTenant`, mounted after auth). It sets `req.orgId` for every request: single-workspace mode (default) resolves the earliest active org; `MULTI_TENANT=true` resolves the session's active org validated against `user_organizations` membership.
 
 **Contract for all org-scoped work:**
-- `req.orgId === null` must mean deny/empty — never "no filter". The middleware fails open, so an unfiltered fallback would be a cross-tenant data leak.
-- Every write to a tenant-owned table must stamp `organizationId` from `req.orgId`. The db-init backfill (NULL org → default org) is skipped when `MULTI_TENANT=true`, so unstamped rows stay orphaned.
+- `req.orgId === null` must mean deny/empty — never "no filter". The middleware fails open, so an unfiltered fallback would be a cross-tenant data leak. Same rule for licenses: no tenant context resolves only the platform-wide (unassigned) license, never another org's.
+- Every write to a tenant-owned table must stamp `organizationId` from `req.orgId`. Code without request access (storage layer) can use `getCurrentOrgId()` — an AsyncLocalStorage context that `resolveTenant` opens per request; it returns null outside requests (background jobs), which is correct.
+- Backfill (NULL org → default org) runs per-boot in single-workspace mode, but exactly once under `MULTI_TENANT=true` (guarded by a `bccs_migration_flags` marker row `tenant_backfill_v1`) — so unstamped rows created after multi-tenant rollout stay orphaned by design; stamp on write instead.
 
 **Platform staff = email-domain check** (`@bccsworld.com` via `isPlatformStaff`), which grants cross-tenant powers. Any route that lets a user set/change an email must reject staff-domain emails for non-staff (invite and profile routes already do). Long-term fix: replace domain sniffing with an explicit staff flag/column.
 

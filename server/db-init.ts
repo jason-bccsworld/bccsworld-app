@@ -293,9 +293,17 @@ export async function ensureTables(): Promise<void> {
 
     // 3) Backfill: attach existing data + users to the default (earliest active) org.
     //    Idempotent — only touches rows that have no organization yet.
-    //    Skipped in multi-tenant mode: with multiple orgs active, NULL-org rows must
-    //    not be silently reassigned to the earliest org (data misattribution risk).
+    //    Single-workspace mode: runs every boot (one org, no ambiguity).
+    //    Multi-tenant mode: runs exactly ONCE (migration flag) so pre-existing
+    //    data is deterministically attached at rollout, but rows created later
+    //    are never silently reassigned to the default org.
     const multiTenantMode = process.env.MULTI_TENANT === 'true';
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS bccs_migration_flags (
+        key VARCHAR PRIMARY KEY,
+        applied_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
     const defaultOrgResult = await db.execute(sql`
       SELECT id FROM training_organizations
       WHERE is_active = TRUE
@@ -303,9 +311,12 @@ export async function ensureTables(): Promise<void> {
       LIMIT 1
     `);
     const defaultOrgId = (defaultOrgResult.rows[0] as any)?.id as string | undefined;
-    if (multiTenantMode) {
-      console.log('[db-init] Multi-tenant mode: org backfill skipped');
-    } else if (defaultOrgId) {
+    let runBackfill = !!defaultOrgId;
+    if (runBackfill && multiTenantMode) {
+      const flag = await db.execute(sql`SELECT 1 FROM bccs_migration_flags WHERE key = 'tenant_backfill_v1'`);
+      runBackfill = flag.rows.length === 0;
+    }
+    if (runBackfill && defaultOrgId) {
       for (const table of tenantTables) {
         await db.execute(sql.raw(
           `UPDATE ${table} SET organization_id = '${defaultOrgId}' WHERE organization_id IS NULL`
@@ -320,9 +331,14 @@ export async function ensureTables(): Promise<void> {
         )
         ON CONFLICT (user_id, organization_id) DO NOTHING
       `);
+      if (multiTenantMode) {
+        await db.execute(sql`INSERT INTO bccs_migration_flags (key) VALUES ('tenant_backfill_v1') ON CONFLICT (key) DO NOTHING`);
+      }
       console.log('[db-init] Multi-tenant backfill complete (default org:', defaultOrgId + ')');
-    } else {
+    } else if (!defaultOrgId) {
       console.log('[db-init] Multi-tenant backfill skipped — no active organization yet');
+    } else {
+      console.log('[db-init] Multi-tenant one-time backfill already applied');
     }
 
     // Seed governance demo data (policies, prior decisions, agent activity)

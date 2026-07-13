@@ -953,8 +953,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       const hash = `BCCS-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
       const rows = await db.execute(drizzleSql`
-        INSERT INTO bccs_training_events (student_name, student_id, instructor_name, instructor_id, event_type, event_date, duration_hours, curriculum_item, notes, status, blockchain_hash, user_id)
-        VALUES (${studentName}, ${studentId || null}, ${instructorName}, ${instructorId || null}, ${eventType}, ${new Date(eventDate)}, ${durationHours || null}, ${curriculumItem || null}, ${notes || null}, ${status || 'completed'}, ${hash}, ${req.user?.id || 'system'})
+        INSERT INTO bccs_training_events (student_name, student_id, instructor_name, instructor_id, event_type, event_date, duration_hours, curriculum_item, notes, status, blockchain_hash, user_id, organization_id)
+        VALUES (${studentName}, ${studentId || null}, ${instructorName}, ${instructorId || null}, ${eventType}, ${new Date(eventDate)}, ${durationHours || null}, ${curriculumItem || null}, ${notes || null}, ${status || 'completed'}, ${hash}, ${req.user?.id || 'system'}, ${req.orgId ?? null})
         RETURNING *
       `);
       const event = ((rows as any).rows || [])[0];
@@ -1048,8 +1048,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { firstName, lastName, email, phone, certificateNumber, enrollmentDate, expectedCompletion, status, notes } = req.body;
       if (!firstName || !lastName) return res.status(400).json({ message: 'First and last name required' });
       const rows = await db.execute(drizzleSql`
-        INSERT INTO students (first_name, last_name, email, phone, certificate_number, enrollment_date, expected_completion, status, notes)
-        VALUES (${firstName}, ${lastName}, ${email || null}, ${phone || null}, ${certificateNumber || null}, ${enrollmentDate ? new Date(enrollmentDate) : new Date()}, ${expectedCompletion ? new Date(expectedCompletion) : null}, ${status || 'active'}, ${notes || null})
+        INSERT INTO students (first_name, last_name, email, phone, certificate_number, enrollment_date, expected_completion, status, notes, organization_id)
+        VALUES (${firstName}, ${lastName}, ${email || null}, ${phone || null}, ${certificateNumber || null}, ${enrollmentDate ? new Date(enrollmentDate) : new Date()}, ${expectedCompletion ? new Date(expectedCompletion) : null}, ${status || 'active'}, ${notes || null}, ${req.orgId ?? null})
         RETURNING *
       `);
       res.status(201).json(((rows as any).rows || [])[0]);
@@ -1096,8 +1096,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'Name, certificate type and number are required' });
       }
       const rows = await db.execute(drizzleSql`
-        INSERT INTO bccs_instructor_records (first_name, last_name, email, certificate_type, certificate_number, issue_date, expiration_date, currency_date, ratings, training_authorizations, status)
-        VALUES (${firstName}, ${lastName}, ${email || null}, ${certificateType}, ${certificateNumber}, ${issueDate ? new Date(issueDate) : null}, ${expirationDate ? new Date(expirationDate) : null}, ${currencyDate ? new Date(currencyDate) : null}, ${JSON.stringify(ratings || [])}, ${JSON.stringify(trainingAuthorizations || [])}, ${status || 'current'})
+        INSERT INTO bccs_instructor_records (first_name, last_name, email, certificate_type, certificate_number, issue_date, expiration_date, currency_date, ratings, training_authorizations, status, organization_id)
+        VALUES (${firstName}, ${lastName}, ${email || null}, ${certificateType}, ${certificateNumber}, ${issueDate ? new Date(issueDate) : null}, ${expirationDate ? new Date(expirationDate) : null}, ${currencyDate ? new Date(currencyDate) : null}, ${JSON.stringify(ratings || [])}, ${JSON.stringify(trainingAuthorizations || [])}, ${status || 'current'}, ${req.orgId ?? null})
         RETURNING *
       `);
       res.status(201).json(((rows as any).rows || [])[0]);
@@ -1421,7 +1421,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/license', isAuthenticated, async (req: any, res) => {
     try {
       const { getActiveLicense } = await import('./middleware/license');
-      const row = (await getActiveLicense(req.orgId ?? undefined)) as any;
+      const row = (await getActiveLicense(req.orgId ?? null)) as any;
       if (!row) return res.status(404).json({ message: 'No license found' });
       res.json({
         id: row.id,

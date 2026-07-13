@@ -53,6 +53,7 @@ import {
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, like, and, count, sql } from "drizzle-orm";
+import { getCurrentOrgId } from "./middleware/tenant";
 
 export interface IStorage {
   // User operations (required for Replit Auth)
@@ -292,6 +293,7 @@ export class DatabaseStorage implements IStorage {
       checkResult,
       checkDetails,
       performedBy: "system",
+      organizationId: getCurrentOrgId(),
       nextCheckDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
     }).returning();
 
@@ -341,7 +343,10 @@ export class DatabaseStorage implements IStorage {
 
   // Audit logging operations
   async createAuditLog(auditLogData: InsertAuditLog): Promise<AuditLog> {
-    const [auditLog] = await db.insert(auditLogs).values(auditLogData).returning();
+    const [auditLog] = await db.insert(auditLogs).values({
+      ...auditLogData,
+      organizationId: auditLogData.organizationId ?? getCurrentOrgId(),
+    }).returning();
     return auditLog;
   }
 
@@ -550,7 +555,7 @@ export class DatabaseStorage implements IStorage {
   async saveChecklistState(userId: string, state: any): Promise<void> {
     await db
       .insert(checklistStates)
-      .values({ userId, state })
+      .values({ userId, state, organizationId: getCurrentOrgId() })
       .onConflictDoUpdate({
         target: checklistStates.userId,
         set: { state, updatedAt: new Date() },
