@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "bcSTRPz8QTTlJXAwYbcHk"
+uri = "file://exports/BCCS-Governance-Demo-Guide.pdf"
+type = "pdf"
+title = "BCCS Governance Demo Run-Book (PDF)"
