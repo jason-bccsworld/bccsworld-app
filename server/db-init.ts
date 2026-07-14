@@ -244,6 +244,87 @@ export async function ensureTables(): Promise<void> {
       )
     `);
 
+    // ── Agentic document pipeline ────────────────────────────────────────────
+    // Documents flow: uploaded → processing → auto_approved | needs_review →
+    // approved/rejected | failed. File bytes live in Postgres (bytea) so the
+    // pipeline works identically on Replit and serverless deployments.
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS bccs_documents (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        organization_id UUID,
+        file_name VARCHAR(300) NOT NULL,
+        mime_type VARCHAR(100) NOT NULL,
+        file_size INTEGER NOT NULL DEFAULT 0,
+        file_data BYTEA,
+        document_type VARCHAR(50) NOT NULL DEFAULT 'pilot_record',
+        status VARCHAR(30) NOT NULL DEFAULT 'uploaded',
+        ocr_text TEXT,
+        overall_confidence INTEGER,
+        blockchain_hash VARCHAR(200),
+        gate_decision_id UUID,
+        error_message TEXT,
+        uploaded_by VARCHAR,
+        created_at TIMESTAMP DEFAULT NOW(),
+        processed_at TIMESTAMP,
+        reviewed_at TIMESTAMP,
+        reviewed_by VARCHAR
+      )
+    `);
+    await db.execute(sql`CREATE INDEX IF NOT EXISTS "IDX_bccs_documents_org" ON bccs_documents (organization_id)`);
+    await db.execute(sql`CREATE INDEX IF NOT EXISTS "IDX_bccs_documents_status" ON bccs_documents (status)`);
+
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS bccs_document_fields (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        document_id UUID NOT NULL,
+        field_name VARCHAR(150) NOT NULL,
+        extracted_value TEXT,
+        corrected_value TEXT,
+        confidence INTEGER,
+        status VARCHAR(20) DEFAULT 'extracted',
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    await db.execute(sql`CREATE INDEX IF NOT EXISTS "IDX_bccs_doc_fields_doc" ON bccs_document_fields (document_id)`);
+
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS bccs_ml_feedback (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        organization_id UUID,
+        document_id UUID,
+        document_type VARCHAR(50),
+        field_name VARCHAR(150),
+        original_value TEXT,
+        corrected_value TEXT,
+        user_id VARCHAR,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    await db.execute(sql`CREATE INDEX IF NOT EXISTS "IDX_bccs_ml_feedback_org_type" ON bccs_ml_feedback (organization_id, document_type)`);
+
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS bccs_prompt_guidance (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        organization_id UUID,
+        document_type VARCHAR(50) NOT NULL,
+        field_name VARCHAR(150),
+        guidance TEXT NOT NULL,
+        version INTEGER DEFAULT 1,
+        is_active BOOLEAN DEFAULT TRUE,
+        source_correction_count INTEGER DEFAULT 0,
+        updated_at TIMESTAMP DEFAULT NOW(),
+        UNIQUE (organization_id, document_type)
+      )
+    `);
+
+    // In-process jobs die on restart — anything still marked 'uploaded' or
+    // 'processing' at boot was interrupted and will never finish; surface it as failed.
+    await db.execute(sql`
+      UPDATE bccs_documents
+      SET status = 'failed', error_message = 'Processing was interrupted by a server restart. Please re-upload.'
+      WHERE status IN ('uploaded', 'processing')
+    `);
+
     // ── Multi-tenant foundation ──────────────────────────────────────────────
     // 0) checklist_states may not exist yet on fresh/cloud databases
     await db.execute(sql`
@@ -470,6 +551,16 @@ const SEED_POLICIES = [
     is_protected: false,
     regulatory_basis: "14 CFR 142.45",
     regulatory_text: "Draft records may be removed, but deletion requires administrator authority and a documented audit record.",
+  },
+  {
+    action_type: "document_auto_approve",
+    label: "Auto-approve AI-extracted document data",
+    description: "Allow the Document Extraction Agent to accept AI-extracted data and anchor it to the blockchain without human review when extraction confidence meets the governance threshold.",
+    required_authority: "admin",
+    decision_rule: "escalate",
+    is_protected: false,
+    regulatory_basis: "14 CFR 142.73",
+    regulatory_text: "Training records must be accurate and complete. AI-extracted data may be auto-accepted only under governance supervision; low-confidence extractions require human verification before entering the compliance record.",
   },
 ];
 

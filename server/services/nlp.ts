@@ -26,73 +26,92 @@ export interface ExtractedField {
   confidenceScore: number;
 }
 
-export async function extractFieldsWithNLP(text: string): Promise<ExtractedField[]> {
+export type DocumentType = "pilot_record" | "certificate" | "faa_audit";
+
+// Per-document-type extraction schemas. The agent picks the schema by the
+// documentType the uploader selected (or 'pilot_record' by default).
+const FIELD_SCHEMAS: Record<string, string> = {
+  pilot_record: `This is a pilot training record, logbook entry, or training event document. Extract:
+- studentName: Full name of the student/pilot receiving training
+- studentId: Student or pilot ID number if present
+- instructorName: Full name of the instructor (CFI) who gave the training
+- instructorCertificate: Instructor certificate number if present
+- eventType: Type of training event (e.g. Flight Training, Simulator Session, Checkride, Ground School, Flight Review)
+- eventDate: Date of the training event (YYYY-MM-DD if determinable)
+- durationHours: Duration in hours (numeric, e.g. "1.5")
+- aircraftType: Aircraft or simulator type/model used
+- curriculumItem: Curriculum item, lesson, or training task covered
+- remarks: Instructor remarks or notes about performance`,
+  certificate: `This is an FAA airman certificate, medical certificate, or similar credential document. Extract:
+- holderName: Full name of the certificate holder
+- certificateType: Type of certificate (e.g. Commercial Pilot, ATP, CFI, First Class Medical)
+- certificateNumber: Certificate number
+- issueDate: Date of issue (YYYY-MM-DD if determinable)
+- expirationDate: Expiration date if present (YYYY-MM-DD if determinable)
+- ratings: Ratings listed (e.g. "Airplane Single Engine Land, Instrument Airplane")
+- limitations: Any limitations listed
+- issuingAuthority: Issuing authority (e.g. FAA)
+- dateOfBirth: Holder date of birth if present (YYYY-MM-DD)`,
+  faa_audit: `This is an FAA audit, inspection, or compliance checklist document. Extract:
+- documentTitle: Title of the document
+- farReference: The FAR part(s) or regulatory references cited (e.g. "14 CFR 142.73")
+- inspectionDate: Date of the inspection/audit (YYYY-MM-DD if determinable)
+- inspectorName: Name of the inspector or auditor
+- organizationName: Name of the training organization being audited
+- findings: Summary of findings or discrepancies
+- complianceStatus: Overall compliance status (e.g. Compliant, Non-Compliant, Partial)
+- correctiveActions: Required corrective actions if listed`,
+};
+
+export function isKnownDocumentType(t: string): t is DocumentType {
+  return Object.prototype.hasOwnProperty.call(FIELD_SCHEMAS, t);
+}
+
+export async function extractFieldsWithNLP(
+  text: string,
+  documentType: string = "pilot_record",
+  learnedGuidance?: string,
+): Promise<ExtractedField[]> {
+  const schema = FIELD_SCHEMAS[documentType] ?? FIELD_SCHEMAS.pilot_record;
+  const guidanceBlock = learnedGuidance?.trim()
+    ? `\n\nLEARNED GUIDANCE from past human corrections on this document type — apply these lessons to improve accuracy:\n${learnedGuidance.trim()}`
+    : "";
   try {
-    // Check if we have API quota available
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [
         {
           role: "system",
-          content: `You are an expert in aviation training document analysis. Extract key information from training documents and return it in JSON format. 
+          content: `You are an expert in aviation training document analysis for a Part 142 training center compliance system. Extract key information from the document text and return it in JSON format.
 
-Focus on these specific FAA certificate fields (identified by Roman Numerals):
-- IV_Name_First: First name from section IV
-- IV_Name_Middle: Middle name from section IV  
-- IV_Name_Last: Last name from section IV
-- V_Address_Number: Street number from section V
-- V_Address_Street: Street name from section V
-- V_Address_City: Town/City from section V
-- V_Address_PostalCode: Postal/ZIP Code from section V
-- VI_Nationality: 3-letter nationality code from section VI
-- VI_Sex: M/F from section VI
-- VI_Height: Height in inches from section VI
-- VI_Weight: Weight in LBS from section VI
-- VI_Hair: Hair color from section VI
-- VI_Eyes: Eye color from section VI
-- IVa_DOB_Day: Day of birth from section IVa
-- IVa_DOB_Month: Month of birth from section IVa
-- IVa_DOB_Year: Year of birth from section IVa
-- II_Certificate_Type: Certificate type from section II
-- III_Certificate_Number: Certificate number from section III
-- X_Date_Issue_Day: Day of issue from section X
-- X_Date_Issue_Month: Month of issue from section X
-- X_Date_Issue_Year: Year of issue from section X
-- XII_Ratings: Aircraft type designations from section XII
-- XIII_Limitations_English: English language proficiency from section XIII
-- XIII_Limitations_Circle_Land: Circle to land limitation from section XIII
-- XIII_Limitations_Other: Other limitations from section XIII
+${schema}
 
-For each field, provide a confidence score between 0 and 100 based on how certain you are about the extraction.
+For each field, provide a confidence score between 0 and 100 reflecting how certain you are the extraction is correct. Use lower scores when text is ambiguous, garbled by OCR, or the field is inferred rather than explicit. If you cannot find a field, omit it entirely — do not guess.${guidanceBlock}
 
 Return JSON in this format:
 {
   "fields": [
-    {
-      "fieldName": "studentName",
-      "extractedValue": "John Doe",
-      "confidenceScore": 95
-    },
-    {
-      "fieldName": "licenseNumber", 
-      "extractedValue": "PPL-2024-001",
-      "confidenceScore": 87
-    }
+    { "fieldName": "studentName", "extractedValue": "John Doe", "confidenceScore": 95 }
   ]
-}
-
-If you cannot find a field, omit it from the response.`,
+}`,
         },
         {
           role: "user",
-          content: `Extract aviation training information from this text:\n\n${text}`,
+          content: `Extract the information from this document text:\n\n${text}`,
         },
       ],
       response_format: { type: "json_object" },
     });
 
     const result = JSON.parse(response.choices[0].message.content || "{}");
-    return result.fields || [];
+    const fields = Array.isArray(result.fields) ? result.fields : [];
+    return fields
+      .filter((f: any) => f && typeof f.fieldName === "string" && f.extractedValue != null)
+      .map((f: any) => ({
+        fieldName: String(f.fieldName),
+        extractedValue: String(f.extractedValue),
+        confidenceScore: Math.max(0, Math.min(100, Number(f.confidenceScore) || 0)),
+      }));
   } catch (error) {
     console.error("NLP processing error:", error);
     

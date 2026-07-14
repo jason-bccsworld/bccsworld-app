@@ -6,7 +6,8 @@ import { requireOrg } from "../middleware/tenant";
 
 const router = Router();
 
-// GET /api/ml/metrics — aggregate stats from all data sources
+// GET /api/ml/metrics — real metrics from the agentic document pipeline plus
+// platform data sources.
 router.get("/metrics", isAuthenticated, async (req, res) => {
   try {
     const orgId = requireOrg(req, res);
@@ -31,30 +32,63 @@ router.get("/metrics", isAuthenticated, async (req, res) => {
       SELECT COUNT(*) AS total FROM bccs_instructor_records WHERE organization_id = ${orgId}
     `).then(r => (r as any).rows);
 
-    // Pull approved submissions for field accuracy breakdown
-    const approvedRows = await db.execute(sql`
-      SELECT form_data FROM digital_form_submissions
-      WHERE status = 'approved' AND organization_id = ${orgId}
-      LIMIT 200
+    // ── Real pipeline metrics ──────────────────────────────────────────────
+    const [docStats] = await db.execute(sql`
+      SELECT COUNT(*)::int AS total,
+             COUNT(*) FILTER (WHERE status = 'auto_approved')::int AS auto_approved,
+             COUNT(*) FILTER (WHERE status = 'needs_review')::int AS needs_review,
+             COUNT(*) FILTER (WHERE status = 'approved')::int AS human_approved,
+             COUNT(*) FILTER (WHERE status = 'rejected')::int AS rejected,
+             COUNT(*) FILTER (WHERE status = 'failed')::int AS failed,
+             ROUND(AVG(overall_confidence) FILTER (WHERE overall_confidence IS NOT NULL))::int AS avg_confidence
+      FROM bccs_documents WHERE organization_id = ${orgId}
     `).then(r => (r as any).rows);
 
-    const fieldCounts: Record<string, number> = {};
-    for (const row of approvedRows) {
-      const data = row.form_data as Record<string, any>;
-      if (data && typeof data === "object") {
-        for (const key of Object.keys(data)) {
-          fieldCounts[key] = (fieldCounts[key] || 0) + 1;
-        }
+    const [feedback] = await db.execute(sql`
+      SELECT COUNT(*)::int AS total FROM bccs_ml_feedback WHERE organization_id = ${orgId}
+    `).then(r => (r as any).rows);
+
+    // Per-field accuracy from reviewed fields: approved (kept as-is) vs corrected.
+    const fieldRows = await db.execute(sql`
+      SELECT f.field_name,
+             COUNT(*) FILTER (WHERE f.status = 'approved')::int AS kept,
+             COUNT(*) FILTER (WHERE f.status = 'corrected')::int AS corrected
+      FROM bccs_document_fields f
+      JOIN bccs_documents d ON d.id = f.document_id
+      WHERE d.organization_id = ${orgId} AND f.status IN ('approved', 'corrected')
+      GROUP BY f.field_name
+      ORDER BY COUNT(*) DESC
+      LIMIT 20
+    `).then(r => (r as any).rows);
+
+    const fieldAccuracyBreakdown: Record<string, number> = {};
+    let keptTotal = 0;
+    let reviewedTotal = 0;
+    for (const row of fieldRows) {
+      const kept = Number(row.kept || 0);
+      const corrected = Number(row.corrected || 0);
+      const total = kept + corrected;
+      if (total > 0) {
+        fieldAccuracyBreakdown[row.field_name] = Math.round((kept / total) * 100);
+        keptTotal += kept;
+        reviewedTotal += total;
       }
     }
 
-    const totalApproved = approvedRows.length || 1;
-    const fieldAccuracyBreakdown: Record<string, number> = {};
-    for (const [k, v] of Object.entries(fieldCounts)) {
-      fieldAccuracyBreakdown[k] = Math.round((v / totalApproved) * 100);
-    }
+    // Overall extraction accuracy: real (share of reviewed fields the AI got
+    // right) when review data exists; otherwise fall back to avg confidence.
+    const accuracyImprovement = reviewedTotal > 0
+      ? Math.round((keptTotal / reviewedTotal) * 1000) / 10
+      : Number(docStats?.avg_confidence ?? 0);
 
-    // Check last training date from meta table (or fallback)
+    // Learned prompt guidance per document type
+    const guidanceRows = await db.execute(sql`
+      SELECT document_type, version, source_correction_count, updated_at
+      FROM bccs_prompt_guidance
+      WHERE organization_id = ${orgId} AND is_active = TRUE
+      ORDER BY updated_at DESC
+    `).then(r => (r as any).rows);
+
     let lastTrainingDate = "Not yet trained";
     let modelVersion = "baseline-v0";
     try {
@@ -67,11 +101,8 @@ router.get("/metrics", isAuthenticated, async (req, res) => {
         modelVersion = parsed.version;
       }
     } catch {
-      // table doesn't exist yet — will be created on first train
+      // table doesn't exist yet — will be created on first learning pass
     }
-
-    const totalSamples = Number(submissions?.total || 0) + Number(events?.total || 0);
-    const accuracyImprovement = Math.min(95, 60 + totalSamples * 0.5);
 
     res.json({
       totalFormSubmissions: Number(submissions?.total || 0),
@@ -79,11 +110,26 @@ router.get("/metrics", isAuthenticated, async (req, res) => {
       totalStudents: Number(students?.total || 0),
       totalInstructors: Number(instructors?.total || 0),
       totalTemplates: Number(templates?.total || 0),
-      totalCorrections: approvedRows.length,
-      accuracyImprovement: Math.round(accuracyImprovement * 10) / 10,
+      totalCorrections: Number(feedback?.total || 0),
+      accuracyImprovement,
       fieldAccuracyBreakdown,
       modelVersion,
       lastTrainingDate,
+      pipeline: {
+        totalDocuments: Number(docStats?.total || 0),
+        autoApproved: Number(docStats?.auto_approved || 0),
+        needsReview: Number(docStats?.needs_review || 0),
+        humanApproved: Number(docStats?.human_approved || 0),
+        rejected: Number(docStats?.rejected || 0),
+        failed: Number(docStats?.failed || 0),
+        avgConfidence: Number(docStats?.avg_confidence || 0),
+        guidance: guidanceRows.map((g: any) => ({
+          documentType: g.document_type,
+          version: Number(g.version),
+          correctionsLearnedFrom: Number(g.source_correction_count),
+          updatedAt: g.updated_at,
+        })),
+      },
     });
   } catch (err) {
     console.error("ML metrics error:", err);

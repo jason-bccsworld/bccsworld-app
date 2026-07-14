@@ -2,6 +2,7 @@ import { useState, useCallback } from "react";
 import { useDropzone } from "react-dropzone";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -17,8 +18,15 @@ interface UploadFile {
   error?: string;
 }
 
+const DOC_TYPES = [
+  { value: "pilot_record", label: "Pilot Training Record" },
+  { value: "certificate", label: "Certificate" },
+  { value: "faa_audit", label: "FAA Audit / Inspection" },
+];
+
 export default function DocumentUpload() {
   const [uploadFiles, setUploadFiles] = useState<UploadFile[]>([]);
+  const [documentType, setDocumentType] = useState("pilot_record");
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -26,6 +34,7 @@ export default function DocumentUpload() {
     mutationFn: async (file: File) => {
       const formData = new FormData();
       formData.append("file", file);
+      formData.append("documentType", documentType);
 
       const response = await fetch("/api/documents/upload", {
         method: "POST",
@@ -34,7 +43,12 @@ export default function DocumentUpload() {
       });
 
       if (!response.ok) {
-        throw new Error(`Upload failed: ${response.statusText}`);
+        let message = response.statusText;
+        try {
+          const body = await response.json();
+          if (body?.message) message = body.message;
+        } catch { /* not JSON */ }
+        throw new Error(message);
       }
 
       return response.json();
@@ -48,9 +62,10 @@ export default function DocumentUpload() {
         )
       );
       queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/governance/agent-feed"] });
       toast({
         title: "Upload successful",
-        description: `${file.name} has been uploaded and is being processed.`,
+        description: `${file.name} is now being processed by the AI agent.`,
       });
     },
     onError: (error, file) => {
@@ -68,7 +83,7 @@ export default function DocumentUpload() {
       );
       toast({
         title: "Upload failed",
-        description: `Failed to upload ${file.name}`,
+        description: (error as Error).message || `Failed to upload ${file.name}`,
         variant: "destructive",
       });
     },
@@ -101,12 +116,12 @@ export default function DocumentUpload() {
     onDrop,
     accept: {
       'application/pdf': ['.pdf'],
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
+      'text/plain': ['.txt'],
       'text/csv': ['.csv'],
       'image/jpeg': ['.jpg', '.jpeg'],
       'image/png': ['.png'],
     },
-    maxFileSize: 10 * 1024 * 1024, // 10MB
+    maxSize: 10 * 1024 * 1024, // 10MB
     multiple: true,
   });
 
@@ -136,6 +151,22 @@ export default function DocumentUpload() {
         </CardDescription>
       </CardHeader>
       <CardContent>
+        <div className="mb-4">
+          <label className="text-sm font-medium text-slate-700 block mb-1.5">Document Type</label>
+          <Select value={documentType} onValueChange={setDocumentType}>
+            <SelectTrigger className="w-full sm:w-72">
+              <SelectValue placeholder="Select document type" />
+            </SelectTrigger>
+            <SelectContent>
+              {DOC_TYPES.map((t) => (
+                <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-slate-500 mt-1">
+            Tells the AI agent which fields to look for.
+          </p>
+        </div>
         <div
           {...getRootProps()}
           className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer ${
@@ -153,7 +184,7 @@ export default function DocumentUpload() {
             Drag and drop files here or click to browse
           </p>
           <p className="text-sm text-slate-500 mb-4">
-            Supports PDF, XLSX, CSV, JPEG, PNG up to 10MB
+            Supports PDF, TXT, CSV, JPEG, PNG up to 10MB
           </p>
           <Button 
             type="button" 

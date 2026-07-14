@@ -23,6 +23,7 @@ import documentGenerationRoutes from "./routes/document-generation";
 import maintenanceRoutes from "./routes/maintenance";
 import digitalFormsRoutes from "./routes/digital-forms";
 import mlTrainingRoutes from "./routes/ml-training";
+import documentsRoutes from "./routes/documents";
 import cryptoSigningRoutes from "./routes/crypto-signing";
 import { signTrainingRecord, getOrgActiveKey } from "./services/crypto-signing";
 import { evaluateAction, authorityRank, isValidAuthority } from "./services/gate-engine";
@@ -629,60 +630,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/api/reviewer-keys', reviewerRoutes);
   app.use('/api/governance', governanceRoutes);
 
-  // ── Document Upload ──────────────────────────────────────────────────────
-  const upload = multer({
-    storage: multer.memoryStorage(),
-    limits: { fileSize: 50 * 1024 * 1024 },
-    fileFilter: (_req, file, cb) => {
-      const allowed = ['application/pdf', 'image/jpeg', 'image/png', 'image/tiff',
-        'application/msword',
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        'text/plain'];
-      cb(null, allowed.includes(file.mimetype));
-    }
-  });
-
-  app.post('/api/documents/upload', isAuthenticated, upload.single('file'), async (req: any, res) => {
-    try {
-      if (!req.file) {
-        return res.status(400).json({ error: 'No file provided or file type not supported' });
-      }
-      const userId = req.user?.id;
-      const { documentType } = req.body;
-      const docId = `doc_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-
-      await storage.createAuditLog({
-        eventType: 'document_upload',
-        severity: 'info',
-        message: `Document uploaded: ${req.file.originalname}`,
-        details: {
-          documentId: docId,
-          fileName: req.file.originalname,
-          fileSize: req.file.size,
-          mimeType: req.file.mimetype,
-          documentType: documentType || 'GENERAL'
-        },
-        sourceSystem: 'document_service',
-        userId
-      });
-
-      res.json({
-        success: true,
-        document: {
-          id: docId,
-          fileName: req.file.originalname,
-          fileSize: req.file.size,
-          mimeType: req.file.mimetype,
-          documentType: documentType || 'GENERAL',
-          status: 'uploaded',
-          uploadedAt: new Date().toISOString()
-        }
-      });
-    } catch (error) {
-      console.error('Document upload error:', error);
-      res.status(500).json({ error: 'Failed to upload document', details: error instanceof Error ? error.message : 'Unknown error' });
-    }
-  });
+  // ── Agentic Document Pipeline (upload → OCR → AI extraction → GATE) ─────
+  app.use('/api/documents', documentsRoutes);
 
   // ── Audit Compliance Analysis Endpoints ──────────────────────────────────
   app.get('/api/audit/document-summary', isAuthenticated, async (req: any, res) => {
@@ -774,38 +723,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // ── Document Library ─────────────────────────────────────────────────────
-  app.get('/api/documents', isAuthenticated, async (req: any, res) => {
-    try {
-      const docs = await storage.getAuditLogs({ eventType: 'document_upload', limit: 200 });
-      const result = docs.map(d => {
-        const details = (d.details as any) || {};
-        return {
-          id: d.id,
-          fileName: details.fileName || 'Unknown File',
-          fileSize: details.fileSize || 0,
-          mimeType: details.mimeType || 'application/octet-stream',
-          documentType: details.documentType || 'general',
-          uploadedBy: d.userId,
-          uploadedAt: d.timestamp,
-          blockchainHash: details.blockchainHash || null,
-        };
-      });
-      res.json(result);
-    } catch (error) {
-      console.error('Documents list error:', error);
-      res.status(500).json({ message: 'Failed to fetch documents' });
-    }
-  });
+  // Document Library now served by the agentic pipeline router (/api/documents).
 
   // ── Dashboard Stats (real data) ──────────────────────────────────────────
   app.get('/api/dashboard/stats', isAuthenticated, async (req: any, res) => {
     try {
       const orgId = requireOrg(req, res);
       if (!orgId) return;
-      const [docCountResult] = await db.select({ count: count() }).from(auditLogs)
-        .where(and(eq(auditLogs.eventType, 'document_upload'), eq(auditLogs.organizationId, orgId)));
-      const totalRecords = Number(docCountResult?.count ?? 0);
+      const docCountRows = await db.execute(drizzleSql`
+        SELECT COUNT(*)::int AS n FROM bccs_documents WHERE organization_id = ${orgId}
+      `);
+      const totalRecords = Number((docCountRows as any).rows?.[0]?.n ?? 0);
 
       // Attempt to read compliance from checklist_states table
       let complianceRate = 0;
