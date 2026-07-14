@@ -29,8 +29,10 @@ import {
   Archive,
   PenLine,
   TrendingUp,
+  LogOut,
 } from 'lucide-react';
 import { useLicense } from '@/hooks/useLicense';
+import { useAuth } from '@/hooks/useAuth';
 import OrgSwitcher from '@/components/org-switcher';
 import type { PlanFeatures } from '../../../shared/license';
 
@@ -75,6 +77,21 @@ const navigationItems: NavItem[] = [
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [location] = useLocation();
   const { canUse, isLoading: licenseLoading } = useLicense();
+  const { user } = useAuth() as { user: { firstName?: string; lastName?: string; email?: string } | null };
+
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/logout', { method: 'POST', credentials: 'include' });
+    } catch {
+      // Even if the request fails, fall through to a hard reload so the
+      // client never stays in a half-logged-in state.
+    }
+    window.location.href = '/login';
+  };
+
+  const displayName = user
+    ? [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email || 'Signed in'
+    : '';
 
   return (
     <div className="dashboard-layout-new">
@@ -136,9 +153,24 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           })}
         </nav>
 
-        {/* Footer */}
-        <div className="p-4 border-t border-slate-700 text-sm text-slate-400 flex-shrink-0">
-          Enterprise Ready Platform
+        {/* Footer: signed-in user + logout */}
+        <div className="p-4 border-t border-slate-700 flex-shrink-0">
+          {user && (
+            <div className="mb-3 min-w-0">
+              <p className="text-sm text-white truncate" data-testid="text-user-name">{displayName}</p>
+              {user.email && (
+                <p className="text-xs text-slate-400 truncate" data-testid="text-user-email">{user.email}</p>
+              )}
+            </div>
+          )}
+          <button
+            onClick={handleLogout}
+            data-testid="button-logout"
+            className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm text-slate-300 hover:bg-slate-800 hover:text-white transition-colors border border-slate-700"
+          >
+            <LogOut size={18} />
+            Sign Out
+          </button>
         </div>
       </div>
 
