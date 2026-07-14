@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import AgentWorkspaceHeader from "@/components/agent-workspace-header";
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -143,6 +144,7 @@ export default function LinkMonitorPage() {
 
   return (
     <div className="space-y-6">
+      <AgentWorkspaceHeader agentId="link-integrity" />
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Regulatory Link Monitor</h1>

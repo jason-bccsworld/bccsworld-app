@@ -30,6 +30,7 @@ import {
   PenLine,
   TrendingUp,
   LogOut,
+  Bot,
 } from 'lucide-react';
 import { useLicense } from '@/hooks/useLicense';
 import { useAuth } from '@/hooks/useAuth';
@@ -48,29 +49,45 @@ interface NavItem {
   feature?: keyof PlanFeatures;
 }
 
-const navigationItems: NavItem[] = [
-  { path: "/dashboard", icon: BarChart3, label: "Compliance Dashboard" },
-  { path: "/compliance-records", icon: Clock, label: "Training Records" },
-  { path: "/students", icon: BookOpen, label: "Student Roster" },
-  { path: "/instructors", icon: GraduationCap, label: "Instructor Records" },
-  { path: "/safo-info", icon: Bell, label: "SAFO / InFO" },
-  { path: "/audit-history", icon: Activity, label: "Audit History" },
-  { path: "/compliance-report", icon: ClipboardList, label: "Compliance Report", feature: "complianceReports" },
-  { path: "/compliance-checklist", icon: CheckCircle, label: "Part 142 Checklist" },
-  { path: "/far-compliance", icon: Shield, label: "FAR Compliance" },
-  { path: "/ai-audit-compliance", icon: Brain, label: "AI Audit Assistant", badge: "AI", feature: "aiDocumentProcessing" },
-  { path: "/analytics-dashboard", icon: TrendingUp, label: "Analytics Dashboard", feature: "advancedAnalytics" },
-  { path: "/regulatory-alerts", icon: AlertTriangle, label: "Regulatory Alerts" },
-  { path: "/link-monitor", icon: ExternalLink, label: "Link Monitor" },
-  { path: "/documents", icon: Database, label: "Document Library" },
-  { path: "/faa-repository", icon: Archive, label: "FAA Repository", badge: "LIVE" },
-  { path: "/digital-forms", icon: PenLine, label: "Digital Forms", badge: "NEW" },
-  { path: "/document-generation", icon: FileText, label: "Document Generator" },
-  { path: "/admin-dashboard", icon: Users, label: "User Management" },
-  { path: "/organization-setup", icon: Globe, label: "Organization Setup" },
-  { path: "/ml-training", icon: Brain, label: "ML Training Data", badge: "AI" },
-  { path: "/support", icon: HelpCircle, label: "Support" },
-  { path: "/settings", icon: Settings, label: "Settings" },
+interface NavSection {
+  title: string;
+  items: NavItem[];
+}
+
+const navigationSections: NavSection[] = [
+  {
+    title: "AI Agent Team",
+    items: [
+      { path: "/agents", icon: Bot, label: "Command Center", badge: "AI" },
+      { path: "/documents", icon: Database, label: "Document Extraction" },
+      { path: "/ml-training", icon: Brain, label: "Extraction Learning" },
+      { path: "/regulatory-alerts", icon: AlertTriangle, label: "Regulatory Monitor" },
+      { path: "/faa-repository", icon: Archive, label: "FAA Repository", badge: "LIVE" },
+      { path: "/link-monitor", icon: ExternalLink, label: "Link Integrity" },
+      { path: "/instructors", icon: GraduationCap, label: "Compliance Watchdog" },
+    ],
+  },
+  {
+    title: "Records & Data",
+    items: [
+      { path: "/dashboard", icon: BarChart3, label: "Compliance Dashboard" },
+      { path: "/compliance-records", icon: Clock, label: "Training Records" },
+      { path: "/students", icon: BookOpen, label: "Student Roster" },
+      { path: "/safo-info", icon: Bell, label: "SAFO / InFO" },
+      { path: "/audit-history", icon: Activity, label: "Audit History" },
+      { path: "/compliance-report", icon: ClipboardList, label: "Compliance Report", feature: "complianceReports" },
+      { path: "/compliance-checklist", icon: CheckCircle, label: "Part 142 Checklist" },
+      { path: "/far-compliance", icon: Shield, label: "FAR Compliance" },
+      { path: "/ai-audit-compliance", icon: Brain, label: "AI Audit Assistant", badge: "AI", feature: "aiDocumentProcessing" },
+      { path: "/analytics-dashboard", icon: TrendingUp, label: "Analytics Dashboard", feature: "advancedAnalytics" },
+      { path: "/digital-forms", icon: PenLine, label: "Digital Forms" },
+      { path: "/document-generation", icon: FileText, label: "Document Generator" },
+      { path: "/admin-dashboard", icon: Users, label: "User Management" },
+      { path: "/organization-setup", icon: Globe, label: "Organization Setup" },
+      { path: "/support", icon: HelpCircle, label: "Support" },
+      { path: "/settings", icon: Settings, label: "Settings" },
+    ],
+  },
 ];
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
@@ -113,14 +130,20 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         <OrgSwitcher />
 
         {/* Navigation */}
-        <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-          {navigationItems.map((item) => {
+        <nav className="flex-1 p-4 space-y-4 overflow-y-auto">
+          {navigationSections.map((section) => (
+          <div key={section.title}>
+          <p className="px-4 pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+            {section.title}
+          </p>
+          <div className="space-y-1">
+          {section.items.map((item) => {
             const isActive = location === item.path;
             const isLocked = !licenseLoading && item.feature ? !canUse(item.feature) : false;
 
             return (
               <Link
-                key={item.path}
+                key={`${section.title}-${item.path}`}
                 href={item.path}
                 className={`flex items-center justify-between px-4 py-3 rounded-lg text-sm transition-colors ${
                   isActive
@@ -150,6 +173,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               </Link>
             );
           })}
+          </div>
+          </div>
+          ))}
         </nav>
 
         {/* Footer: signed-in user + logout */}

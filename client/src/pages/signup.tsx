@@ -55,7 +55,7 @@ export default function Signup() {
   });
 
   useEffect(() => {
-    if (isAuthenticated) setLocation("/dashboard");
+    if (isAuthenticated) setLocation("/agents");
   }, [isAuthenticated, setLocation]);
 
   const form = useForm<SignupFormData>({
@@ -91,7 +91,7 @@ export default function Signup() {
       }
       queryClient.clear();
       queryClient.setQueryData(["/api/auth/user"], data.user);
-      setLocation("/dashboard");
+      setLocation("/agents");
     },
     onError: (err: Error) => setError(err.message),
   });

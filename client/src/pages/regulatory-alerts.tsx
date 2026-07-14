@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import AgentWorkspaceHeader from "@/components/agent-workspace-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -236,6 +237,7 @@ export default function RegulatoryAlerts() {
 
   return (
     <div className="space-y-6">
+      <AgentWorkspaceHeader agentId="regulatory-monitor" />
       <div className="flex justify-between items-start">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Regulatory Alerts</h1>

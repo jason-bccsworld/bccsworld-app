@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import AgentWorkspaceHeader from "@/components/agent-workspace-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -55,6 +56,7 @@ export default function Documents() {
 
   return (
     <div className="space-y-6">
+      <AgentWorkspaceHeader agentId="document-extraction" />
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Document Library</h1>

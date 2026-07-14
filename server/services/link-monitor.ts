@@ -1,5 +1,6 @@
 import { storage } from '../storage';
 import { OpenAI } from 'openai';
+import { startRun, finishRun, emitAgentEvent } from './agent-registry';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || 'not-configured',
@@ -31,18 +32,35 @@ export interface LinkMonitorAlert {
 export class LinkMonitoringService {
   private monitoredLinks: Map<string, LinkStatus> = new Map();
   private lastContentHashes: Map<string, string> = new Map();
+  private periodicChecksScheduled = false;
 
   async initializeMonitoring(): Promise<void> {
     console.log('Initializing regulatory link monitoring system...');
-    
+    const runId = await startRun("link-integrity", null);
+
     // Extract all regulatory links from the compliance checklist
     const regulatoryLinks = this.extractRegulatoryLinks();
-    
+
     // Initialize monitoring for each link
+    let issues = 0;
     for (const link of regulatoryLinks) {
-      await this.checkLinkStatus(link);
+      const status = await this.checkLinkStatus(link);
+      if (status.status !== 'active') issues++;
     }
-    
+
+    await finishRun(runId, {
+      status: "success",
+      itemsProcessed: regulatoryLinks.length,
+      findingsCount: issues,
+      summary: `${regulatoryLinks.length} regulatory links verified; ${issues} issue(s) found.`,
+    });
+    await emitAgentEvent(
+      "Link Integrity Agent",
+      issues > 0 ? "flagged_records" : "monitoring_cycle",
+      `Link integrity sweep complete — ${regulatoryLinks.length} regulatory links verified, ${issues} issue(s) found`,
+      null,
+    );
+
     // Schedule regular monitoring
     this.schedulePeriodicChecks();
   }
@@ -291,6 +309,11 @@ export class LinkMonitoringService {
   }
 
   private schedulePeriodicChecks(): void {
+    // initializeMonitoring re-runs on every daily cycle — without this guard the
+    // intervals would stack up on each pass.
+    if (this.periodicChecksScheduled) return;
+    this.periodicChecksScheduled = true;
+
     // Check critical regulatory links daily
     setInterval(() => {
       console.log('Running daily regulatory link check...');

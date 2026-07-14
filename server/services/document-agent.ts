@@ -20,6 +20,7 @@ import { sql } from "drizzle-orm";
 import { processDocumentOCR } from "./ocr";
 import { extractFieldsWithNLP, type ExtractedField } from "./nlp";
 import { evaluateAction } from "./gate-engine";
+import { emitAgentEvent, startRun, finishRun } from "./agent-registry";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || "not-configured" });
 
@@ -33,15 +34,6 @@ const LEARNING_AGENT_NAME = "Extraction Learning Agent";
 
 export function sha256Hash(payload: unknown): string {
   return crypto.createHash("sha256").update(JSON.stringify(payload)).digest("hex");
-}
-
-async function emitAgentEvent(agentName: string, eventType: string, message: string, orgId: string | null) {
-  await db
-    .execute(sql`
-      INSERT INTO agent_events (agent_name, event_type, message, org_id)
-      VALUES (${agentName}, ${eventType}, ${message}, ${orgId})
-    `)
-    .catch((err) => console.error("[document-agent] agent event write failed:", err));
 }
 
 /** Load the active learned guidance for a document type (org-scoped). */
@@ -91,6 +83,7 @@ async function extractText(fileName: string, mimeType: string, buffer: Buffer): 
  * does not survive into detached async work.
  */
 export async function processDocument(documentId: string, orgId: string, userId: string | null): Promise<void> {
+  const runId = await startRun("document-extraction", orgId);
   try {
     const [doc] = await db
       .execute(sql`
@@ -132,6 +125,12 @@ export async function processDocument(documentId: string, orgId: string, userId:
         `No fields could be extracted from "${doc.file_name}" — routed to human review`,
         orgId,
       );
+      await finishRun(runId, {
+        status: "success",
+        itemsProcessed: 0,
+        findingsCount: 1,
+        summary: `"${doc.file_name}": no extractable fields — routed to human review.`,
+      });
       return;
     }
 
@@ -175,6 +174,11 @@ export async function processDocument(documentId: string, orgId: string, userId:
         `Auto-approved "${doc.file_name}" — ${fields.length} fields at ${overall}% confidence, blockchain-anchored (${hash.slice(0, 12)}…)`,
         orgId,
       );
+      await finishRun(runId, {
+        status: "success",
+        itemsProcessed: fields.length,
+        summary: `"${doc.file_name}": ${fields.length} fields extracted at ${overall}% confidence — auto-approved and blockchain-anchored.`,
+      });
     } else {
       await db.execute(sql`
         UPDATE bccs_documents
@@ -188,6 +192,12 @@ export async function processDocument(documentId: string, orgId: string, userId:
         `"${doc.file_name}" extracted at ${overall}% confidence (below ${AUTO_APPROVE_CONFIDENCE}% threshold) — GATE escalated to human review`,
         orgId,
       );
+      await finishRun(runId, {
+        status: "success",
+        itemsProcessed: fields.length,
+        findingsCount: 1,
+        summary: `"${doc.file_name}": ${fields.length} fields at ${overall}% confidence — escalated to human review.`,
+      });
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown processing error";
@@ -200,6 +210,7 @@ export async function processDocument(documentId: string, orgId: string, userId:
       `)
       .catch(() => {});
     await emitAgentEvent(AGENT_NAME, "document_failed", `Processing failed: ${message}`, orgId);
+    await finishRun(runId, { status: "failed", summary: message });
   }
 }
 
@@ -210,6 +221,7 @@ export async function processDocument(documentId: string, orgId: string, userId:
  * injected into every future extraction prompt for that document type.
  */
 export async function maybeLearnFromCorrections(orgId: string, documentType: string): Promise<void> {
+  let runId: string | null = null;
   try {
     const [countRow] = await db
       .execute(sql`
@@ -229,6 +241,7 @@ export async function maybeLearnFromCorrections(orgId: string, documentType: str
 
     if (total - incorporated < LEARNING_BATCH_SIZE) return;
 
+    runId = await startRun("extraction-learning", orgId);
     const corrections = await db
       .execute(sql`
         SELECT field_name, original_value, corrected_value FROM bccs_ml_feedback
@@ -257,7 +270,10 @@ export async function maybeLearnFromCorrections(orgId: string, documentType: str
 
     const parsed = JSON.parse(response.choices[0].message.content || "{}");
     const guidance = typeof parsed.guidance === "string" ? parsed.guidance.trim() : "";
-    if (!guidance) return;
+    if (!guidance) {
+      await finishRun(runId, { status: "failed", summary: "Learning pass produced no usable guidance." });
+      return;
+    }
 
     const newVersion = (guidanceRow?.version ?? 0) + 1;
     await db.execute(sql`
@@ -289,7 +305,13 @@ export async function maybeLearnFromCorrections(orgId: string, documentType: str
       `Learned from ${total} human corrections on ${documentType.replace(/_/g, " ")} documents — extraction guidance updated to v${newVersion}`,
       orgId,
     );
+    await finishRun(runId, {
+      status: "success",
+      itemsProcessed: corrections.length,
+      summary: `Distilled ${corrections.length} correction(s) on ${documentType.replace(/_/g, " ")} into guidance v${newVersion}.`,
+    });
   } catch (error) {
     console.error("[document-agent] learning pass failed (non-fatal):", error);
+    await finishRun(runId, { status: "failed", summary: error instanceof Error ? error.message : String(error) }).catch(() => {});
   }
 }

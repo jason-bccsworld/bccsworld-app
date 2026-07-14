@@ -9,6 +9,7 @@ import Pricing from "@/pages/pricing";
 import Billing from "@/pages/billing";
 import Tutorials from "@/pages/tutorials";
 import Dashboard from "@/pages/dashboard";
+import AgentsCommandCenter from "@/pages/agents";
 import ComplianceRecords from "@/pages/compliance-records";
 import AdminDashboard from "@/pages/admin-dashboard";
 import FlightSchoolDashboard from "@/pages/flight-school-dashboard";
@@ -69,7 +70,7 @@ function Router() {
   return (
     <Switch>
       <Route path="/">
-        {isAuthenticated ? <Redirect to="/dashboard" /> : <Redirect to="/login" />}
+        {isAuthenticated ? <Redirect to="/agents" /> : <Redirect to="/login" />}
       </Route>
       <Route path="/login" component={Login} />
       <Route path="/signup" component={Signup} />
@@ -80,6 +81,17 @@ function Router() {
         )}
       </Route>
       <Route path="/tutorials" component={Tutorials} />
+      {/* Agent Command Center — the default landing page */}
+      <Route path="/agents">
+        {!isAuthenticated ? (
+          <Redirect to="/login" />
+        ) : (
+          <DashboardLayout>
+            <AgentsCommandCenter />
+          </DashboardLayout>
+        )}
+      </Route>
+
       {/* Dashboard routes - available when authenticated */}
       <Route path="/dashboard">
         {!isAuthenticated ? (

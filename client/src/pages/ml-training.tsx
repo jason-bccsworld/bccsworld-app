@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import AgentWorkspaceHeader from "@/components/agent-workspace-header";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import MLTrainingDashboard from "@/components/ml-training-dashboard";
@@ -19,5 +20,10 @@ export default function MLTraining() {
     return <div>Loading...</div>;
   }
 
-  return <MLTrainingDashboard />;
+  return (
+    <div className="space-y-6">
+      <AgentWorkspaceHeader agentId="extraction-learning" />
+      <MLTrainingDashboard />
+    </div>
+  );
 }

@@ -222,7 +222,7 @@ router.get("/agent-events", isAuthenticated, async (req, res) => {
   const orgId = requireOrg(req, res);
   if (!orgId) return;
   const rows = await db
-    .execute(sql`SELECT * FROM agent_events WHERE org_id = ${orgId} ORDER BY created_at DESC LIMIT 50`)
+    .execute(sql`SELECT * FROM agent_events WHERE (org_id = ${orgId} OR org_id IS NULL) ORDER BY created_at DESC LIMIT 50`)
     .then((r) => (r as any).rows);
   res.json(rows);
 });
@@ -250,7 +250,7 @@ router.get("/apex-summary", isAuthenticated, async (req, res) => {
       `)
       .then((r) => (r as any).rows),
     db
-      .execute(sql`SELECT COUNT(DISTINCT agent_name)::int AS n FROM agent_events WHERE org_id = ${orgId}`)
+      .execute(sql`SELECT COUNT(DISTINCT agent_name)::int AS n FROM agent_events WHERE (org_id = ${orgId} OR org_id IS NULL)`)
       .then((r) => (r as any).rows[0]?.n ?? 0),
     db
       .execute(sql`

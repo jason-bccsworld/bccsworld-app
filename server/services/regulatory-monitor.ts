@@ -1,4 +1,5 @@
 import { storage } from "../storage";
+import { startRun, finishRun, emitAgentEvent } from "./agent-registry";
 
 export interface RegulatoryChange {
   id: string;
@@ -70,8 +71,10 @@ export class RegulatoryMonitorService {
   }
 
   async performComplianceCheck(): Promise<ComplianceStatus[]> {
+    const runId = await startRun("regulatory-monitor", null);
     const complianceStatuses: ComplianceStatus[] = [];
-    
+    let checksFailed = 0;
+
     for (const source of this.regulatorySources) {
       for (const regulation of source.regulations) {
         try {
@@ -93,6 +96,7 @@ export class RegulatoryMonitorService {
           });
           
         } catch (error) {
+          checksFailed++;
           console.error(`Failed to check compliance for ${regulation}:`, error);
           
           await storage.createAuditLog({
@@ -109,7 +113,21 @@ export class RegulatoryMonitorService {
         }
       }
     }
-    
+
+    const pendingTotal = complianceStatuses.reduce((s, c) => s + c.pendingChanges.length, 0);
+    await finishRun(runId, {
+      status: complianceStatuses.length === 0 && checksFailed > 0 ? "failed" : "success",
+      itemsProcessed: complianceStatuses.length + checksFailed,
+      findingsCount: pendingTotal,
+      summary: `Checked ${complianceStatuses.length} regulations across ${this.regulatorySources.length} sources; ${pendingTotal} pending change(s) tracked${checksFailed ? `, ${checksFailed} check(s) failed` : ""}.`,
+    });
+    await emitAgentEvent(
+      "Regulatory Monitoring Agent",
+      pendingTotal > 0 ? "detected_change" : "monitoring_cycle",
+      `Regulatory sweep complete — ${complianceStatuses.length} regulations checked, ${pendingTotal} pending change(s) tracked`,
+      null,
+    );
+
     return complianceStatuses;
   }
 

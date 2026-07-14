@@ -325,6 +325,48 @@ export async function ensureTables(): Promise<void> {
       WHERE status IN ('uploaded', 'processing')
     `);
 
+    // ── Agent workforce telemetry ────────────────────────────────────────────
+    // Every agent run (scheduled or manual) is recorded here; findings are the
+    // issues agents raise for humans (expiring certs, overdue students, audit gaps).
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS bccs_agent_runs (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        agent_id VARCHAR(50) NOT NULL,
+        org_id VARCHAR(200),
+        status VARCHAR(20) NOT NULL DEFAULT 'running',
+        started_at TIMESTAMP NOT NULL DEFAULT NOW(),
+        finished_at TIMESTAMP,
+        items_processed INTEGER DEFAULT 0,
+        findings_count INTEGER DEFAULT 0,
+        summary TEXT
+      )
+    `);
+    await db.execute(sql`CREATE INDEX IF NOT EXISTS "IDX_bccs_agent_runs_agent" ON bccs_agent_runs (agent_id, started_at DESC)`);
+
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS bccs_agent_findings (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        agent_id VARCHAR(50) NOT NULL,
+        org_id VARCHAR(200) NOT NULL,
+        finding_type VARCHAR(50) NOT NULL,
+        severity VARCHAR(20) NOT NULL DEFAULT 'medium',
+        title TEXT NOT NULL,
+        detail JSONB,
+        status VARCHAR(20) NOT NULL DEFAULT 'open',
+        related_record_id VARCHAR(200),
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    await db.execute(sql`CREATE INDEX IF NOT EXISTS "IDX_bccs_agent_findings_org_status" ON bccs_agent_findings (org_id, status)`);
+
+    // Agent runs are in-process too — anything still 'running' at boot was
+    // interrupted by the restart.
+    await db.execute(sql`
+      UPDATE bccs_agent_runs
+      SET status = 'interrupted', finished_at = NOW()
+      WHERE status = 'running'
+    `);
+
     // ── Multi-tenant foundation ──────────────────────────────────────────────
     // 0) checklist_states may not exist yet on fresh/cloud databases
     await db.execute(sql`
@@ -551,6 +593,16 @@ const SEED_POLICIES = [
     is_protected: false,
     regulatory_basis: "14 CFR 142.45",
     regulatory_text: "Draft records may be removed, but deletion requires administrator authority and a documented audit record.",
+  },
+  {
+    action_type: "agent_manual_run",
+    label: "Manually trigger an AI agent run",
+    description: "Allow a human operator to trigger an on-demand run of a platform AI agent (monitoring sweep, compliance patrol, audit readiness review).",
+    required_authority: "instructor",
+    decision_rule: "allow",
+    is_protected: false,
+    regulatory_basis: "14 CFR 142.73",
+    regulatory_text: "Automated compliance monitoring may be initiated on demand by authorized training center personnel; every run is recorded with full telemetry for audit purposes.",
   },
   {
     action_type: "document_auto_approve",

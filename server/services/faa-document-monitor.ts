@@ -1,6 +1,7 @@
 import { db } from "../db";
 import { sql } from "drizzle-orm";
 import * as crypto from "crypto";
+import { startRun, finishRun, emitAgentEvent } from "./agent-registry";
 
 export interface FAADocument {
   id: number;
@@ -199,6 +200,7 @@ class FAADocumentMonitorService {
     if (this.isRunning) return;
     this.isRunning = true;
     console.log('[FAA Monitor] Starting document check...');
+    const runId = await startRun("faa-repository", null);
 
     try {
       const result = await db.execute(sql`SELECT * FROM bccs_faa_repository ORDER BY priority DESC, source_type, source_id`);
@@ -213,8 +215,22 @@ class FAADocumentMonitorService {
       }
 
       console.log(`[FAA Monitor] Check complete. ${docs.length} documents checked, ${changedCount} changes detected.`);
+      await finishRun(runId, {
+        status: "success",
+        itemsProcessed: docs.length,
+        findingsCount: changedCount,
+        summary: `${docs.length} FAA documents checked against eCFR; ${changedCount} revision change(s) detected.`,
+      });
+      await emitAgentEvent(
+        "FAA Repository Agent",
+        changedCount > 0 ? "detected_change" : "monitoring_cycle",
+        `FAA repository sweep complete — ${docs.length} documents checked, ${changedCount} revision change(s) detected`,
+        null,
+      );
     } catch (err) {
       console.error('[FAA Monitor] Check error:', (err as Error).message);
+      await finishRun(runId, { status: "failed", summary: (err as Error).message });
+      await emitAgentEvent("FAA Repository Agent", "run_failed", `FAA repository sweep failed: ${(err as Error).message}`, null);
     } finally {
       this.isRunning = false;
     }

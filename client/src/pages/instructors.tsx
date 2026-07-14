@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import AgentWorkspaceHeader from "@/components/agent-workspace-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -84,6 +85,7 @@ export default function Instructors() {
 
   return (
     <div className="space-y-6">
+      <AgentWorkspaceHeader agentId="compliance-watchdog" />
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Instructor Records</h1>

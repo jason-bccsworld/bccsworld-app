@@ -29,6 +29,7 @@ import { signTrainingRecord, getOrgActiveKey } from "./services/crypto-signing";
 import { evaluateAction, authorityRank, isValidAuthority } from "./services/gate-engine";
 import reviewerRoutes from "./routes/reviewer";
 import governanceRoutes from "./routes/governance";
+import agentsRoutes from "./routes/agents";
 import { generateDocumentImportTutorial } from "./generate-document-import-tutorial";
 import { auditComplianceAI } from "./services/audit-compliance-ai";
 import { db } from "./db";
@@ -629,6 +630,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/api/org-keys', cryptoSigningRoutes);
   app.use('/api/reviewer-keys', reviewerRoutes);
   app.use('/api/governance', governanceRoutes);
+  app.use('/api/agents', agentsRoutes);
 
   // ── Agentic Document Pipeline (upload → OCR → AI extraction → GATE) ─────
   app.use('/api/documents', documentsRoutes);
