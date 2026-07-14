@@ -9,9 +9,7 @@ import Pricing from "@/pages/pricing";
 import Billing from "@/pages/billing";
 import Tutorials from "@/pages/tutorials";
 import Dashboard from "@/pages/dashboard";
-import DocumentImport from "@/pages/document-import";
 import ComplianceRecords from "@/pages/compliance-records";
-import AuditTrail from "@/pages/audit-trail";
 import AdminDashboard from "@/pages/admin-dashboard";
 import FlightSchoolDashboard from "@/pages/flight-school-dashboard";
 import RegulatorDashboard from "@/pages/regulator-dashboard";
@@ -23,7 +21,6 @@ import RegulatoryCompliancePage from "@/pages/regulatory-compliance";
 import RegulatoryAlerts from "@/pages/regulatory-alerts";
 import LinkMonitor from "@/pages/link-monitor";
 import ComplianceChecklist from "@/pages/compliance-checklist";
-import WorkingComplianceChecklist from "@/pages/working-compliance-checklist";
 import Support from "@/pages/support";
 import Settings from "@/pages/settings";
 import FieldMapping from "@/pages/field-mapping";
@@ -136,15 +133,9 @@ function Router() {
         )}
       </Route>
 
-      {/* Redirect old aircraft registry routes to dashboard */}
+      {/* Old aircraft registry URL — send to the dashboard */}
       <Route path="/aircraft-registry">
-        {!isAuthenticated ? (
-          <Redirect to="/login" />
-        ) : (
-          <DashboardLayout>
-            <Dashboard />
-          </DashboardLayout>
-        )}
+        <Redirect to="/dashboard" />
       </Route>
 
       <Route path="/key-management">
@@ -217,14 +208,9 @@ function Router() {
         )}
       </Route>
       
+      {/* Document upload now lives on the dashboard — keep old links working */}
       <Route path="/document-import">
-        {!isAuthenticated ? (
-          <Redirect to="/login" />
-        ) : (
-          <DashboardLayout>
-            <DocumentImport />
-          </DashboardLayout>
-        )}
+        <Redirect to="/dashboard" />
       </Route>
 
       <Route path="/compliance-records">

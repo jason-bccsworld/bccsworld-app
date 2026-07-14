@@ -62,7 +62,6 @@ const navigationItems: NavItem[] = [
   { path: "/analytics-dashboard", icon: TrendingUp, label: "Analytics Dashboard", feature: "advancedAnalytics" },
   { path: "/regulatory-alerts", icon: AlertTriangle, label: "Regulatory Alerts" },
   { path: "/link-monitor", icon: ExternalLink, label: "Link Monitor" },
-  { path: "/document-import", icon: FileText, label: "AI Document Import", badge: "AI", feature: "aiDocumentProcessing" },
   { path: "/documents", icon: Database, label: "Document Library" },
   { path: "/faa-repository", icon: Archive, label: "FAA Repository", badge: "LIVE" },
   { path: "/digital-forms", icon: PenLine, label: "Digital Forms", badge: "NEW" },

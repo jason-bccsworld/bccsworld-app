@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
-import { CloudUpload, FileText, CheckCircle, AlertCircle, X } from "lucide-react";
+import { CloudUpload, FileText, CheckCircle, AlertCircle, X, BookOpen } from "lucide-react";
 
 interface UploadFile {
   id: string;
@@ -144,11 +144,23 @@ export default function DocumentUpload() {
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>AI-Powered Document Import</CardTitle>
-        <CardDescription>
-          Upload training documents for automatic processing and field extraction
-        </CardDescription>
+      <CardHeader className="flex flex-row items-start justify-between space-y-0">
+        <div className="space-y-1.5">
+          <CardTitle>AI-Powered Document Import</CardTitle>
+          <CardDescription>
+            Upload training documents for automatic processing and field extraction
+          </CardDescription>
+        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="text-slate-500 shrink-0"
+          onClick={() => window.open("/api/document-import/tutorial/download", "_blank")}
+          data-testid="download-tutorial-btn"
+        >
+          <BookOpen className="h-4 w-4 mr-1.5" />
+          Tutorial
+        </Button>
       </CardHeader>
       <CardContent>
         <div className="mb-4">

@@ -8,7 +8,6 @@ import {
   Settings, 
   Menu, 
   X,
-  Upload,
   BarChart
 } from "lucide-react";
 
@@ -19,7 +18,6 @@ export default function MobileNav() {
   const navItems = [
     { path: "/", label: "Dashboard", icon: Home },
     { path: "/mobile-field", label: "Field Ops", icon: Camera },
-    { path: "/document-import", label: "Upload", icon: Upload },
     { path: "/compliance-records", label: "Records", icon: FileText },
     { path: "/ml-training", label: "Analytics", icon: BarChart },
   ];

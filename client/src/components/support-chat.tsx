@@ -34,7 +34,7 @@ const quickHelp = [
 
 const responses = {
   "upload-help": {
-    content: "To upload a document:\n\n1. Click 'Document Import' in the left menu\n2. Drag and drop your file or click 'Choose File'\n3. Wait for the green checkmark\n4. Review the extracted data\n\nSupported formats: PDF, JPG, PNG, DOCX\n\nNeed more help?",
+    content: "To upload a document:\n\n1. Go to the Compliance Dashboard in the left menu\n2. Drag and drop your file into the upload card, or click 'Choose File'\n3. Wait for the green checkmark\n4. Review the extracted data in the validation queue below\n\nSupported formats: PDF, JPG, PNG, DOCX\n\nNeed more help?",
     options: [
       { text: "Show me a video tutorial", action: "video-upload" },
       { text: "I'm still having trouble", action: "escalate" }
