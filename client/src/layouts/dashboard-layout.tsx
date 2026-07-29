@@ -23,6 +23,7 @@ import {
   Database,
   Network,
   GraduationCap,
+  Landmark,
   BookOpen,
   Activity,
   ClipboardList,
@@ -65,6 +66,7 @@ const navigationSections: NavSection[] = [
       { path: "/faa-repository", icon: Archive, label: "FAA Repository", badge: "LIVE" },
       { path: "/link-monitor", icon: ExternalLink, label: "Link Integrity" },
       { path: "/instructors", icon: GraduationCap, label: "Compliance Watchdog" },
+      { path: "/federal-contracts", icon: Landmark, label: "Federal Contracts", badge: "NEW" },
     ],
   },
   {

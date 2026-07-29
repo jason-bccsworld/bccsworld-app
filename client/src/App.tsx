@@ -44,6 +44,7 @@ import SafoInfo from "@/pages/safo-info";
 import AuditHistory from "@/pages/audit-history";
 import ComplianceReport from "@/pages/compliance-report";
 import FAARepository from "@/pages/faa-repository";
+import FederalContracts from "@/pages/federal-contracts";
 import DigitalForms from "@/pages/digital-forms";
 import PublicForm from "@/pages/public-form";
 import ReviewerPortal from "@/pages/reviewer-portal";
@@ -441,6 +442,16 @@ function Router() {
         ) : (
           <DashboardLayout>
             <FAARepository />
+          </DashboardLayout>
+        )}
+      </Route>
+
+      <Route path="/federal-contracts">
+        {!isAuthenticated ? (
+          <Redirect to="/login" />
+        ) : (
+          <DashboardLayout>
+            <FederalContracts />
           </DashboardLayout>
         )}
       </Route>

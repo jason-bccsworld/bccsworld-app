@@ -30,6 +30,7 @@ import { evaluateAction, authorityRank, isValidAuthority } from "./services/gate
 import reviewerRoutes from "./routes/reviewer";
 import governanceRoutes from "./routes/governance";
 import agentsRoutes from "./routes/agents";
+import federalContractsRoutes from "./routes/federal-contracts";
 import { generateDocumentImportTutorial } from "./generate-document-import-tutorial";
 import { auditComplianceAI } from "./services/audit-compliance-ai";
 import { db } from "./db";
@@ -631,6 +632,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/api/reviewer-keys', reviewerRoutes);
   app.use('/api/governance', governanceRoutes);
   app.use('/api/agents', agentsRoutes);
+  app.use('/api/federal-contracts', federalContractsRoutes);
 
   // ── Agentic Document Pipeline (upload → OCR → AI extraction → GATE) ─────
   app.use('/api/documents', documentsRoutes);

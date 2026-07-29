@@ -4,6 +4,7 @@ import { regulatoryMonitor } from "./services/regulatory-monitor";
 import { linkMonitoringService } from "./services/link-monitor";
 import { faaDocumentMonitor } from "./services/faa-document-monitor";
 import { startComplianceWatchdog } from "./services/compliance-watchdog";
+import { startFederalContractsMonitor } from "./services/federal-contracts-monitor";
 import { ensureTables } from "./db-init";
 import { createServer } from "http";
 import * as fs from "fs";
@@ -103,5 +104,6 @@ async function initStripe(): Promise<void> {
     });
 
     startComplianceWatchdog(12);
+    startFederalContractsMonitor(12);
   });
 })();

@@ -110,6 +110,21 @@ export const AGENTS: AgentDefinition[] = [
     scope: "org",
   },
   {
+    id: "federal-contracts-monitor",
+    name: "Federal Contracts Monitor",
+    mission: "Watches US government contract activity on your watchlist — SAM.gov exclusions, heavy modifications, recompete windows, and new opportunities are flagged with due-diligence risk scoring.",
+    domainPath: "/federal-contracts",
+    schedule: "Every 12 hours",
+    capabilities: [
+      "Tracks a watchlist of agencies, NAICS codes, keywords, vendors, and contract numbers",
+      "Builds research-template dossiers from SAM.gov and USAspending award data",
+      "Applies the due-diligence risk rubric: exclusions (veto flag), modification patterns, recompete timing, concentration",
+      "Scores each vendor into Low / Moderate / High / Critical tiers and raises findings",
+    ],
+    manuallyRunnable: true,
+    scope: "org",
+  },
+  {
     id: "audit-readiness",
     name: "Audit Readiness Agent",
     mission: "Reviews your entire compliance posture the way an FAA inspector would, and tells you exactly where you stand before they do.",

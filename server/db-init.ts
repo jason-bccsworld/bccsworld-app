@@ -479,6 +479,104 @@ export async function ensureTables(): Promise<void> {
       console.log('[db-init] Multi-tenant one-time backfill already applied');
     }
 
+    // ── Federal Contracts Monitor agent ─────────────────────────────────────
+    // Watchlist-driven monitoring of US government contract activity
+    // (SAM.gov / USAspending.gov) with dossiers, evidence logs, and a
+    // due-diligence risk rubric. All tables are org-scoped.
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS bccs_fedcon_watchlist (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        org_id VARCHAR(200) NOT NULL,
+        kind VARCHAR(30) NOT NULL,
+        value VARCHAR(300) NOT NULL,
+        label VARCHAR(300),
+        created_by VARCHAR(200),
+        created_at TIMESTAMP DEFAULT NOW(),
+        UNIQUE (org_id, kind, value)
+      )
+    `);
+    await db.execute(sql`CREATE INDEX IF NOT EXISTS "IDX_fedcon_watchlist_org" ON bccs_fedcon_watchlist (org_id)`);
+
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS bccs_fedcon_opportunities (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        org_id VARCHAR(200) NOT NULL,
+        notice_id VARCHAR(200) NOT NULL,
+        title TEXT,
+        agency VARCHAR(300),
+        naics VARCHAR(50),
+        psc VARCHAR(50),
+        set_aside VARCHAR(100),
+        notice_type VARCHAR(100),
+        posted_date DATE,
+        response_deadline DATE,
+        url TEXT,
+        dossier JSONB DEFAULT '{}',
+        status VARCHAR(30) NOT NULL DEFAULT 'tracking',
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW(),
+        UNIQUE (org_id, notice_id)
+      )
+    `);
+    await db.execute(sql`CREATE INDEX IF NOT EXISTS "IDX_fedcon_opps_org" ON bccs_fedcon_opportunities (org_id, status)`);
+
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS bccs_fedcon_awards (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        org_id VARCHAR(200) NOT NULL,
+        award_key VARCHAR(300) NOT NULL,
+        piid VARCHAR(200),
+        generated_award_id VARCHAR(200),
+        vendor_name VARCHAR(300),
+        vendor_uei VARCHAR(50),
+        agency VARCHAR(300),
+        naics VARCHAR(50),
+        award_amount NUMERIC,
+        start_date DATE,
+        end_date DATE,
+        modification_count INTEGER,
+        dossier JSONB DEFAULT '{}',
+        risk_flags JSONB DEFAULT '[]',
+        risk_score INTEGER DEFAULT 0,
+        risk_tier VARCHAR(20) DEFAULT 'low',
+        last_checked TIMESTAMP,
+        created_at TIMESTAMP DEFAULT NOW(),
+        UNIQUE (org_id, award_key)
+      )
+    `);
+    await db.execute(sql`CREATE INDEX IF NOT EXISTS "IDX_fedcon_awards_org" ON bccs_fedcon_awards (org_id)`);
+
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS bccs_fedcon_evidence (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        org_id VARCHAR(200) NOT NULL,
+        subject_type VARCHAR(30) NOT NULL,
+        subject_id VARCHAR(300) NOT NULL,
+        entry_type VARCHAR(20) NOT NULL DEFAULT 'fact',
+        content TEXT NOT NULL,
+        source_ref TEXT,
+        created_by VARCHAR(200),
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    await db.execute(sql`CREATE INDEX IF NOT EXISTS "IDX_fedcon_evidence_org_subject" ON bccs_fedcon_evidence (org_id, subject_type, subject_id)`);
+
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS bccs_fedcon_checklist (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        org_id VARCHAR(200) NOT NULL,
+        subject_type VARCHAR(30) NOT NULL,
+        subject_id VARCHAR(300) NOT NULL,
+        item_key VARCHAR(100) NOT NULL,
+        label TEXT NOT NULL,
+        status VARCHAR(20) NOT NULL DEFAULT 'not_started',
+        note TEXT,
+        updated_by VARCHAR(200),
+        updated_at TIMESTAMP DEFAULT NOW(),
+        UNIQUE (org_id, subject_type, subject_id, item_key)
+      )
+    `);
+
     // Seed governance demo data (policies, prior decisions, agent activity)
     await seedGovernanceData();
 

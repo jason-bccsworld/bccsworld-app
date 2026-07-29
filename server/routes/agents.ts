@@ -17,6 +17,7 @@ import { faaDocumentMonitor } from "../services/faa-document-monitor";
 import { linkMonitoringService } from "../services/link-monitor";
 import { runComplianceWatchdog } from "../services/compliance-watchdog";
 import { runAuditReadiness } from "../services/audit-readiness";
+import { runFederalContractsMonitor } from "../services/federal-contracts-monitor";
 
 const router = Router();
 
@@ -159,6 +160,9 @@ router.post("/:id/run", isAuthenticated, async (req, res) => {
         break;
       case "audit-readiness":
         await runAuditReadiness(orgId);
+        break;
+      case "federal-contracts-monitor":
+        await runFederalContractsMonitor(orgId);
         break;
       default:
         throw new Error(`No runner wired for agent ${agent.id}`);
