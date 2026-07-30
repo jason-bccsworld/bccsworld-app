@@ -26,3 +26,6 @@ Any server started in a bash tool call is killed when that invocation ends — a
 **Why:** E2E-testing a temp server (`npx tsx server/index.ts` on a spare port) only worked when start, curl checks, and kill were chained in ONE bash command.
 
 **How to apply:** For temp-server E2E tests, do `start & sleep, curl..., kill` in a single invocation. For the dev workflow, code edits don't hot-reload the tsx server — call restart_workflow explicitly before re-testing.
+
+## Vitest vs vite.config.ts
+The project's vite.config.ts sets `root: client/`, so running vitest without its own config resolves to the client root and finds no server tests. A root-level `vitest.config.ts` (environment: node, include server/**/*.test.ts) exists for `npm test` — keep it.

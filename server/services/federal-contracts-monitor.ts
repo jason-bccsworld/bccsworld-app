@@ -48,7 +48,7 @@ interface RiskFlag {
   detail?: Record<string, unknown>;
 }
 
-const RUBRIC = {
+export const RUBRIC = {
   activeExclusion: { points: 10, veto: true },          // §7.3 active SAM exclusion/debarment
   heavyEarlyModifications: { points: 5, veto: false },  // §Red flags: heavily modified soon after award
   manyModifications: { points: 4, veto: false },        // repeated scope creep signal
@@ -57,7 +57,7 @@ const RUBRIC = {
   setAsideAffiliationRisk: { points: 7, veto: false },  // §7.1 set-aside affiliation risk
 } as const;
 
-function tierFor(score: number, hasVeto: boolean): "low" | "moderate" | "high" | "critical" {
+export function tierFor(score: number, hasVeto: boolean): "low" | "moderate" | "high" | "critical" {
   if (hasVeto || score >= 61) return "critical";
   if (score >= 36) return "high";
   if (score >= 16) return "moderate";
@@ -84,7 +84,7 @@ const MANUAL_CHECKLIST: { key: string; label: string }[] = [
 
 /* ── Findings plumbing (compliance-watchdog pattern) ─────────────────────── */
 
-interface Candidate {
+export interface Candidate {
   findingType: string;
   severity: string;
   title: string;
@@ -99,7 +99,7 @@ interface Candidate {
  * per-run caps produce no coverage — their findings are preserved, never
  * silently closed.
  */
-function coverageKeyFor(findingType: string, relatedRecordId: string): string | null {
+export function coverageKeyFor(findingType: string, relatedRecordId: string): string | null {
   switch (findingType) {
     case "vendor_excluded": return `excl|${relatedRecordId}`;
     case "vendor_risk_tier": return `vendor|${relatedRecordId}`;
@@ -111,7 +111,7 @@ function coverageKeyFor(findingType: string, relatedRecordId: string): string | 
   }
 }
 
-async function reconcileFindings(orgId: string, candidatesIn: Candidate[], coverage: Set<string>): Promise<{ created: number; resolved: number }> {
+export async function reconcileFindings(orgId: string, candidatesIn: Candidate[], coverage: Set<string>): Promise<{ created: number; resolved: number }> {
   let candidates = candidatesIn;
   // In-run dedupe: the same award can surface via both a vendor watch and a
   // contract watch — keep only the first candidate per findingType|record key.
@@ -241,7 +241,7 @@ async function upsertAward(orgId: string, awardKey: string, a: UsaAward, mods: {
   `);
 }
 
-async function patrolOrg(orgId: string): Promise<PatrolResult> {
+export async function patrolOrg(orgId: string): Promise<PatrolResult> {
   const skipped: SkippedCheck[] = [];
   const candidates: Candidate[] = [];
   const coverage = new Set<string>();
