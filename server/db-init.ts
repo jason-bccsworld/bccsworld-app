@@ -577,6 +577,19 @@ export async function ensureTables(): Promise<void> {
       )
     `);
 
+    // Per-org email alert settings (critical-finding notifications).
+    // Guarded per-org: one row per org; absence of a row means defaults apply
+    // (alerts enabled, recipients = org admins only).
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS bccs_email_alert_settings (
+        org_id VARCHAR(200) PRIMARY KEY,
+        critical_findings_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+        extra_recipients JSONB NOT NULL DEFAULT '[]'::jsonb,
+        updated_by VARCHAR(200),
+        updated_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+
     // Seed governance demo data (policies, prior decisions, agent activity)
     await seedGovernanceData();
 

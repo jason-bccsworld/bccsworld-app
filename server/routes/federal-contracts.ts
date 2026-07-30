@@ -12,7 +12,8 @@ import { Router } from "express";
 import { db } from "../db";
 import { sql } from "drizzle-orm";
 import { isAuthenticated } from "../localAuth";
-import { requireOrg } from "../middleware/tenant";
+import { requireOrg, isPlatformStaff } from "../middleware/tenant";
+import { getEmailAlertSettings } from "../services/email-alerts";
 
 const router = Router();
 
@@ -21,6 +22,55 @@ function isViewer(req: any): boolean {
 }
 
 const WATCH_KINDS = ["agency", "naics", "keyword", "vendor", "vendor_uei", "contract"];
+
+function isAdmin(req: any): boolean {
+  return (req.user?.role || "viewer") === "admin" || isPlatformStaff(req.user?.email);
+}
+
+/* ── Email alert settings (critical-finding notifications, per-org) ──────── */
+
+router.get("/email-alerts", isAuthenticated, async (req, res) => {
+  const orgId = requireOrg(req, res);
+  if (!orgId) return;
+  if (!isAdmin(req)) return res.status(403).json({ message: "Only admins can view email alert settings." });
+  res.json(await getEmailAlertSettings(orgId));
+});
+
+router.put("/email-alerts", isAuthenticated, async (req, res) => {
+  const orgId = requireOrg(req, res);
+  if (!orgId) return;
+  if (!isAdmin(req)) return res.status(403).json({ message: "Only admins can change email alert settings." });
+  const { criticalFindingsEnabled, extraRecipients } = req.body ?? {};
+  if (typeof criticalFindingsEnabled !== "boolean") {
+    return res.status(400).json({ message: "criticalFindingsEnabled must be a boolean" });
+  }
+  const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const extras: string[] = Array.isArray(extraRecipients) ? extraRecipients : [];
+  if (extras.length > 20) return res.status(400).json({ message: "At most 20 extra recipients allowed" });
+  const cleaned: string[] = [];
+  for (const raw of extras) {
+    const email = typeof raw === "string" ? raw.trim().toLowerCase() : "";
+    if (!emailRe.test(email) || email.length > 255) {
+      return res.status(400).json({ message: `Invalid recipient email: ${String(raw).slice(0, 100)}` });
+    }
+    // Staff-domain addresses are reserved — non-staff users cannot route alerts to them.
+    if (isPlatformStaff(email) && !isPlatformStaff((req.user as any)?.email)) {
+      return res.status(403).json({ message: "Staff-domain email addresses cannot be added as recipients." });
+    }
+    if (!cleaned.includes(email)) cleaned.push(email);
+  }
+  const user = req.user as any;
+  await db.execute(sql`
+    INSERT INTO bccs_email_alert_settings (org_id, critical_findings_enabled, extra_recipients, updated_by, updated_at)
+    VALUES (${orgId}, ${criticalFindingsEnabled}, ${JSON.stringify(cleaned)}::jsonb, ${user?.email ?? null}, NOW())
+    ON CONFLICT (org_id) DO UPDATE SET
+      critical_findings_enabled = EXCLUDED.critical_findings_enabled,
+      extra_recipients = EXCLUDED.extra_recipients,
+      updated_by = EXCLUDED.updated_by,
+      updated_at = NOW()
+  `);
+  res.json(await getEmailAlertSettings(orgId));
+});
 
 /* ── Watchlist ───────────────────────────────────────────────────────────── */
 

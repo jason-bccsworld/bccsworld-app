@@ -4,4 +4,5 @@
 - [Tenant context pattern](tenant-context.md) — req.orgId from resolveTenant is the tenant seam; null means deny; staff = email-domain check, guard every email-setting route.
 - [Dev environment quirks](dev-environment-quirks.md) — app runs on NEON_DATABASE_URL (local DATABASE_URL is a stale separate DB); unmatched /api methods hit the SPA catch-all and return 200 HTML.
 - [Federal contract data APIs](fedcon-external-apis.md) — USAspending NAICS is an object not a string; SAM.gov checks without a key must surface as "skipped"; risk scoring stays in code, never the LLM.
+- [Email alert delivery](email-alerts.md) — no transactional-email integration exists here; alerts use SMTP env vars and must surface skips (unconfigured/disabled/no recipients), never drop silently.
 - [Lockfile portability](lockfile-portability.md) — Replit lockfiles can contain package-firewall.replit.local URLs that break npm on external CI; rewrite to registry.npmjs.org.

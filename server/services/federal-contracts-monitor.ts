@@ -21,6 +21,7 @@ import OpenAI from "openai";
 import { db } from "../db";
 import { sql } from "drizzle-orm";
 import { startRun, finishRun, emitAgentEvent } from "./agent-registry";
+import { notifyCriticalFindings } from "./email-alerts";
 import {
   samKeyAvailable,
   searchSamOpportunities,
@@ -111,7 +112,7 @@ export function coverageKeyFor(findingType: string, relatedRecordId: string): st
   }
 }
 
-export async function reconcileFindings(orgId: string, candidatesIn: Candidate[], coverage: Set<string>): Promise<{ created: number; resolved: number }> {
+export async function reconcileFindings(orgId: string, candidatesIn: Candidate[], coverage: Set<string>): Promise<{ created: number; resolved: number; createdCritical: Candidate[] }> {
   let candidates = candidatesIn;
   // In-run dedupe: the same award can surface via both a vendor watch and a
   // contract watch — keep only the first candidate per findingType|record key.
@@ -137,6 +138,7 @@ export async function reconcileFindings(orgId: string, candidatesIn: Candidate[]
   );
 
   let created = 0;
+  const createdCritical: Candidate[] = [];
   for (const c of candidates) {
     const existing = openByKey.get(`${c.findingType}|${c.relatedRecordId}`);
     if (existing) {
@@ -154,6 +156,7 @@ export async function reconcileFindings(orgId: string, candidatesIn: Candidate[]
       VALUES (${AGENT_ID}, ${orgId}, ${c.findingType}, ${c.severity}, ${c.title}, ${JSON.stringify(c.detail)}::jsonb, ${c.relatedRecordId})
     `);
     created++;
+    if (c.severity === "critical") createdCritical.push(c);
   }
 
   let resolved = 0;
@@ -164,7 +167,7 @@ export async function reconcileFindings(orgId: string, candidatesIn: Candidate[]
     await db.execute(sql`UPDATE bccs_agent_findings SET status = 'resolved' WHERE id = ${row.id}`);
     resolved++;
   }
-  return { created, resolved };
+  return { created, resolved, createdCritical };
 }
 
 /* ── LLM enrichment: research-template dossier from raw notice text ───────── */
@@ -499,7 +502,23 @@ export async function patrolOrg(orgId: string): Promise<PatrolResult> {
     }
   }
 
-  const { created, resolved } = await reconcileFindings(orgId, candidates, coverage);
+  const { created, resolved, createdCritical } = await reconcileFindings(orgId, candidates, coverage);
+
+  // Time-sensitive risk: email org admins the moment a critical finding is
+  // raised. Any skip/failure reason is surfaced as a skipped check.
+  if (createdCritical.length > 0) {
+    try {
+      const emailSkipReason = await notifyCriticalFindings(
+        orgId,
+        AGENT_NAME,
+        createdCritical.map((c) => ({ title: c.title, findingType: c.findingType, detail: c.detail })),
+      );
+      if (emailSkipReason) skipped.push({ check: "critical_email_alert", reason: emailSkipReason });
+    } catch (err: any) {
+      skipped.push({ check: "critical_email_alert", reason: `Email alert failed: ${err?.message ?? String(err)}` });
+    }
+  }
+
   return { itemsScanned, newFindings: created, autoResolved: resolved, skippedChecks: skipped };
 }
 
