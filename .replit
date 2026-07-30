@@ -54,3 +54,7 @@ ADMIN_EMAIL = "tom@bccsworld.com"
 
 [userenv.development]
 MULTI_TENANT = "true"
+
+[postMerge]
+path = "scripts/post-merge.sh"
+timeoutMs = 180000
