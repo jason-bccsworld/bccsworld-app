@@ -18,6 +18,7 @@ import { linkMonitoringService } from "../services/link-monitor";
 import { runComplianceWatchdog } from "../services/compliance-watchdog";
 import { runAuditReadiness } from "../services/audit-readiness";
 import { runFederalContractsMonitor } from "../services/federal-contracts-monitor";
+import { samKeyAvailable } from "../services/fedcon-data";
 
 const router = Router();
 
@@ -72,7 +73,13 @@ router.get("/", isAuthenticated, async (req, res) => {
     };
   });
 
-  res.json({ agents: roster, runsLast24h: activity24h });
+  res.json({
+    agents: roster,
+    runsLast24h: activity24h,
+    // When SAM_GOV_API_KEY is absent, exclusion/debarment checks and
+    // opportunity watch are skipped — the Command Center surfaces this.
+    samGovConfigured: samKeyAvailable(),
+  });
 });
 
 // ── Findings (must be declared before /:id routes) ──────────────────────────

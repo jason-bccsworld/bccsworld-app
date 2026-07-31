@@ -280,6 +280,40 @@ export default function AgentsCommandCenter() {
         </p>
       </div>
 
+      {!isLoading && data?.samGovConfigured === false && (
+        <div
+          className="flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 p-4"
+          data-testid="banner-samgov-warning"
+        >
+          <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+          <div className="text-sm">
+            <p className="font-semibold text-amber-900">
+              SAM.gov checks are being skipped — no API key configured
+            </p>
+            <p className="text-amber-800 mt-1">
+              Without a SAM_GOV_API_KEY, the Federal Contracts Monitor skips exclusion/debarment
+              checks and contract opportunity watch. Vendor risk scores may be missing these two
+              critical federal checks.
+            </p>
+            <p className="text-amber-800 mt-1">
+              Get a free Public API Key from your{" "}
+              <a
+                href="https://sam.gov/profile/details"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-medium underline hover:text-amber-900"
+                data-testid="link-samgov-key-instructions"
+              >
+                SAM.gov account details page
+              </a>{" "}
+              (sign in, then request a Public API Key under &ldquo;API Keys&rdquo;), and add it as
+              the <code className="font-mono text-xs bg-amber-100 px-1 py-0.5 rounded">SAM_GOV_API_KEY</code>{" "}
+              secret. This warning disappears once the key is in place.
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4" data-testid="kpi-strip">
         {kpis.map((k) => {
           const Icon = k.icon;

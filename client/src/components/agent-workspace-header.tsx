@@ -35,6 +35,7 @@ export interface AgentInfo {
 export interface AgentRoster {
   agents: AgentInfo[];
   runsLast24h: number;
+  samGovConfigured?: boolean;
 }
 
 export function timeAgo(iso: string | null | undefined): string {
