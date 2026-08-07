@@ -105,7 +105,7 @@ async function ensureTrainingEventTemplate(orgId: string): Promise<void> {
       'Training Event',
       'Log a completed training event. Submissions are recorded as official training records, cryptographically signed when an org key exists, and tracked by the audit agents.',
       ${JSON.stringify(TRAINING_EVENT_FIELDS)}::jsonb,
-      'active', ${generateToken()}, false, ${TRAINING_EVENT_MARKER}, ${orgId}, 'system'
+      'active', ${generateToken()}, true, ${TRAINING_EVENT_MARKER}, ${orgId}, 'system'
     )
   `);
 }
