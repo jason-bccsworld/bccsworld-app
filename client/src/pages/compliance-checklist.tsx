@@ -369,7 +369,7 @@ export default function ComplianceChecklist() {
 
   const handleImportFile = (file: File) => {
     const ext = file.name.toLowerCase().split('.').pop() || '';
-    if (['xlsx', 'csv'].includes(ext)) {
+    if (['xlsx', 'xls', 'csv'].includes(ext)) {
       // Spreadsheets are parsed server-side
       importFileMutation.mutate(file);
       return;
@@ -934,7 +934,7 @@ export default function ComplianceChecklist() {
           <DialogHeader>
             <DialogTitle>Import Checklist</DialogTitle>
             <DialogDescription>
-              Upload an Excel (.xlsx) or CSV file with columns for item number, description, reference, and area — or paste
+              Upload an Excel (.xlsx or .xls) or CSV file with columns for item number, description, reference, and area — or paste
               checklist items below, one per line:{' '}
               <code className="text-xs bg-gray-100 px-1 rounded">number | description | reference | area name</code>.
               Importing <strong>replaces</strong> your organization's current checklist (including statuses and AI findings).
@@ -944,7 +944,7 @@ export default function ComplianceChecklist() {
             <div className="flex items-center gap-2">
               <input
                 type="file"
-                accept=".txt,.csv,.xlsx"
+                accept=".txt,.csv,.xlsx,.xls"
                 onChange={(e) => {
                   const f = e.target.files?.[0];
                   if (f) handleImportFile(f);

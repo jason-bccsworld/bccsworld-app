@@ -7,4 +7,5 @@
 - [Email alert delivery](email-alerts.md) — no transactional-email integration exists here; alerts use SMTP env vars and must surface skips (unconfigured/disabled/no recipients), never drop silently.
 - [Typecheck & review standards](typecheck-review-standards.md) — tsc must stay at 0 errors; review rejects suppression fixes (Response casts, storage-as-any, unscoped tenant routes).
 - [PGlite for raw-SQL tests](pglite-sql-tests.md) — never mock-route raw sweep SQL in tests; run it on in-process PGlite so query regressions actually fail.
+- [SheetJS for legacy .xls](sheetjs-xls-parsing.md) — npm `xlsx` is abandoned/vulnerable; use the cdn.sheetjs.com tarball and keep conversion containment bounds.
 - [Lockfile portability](lockfile-portability.md) — Replit lockfiles can contain package-firewall.replit.local URLs that break npm on external CI; rewrite to registry.npmjs.org.

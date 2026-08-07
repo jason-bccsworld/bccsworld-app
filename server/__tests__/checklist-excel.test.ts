@@ -60,6 +60,42 @@ describe("parseChecklistWorkbook", () => {
     await expect(parseChecklistWorkbook(Buffer.from("not a zip"), "fake.xlsx")).rejects.toThrow(/could not be read/i);
   });
 
+  it("parses legacy binary .xls files (BIFF) like .xlsx", async () => {
+    const XLSX = await import("xlsx");
+    const ws = XLSX.utils.aoa_to_sheet([
+      ["Item Number", "Description", "Reference", "Area"],
+      ["1-01", "Has enough instructors?", "142.13(a)", "Management"],
+      ["2-01", "Tspecs current?", "142.5(c)", "Training Specs"],
+    ]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Checklist");
+    const buf = XLSX.write(wb, { type: "buffer", bookType: "xls" }) as Buffer; // real BIFF8 bytes
+    expect(buf.slice(0, 4).equals(Buffer.from([0xd0, 0xcf, 0x11, 0xe0]))).toBe(true); // CFB magic, not a zip
+    const items = await parseChecklistWorkbook(buf, "legacy.xls");
+    expect(items).toHaveLength(2);
+    expect(items[0]).toEqual({ number: "1-01", description: "Has enough instructors?", reference: "142.13(a)", areaName: "Management" });
+    expect(items[1].areaName).toBe("Training Specs");
+  });
+
+  it("rejects a garbage file with a .xls extension", async () => {
+    await expect(parseChecklistWorkbook(Buffer.from("definitely not BIFF"), "fake.xls")).rejects.toThrow(/could not be read/i);
+  });
+
+  it("rejects a malformed CFB container (valid magic, garbage body)", async () => {
+    const evil = Buffer.concat([Buffer.from([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1]), Buffer.alloc(4096, 0x41)]);
+    await expect(parseChecklistWorkbook(evil, "evil.xls")).rejects.toThrow(/could not be read/i);
+  });
+
+  it("rejects an .xls exceeding the hard parse row limit instead of exhausting resources", async () => {
+    const XLSX = await import("xlsx");
+    const rows: any[][] = [["Description"]];
+    for (let i = 0; i <= MAX_PARSE_ROWS; i++) rows.push([`row ${i}`]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), "S");
+    const buf = XLSX.write(wb, { type: "buffer", bookType: "xls" }) as Buffer;
+    await expect(parseChecklistWorkbook(buf, "huge.xls")).rejects.toThrow(/too large/i);
+  });
+
   it("parses CSV files", async () => {
     const csv = Buffer.from("Number,Description,Reference,Area\n1-01,Item one,142.1,Area A\n1-02,Item two,,Area B\n");
     const items = await parseChecklistWorkbook(csv, "checklist.csv");

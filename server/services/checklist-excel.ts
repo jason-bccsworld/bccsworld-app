@@ -1,7 +1,8 @@
 /**
  * Excel (.xlsx/.xls/.csv) support for the Part 142 Checklist Report:
  * - parseChecklistWorkbook: read an uploaded workbook/CSV into import items
- *   with flexible header detection.
+ *   with flexible header detection. Legacy binary .xls (BIFF) files are
+ *   converted to .xlsx in-memory via SheetJS before parsing.
  * - buildChecklistWorkbook: produce the auditor .xlsx report (summary sheet +
  *   one sheet per checklist area).
  *
@@ -87,10 +88,41 @@ async function assertZipWithinBounds(buffer: Buffer): Promise<void> {
   }
 }
 
+/**
+ * Convert a legacy binary .xls (BIFF) workbook into an .xlsx buffer using
+ * SheetJS, so the rest of the pipeline (ExcelJS parsing, header detection,
+ * bounds) applies unchanged. Throws when the buffer is not a readable .xls.
+ */
+async function convertXlsToXlsx(buffer: Buffer): Promise<Buffer> {
+  // Require the CFB container magic (D0 CF 11 E0) so SheetJS's lenient
+  // plain-text fallback cannot silently accept a non-spreadsheet file.
+  if (buffer.length < 8 || !buffer.subarray(0, 4).equals(Buffer.from([0xd0, 0xcf, 0x11, 0xe0]))) {
+    throw new Error("not a legacy .xls (CFB) file");
+  }
+  const XLSX = await import("xlsx");
+  // sheetRows bounds how much row data SheetJS materializes from a hostile
+  // BIFF stream; one row past MAX_PARSE_ROWS so the standard "too large"
+  // rejection still triggers downstream instead of silently truncating.
+  const legacy = XLSX.read(buffer, { type: "buffer", dense: true, sheetRows: MAX_PARSE_ROWS + 1 });
+  if (!legacy.SheetNames.length) throw new Error("empty .xls workbook");
+  const out = XLSX.write(legacy, { type: "buffer", bookType: "xlsx", compression: true }) as Buffer;
+  if (out.length > MAX_UNCOMPRESSED_BYTES) {
+    throw new Error("This spreadsheet expands to an unreasonably large size and cannot be processed.");
+  }
+  return out;
+}
+
 async function readWorkbook(buffer: Buffer, filename: string): Promise<ExcelJS.Workbook> {
   const workbook = new ExcelJS.Workbook();
   if (/\.csv$/i.test(filename)) {
     await workbook.csv.read(Readable.from(buffer));
+  } else if (/\.xls$/i.test(filename)) {
+    // Legacy BIFF: convert to OOXML in-memory, then load normally. The
+    // converted archive is still derived entirely from hostile input, so it
+    // goes through the same zip-expansion guard as a direct .xlsx upload.
+    const converted = await convertXlsToXlsx(buffer);
+    await assertZipWithinBounds(converted);
+    await workbook.xlsx.load(converted as any);
   } else {
     await assertZipWithinBounds(buffer);
     await workbook.xlsx.load(buffer as any);
@@ -109,7 +141,7 @@ export async function parseChecklistWorkbook(buffer: Buffer, filename: string): 
     workbook = await readWorkbook(buffer, filename);
   } catch (err: any) {
     if (/unreasonably large/.test(String(err?.message))) throw err;
-    throw new Error("This file could not be read as a spreadsheet. Please upload a valid .xlsx or .csv file.");
+    throw new Error("This file could not be read as a spreadsheet. Please upload a valid .xlsx, .xls, or .csv file.");
   }
   const sheet = workbook.worksheets[0];
   if (!sheet || sheet.rowCount === 0) {

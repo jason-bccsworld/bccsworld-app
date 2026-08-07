@@ -446,10 +446,10 @@ router.post("/import-file", isAuthenticated, requireAdmin, upload.single("file")
     if (!orgId) return;
     if (!req.file) return res.status(400).json({ message: "No file uploaded" });
     const ext = path.extname(req.file.originalname).toLowerCase();
-    // Note: legacy binary .xls is NOT supported (ExcelJS reads OOXML only) —
-    // do not add it here or in the UI without a real BIFF parser.
-    if (![".xlsx", ".csv"].includes(ext)) {
-      return res.status(400).json({ message: "Unsupported file type. Please upload an Excel (.xlsx) or CSV file. Legacy .xls files should be re-saved as .xlsx first." });
+    // Legacy binary .xls is parsed via SheetJS (converted to .xlsx in-memory)
+    // inside parseChecklistWorkbook.
+    if (![".xlsx", ".xls", ".csv"].includes(ext)) {
+      return res.status(400).json({ message: "Unsupported file type. Please upload an Excel (.xlsx or .xls) or CSV file." });
     }
     let items: ImportedItem[];
     try {
