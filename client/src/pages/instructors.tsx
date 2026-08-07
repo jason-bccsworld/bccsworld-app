@@ -126,6 +126,23 @@ export default function Instructors() {
     return differenceInDays(new Date(i.expiration_date), new Date()) <= 90;
   });
 
+  // Portal keys expiring within 14 days (or already expired) — join with instructor names
+  const instructorById = new Map(instructors.map((i: any) => [i.id, i]));
+  const keyAlerts = keys
+    .filter((k: any) => k.expires_at)
+    .map((k: any) => ({ ...k, daysLeft: differenceInDays(new Date(k.expires_at), new Date()) }))
+    .filter((k: any) => k.daysLeft <= 14)
+    .map((k: any) => {
+      const inst = instructorById.get(k.instructor_id);
+      return {
+        ...k,
+        name: inst ? `${inst.first_name} ${inst.last_name}` : "Unknown instructor",
+      };
+    })
+    .sort((a: any, b: any) => a.daysLeft - b.daysLeft);
+  const expiredKeys = keyAlerts.filter((k: any) => k.daysLeft < 0);
+  const expiringKeys = keyAlerts.filter((k: any) => k.daysLeft >= 0);
+
   return (
     <div className="space-y-6">
       <AgentWorkspaceHeader agentId="compliance-watchdog" />
@@ -148,6 +165,41 @@ export default function Instructors() {
             <p className="text-sm text-amber-700 mt-0.5">
               {expiringSoon.map(i => `${i.first_name} ${i.last_name} (${i.certificate_type})`).join(", ")}
             </p>
+          </div>
+        </div>
+      )}
+
+      {/* Portal key expiry alerts */}
+      {keyAlerts.length > 0 && (
+        <div className={`${expiredKeys.length > 0 ? "bg-red-50 border-red-200" : "bg-amber-50 border-amber-200"} border rounded-lg p-4 flex items-start gap-3`} data-testid="alert-key-expiry">
+          <KeyRound className={`h-5 w-5 ${expiredKeys.length > 0 ? "text-red-500" : "text-amber-500"} mt-0.5 flex-shrink-0`} />
+          <div className="flex-1">
+            <p className={`font-medium ${expiredKeys.length > 0 ? "text-red-800" : "text-amber-800"}`}>
+              {expiredKeys.length > 0 && `${expiredKeys.length} instructor portal key${expiredKeys.length > 1 ? "s have" : " has"} expired`}
+              {expiredKeys.length > 0 && expiringKeys.length > 0 && " · "}
+              {expiringKeys.length > 0 && `${expiringKeys.length} portal key${expiringKeys.length > 1 ? "s" : ""} expiring within 14 days`}
+            </p>
+            <ul className={`text-sm mt-1 space-y-1 ${expiredKeys.length > 0 ? "text-red-700" : "text-amber-700"}`}>
+              {keyAlerts.map((k: any) => (
+                <li key={k.instructor_id} className="flex items-center gap-2">
+                  <span>
+                    {k.name} — {k.daysLeft < 0
+                      ? `expired ${format(new Date(k.expires_at), "MMM d, yyyy")}`
+                      : k.daysLeft === 0
+                        ? "expires today"
+                        : `expires in ${k.daysLeft} day${k.daysLeft > 1 ? "s" : ""} (${format(new Date(k.expires_at), "MMM d, yyyy")})`}
+                  </span>
+                  <Button
+                    variant="outline" size="sm" className="h-6 px-2 text-xs"
+                    disabled={renewKeyMutation.isPending}
+                    onClick={() => renewKeyMutation.mutate(k.instructor_id)}
+                    data-testid={`button-renew-key-${k.instructor_id}`}
+                  >
+                    <RefreshCw className="h-3 w-3 mr-1" /> Renew 90 days
+                  </Button>
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
       )}
