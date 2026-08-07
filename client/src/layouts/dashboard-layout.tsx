@@ -38,6 +38,7 @@ import { useLicense } from '@/hooks/useLicense';
 import { useAuth } from '@/hooks/useAuth';
 import OrgSwitcher from '@/components/org-switcher';
 import TrialStatusBanner from '@/components/trial-status-banner';
+import { WelcomeOnboardingDialog } from '@/components/welcome-onboarding';
 import type { PlanFeatures } from '../../../shared/license';
 
 interface DashboardLayoutProps {
@@ -117,6 +118,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
   return (
     <div className="dashboard-layout-new">
+      {/* Welcome guide for new admins — shown regardless of landing page */}
+      <WelcomeOnboardingDialog />
       {/* Sidebar */}
       <div className="w-64 bg-slate-900 text-white flex flex-col h-screen">
         {/* Header */}
