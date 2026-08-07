@@ -159,7 +159,7 @@ export default function Login() {
                   <Link href="/signup" className="text-blue-400 hover:text-blue-300 font-medium">
                     Create your organization
                   </Link>{" "}
-                  — free 30-day trial
+                  — free 30-day trial, then invite your team
                 </p>
               ) : (
                 <p className="text-xs text-slate-500 text-center">

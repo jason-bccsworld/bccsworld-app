@@ -145,7 +145,7 @@ export default function Signup() {
               Create Organization
             </CardTitle>
             <CardDescription className="text-slate-400">
-              Starts with a free 30-day trial — you'll be the first administrator
+              Starts with a free 30-day trial — you'll be the first administrator and can invite your team
             </CardDescription>
           </CardHeader>
           <CardContent>

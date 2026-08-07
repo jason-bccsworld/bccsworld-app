@@ -114,6 +114,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ── Self-Serve Organization Signup (multi-tenant mode only) ─────────────
+  // POLICY DECISION (2026-08-07): Self-serve signup is the intended customer
+  // onboarding path and is retained as a documented, deliberate exception to
+  // the rule that only platform SuperAdmins can create organizations via the
+  // Command Center.  Specifically:
+  //   • Any external customer can create their own organization through
+  //     POST /api/signup.  They become the first org admin automatically.
+  //   • @bccsworld.com (platform staff) addresses are explicitly blocked from
+  //     this route — staff orgs must be created through the SuperAdmin UI.
+  //   • Once their org exists, the self-serve admin can invite the rest of
+  //     their team via POST /api/admin/users/invite.
+  //   • All new self-serve orgs start on a 30-day Trial license (5 seats).
+  //
   // Creates the organization, its first admin account, the admin's membership,
   // and a 30-day Trial license in one transaction, then generates the org's
   // Ed25519 signing key and logs the new admin in on a fresh session.
