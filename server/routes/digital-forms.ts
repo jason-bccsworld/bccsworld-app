@@ -4,6 +4,7 @@ import { digitalFormTemplates, digitalFormSubmissions } from "@shared/schema";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { isAuthenticated } from "../localAuth";
 import { requireOrg } from "../middleware/tenant";
+import { queueAuditReadinessRefresh } from "../services/audit-readiness";
 import crypto from "crypto";
 import OpenAI from "openai";
 
@@ -71,6 +72,122 @@ async function ensureTables() {
   await db.execute(sql`ALTER TABLE digital_form_submissions ADD COLUMN IF NOT EXISTS submitter_name VARCHAR(200)`);
   await db.execute(sql`ALTER TABLE digital_form_submissions ADD COLUMN IF NOT EXISTS submitter_email VARCHAR(300)`);
   await db.execute(sql`ALTER TABLE digital_form_submissions ADD COLUMN IF NOT EXISTS organization_id UUID`);
+  // Provenance link: submissions of the system Training Event template create a training record
+  await db.execute(sql`ALTER TABLE digital_form_submissions ADD COLUMN IF NOT EXISTS training_event_id UUID`);
+}
+
+// ── System "Training Event" form template ──────────────────────────────────
+// Every org gets a built-in Training Event template. Submissions of this
+// template are ingested straight into bccs_training_events so they are
+// signed, counted, and monitored by the audit agents like any other record.
+const TRAINING_EVENT_MARKER = "system:training-event";
+
+const TRAINING_EVENT_FIELDS = [
+  { id: "student_name", label: "Student Name", type: "text", required: true, placeholder: "Full name" },
+  { id: "instructor_name", label: "Instructor Name", type: "text", required: true, placeholder: "Full name" },
+  { id: "event_type", label: "Event Type", type: "select", required: true, options: ["ground", "flight", "simulator", "check_ride", "evaluation", "proficiency_check", "recurrent"] },
+  { id: "event_date", label: "Event Date", type: "date", required: true },
+  { id: "duration_hours", label: "Duration (hours)", type: "number", required: false },
+  { id: "curriculum_item", label: "Curriculum Item", type: "text", required: false, placeholder: "e.g. Stage 2 — Instrument procedures" },
+  { id: "notes", label: "Notes", type: "textarea", required: false },
+];
+
+async function ensureTrainingEventTemplate(orgId: string): Promise<void> {
+  const existing = await db.execute(sql`
+    SELECT id FROM digital_form_templates
+    WHERE organization_id = ${orgId} AND generated_from_section = ${TRAINING_EVENT_MARKER} AND status = 'active'
+    LIMIT 1
+  `).then(r => (r as any).rows);
+  if (existing[0]) return;
+  await db.execute(sql`
+    INSERT INTO digital_form_templates (title, description, fields, status, public_token, is_public, generated_from_section, organization_id, created_by)
+    VALUES (
+      'Training Event',
+      'Log a completed training event. Submissions are recorded as official training records, cryptographically signed when an org key exists, and tracked by the audit agents.',
+      ${JSON.stringify(TRAINING_EVENT_FIELDS)}::jsonb,
+      'active', ${generateToken()}, false, ${TRAINING_EVENT_MARKER}, ${orgId}, 'system'
+    )
+  `);
+}
+
+function isTrainingEventTemplate(template: any): boolean {
+  const marker = template?.generatedFromSection ?? template?.generated_from_section;
+  return marker === TRAINING_EVENT_MARKER;
+}
+
+interface ParsedTrainingEventForm {
+  studentName: string;
+  instructorName: string;
+  eventType: string;
+  eventDate: Date;
+  durationHours: number | null;
+  curriculumItem: string | null;
+  notes: string | null;
+}
+
+/** Validate BEFORE anything is persisted — throws on invalid input. */
+function parseTrainingEventForm(formData: Record<string, any>): ParsedTrainingEventForm {
+  const studentName = String(formData?.student_name ?? "").trim();
+  const instructorName = String(formData?.instructor_name ?? "").trim();
+  const eventType = String(formData?.event_type ?? "").trim();
+  const eventDate = formData?.event_date ? new Date(formData.event_date) : null;
+  if (!studentName || !instructorName || !eventType || !eventDate || isNaN(eventDate.getTime())) {
+    throw new Error("Training Event form requires student name, instructor name, event type, and a valid date");
+  }
+  const durationHours = formData.duration_hours != null && formData.duration_hours !== "" ? Number(formData.duration_hours) : null;
+  if (durationHours != null && isNaN(durationHours)) throw new Error("Duration must be a number");
+  return {
+    studentName, instructorName, eventType, eventDate, durationHours,
+    curriculumItem: formData.curriculum_item || null,
+    notes: formData.notes || null,
+  };
+}
+
+/**
+ * Inside a transaction: create the official training record from a validated
+ * form and link it to the submission. Returns the new training event id.
+ */
+async function createTrainingEventFromForm(
+  tx: any,
+  submissionId: string,
+  orgId: string,
+  parsed: ParsedTrainingEventForm,
+  submittedBy: string,
+): Promise<string> {
+  // Link to roster records only on an unambiguous full-name match
+  const uniqueId = async (table: "students" | "bccs_instructor_records", name: string) => {
+    const rows = await tx.execute(sql`
+      SELECT id FROM ${sql.raw(table)}
+      WHERE organization_id = ${orgId}
+        AND LOWER(TRIM(first_name || ' ' || last_name)) = ${name.toLowerCase()}
+    `).then((r: any) => r.rows);
+    return rows.length === 1 ? rows[0].id : null;
+  };
+  const studentId = await uniqueId("students", parsed.studentName);
+  const instructorId = await uniqueId("bccs_instructor_records", parsed.instructorName);
+
+  const hash = `BCCS-${Date.now().toString(36).toUpperCase()}-${crypto.randomBytes(4).toString("hex").toUpperCase()}`;
+  const inserted = await tx.execute(sql`
+    INSERT INTO bccs_training_events (student_name, student_id, instructor_name, instructor_id, event_type, event_date, duration_hours, curriculum_item, notes, status, blockchain_hash, user_id, organization_id)
+    VALUES (${parsed.studentName}, ${studentId}, ${parsed.instructorName}, ${instructorId}, ${parsed.eventType}, ${parsed.eventDate}, ${parsed.durationHours}, ${parsed.curriculumItem}, ${parsed.notes}, 'completed', ${hash}, ${submittedBy}, ${orgId})
+    RETURNING id
+  `).then((r: any) => r.rows);
+  const eventId = inserted[0]?.id;
+  if (!eventId) throw new Error("Failed to create training record from form submission");
+
+  await tx.execute(sql`UPDATE digital_form_submissions SET training_event_id = ${eventId} WHERE id = ${submissionId}`);
+  return eventId;
+}
+
+/** Post-commit: auto-sign (non-fatal) and notify the audit agents. */
+async function afterTrainingEventCreated(eventId: string, orgId: string): Promise<void> {
+  try {
+    const { getOrgActiveKey, signTrainingRecord } = await import("../services/crypto-signing");
+    if (await getOrgActiveKey(orgId)) await signTrainingRecord(eventId, orgId);
+  } catch (signErr) {
+    console.warn("Form-submission auto-sign skipped:", (signErr as Error).message);
+  }
+  queueAuditReadinessRefresh(orgId, "training_event_form_submitted");
 }
 
 ensureTables().catch(console.error);
@@ -125,19 +242,39 @@ router.post("/public/:token/submit", async (req, res) => {
       return res.status(400).json({ message: "Form data is required" });
     }
 
-    const [submission] = await db
-      .insert(digitalFormSubmissions)
-      .values({
-        templateId: template.id,
-        templateTitle: template.title,
-        organizationName: template.organizationName,
-        organizationId: (template as any).organizationId ?? null,
-        submittedBy: submitterEmail || submitterName || "anonymous",
-        formData,
-        notes: notes || null,
-        status: "submitted",
-      } as any)
-      .returning();
+    const pubOrgId = (template as any).organizationId as string | null;
+
+    // Training Event forms: validate BEFORE anything is persisted
+    let parsed: ParsedTrainingEventForm | null = null;
+    if (pubOrgId && isTrainingEventTemplate(template)) {
+      try {
+        parsed = parseTrainingEventForm(formData);
+      } catch (validationErr) {
+        return res.status(400).json({ message: (validationErr as Error).message });
+      }
+    }
+
+    let eventId: string | null = null;
+    const submission = await db.transaction(async (tx) => {
+      const [sub] = await tx
+        .insert(digitalFormSubmissions)
+        .values({
+          templateId: template.id,
+          templateTitle: template.title,
+          organizationName: template.organizationName,
+          organizationId: pubOrgId,
+          submittedBy: submitterEmail || submitterName || "anonymous",
+          formData,
+          notes: notes || null,
+          status: "submitted",
+        } as any)
+        .returning();
+      if (parsed && pubOrgId) eventId = await createTrainingEventFromForm(tx, sub.id, pubOrgId, parsed, submitterEmail || submitterName || "public-form");
+      return sub;
+    });
+
+    if (eventId && pubOrgId) await afterTrainingEventCreated(eventId, pubOrgId);
+    else if (pubOrgId) queueAuditReadinessRefresh(pubOrgId, "public_form_submitted");
 
     res.status(201).json({ success: true, submissionId: submission.id });
   } catch (err) {
@@ -153,6 +290,7 @@ router.get("/templates", isAuthenticated, async (req, res) => {
   try {
     const orgId = requireOrg(req, res);
     if (!orgId) return;
+    await ensureTrainingEventTemplate(orgId).catch((err) => console.error("ensureTrainingEventTemplate failed:", err));
     const templates = await db
       .select()
       .from(digitalFormTemplates)
@@ -226,6 +364,17 @@ router.put("/templates/:id", isAuthenticated, async (req, res) => {
     if (!orgId) return;
     const { title, description, organizationName, faaSourceId, faaDocumentTitle, faaDocumentType, fields, isPublic } = req.body;
 
+    // The system Training Event template is locked: its structure feeds official
+    // training records, and it must never be exposed publicly.
+    const [existing] = await db
+      .select({ generatedFromSection: digitalFormTemplates.generatedFromSection })
+      .from(digitalFormTemplates)
+      .where(and(eq(digitalFormTemplates.id, req.params.id), eq(digitalFormTemplates.organizationId, orgId)));
+    if (!existing) return res.status(404).json({ message: "Template not found" });
+    if (isTrainingEventTemplate(existing)) {
+      return res.status(403).json({ message: "The built-in Training Event template cannot be edited" });
+    }
+
     const [updated] = await db
       .update(digitalFormTemplates)
       .set({
@@ -272,6 +421,14 @@ router.delete("/templates/:id", isAuthenticated, async (req, res) => {
   try {
     const orgId = requireOrg(req, res);
     if (!orgId) return;
+    const [existing] = await db
+      .select({ generatedFromSection: digitalFormTemplates.generatedFromSection })
+      .from(digitalFormTemplates)
+      .where(and(eq(digitalFormTemplates.id, req.params.id), eq(digitalFormTemplates.organizationId, orgId)));
+    if (!existing) return res.status(404).json({ message: "Template not found" });
+    if (isTrainingEventTemplate(existing)) {
+      return res.status(403).json({ message: "The built-in Training Event template cannot be archived" });
+    }
     const [archived] = await db
       .update(digitalFormTemplates)
       .set({ status: "archived" })
@@ -343,7 +500,7 @@ router.get("/submissions/export", isAuthenticated, async (req, res) => {
 
     const staticCols = ["id", "template_title", "organization_name", "submitted_by", "submitter_name", "submitter_email", "submitted_at", "status", "notes", "faa_source_id", "faa_document_title"];
     const header = [...staticCols, ...fieldKeys.map(k => `field_${k}`)].join(",");
-    const csvRows = rows.map(row => {
+    const csvRows = rows.map((row: any) => {
       const data = (row.form_data as Record<string, any>) || {};
       const staticVals = staticCols.map(c => escapeCSV((row as any)[c]));
       const fieldVals = fieldKeys.map(k => escapeCSV(data[k]));
@@ -386,25 +543,43 @@ router.post("/submissions", isAuthenticated, async (req, res) => {
 
     // The template being filled must belong to the active organization.
     const [template] = await db
-      .select({ id: digitalFormTemplates.id })
+      .select({ id: digitalFormTemplates.id, generatedFromSection: digitalFormTemplates.generatedFromSection })
       .from(digitalFormTemplates)
       .where(and(eq(digitalFormTemplates.id, templateId), eq(digitalFormTemplates.organizationId, orgId)));
     if (!template) return res.status(404).json({ message: "Template not found" });
 
-    const [submission] = await db
-      .insert(digitalFormSubmissions)
-      .values({
-        templateId,
-        templateTitle: templateTitle || null,
-        organizationName: organizationName || null,
-        organizationId: orgId,
-        submittedBy: user?.email || user?.username || "system",
-        formData,
-        status: status || "submitted",
-        notes: notes || null,
-      })
-      .returning();
+    // Training Event forms: validate BEFORE anything is persisted
+    let parsed: ParsedTrainingEventForm | null = null;
+    if (isTrainingEventTemplate(template)) {
+      try {
+        parsed = parseTrainingEventForm(formData || {});
+      } catch (validationErr) {
+        return res.status(400).json({ message: (validationErr as Error).message });
+      }
+    }
 
+    // Submission + training record + backlink commit or roll back together
+    let eventId: string | null = null;
+    const submission = await db.transaction(async (tx) => {
+      const [sub] = await tx
+        .insert(digitalFormSubmissions)
+        .values({
+          templateId,
+          templateTitle: templateTitle || null,
+          organizationName: organizationName || null,
+          organizationId: orgId,
+          submittedBy: user?.email || user?.username || "system",
+          formData,
+          status: status || "submitted",
+          notes: notes || null,
+        })
+        .returning();
+      if (parsed) eventId = await createTrainingEventFromForm(tx, sub.id, orgId, parsed, user?.email || "form");
+      return sub;
+    });
+
+    if (eventId) await afterTrainingEventCreated(eventId, orgId);
+    else queueAuditReadinessRefresh(orgId, "form_submitted");
     res.status(201).json(submission);
   } catch (err) {
     res.status(500).json({ message: "Failed to save form submission" });
@@ -422,6 +597,7 @@ router.patch("/submissions/:id/status", isAuthenticated, async (req, res) => {
       .where(and(eq(digitalFormSubmissions.id, req.params.id), eq(digitalFormSubmissions.organizationId, orgId)))
       .returning();
     if (!updated) return res.status(404).json({ message: "Submission not found" });
+    queueAuditReadinessRefresh(orgId, "form_submission_status_changed");
     res.json(updated);
   } catch (err) {
     res.status(500).json({ message: "Failed to update status" });

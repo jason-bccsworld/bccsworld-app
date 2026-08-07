@@ -1197,6 +1197,7 @@ export const digitalFormSubmissions = pgTable("digital_form_submissions", {
   status: varchar("status", { length: 20 }).default("submitted"),
   notes: text("notes"),
   organizationId: uuid("organization_id"),
+  trainingEventId: uuid("training_event_id"),
   submittedAt: timestamp("submitted_at").defaultNow(),
   createdAt: timestamp("created_at").defaultNow(),
 });

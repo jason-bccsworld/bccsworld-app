@@ -76,6 +76,7 @@ export async function runAuditReadiness(orgId: string): Promise<AuditReadinessRe
       totalRecords, signedRecords, docsNeedingReview, docsFailed,
       openWatchdogFindings, criticalFindings, refusals, pendingEscalations,
       activeInstructors, expiringCerts, activeStudents, overdueStudents,
+      formSubmissionsTotal, formSubmissionsPending, formSubmissionsRejected,
     ] = await Promise.all([
       count(sql`SELECT COUNT(*)::int AS n FROM bccs_training_events WHERE organization_id = ${orgId}`),
       count(sql`SELECT COUNT(*)::int AS n FROM bccs_training_events WHERE organization_id = ${orgId} AND signature IS NOT NULL`),
@@ -89,6 +90,9 @@ export async function runAuditReadiness(orgId: string): Promise<AuditReadinessRe
       count(sql`SELECT COUNT(*)::int AS n FROM bccs_instructor_records WHERE organization_id = ${orgId} AND status = 'active' AND expiration_date < NOW() + INTERVAL '60 days'`),
       count(sql`SELECT COUNT(*)::int AS n FROM students WHERE organization_id = ${orgId} AND status = 'active'`),
       count(sql`SELECT COUNT(*)::int AS n FROM students WHERE organization_id = ${orgId} AND status = 'active' AND expected_completion < NOW()`),
+      count(sql`SELECT COUNT(*)::int AS n FROM digital_form_submissions WHERE organization_id = ${orgId}`),
+      count(sql`SELECT COUNT(*)::int AS n FROM digital_form_submissions WHERE organization_id = ${orgId} AND status = 'submitted'`),
+      count(sql`SELECT COUNT(*)::int AS n FROM digital_form_submissions WHERE organization_id = ${orgId} AND status = 'rejected'`),
     ]);
 
     const posture = {
@@ -98,6 +102,7 @@ export async function runAuditReadiness(orgId: string): Promise<AuditReadinessRe
       governance: { refusedActions: refusals, pendingEscalations },
       instructors: { active: activeInstructors, certificatesExpiringWithin60Days: expiringCerts },
       students: { active: activeStudents, pastExpectedCompletion: overdueStudents },
+      digitalForms: { submissionsTotal: formSubmissionsTotal, awaitingReview: formSubmissionsPending, rejected: formSubmissionsRejected },
     };
 
     const response = await openai.chat.completions.create({
@@ -140,7 +145,7 @@ Rules: max 5 gaps, ordered most severe first. If a metric shows zero issues, do 
 
     await finishRun(runId, {
       status: "success",
-      itemsProcessed: totalRecords + docsNeedingReview + activeInstructors + activeStudents,
+      itemsProcessed: totalRecords + docsNeedingReview + activeInstructors + activeStudents + formSubmissionsTotal,
       findingsCount: gaps.length,
       summary: `Audit readiness score: ${score}/100. ${summary}`,
     });

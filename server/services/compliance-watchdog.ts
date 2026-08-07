@@ -91,7 +91,30 @@ async function scanOrg(orgId: string): Promise<{ scanned: number; candidates: Ca
     }
   }
 
-  return { scanned: instructors.length + students.length, candidates };
+  // Digital form submissions stuck in the review queue: an inspector will ask
+  // why forms sat unreviewed, so aging pending submissions become findings.
+  const staleForms = await db
+    .execute(sql`
+      SELECT id, template_title, submitted_by, submitted_at
+      FROM digital_form_submissions
+      WHERE organization_id = ${orgId} AND status = 'submitted'
+    `)
+    .then((r) => (r as any).rows);
+
+  for (const f of staleForms) {
+    const age = daysBetween(new Date(f.submitted_at), now);
+    if (age >= 7) {
+      candidates.push({
+        findingType: "form_pending_review",
+        severity: age > 30 ? "high" : "medium",
+        title: `Form submission "${f.template_title ?? "Untitled"}" has awaited review for ${age} day(s)`,
+        detail: { submissionId: f.id, templateTitle: f.template_title, submittedBy: f.submitted_by, submittedAt: f.submitted_at, daysPending: age },
+        relatedRecordId: `form_submission:${f.id}`,
+      });
+    }
+  }
+
+  return { scanned: instructors.length + students.length + staleForms.length, candidates };
 }
 
 async function reconcileFindings(orgId: string, candidates: Candidate[]): Promise<{ created: number; resolved: number }> {
@@ -158,6 +181,8 @@ export async function runComplianceWatchdog(targetOrgId?: string): Promise<Watch
         SELECT DISTINCT organization_id AS org FROM bccs_instructor_records WHERE organization_id IS NOT NULL
         UNION
         SELECT DISTINCT organization_id AS org FROM students WHERE organization_id IS NOT NULL
+        UNION
+        SELECT DISTINCT organization_id AS org FROM digital_form_submissions WHERE organization_id IS NOT NULL
       `)
       .then((r) => (r as any).rows.map((row: any) => String(row.org)));
   }
