@@ -23,6 +23,7 @@ import documentGenerationRoutes from "./routes/document-generation";
 import maintenanceRoutes from "./routes/maintenance";
 import digitalFormsRoutes from "./routes/digital-forms";
 import instructorPortalRoutes from "./routes/instructor-portal";
+import checklistReportRoutes from "./routes/checklist-report";
 import mlTrainingRoutes from "./routes/ml-training";
 import documentsRoutes from "./routes/documents";
 import cryptoSigningRoutes from "./routes/crypto-signing";
@@ -687,6 +688,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/api/maintenance', maintenanceRoutes);
   app.use('/api/digital-forms', digitalFormsRoutes);
   app.use('/api/instructor-portal', instructorPortalRoutes);
+  app.use('/api/checklist-report', checklistReportRoutes);
   app.use('/api/ml', mlTrainingRoutes);
   app.use('/api/org-keys', cryptoSigningRoutes);
   app.use('/api/reviewer-keys', reviewerRoutes);

@@ -81,7 +81,7 @@ const navigationSections: NavSection[] = [
       { path: "/safo-info", icon: Bell, label: "SAFO / InFO" },
       { path: "/audit-history", icon: Activity, label: "Audit History" },
       { path: "/compliance-report", icon: ClipboardList, label: "Compliance Report", feature: "complianceReports" },
-      { path: "/compliance-checklist", icon: CheckCircle, label: "Part 142 Checklist" },
+      { path: "/compliance-checklist", icon: CheckCircle, label: "Part 142 Checklist Report" },
       { path: "/far-compliance", icon: Shield, label: "FAR Compliance" },
       { path: "/ai-audit-compliance", icon: Brain, label: "AI Audit Assistant", badge: "AI", feature: "aiDocumentProcessing" },
       { path: "/analytics-dashboard", icon: TrendingUp, label: "Analytics Dashboard", feature: "advancedAnalytics" },
