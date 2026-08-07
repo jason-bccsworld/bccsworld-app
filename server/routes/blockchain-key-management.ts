@@ -2,6 +2,7 @@ import type { Express } from 'express';
 import { z } from 'zod';
 import { blockchainKeyService } from '../services/blockchain-key-management';
 import { isAuthenticated } from '../localAuth';
+import { isPlatformStaff } from '../middleware/tenant';
 import { storage } from '../storage';
 
 // Validation schemas
@@ -66,9 +67,12 @@ const verifyCrossPlatformSchema = z.object({
 
 export function registerBlockchainKeyManagementRoutes(app: Express) {
   
-  // Register training organization with master keys
+  // Register training organization with master keys (platform staff only)
   app.post('/api/blockchain/organizations/register', isAuthenticated, async (req: any, res) => {
     try {
+      if (!isPlatformStaff(req.user?.email)) {
+        return res.status(403).json({ success: false, error: 'Organization registration requires a platform SuperAdmin account' });
+      }
       const validatedData = registerOrganizationSchema.parse(req.body);
       
       const result = await blockchainKeyService.registerTrainingOrganization(validatedData);
@@ -283,7 +287,11 @@ export function registerBlockchainKeyManagementRoutes(app: Express) {
   app.get('/api/blockchain/organizations/:id', isAuthenticated, async (req: any, res) => {
     try {
       const organizationId = req.params.id;
-      
+      // Only platform staff may inspect arbitrary orgs; others only their own.
+      if (!isPlatformStaff(req.user?.email) && req.orgId !== organizationId) {
+        return res.status(403).json({ success: false, error: 'Access to this organization is not permitted' });
+      }
+
       const organization = await storage.getTrainingOrganization(organizationId);
       
       if (!organization) {
@@ -310,7 +318,10 @@ export function registerBlockchainKeyManagementRoutes(app: Express) {
   app.get('/api/blockchain/organizations/:id/members', isAuthenticated, async (req: any, res) => {
     try {
       const organizationId = req.params.id;
-      
+      if (!isPlatformStaff(req.user?.email) && req.orgId !== organizationId) {
+        return res.status(403).json({ success: false, error: 'Access to this organization is not permitted' });
+      }
+
       const members = await storage.getOrganizationMembers(organizationId);
       
       res.json({

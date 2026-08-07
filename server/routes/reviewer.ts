@@ -8,6 +8,7 @@ import crypto from "crypto";
 import { db } from "../db";
 import { sql } from "drizzle-orm";
 import { isAuthenticated } from "../localAuth";
+import { isPlatformStaff } from "../middleware/tenant";
 
 const router = Router();
 
@@ -69,9 +70,27 @@ router.post("/", isAuthenticated, async (req: any, res) => {
     return res.status(403).json({ message: "Customer admin access required to generate reviewer keys" });
   }
 
-  const { label, reviewerName, reviewerEmail, orgIds, expiresAt } = req.body;
+  const { label, reviewerName, reviewerEmail, expiresAt } = req.body;
+  let { orgIds } = req.body;
   if (!label || !reviewerName) {
     return res.status(400).json({ message: "label and reviewerName are required" });
+  }
+
+  // Tenant scoping: only platform staff may issue all-org keys or keys for
+  // other organizations. Customer admins always get keys bound to their org.
+  if (!isPlatformStaff(user?.email)) {
+    const activeOrgId = req.orgId as string | null;
+    if (!activeOrgId) {
+      return res.status(403).json({ message: "No active organization for this account" });
+    }
+    const requested: string[] = Array.isArray(orgIds) ? orgIds : [];
+    if (requested.length === 0) {
+      orgIds = [activeOrgId];
+    } else if (requested.some((id) => id !== activeOrgId)) {
+      return res.status(403).json({ message: "Reviewer keys may only be scoped to your own organization" });
+    } else {
+      orgIds = [activeOrgId];
+    }
   }
 
   const rawKey = generateKey();
@@ -107,12 +126,18 @@ router.get("/", isAuthenticated, async (req: any, res) => {
     return res.status(403).json({ message: "Customer admin access required" });
   }
 
-  const rows = await db.execute(sql`
+  let rows = await db.execute(sql`
     SELECT id, key_preview, label, reviewer_name, reviewer_email, org_ids,
            created_by, created_at, last_used_at, expires_at, is_active
     FROM bccs_reviewer_keys
     ORDER BY created_at DESC
   `).then(r => (r as any).rows);
+
+  // Non-staff admins only see keys scoped to their active organization.
+  if (!isPlatformStaff(user?.email)) {
+    const activeOrgId = req.orgId as string | null;
+    rows = rows.filter((row: any) => Array.isArray(row.org_ids) && activeOrgId && row.org_ids.includes(activeOrgId));
+  }
 
   res.json(rows);
 });
@@ -122,6 +147,17 @@ router.delete("/:id", isAuthenticated, async (req: any, res) => {
   const user = req.user as any;
   if (user?.role !== "admin") {
     return res.status(403).json({ message: "Customer admin access required" });
+  }
+
+  // Non-staff admins may only revoke keys scoped to their own organization.
+  if (!isPlatformStaff(user?.email)) {
+    const activeOrgId = req.orgId as string | null;
+    const [keyRow] = await db.execute(sql`SELECT org_ids FROM bccs_reviewer_keys WHERE id = ${req.params.id}`).then(r => (r as any).rows);
+    if (!keyRow) return res.status(404).json({ message: "Key not found" });
+    const orgIds: string[] = Array.isArray(keyRow.org_ids) ? keyRow.org_ids : [];
+    if (!activeOrgId || orgIds.length === 0 || !orgIds.includes(activeOrgId)) {
+      return res.status(403).json({ message: "You may only revoke reviewer keys for your own organization" });
+    }
   }
 
   await db.execute(sql`UPDATE bccs_reviewer_keys SET is_active = FALSE WHERE id = ${req.params.id}`);

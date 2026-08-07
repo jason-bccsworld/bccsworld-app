@@ -532,7 +532,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/organizations', isAuthenticated, async (req: any, res) => {
     try {
       let orgs = await db.select().from(trainingOrganizations).orderBy(trainingOrganizations.createdAt).limit(200);
-      if (isMultiTenant() && !isPlatformStaff(req.user?.email)) {
+      // Only platform staff may see the full tenant list; everyone else sees
+      // just the organizations they belong to (regardless of install mode).
+      if (!isPlatformStaff(req.user?.email)) {
         const memberships = await getUserMemberships(req.user.id);
         const memberOrgIds = new Set(memberships.map((m) => m.organizationId));
         orgs = orgs.filter((o) => memberOrgIds.has(o.id));
@@ -585,9 +587,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/admin/stats', isAuthenticated, async (req: any, res) => {
     try {
       if (req.user?.role !== 'admin') return res.status(403).json({ message: 'Admin access required' });
-      // Multi-tenant mode: customer admins see counts for their active org only.
-      // Platform staff (and single-workspace installs) see platform-wide totals.
-      if (isMultiTenant() && !isPlatformStaff(req.user?.email)) {
+      // Customer admins see counts for their active org only; platform staff
+      // see platform-wide totals.
+      if (!isPlatformStaff(req.user?.email)) {
         const orgId = requireOrg(req, res);
         if (!orgId) return;
         const result = await db.execute(drizzleSql`
@@ -1126,6 +1128,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const [activeOrg] = await db.select().from(trainingOrganizations).where(eq(trainingOrganizations.id, req.orgId));
         if (activeOrg) return res.json(activeOrg);
       }
+      // Fallback to the earliest active org is only safe for platform staff;
+      // regular users without a resolved membership get null.
+      if (!isPlatformStaff(req.user?.email)) return res.json(null);
       const [org] = await db.select().from(trainingOrganizations).where(eq(trainingOrganizations.isActive, true));
       res.json(org || null);
     } catch (error) {
@@ -1136,6 +1141,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/organizations/setup', isAuthenticated, async (req: any, res) => {
     try {
+      // Organization creation is a platform-staff (SuperAdmin) operation only.
+      if (!isPlatformStaff(req.user?.email)) {
+        return res.status(403).json({ message: 'Organization setup requires a platform SuperAdmin account' });
+      }
       const { organizationName, organizationType, regulatoryAuthority, certificateNumber, contactInfo } = req.body;
       if (!organizationName || !organizationType || !regulatoryAuthority) {
         return res.status(400).json({ message: 'Organization name, type and regulatory authority are required' });
@@ -1780,7 +1789,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(403).json({ message: 'Admin access required' });
     }
     try {
-      if (isMultiTenant() && !isStaff) {
+      if (!isStaff) {
         // Non-staff tenant admins may only see licenses for orgs they belong to
         const memberships = await getUserMemberships(req.user.id);
         const orgIds = memberships.map((m: any) => m.organizationId).filter(Boolean);

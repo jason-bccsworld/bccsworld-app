@@ -37,6 +37,10 @@ export default function OrganizationSetup() {
   const [, navigate] = useLocation();
   const queryClient = useQueryClient();
 
+  const { data: tenant, isLoading: tenantLoading } = useQuery<{ isPlatformStaff?: boolean }>({
+    queryKey: ["/api/session/tenant"],
+  });
+
   const { data: existingOrg, isLoading: orgLoading } = useQuery<any>({
     queryKey: ["/api/auth/organization"],
   });
@@ -120,10 +124,21 @@ export default function OrganizationSetup() {
     document.body.removeChild(a);
   };
 
-  if (orgLoading) {
+  if (orgLoading || tenantLoading) {
     return (
       <div className="flex items-center justify-center py-24">
         <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+      </div>
+    );
+  }
+
+  // Organization visibility and setup is reserved for platform SuperAdmins.
+  if (!tenant?.isPlatformStaff) {
+    return (
+      <div className="max-w-xl mx-auto py-24 text-center space-y-3">
+        <ShieldAlert className="h-10 w-10 text-amber-500 mx-auto" />
+        <h1 className="text-xl font-semibold text-gray-900">SuperAdmin access required</h1>
+        <p className="text-gray-600">Organization setup and management is restricted to platform SuperAdmins. Contact your platform administrator if you need changes to your organization.</p>
       </div>
     );
   }

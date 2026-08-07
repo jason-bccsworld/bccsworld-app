@@ -5,9 +5,27 @@ import { inspectorPreferenceEngine } from "../services/inspector-preference";
 import { evidenceIndexingService } from "../services/evidence-indexing";
 import { auditPacketGenerator } from "../services/audit-packet-generator";
 import { isAuthenticated } from "../localAuth";
+import { isPlatformStaff } from "../middleware/tenant";
 import { generateAdaptiveComplianceTutorial } from "../generate-tutorial-doc";
 
 const router = Router();
+
+/**
+ * Tenant guard for endpoints that take an organization id. Platform staff may
+ * target any org; everyone else only their active org. Returns the authorized
+ * org id, or null after sending a 403.
+ */
+function authorizeOrg(req: Request, res: Response, requestedOrgId?: string | null): string | null {
+  const activeOrgId = ((req as any).orgId as string | null | undefined) ?? null;
+  if (isPlatformStaff((req as any).user?.email)) {
+    return requestedOrgId || activeOrgId;
+  }
+  if (!activeOrgId || (requestedOrgId && requestedOrgId !== activeOrgId)) {
+    res.status(403).json({ error: "Access to this organization is not permitted" });
+    return null;
+  }
+  return activeOrgId;
+}
 
 router.get("/frameworks", isAuthenticated, async (req: Request, res: Response) => {
   try {
@@ -31,9 +49,9 @@ router.get("/frameworks/spine", isAuthenticated, async (req: Request, res: Respo
 
 router.get("/frameworks/hierarchy/:organizationId", isAuthenticated, async (req: Request, res: Response) => {
   try {
-    const hierarchy = await regulatorySpineService.getComplianceFrameworkHierarchy(
-      req.params.organizationId
-    );
+    const orgId = authorizeOrg(req, res, req.params.organizationId);
+    if (!orgId) return;
+    const hierarchy = await regulatorySpineService.getComplianceFrameworkHierarchy(orgId);
     res.json(hierarchy);
   } catch (error: any) {
     console.error("Error fetching hierarchy:", error);
@@ -273,10 +291,12 @@ router.post("/inspectors", isAuthenticated, async (req: Request, res: Response) 
 router.post("/inspectors/:inspectorId/behavior", isAuthenticated, async (req: Request, res: Response) => {
   try {
     const { organizationId, ...behaviorData } = req.body;
-    
+    const orgId = authorizeOrg(req, res, organizationId);
+    if (!orgId) return;
+
     const behavior = await inspectorPreferenceEngine.recordAuditBehavior(
       req.params.inspectorId,
-      organizationId,
+      orgId,
       behaviorData
     );
     
@@ -301,9 +321,11 @@ router.get("/inspectors/:inspectorId/prediction", isAuthenticated, async (req: R
 
 router.get("/inspectors/:inspectorId/preparation/:organizationId", isAuthenticated, async (req: Request, res: Response) => {
   try {
+    const orgId = authorizeOrg(req, res, req.params.organizationId);
+    if (!orgId) return;
     const strategy = await inspectorPreferenceEngine.generateAuditPreparationStrategy(
       req.params.inspectorId,
-      req.params.organizationId
+      orgId
     );
     res.json(strategy);
   } catch (error: any) {
@@ -356,8 +378,10 @@ router.get("/evidence/:evidenceId", isAuthenticated, async (req: Request, res: R
 router.post("/evidence", isAuthenticated, async (req: Request, res: Response) => {
   try {
     const { organizationId, ...evidenceData } = req.body;
-    
-    const evidence = await evidenceIndexingService.indexEvidence(organizationId, evidenceData);
+    const orgId = authorizeOrg(req, res, organizationId);
+    if (!orgId) return;
+
+    const evidence = await evidenceIndexingService.indexEvidence(orgId, evidenceData);
     res.json(evidence);
   } catch (error: any) {
     console.error("Error indexing evidence:", error);
@@ -395,10 +419,12 @@ router.post("/evidence/:evidenceId/verify", isAuthenticated, async (req: Request
 router.post("/evidence/:evidenceId/auto-map", isAuthenticated, async (req: Request, res: Response) => {
   try {
     const { organizationId } = req.body;
-    
+    const orgId = authorizeOrg(req, res, organizationId);
+    if (!orgId) return;
+
     const result = await evidenceIndexingService.autoMapEvidenceToChecklists(
       req.params.evidenceId,
-      organizationId
+      orgId
     );
     
     res.json(result);
@@ -411,7 +437,9 @@ router.post("/evidence/:evidenceId/auto-map", isAuthenticated, async (req: Reque
 router.post("/audit-packets/generate", isAuthenticated, async (req: Request, res: Response) => {
   try {
     const config = req.body;
-    const packet = await auditPacketGenerator.generateAuditPacket(config);
+    const orgId = authorizeOrg(req, res, config?.organizationId);
+    if (!orgId) return;
+    const packet = await auditPacketGenerator.generateAuditPacket({ ...config, organizationId: orgId });
     res.json(packet);
   } catch (error: any) {
     console.error("Error generating audit packet:", error);
@@ -444,7 +472,9 @@ router.get("/audit-packets/:packetId/json", isAuthenticated, async (req: Request
 
 router.get("/audit-packets/organization/:organizationId", isAuthenticated, async (req: Request, res: Response) => {
   try {
-    const packets = await auditPacketGenerator.getPacketsForOrganization(req.params.organizationId);
+    const orgId = authorizeOrg(req, res, req.params.organizationId);
+    if (!orgId) return;
+    const packets = await auditPacketGenerator.getPacketsForOrganization(orgId);
     res.json(packets);
   } catch (error: any) {
     console.error("Error fetching organization packets:", error);
@@ -465,8 +495,10 @@ router.put("/audit-packets/:packetId/status", isAuthenticated, async (req: Reque
 
 router.get("/coverage/:organizationId/:frameworkId", isAuthenticated, async (req: Request, res: Response) => {
   try {
+    const orgId = authorizeOrg(req, res, req.params.organizationId);
+    if (!orgId) return;
     const coverage = await auditPacketGenerator.calculateRegulatoryCoverage(
-      req.params.organizationId,
+      orgId,
       req.params.frameworkId
     );
     res.json(coverage);
@@ -517,7 +549,9 @@ router.get("/frameworks/spines", isAuthenticated, async (req: Request, res: Resp
 router.post("/frameworks/select-spine", isAuthenticated, async (req: Request, res: Response) => {
   try {
     const { organizationId, frameworkCode } = req.body;
-    const spine = await regulatorySpineService.selectPrimarySpine(organizationId, frameworkCode);
+    const orgId = authorizeOrg(req, res, organizationId);
+    if (!orgId) return;
+    const spine = await regulatorySpineService.selectPrimarySpine(orgId, frameworkCode);
     if (!spine) {
       return res.status(404).json({ error: "Framework not found" });
     }
@@ -620,9 +654,9 @@ router.get("/regulatory-updates", isAuthenticated, async (req: Request, res: Res
 
 router.get("/organization/:organizationId/regulatory-profile", isAuthenticated, async (req: Request, res: Response) => {
   try {
-    const profile = await regulatorySpineService.getOrganizationRegulatoryProfile(
-      req.params.organizationId
-    );
+    const orgId = authorizeOrg(req, res, req.params.organizationId);
+    if (!orgId) return;
+    const profile = await regulatorySpineService.getOrganizationRegulatoryProfile(orgId);
     res.json(profile);
   } catch (error: any) {
     console.error("Error fetching regulatory profile:", error);

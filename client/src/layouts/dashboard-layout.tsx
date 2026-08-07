@@ -33,6 +33,7 @@ import {
   LogOut,
   Bot,
 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { useLicense } from '@/hooks/useLicense';
 import { useAuth } from '@/hooks/useAuth';
 import OrgSwitcher from '@/components/org-switcher';
@@ -96,6 +97,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [location] = useLocation();
   const { canUse, isLoading: licenseLoading } = useLicense();
   const { user } = useAuth() as { user: { firstName?: string; lastName?: string; email?: string } | null };
+  const { data: tenant } = useQuery<{ isPlatformStaff?: boolean }>({ queryKey: ["/api/session/tenant"] });
+  const isStaff = !!tenant?.isPlatformStaff;
 
   const handleLogout = async () => {
     try {
@@ -139,7 +142,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             {section.title}
           </p>
           <div className="space-y-1">
-          {section.items.map((item) => {
+          {section.items.filter((item) => item.path !== "/organization-setup" || isStaff).map((item) => {
             const isActive = location === item.path;
             const isLocked = !licenseLoading && item.feature ? !canUse(item.feature) : false;
 

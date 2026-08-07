@@ -17,3 +17,8 @@ Tenant resolution lives in `server/middleware/tenant.ts` (`resolveTenant`, mount
 **Background/scheduled jobs must write per-org telemetry rows, never one shared NULL-org row.** **Why:** tenant-facing queries surface NULL-org rows to every org (global-agent pattern `org_id = X OR org_id IS NULL`), so a shared row leaks cross-tenant aggregate counts (org totals, finding counts). **How to apply:** when a scheduled sweep loops over orgs, start/finish a run row per org inside the loop; reserve NULL org for genuinely global work (e.g. FAA source monitoring) whose telemetry is safe to show everyone.
 
 Caches (default org 60s, memberships 30s, per-org license 30s) have invalidate helpers — call them after membership/org/license writes, and remember the 30s TTL when verifying license changes end-to-end.
+
+## Org visibility is SuperAdmin-only (Aug 2026)
+Rule: only platform staff (`isPlatformStaff`, @bccsworld.com) may create/list/inspect organizations. Non-staff must always be scoped to their memberships regardless of `isMultiTenant()` — the "single-workspace mode shows everything" carve-outs were removed deliberately.
+**Why:** user mandate "only a super admin can see and setup organizations"; single-workspace carve-outs leaked cross-tenant data.
+**How to apply:** any route taking an organizationId param/body must check staff OR `req.orgId === requested` (see `authorizeOrg` in adaptive-compliance routes). Reviewer keys: empty `org_ids` means ALL orgs — staff-only; customer admins get keys forced to their own org. `/api/auth/organization` first-active-org fallback is staff-only; non-staff get null.
