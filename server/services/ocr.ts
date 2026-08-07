@@ -1,5 +1,4 @@
 import { createWorker } from "tesseract.js";
-import { PDFParse } from "pdf-parse";
 import fs from "fs";
 import path from "path";
 import { exec } from "child_process";
@@ -26,6 +25,7 @@ async function processPdfText(pdfPath: string): Promise<string> {
     // Pure-JS fallback (works on serverless hosts without poppler): pdf-parse
     let pdfParseFailure: string | null = null;
     try {
+      const { PDFParse } = await import("pdf-parse");
       const parser = new PDFParse({ data: new Uint8Array(fs.readFileSync(pdfPath)) });
       try {
         const data = await parser.getText();

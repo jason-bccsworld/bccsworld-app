@@ -1657,7 +1657,6 @@ __export(ocr_exports, {
   processDocumentOCR: () => processDocumentOCR
 });
 import { createWorker } from "tesseract.js";
-import { PDFParse } from "pdf-parse";
 import fs4 from "fs";
 import path4 from "path";
 import { exec as exec2 } from "child_process";
@@ -1676,6 +1675,7 @@ async function processPdfText(pdfPath) {
     }
     let pdfParseFailure = null;
     try {
+      const { PDFParse } = await import("pdf-parse");
       const parser = new PDFParse({ data: new Uint8Array(fs4.readFileSync(pdfPath)) });
       try {
         const data = await parser.getText();
