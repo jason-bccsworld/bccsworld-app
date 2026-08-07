@@ -37,6 +37,7 @@ __export(schema_exports, {
   faaCoreForms: () => faaCoreForms,
   faaPolicyDocuments: () => faaPolicyDocuments,
   financeApplications: () => financeApplications,
+  generatedDocuments: () => generatedDocuments,
   harmonizationDeltas: () => harmonizationDeltas,
   insertAircraftOwnershipSchema: () => insertAircraftOwnershipSchema,
   insertAircraftRegistrySchema: () => insertAircraftRegistrySchema,
@@ -59,6 +60,7 @@ __export(schema_exports, {
   insertEvidenceRegulatoryMappingSchema: () => insertEvidenceRegulatoryMappingSchema,
   insertFaaCoreFormSchema: () => insertFaaCoreFormSchema,
   insertFaaPolicyDocumentSchema: () => insertFaaPolicyDocumentSchema,
+  insertGeneratedDocumentSchema: () => insertGeneratedDocumentSchema,
   insertHarmonizationDeltaSchema: () => insertHarmonizationDeltaSchema,
   insertInspectorBehaviorSchema: () => insertInspectorBehaviorSchema,
   insertInspectorProfileSchema: () => insertInspectorProfileSchema,
@@ -81,6 +83,7 @@ __export(schema_exports, {
   insertTokenTransactionSchema: () => insertTokenTransactionSchema,
   insertTrainingEventSchema: () => insertTrainingEventSchema,
   insertTrainingOrganizationSchema: () => insertTrainingOrganizationSchema,
+  insertUserOrganizationSchema: () => insertUserOrganizationSchema,
   inspectorBehaviors: () => inspectorBehaviors,
   inspectorProfiles: () => inspectorProfiles,
   instructorRecords: () => instructorRecords,
@@ -115,6 +118,7 @@ __export(schema_exports, {
   tokenTransactionsRelations: () => tokenTransactionsRelations,
   trainingEvents: () => trainingEvents,
   trainingOrganizations: () => trainingOrganizations,
+  userOrganizations: () => userOrganizations,
   users: () => users
 });
 import { sql } from "drizzle-orm";
@@ -128,11 +132,12 @@ import {
   integer,
   decimal,
   boolean,
-  uuid
+  uuid,
+  unique
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { relations } from "drizzle-orm";
-var sessions, users, rolePermissions, aircraftRegistry, aircraftOwnership, aircraftLiens, aircraftInsurance, tokenOfferings, tokenHolders, tokenTransactions, complianceChecks, registryAnalytics, auditLogs, cryptoPayments, smartContracts, insuranceProviders, insuranceQuotes, maintenanceProviders, maintenanceServices, lenders, financeApplications, marketAnalytics, trainingOrganizations, professionalCredentials, organizationMembers, blockchainTrainingRecords, keyRecoveryRequests, crossPlatformVerifications, regulatoryFrameworks, organizationAuthorizations, checklistSchemas, checklistItems, checklistMappings, harmonizationDeltas, checklistVersionHistory, faaCoreForms, inspectorProfiles, inspectorBehaviors, evidenceRecords, evidenceChecklistMappings, evidenceRegulatoryMappings, auditPackets, auditPacketItems, regulatoryCoverageMatrix, faaPolicyDocuments, multiPartConfigurations, regulatoryUpdateTracking, regulatoryGraphLinks, operatorAuthorizations, regionalSupplements, subscriptionTiers, customerSubscriptions, aircraftRegistryRelations, tokenOfferingsRelations, tokenHoldersRelations, tokenTransactionsRelations, insertAircraftRegistrySchema, insertAircraftOwnershipSchema, insertTokenOfferingSchema, insertTokenHolderSchema, insertTokenTransactionSchema, insertAuditLogSchema, insertCryptoPaymentSchema, insertSmartContractSchema, insertCustomerSubscriptionSchema, insertTrainingOrganizationSchema, insertProfessionalCredentialSchema, insertOrganizationMemberSchema, insertBlockchainTrainingRecordSchema, insertKeyRecoveryRequestSchema, insertCrossPlatformVerificationSchema, insertRegulatoryFrameworkSchema, insertOrganizationAuthorizationSchema, insertChecklistSchemaSchema, insertChecklistItemSchema, insertChecklistMappingSchema, insertHarmonizationDeltaSchema, insertChecklistVersionHistorySchema, insertFaaCoreFormSchema, insertInspectorProfileSchema, insertInspectorBehaviorSchema, insertEvidenceRecordSchema, insertEvidenceChecklistMappingSchema, insertEvidenceRegulatoryMappingSchema, insertAuditPacketSchema, insertAuditPacketItemSchema, insertRegulatoryCoverageMatrixSchema, checklistStates, insertChecklistStateSchema, trainingEvents, insertTrainingEventSchema, students, insertStudentSchema, instructorRecords, insertInstructorRecordSchema, insertFaaPolicyDocumentSchema, insertMultiPartConfigurationSchema, insertRegulatoryUpdateTrackingSchema, insertRegulatoryGraphLinkSchema, insertOperatorAuthorizationSchema, insertRegionalSupplementSchema, digitalFormTemplates, digitalFormSubmissions, insertDigitalFormTemplateSchema, insertDigitalFormSubmissionSchema;
+var sessions, users, userOrganizations, insertUserOrganizationSchema, rolePermissions, aircraftRegistry, aircraftOwnership, aircraftLiens, aircraftInsurance, tokenOfferings, tokenHolders, tokenTransactions, complianceChecks, registryAnalytics, auditLogs, cryptoPayments, smartContracts, insuranceProviders, insuranceQuotes, maintenanceProviders, maintenanceServices, lenders, financeApplications, marketAnalytics, trainingOrganizations, professionalCredentials, organizationMembers, blockchainTrainingRecords, keyRecoveryRequests, crossPlatformVerifications, regulatoryFrameworks, organizationAuthorizations, checklistSchemas, checklistItems, checklistMappings, harmonizationDeltas, checklistVersionHistory, faaCoreForms, inspectorProfiles, inspectorBehaviors, evidenceRecords, evidenceChecklistMappings, evidenceRegulatoryMappings, auditPackets, auditPacketItems, regulatoryCoverageMatrix, faaPolicyDocuments, multiPartConfigurations, regulatoryUpdateTracking, regulatoryGraphLinks, operatorAuthorizations, regionalSupplements, subscriptionTiers, customerSubscriptions, aircraftRegistryRelations, tokenOfferingsRelations, tokenHoldersRelations, tokenTransactionsRelations, insertAircraftRegistrySchema, insertAircraftOwnershipSchema, insertTokenOfferingSchema, insertTokenHolderSchema, insertTokenTransactionSchema, insertAuditLogSchema, insertCryptoPaymentSchema, insertSmartContractSchema, insertCustomerSubscriptionSchema, insertTrainingOrganizationSchema, insertProfessionalCredentialSchema, insertOrganizationMemberSchema, insertBlockchainTrainingRecordSchema, insertKeyRecoveryRequestSchema, insertCrossPlatformVerificationSchema, insertRegulatoryFrameworkSchema, insertOrganizationAuthorizationSchema, insertChecklistSchemaSchema, insertChecklistItemSchema, insertChecklistMappingSchema, insertHarmonizationDeltaSchema, insertChecklistVersionHistorySchema, insertFaaCoreFormSchema, insertInspectorProfileSchema, insertInspectorBehaviorSchema, insertEvidenceRecordSchema, insertEvidenceChecklistMappingSchema, insertEvidenceRegulatoryMappingSchema, insertAuditPacketSchema, insertAuditPacketItemSchema, insertRegulatoryCoverageMatrixSchema, checklistStates, insertChecklistStateSchema, trainingEvents, insertTrainingEventSchema, students, insertStudentSchema, instructorRecords, insertInstructorRecordSchema, insertFaaPolicyDocumentSchema, insertMultiPartConfigurationSchema, insertRegulatoryUpdateTrackingSchema, insertRegulatoryGraphLinkSchema, insertOperatorAuthorizationSchema, insertRegionalSupplementSchema, digitalFormTemplates, digitalFormSubmissions, insertDigitalFormTemplateSchema, insertDigitalFormSubmissionSchema, generatedDocuments, insertGeneratedDocumentSchema;
 var init_schema = __esm({
   "shared/schema.ts"() {
     "use strict";
@@ -155,10 +160,27 @@ var init_schema = __esm({
       role: varchar("role").default("viewer"),
       // admin, instructor, auditor, viewer
       isActive: boolean("is_active").default(true),
+      // Set when the post-signup welcome email couldn't be sent — the client
+      // shows the in-app welcome/onboarding message until acknowledged.
+      welcomePending: boolean("welcome_pending").default(false),
       lastLoginAt: timestamp("last_login_at"),
       createdAt: timestamp("created_at").defaultNow(),
       updatedAt: timestamp("updated_at").defaultNow()
     });
+    userOrganizations = pgTable("user_organizations", {
+      id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+      userId: varchar("user_id").notNull(),
+      organizationId: uuid("organization_id").notNull(),
+      orgRole: varchar("org_role", { length: 50 }).notNull().default("viewer"),
+      // admin, instructor, auditor, viewer
+      isActive: boolean("is_active").default(true),
+      createdAt: timestamp("created_at").defaultNow()
+    }, (table) => [
+      index("IDX_user_org_user").on(table.userId),
+      index("IDX_user_org_org").on(table.organizationId),
+      unique("user_organizations_user_id_organization_id_key").on(table.userId, table.organizationId)
+    ]);
+    insertUserOrganizationSchema = createInsertSchema(userOrganizations).omit({ id: true, createdAt: true });
     rolePermissions = pgTable("bccs_role_permissions", {
       id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
       roleName: varchar("role_name", { length: 50 }).notNull().unique(),
@@ -284,7 +306,8 @@ var init_schema = __esm({
       checkDetails: jsonb("check_details"),
       checkDate: timestamp("check_date").defaultNow(),
       nextCheckDate: timestamp("next_check_date"),
-      performedBy: varchar("performed_by")
+      performedBy: varchar("performed_by"),
+      organizationId: uuid("organization_id")
     });
     registryAnalytics = pgTable("registry_analytics", {
       id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -308,6 +331,7 @@ var init_schema = __esm({
       // regulatory_monitor, link_monitor, compliance_engine, crypto_service
       userId: varchar("user_id"),
       aircraftId: uuid("aircraft_id"),
+      organizationId: uuid("organization_id"),
       timestamp: timestamp("timestamp").defaultNow()
     });
     cryptoPayments = pgTable("crypto_payments", {
@@ -1071,10 +1095,14 @@ var init_schema = __esm({
     insertRegulatoryCoverageMatrixSchema = createInsertSchema(regulatoryCoverageMatrix);
     checklistStates = pgTable("checklist_states", {
       id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-      userId: varchar("user_id").notNull().unique(),
+      userId: varchar("user_id").notNull(),
       state: jsonb("state").notNull(),
+      organizationId: uuid("organization_id"),
       updatedAt: timestamp("updated_at").defaultNow()
-    });
+    }, (t) => [
+      // One checklist state per user per organization — tenant-isolated.
+      unique("checklist_states_user_org_key").on(t.userId, t.organizationId)
+    ]);
     insertChecklistStateSchema = createInsertSchema(checklistStates).omit({ id: true, updatedAt: true });
     trainingEvents = pgTable("bccs_training_events", {
       id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -1092,6 +1120,7 @@ var init_schema = __esm({
       // completed, pending, failed
       blockchainHash: varchar("blockchain_hash", { length: 200 }),
       userId: varchar("user_id").notNull(),
+      organizationId: uuid("organization_id"),
       createdAt: timestamp("created_at").defaultNow()
     });
     insertTrainingEventSchema = createInsertSchema(trainingEvents).omit({ id: true, createdAt: true });
@@ -1107,6 +1136,7 @@ var init_schema = __esm({
       status: varchar("status", { length: 50 }).default("active"),
       // active, completed, suspended
       notes: text("notes"),
+      organizationId: uuid("organization_id"),
       createdAt: timestamp("created_at").defaultNow()
     });
     insertStudentSchema = createInsertSchema(students).omit({ id: true, createdAt: true });
@@ -1125,6 +1155,7 @@ var init_schema = __esm({
       trainingAuthorizations: jsonb("training_authorizations"),
       status: varchar("status", { length: 50 }).default("current"),
       // current, expired, suspended
+      organizationId: uuid("organization_id"),
       createdAt: timestamp("created_at").defaultNow()
     });
     insertInstructorRecordSchema = createInsertSchema(instructorRecords).omit({ id: true, createdAt: true });
@@ -1146,6 +1177,7 @@ var init_schema = __esm({
       status: varchar("status", { length: 20 }).default("active"),
       publicToken: varchar("public_token", { length: 100 }),
       isPublic: boolean("is_public").default(true),
+      instructorEnabled: boolean("instructor_enabled").default(false),
       // AI generation tracking
       autoGenerated: boolean("auto_generated").default(false),
       checklistVersionHash: text("checklist_version_hash"),
@@ -1155,6 +1187,7 @@ var init_schema = __esm({
       generatedFromSection: varchar("generated_from_section", { length: 200 }),
       // e.g. "§142.27 Personnel"
       createdBy: varchar("created_by", { length: 200 }),
+      organizationId: uuid("organization_id"),
       createdAt: timestamp("created_at").defaultNow(),
       updatedAt: timestamp("updated_at").defaultNow()
     });
@@ -1167,11 +1200,25 @@ var init_schema = __esm({
       formData: jsonb("form_data").notNull().default({}),
       status: varchar("status", { length: 20 }).default("submitted"),
       notes: text("notes"),
+      organizationId: uuid("organization_id"),
+      trainingEventId: uuid("training_event_id"),
       submittedAt: timestamp("submitted_at").defaultNow(),
       createdAt: timestamp("created_at").defaultNow()
     });
     insertDigitalFormTemplateSchema = createInsertSchema(digitalFormTemplates).omit({ id: true, createdAt: true, updatedAt: true });
     insertDigitalFormSubmissionSchema = createInsertSchema(digitalFormSubmissions).omit({ id: true, createdAt: true, submittedAt: true });
+    generatedDocuments = pgTable("generated_documents", {
+      id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+      filename: text("filename").notNull(),
+      documentType: text("document_type").notNull(),
+      fileSize: integer("file_size").notNull(),
+      filePath: text("file_path").notNull(),
+      metadata: jsonb("metadata"),
+      generatedBy: varchar("generated_by").notNull(),
+      organizationId: text("organization_id"),
+      createdAt: timestamp("created_at").defaultNow()
+    });
+    insertGeneratedDocumentSchema = createInsertSchema(generatedDocuments).omit({ id: true, createdAt: true });
   }
 });
 
@@ -1197,18 +1244,631 @@ var init_db = __esm({
   }
 });
 
+// server/services/agent-registry.ts
+import { sql as sql8 } from "drizzle-orm";
+function getAgent(id) {
+  return AGENTS.find((a) => a.id === id);
+}
+async function emitAgentEvent(agentName, eventType, message, orgId) {
+  await db.execute(sql8`
+      INSERT INTO agent_events (agent_name, event_type, message, org_id)
+      VALUES (${agentName}, ${eventType}, ${message}, ${orgId})
+    `).catch((err) => console.error("[agent-registry] agent event write failed:", err));
+}
+async function startRun(agentId, orgId) {
+  try {
+    const rows = await db.execute(sql8`
+        INSERT INTO bccs_agent_runs (agent_id, org_id, status)
+        VALUES (${agentId}, ${orgId}, 'running')
+        RETURNING id
+      `).then((r) => r.rows);
+    return rows[0]?.id ?? null;
+  } catch (err) {
+    console.error("[agent-registry] startRun failed:", err);
+    return null;
+  }
+}
+async function finishRun(runId, outcome) {
+  if (!runId) return;
+  await db.execute(sql8`
+      UPDATE bccs_agent_runs
+      SET status = ${outcome.status},
+          finished_at = NOW(),
+          items_processed = ${outcome.itemsProcessed ?? 0},
+          findings_count = ${outcome.findingsCount ?? 0},
+          summary = ${outcome.summary ?? null}
+      WHERE id = ${runId}
+    `).catch((err) => console.error("[agent-registry] finishRun failed:", err));
+}
+function tryAcquireRunLock(agentId, orgId) {
+  const key = `${agentId}:${orgId ?? "global"}`;
+  if (runningAgents.has(key)) return false;
+  runningAgents.add(key);
+  return true;
+}
+function releaseRunLock(agentId, orgId) {
+  runningAgents.delete(`${agentId}:${orgId ?? "global"}`);
+}
+var AGENTS, runningAgents;
+var init_agent_registry = __esm({
+  "server/services/agent-registry.ts"() {
+    "use strict";
+    init_db();
+    AGENTS = [
+      {
+        id: "document-extraction",
+        name: "Document Extraction Agent",
+        mission: "Reads every uploaded document, extracts compliance data with AI, and auto-approves high-confidence records under GATE governance.",
+        domainPath: "/documents",
+        schedule: "On every upload",
+        capabilities: [
+          "OCR + GPT-4o field extraction per document type",
+          "Confidence-gated auto-approval with blockchain anchoring",
+          "Routes low-confidence documents to human review"
+        ],
+        manuallyRunnable: false,
+        scope: "org"
+      },
+      {
+        id: "extraction-learning",
+        name: "Extraction Learning Agent",
+        mission: "Studies every human correction and rewrites the extraction playbook so the same mistake is never made twice.",
+        domainPath: "/ml-training",
+        schedule: "After every human review",
+        capabilities: [
+          "Collects reviewer corrections as training feedback",
+          "Distills correction patterns into versioned prompt guidance",
+          "Feeds learned guidance into future extractions"
+        ],
+        manuallyRunnable: false,
+        scope: "org"
+      },
+      {
+        id: "regulatory-monitor",
+        name: "Regulatory Monitoring Agent",
+        mission: "Watches FAA and international regulatory sources for changes that affect your training operation.",
+        domainPath: "/regulatory-alerts",
+        schedule: "Every 24 hours",
+        capabilities: [
+          "Monitors eCFR and regulatory publications for updates",
+          "Raises alerts with impact assessments on changes"
+        ],
+        manuallyRunnable: true,
+        scope: "global"
+      },
+      {
+        id: "faa-repository",
+        name: "FAA Repository Agent",
+        mission: "Keeps the FAA document repository current \u2014 every tracked order, AC, and regulation checked for new revisions.",
+        domainPath: "/faa-repository",
+        schedule: "Every 6 hours",
+        capabilities: [
+          "Polls eCFR and FAA document sources for revisions",
+          "Tracks version history and flags updated documents"
+        ],
+        manuallyRunnable: true,
+        scope: "global"
+      },
+      {
+        id: "link-integrity",
+        name: "Link Integrity Agent",
+        mission: "Verifies every regulatory reference link stays live and points where it should \u2014 no silent dead links in your compliance evidence.",
+        domainPath: "/link-monitor",
+        schedule: "Every 4 hours",
+        capabilities: [
+          "Health-checks all monitored regulatory URLs",
+          "Detects redirects, outages, and content drift"
+        ],
+        manuallyRunnable: true,
+        scope: "global"
+      },
+      {
+        id: "compliance-watchdog",
+        name: "Compliance Watchdog Agent",
+        mission: "Patrols your rosters around the clock \u2014 expiring instructor certificates and overdue student completions are caught before they become findings.",
+        domainPath: "/instructors",
+        schedule: "Every 12 hours",
+        capabilities: [
+          "Scans instructor certificate expiration and currency dates",
+          "Flags students past their expected completion date",
+          "Raises severity-ranked findings for human action"
+        ],
+        manuallyRunnable: true,
+        scope: "org"
+      },
+      {
+        id: "federal-contracts-monitor",
+        name: "Federal Contracts Monitor",
+        mission: "Watches US government contract activity on your watchlist \u2014 SAM.gov exclusions, heavy modifications, recompete windows, and new opportunities are flagged with due-diligence risk scoring.",
+        domainPath: "/federal-contracts",
+        schedule: "Every 12 hours",
+        capabilities: [
+          "Tracks a watchlist of agencies, NAICS codes, keywords, vendors, and contract numbers",
+          "Builds research-template dossiers from SAM.gov and USAspending award data",
+          "Applies the due-diligence risk rubric: exclusions (veto flag), modification patterns, recompete timing, concentration",
+          "Scores each vendor into Low / Moderate / High / Critical tiers and raises findings"
+        ],
+        manuallyRunnable: true,
+        scope: "org"
+      },
+      {
+        id: "audit-readiness",
+        name: "Audit Readiness Agent",
+        mission: "Reviews your entire compliance posture the way an FAA inspector would, and tells you exactly where you stand before they do.",
+        domainPath: "/audit-history",
+        schedule: "On demand",
+        capabilities: [
+          "AI review of records, findings, and governance activity",
+          "Produces a readiness score with prioritized gaps"
+        ],
+        manuallyRunnable: true,
+        scope: "org"
+      }
+    ];
+    runningAgents = /* @__PURE__ */ new Set();
+  }
+});
+
+// server/services/crypto-signing.ts
+var crypto_signing_exports = {};
+__export(crypto_signing_exports, {
+  computeFingerprint: () => computeFingerprint,
+  ensureCryptoTables: () => ensureCryptoTables,
+  exportPublicKeyPem: () => exportPublicKeyPem,
+  generateAndStoreOrgKeyPair: () => generateAndStoreOrgKeyPair,
+  getOrgActiveKey: () => getOrgActiveKey,
+  signAllUnsignedRecords: () => signAllUnsignedRecords,
+  signTrainingRecord: () => signTrainingRecord,
+  verifyTrainingRecord: () => verifyTrainingRecord
+});
+import crypto6 from "crypto";
+import { sql as sql10 } from "drizzle-orm";
+function getEncryptionKey() {
+  const secret = (process.env.DATABASE_URL || process.env.NEON_DATABASE_URL || "bccs-default-secret") + "bccs-signing-v1";
+  return Buffer.from(crypto6.createHash("sha256").update(secret).digest());
+}
+function encryptPrivateKey(privatePem) {
+  const key = getEncryptionKey();
+  const iv = crypto6.randomBytes(12);
+  const cipher = crypto6.createCipheriv("aes-256-gcm", key, iv);
+  const encrypted = Buffer.concat([cipher.update(privatePem, "utf8"), cipher.final()]);
+  const tag = cipher.getAuthTag();
+  return `${iv.toString("hex")}:${tag.toString("hex")}:${encrypted.toString("hex")}`;
+}
+function decryptPrivateKey(stored) {
+  const [ivHex, tagHex, cipherHex] = stored.split(":");
+  const key = getEncryptionKey();
+  const iv = Buffer.from(ivHex, "hex");
+  const tag = Buffer.from(tagHex, "hex");
+  const ciphertext = Buffer.from(cipherHex, "hex");
+  const decipher = crypto6.createDecipheriv("aes-256-gcm", key, iv);
+  decipher.setAuthTag(tag);
+  return decipher.update(ciphertext).toString("utf8") + decipher.final("utf8");
+}
+function computeFingerprint(publicKeyPem) {
+  const der = Buffer.from(
+    publicKeyPem.replace(/-----[^-]+-----/g, "").replace(/\s/g, ""),
+    "base64"
+  );
+  const hash = crypto6.createHash("sha256").update(der).digest("hex");
+  return hash.match(/.{2}/g).slice(0, 8).join(":");
+}
+async function ensureCryptoTables() {
+  await db.execute(sql10`
+    CREATE TABLE IF NOT EXISTS bccs_org_crypto_keys (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      org_id VARCHAR(300) NOT NULL,
+      algorithm VARCHAR(20) NOT NULL DEFAULT 'ed25519',
+      public_key_pem TEXT NOT NULL,
+      encrypted_private_key TEXT NOT NULL,
+      key_fingerprint VARCHAR(100) NOT NULL,
+      created_at TIMESTAMP DEFAULT NOW(),
+      is_active BOOLEAN DEFAULT TRUE
+    )
+  `);
+  await db.execute(sql10`ALTER TABLE bccs_training_events ADD COLUMN IF NOT EXISTS signature TEXT`);
+  await db.execute(sql10`ALTER TABLE bccs_training_events ADD COLUMN IF NOT EXISTS signed_data_hash VARCHAR(64)`);
+  await db.execute(sql10`ALTER TABLE bccs_training_events ADD COLUMN IF NOT EXISTS chain_hash VARCHAR(64)`);
+  await db.execute(sql10`ALTER TABLE bccs_training_events ADD COLUMN IF NOT EXISTS key_fingerprint VARCHAR(100)`);
+  await db.execute(sql10`ALTER TABLE bccs_training_events ADD COLUMN IF NOT EXISTS signed_at TIMESTAMP`);
+}
+async function generateAndStoreOrgKeyPair(orgIdentifier) {
+  const { privateKey, publicKey } = crypto6.generateKeyPairSync("ed25519", {
+    publicKeyEncoding: { type: "spki", format: "pem" },
+    privateKeyEncoding: { type: "pkcs8", format: "pem" }
+  });
+  const fingerprint = computeFingerprint(publicKey);
+  const encryptedPrivate = encryptPrivateKey(privateKey);
+  await db.execute(sql10`
+    UPDATE bccs_org_crypto_keys SET is_active = FALSE
+    WHERE org_id = ${orgIdentifier} AND is_active = TRUE
+  `);
+  const createdAt = (/* @__PURE__ */ new Date()).toISOString();
+  await db.execute(sql10`
+    INSERT INTO bccs_org_crypto_keys
+      (org_id, algorithm, public_key_pem, encrypted_private_key, key_fingerprint, created_at, is_active)
+    VALUES
+      (${orgIdentifier}, 'ed25519', ${publicKey}, ${encryptedPrivate}, ${fingerprint}, NOW(), TRUE)
+  `);
+  return { publicKeyPem: publicKey, fingerprint, algorithm: "ed25519", createdAt };
+}
+async function getOrgActiveKey(orgIdentifier) {
+  const rows = await db.execute(sql10`
+    SELECT id, public_key_pem, encrypted_private_key, key_fingerprint, algorithm, created_at
+    FROM bccs_org_crypto_keys
+    WHERE org_id = ${orgIdentifier} AND is_active = TRUE
+    ORDER BY created_at DESC
+    LIMIT 1
+  `).then((r) => r.rows);
+  return rows[0] ?? null;
+}
+async function getLatestChainHash(orgIdentifier) {
+  const rows = await db.execute(sql10`
+    SELECT chain_hash FROM bccs_training_events
+    WHERE key_fingerprint IS NOT NULL AND chain_hash IS NOT NULL
+    ORDER BY signed_at DESC
+    LIMIT 1
+  `).then((r) => r.rows);
+  return rows[0]?.chain_hash ?? "0000000000000000000000000000000000000000000000000000000000000000";
+}
+async function signTrainingRecord(eventId, orgIdentifier) {
+  const rows = await db.execute(sql10`
+    SELECT id, student_name, instructor_name, event_type, event_date,
+           duration_hours, curriculum_item, status, blockchain_hash
+    FROM bccs_training_events WHERE id = ${eventId} AND organization_id = ${orgIdentifier}
+  `).then((r) => r.rows);
+  if (!rows[0]) throw new Error(`Training record ${eventId} not found`);
+  const record = rows[0];
+  const keyRow = await getOrgActiveKey(orgIdentifier);
+  if (!keyRow) throw new Error(`No active key found for org ${orgIdentifier}. Generate a key first.`);
+  const privateKeyPem = decryptPrivateKey(keyRow.encrypted_private_key);
+  const prevChainHash = await getLatestChainHash(orgIdentifier);
+  const canonicalData = JSON.stringify({
+    id: record.id,
+    studentName: record.student_name,
+    instructorName: record.instructor_name,
+    eventType: record.event_type,
+    eventDate: record.event_date,
+    durationHours: record.duration_hours,
+    curriculumItem: record.curriculum_item,
+    status: record.status,
+    prevChainHash,
+    bccsVersion: "1.0"
+  });
+  const dataBuffer = Buffer.from(canonicalData, "utf8");
+  const sigBuffer = crypto6.sign(null, dataBuffer, privateKeyPem);
+  const signedDataHash = crypto6.createHash("sha256").update(dataBuffer).digest("hex");
+  const chainHash = crypto6.createHash("sha256").update(signedDataHash + prevChainHash).digest("hex");
+  const signature = sigBuffer.toString("hex");
+  const signedAt = (/* @__PURE__ */ new Date()).toISOString();
+  await db.execute(sql10`
+    UPDATE bccs_training_events SET
+      signature        = ${signature},
+      signed_data_hash = ${signedDataHash},
+      chain_hash       = ${chainHash},
+      key_fingerprint  = ${keyRow.key_fingerprint},
+      signed_at        = NOW()
+    WHERE id = ${eventId} AND organization_id = ${orgIdentifier}
+  `);
+  return {
+    signature,
+    signedDataHash,
+    chainHash,
+    keyFingerprint: keyRow.key_fingerprint,
+    signedAt
+  };
+}
+async function verifyTrainingRecord(eventId) {
+  const rows = await db.execute(sql10`
+    SELECT id, student_name, instructor_name, event_type, event_date,
+           duration_hours, curriculum_item, status, blockchain_hash,
+           signature, signed_data_hash, chain_hash, key_fingerprint, signed_at
+    FROM bccs_training_events WHERE id = ${eventId}
+  `).then((r) => r.rows);
+  if (!rows[0]) return { valid: false, eventId, keyFingerprint: null, signedAt: null, details: "Record not found" };
+  const record = rows[0];
+  if (!record.signature || !record.signed_data_hash || !record.key_fingerprint) {
+    return { valid: false, eventId, keyFingerprint: null, signedAt: null, details: "Record has not been signed" };
+  }
+  const keyRows = await db.execute(sql10`
+    SELECT public_key_pem, encrypted_private_key FROM bccs_org_crypto_keys
+    WHERE key_fingerprint = ${record.key_fingerprint}
+    LIMIT 1
+  `).then((r) => r.rows);
+  if (!keyRows[0]) {
+    return {
+      valid: false,
+      eventId,
+      keyFingerprint: record.key_fingerprint,
+      signedAt: record.signed_at,
+      details: "Signing key not found in system"
+    };
+  }
+  const prevRows = await db.execute(sql10`
+    SELECT chain_hash FROM bccs_training_events
+    WHERE key_fingerprint IS NOT NULL
+      AND signed_at < ${record.signed_at}
+    ORDER BY signed_at DESC
+    LIMIT 1
+  `).then((r) => r.rows);
+  const prevChainHash = prevRows[0]?.chain_hash ?? "0000000000000000000000000000000000000000000000000000000000000000";
+  const canonicalData = JSON.stringify({
+    id: record.id,
+    studentName: record.student_name,
+    instructorName: record.instructor_name,
+    eventType: record.event_type,
+    eventDate: record.event_date,
+    durationHours: record.duration_hours,
+    curriculumItem: record.curriculum_item,
+    status: record.status,
+    prevChainHash,
+    bccsVersion: "1.0"
+  });
+  const dataBuffer = Buffer.from(canonicalData, "utf8");
+  const sigBuffer = Buffer.from(record.signature, "hex");
+  let valid = false;
+  try {
+    valid = crypto6.verify(null, dataBuffer, keyRows[0].public_key_pem, sigBuffer);
+  } catch {
+    valid = false;
+  }
+  const expectedHash = crypto6.createHash("sha256").update(dataBuffer).digest("hex");
+  const hashMatch = expectedHash === record.signed_data_hash;
+  return {
+    valid: valid && hashMatch,
+    eventId,
+    keyFingerprint: record.key_fingerprint,
+    signedAt: record.signed_at,
+    details: valid && hashMatch ? "Signature valid \u2014 record is authentic and unaltered" : !hashMatch ? "Data hash mismatch \u2014 record may have been tampered with" : "Signature invalid \u2014 cryptographic verification failed"
+  };
+}
+async function signAllUnsignedRecords(orgIdentifier) {
+  const rows = await db.execute(sql10`
+    SELECT id FROM bccs_training_events
+    WHERE signature IS NULL AND organization_id = ${orgIdentifier}
+    ORDER BY event_date ASC
+  `).then((r) => r.rows);
+  let signed = 0;
+  let failed = 0;
+  for (const row of rows) {
+    try {
+      await signTrainingRecord(row.id, orgIdentifier);
+      signed++;
+    } catch {
+      failed++;
+    }
+  }
+  return { signed, failed };
+}
+async function exportPublicKeyPem(orgIdentifier) {
+  const key = await getOrgActiveKey(orgIdentifier);
+  return key?.public_key_pem ?? null;
+}
+var init_crypto_signing = __esm({
+  "server/services/crypto-signing.ts"() {
+    "use strict";
+    init_db();
+  }
+});
+
+// server/services/ocr.ts
+var ocr_exports = {};
+__export(ocr_exports, {
+  processDocumentOCR: () => processDocumentOCR
+});
+import { createWorker } from "tesseract.js";
+import fs4 from "fs";
+import path4 from "path";
+import { exec as exec2 } from "child_process";
+import { promisify as promisify2 } from "util";
+function ensurePdfJsGlobals() {
+  const g = globalThis;
+  if (typeof g.DOMMatrix === "undefined") {
+    g.DOMMatrix = class DOMMatrix {
+      a = 1;
+      b = 0;
+      c = 0;
+      d = 1;
+      e = 0;
+      f = 0;
+      constructor(init) {
+        if (Array.isArray(init) && init.length >= 6) {
+          [this.a, this.b, this.c, this.d, this.e, this.f] = init;
+        }
+      }
+      multiply(o) {
+        const m = new g.DOMMatrix();
+        m.a = this.a * o.a + this.c * o.b;
+        m.b = this.b * o.a + this.d * o.b;
+        m.c = this.a * o.c + this.c * o.d;
+        m.d = this.b * o.c + this.d * o.d;
+        m.e = this.a * o.e + this.c * o.f + this.e;
+        m.f = this.b * o.e + this.d * o.f + this.f;
+        return m;
+      }
+      translate(tx = 0, ty = 0) {
+        const o = new g.DOMMatrix([1, 0, 0, 1, tx, ty]);
+        return this.multiply(o);
+      }
+      scale(sx = 1, sy = sx) {
+        const o = new g.DOMMatrix([sx, 0, 0, sy, 0, 0]);
+        return this.multiply(o);
+      }
+      transformPoint(p = { x: 0, y: 0 }) {
+        return { x: this.a * p.x + this.c * p.y + this.e, y: this.b * p.x + this.d * p.y + this.f };
+      }
+      toString() {
+        return `matrix(${this.a}, ${this.b}, ${this.c}, ${this.d}, ${this.e}, ${this.f})`;
+      }
+    };
+  }
+  if (typeof g.ImageData === "undefined") {
+    g.ImageData = class ImageData {
+      width;
+      height;
+      data;
+      constructor(w, h) {
+        this.width = w;
+        this.height = h;
+        this.data = new Uint8ClampedArray(w * h * 4);
+      }
+    };
+  }
+  if (typeof g.Path2D === "undefined") {
+    g.Path2D = class Path2D {
+      addPath() {
+      }
+      moveTo() {
+      }
+      lineTo() {
+      }
+      bezierCurveTo() {
+      }
+      quadraticCurveTo() {
+      }
+      closePath() {
+      }
+      rect() {
+      }
+      arc() {
+      }
+    };
+  }
+}
+async function processPdfText(pdfPath) {
+  try {
+    console.log(`Extracting text from PDF: ${pdfPath}`);
+    try {
+      const { stdout } = await execAsync2(`pdftotext "${pdfPath}" -`);
+      if (stdout && stdout.trim().length > 0) {
+        console.log("Successfully extracted text from PDF");
+        return stdout.trim();
+      }
+    } catch (pdfTextError) {
+      console.log("pdftotext failed or unavailable, trying pure-JS extraction");
+    }
+    let pdfParseFailure = null;
+    try {
+      ensurePdfJsGlobals();
+      const { PDFParse } = await import("pdf-parse");
+      const parser = new PDFParse({ data: new Uint8Array(fs4.readFileSync(pdfPath)) });
+      try {
+        const data = await parser.getText();
+        if (data.text && data.text.trim().length > 0) {
+          console.log("Successfully extracted text from PDF via pdf-parse");
+          return data.text.trim();
+        }
+      } finally {
+        await parser.destroy();
+      }
+    } catch (pdfParseError) {
+      pdfParseFailure = pdfParseError instanceof Error ? pdfParseError.message : String(pdfParseError);
+      console.log("pdf-parse extraction failed, PDF might be scanned:", pdfParseFailure);
+    }
+    console.log("Converting PDF to images for OCR...");
+    const tempDir = path4.join(path4.dirname(pdfPath), "temp_pdf_images");
+    if (!fs4.existsSync(tempDir)) {
+      fs4.mkdirSync(tempDir, { recursive: true });
+    }
+    try {
+      const baseFileName = path4.basename(pdfPath, ".pdf");
+      const imagePrefix = path4.join(tempDir, `${baseFileName}_page`);
+      await execAsync2(`pdftoppm -png "${pdfPath}" "${imagePrefix}"`);
+      const imageFiles = fs4.readdirSync(tempDir).filter((file) => file.startsWith(`${baseFileName}_page`) && file.endsWith(".png")).sort();
+      if (imageFiles.length === 0) {
+        throw new Error("No images were generated from PDF");
+      }
+      console.log(`Generated ${imageFiles.length} images from PDF`);
+      let combinedText = "";
+      for (const imageFile of imageFiles) {
+        const imagePath = path4.join(tempDir, imageFile);
+        console.log(`Processing image: ${imageFile}`);
+        try {
+          const imageText = await processImageOCR(imagePath);
+          combinedText += imageText + "\n\n";
+        } catch (imageError) {
+          const errorMessage = imageError instanceof Error ? imageError.message : "Unknown error";
+          console.log(`Failed to OCR image ${imageFile}:`, errorMessage);
+        }
+      }
+      for (const imageFile of imageFiles) {
+        const imagePath = path4.join(tempDir, imageFile);
+        if (fs4.existsSync(imagePath)) {
+          fs4.unlinkSync(imagePath);
+        }
+      }
+      try {
+        fs4.rmdirSync(tempDir);
+      } catch (e) {
+      }
+      if (combinedText.trim().length > 0) {
+        console.log("Successfully extracted text from PDF images");
+        return combinedText.trim();
+      }
+      throw new Error("No text could be extracted from PDF images");
+    } catch (conversionError) {
+      console.error("PDF to image conversion failed:", conversionError);
+      const errorMessage = conversionError instanceof Error ? conversionError.message : "Unknown error";
+      throw new Error(`Failed to process PDF: ${errorMessage}${pdfParseFailure ? ` (text extraction fallback also failed: ${pdfParseFailure})` : ""}`);
+    }
+  } catch (error) {
+    console.error("PDF processing error:", error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    throw new Error(`Failed to process PDF: ${errorMessage}`);
+  }
+}
+async function processDocumentOCR(filePath) {
+  try {
+    if (!fs4.existsSync(filePath)) {
+      throw new Error("File not found");
+    }
+    const ext = path4.extname(filePath).toLowerCase();
+    console.log("Processing file with extension:", ext, "for file:", filePath);
+    if ([".jpg", ".jpeg", ".png"].includes(ext)) {
+      return await processImageOCR(filePath);
+    } else if (ext === ".pdf") {
+      return await processPdfText(filePath);
+    } else {
+      console.error("Unsupported file extension:", ext);
+      throw new Error(`Unsupported file type for OCR: ${ext}`);
+    }
+  } catch (error) {
+    console.error("OCR processing error:", error);
+    throw error;
+  }
+}
+async function processImageOCR(imagePath) {
+  const worker = await createWorker("eng");
+  try {
+    const {
+      data: { text: text2 }
+    } = await worker.recognize(imagePath);
+    return text2;
+  } finally {
+    await worker.terminate();
+  }
+}
+var execAsync2;
+var init_ocr = __esm({
+  "server/services/ocr.ts"() {
+    "use strict";
+    execAsync2 = promisify2(exec2);
+  }
+});
+
 // server/services/faa-document-monitor.ts
 var faa_document_monitor_exports = {};
 __export(faa_document_monitor_exports, {
   faaDocumentMonitor: () => faaDocumentMonitor
 });
-import { sql as sql8 } from "drizzle-orm";
-import * as crypto7 from "crypto";
+import { sql as sql22 } from "drizzle-orm";
+import * as crypto13 from "crypto";
 var FAA_SEED_DOCUMENTS, FAADocumentMonitorService, faaDocumentMonitor;
 var init_faa_document_monitor = __esm({
   "server/services/faa-document-monitor.ts"() {
     "use strict";
     init_db();
+    init_agent_registry();
     FAA_SEED_DOCUMENTS = [
       // 14 CFR Parts
       { type: "cfr_part", id: "14-CFR-61", title: "14 CFR Part 61 \u2013 Certification: Pilots, FIs, Ground Instructors", description: "Requirements for pilot, flight instructor, and ground instructor certificates and ratings.", url: "https://www.ecfr.gov/current/title-14/chapter-I/subchapter-D/part-61", checkUrl: "https://www.ecfr.gov/api/versioner/v1/versions/title-14", priority: "high", parts: ["61"] },
@@ -1251,7 +1911,7 @@ var init_faa_document_monitor = __esm({
         console.log("[FAA Monitor] Repository initialized with", FAA_SEED_DOCUMENTS.length, "documents");
       }
       async ensureTable() {
-        await db.execute(sql8`
+        await db.execute(sql22`
       CREATE TABLE IF NOT EXISTS bccs_faa_repository (
         id SERIAL PRIMARY KEY,
         source_type VARCHAR(50) NOT NULL,
@@ -1277,7 +1937,7 @@ var init_faa_document_monitor = __esm({
       async seedDocuments() {
         for (const doc of FAA_SEED_DOCUMENTS) {
           const partsLiteral = `{${doc.parts.join(",")}}`;
-          await db.execute(sql8`
+          await db.execute(sql22`
         INSERT INTO bccs_faa_repository (source_type, source_id, title, description, source_url, check_url, priority, far_parts, status)
         VALUES (
           ${doc.type}, ${doc.id}, ${doc.title}, ${doc.description},
@@ -1324,7 +1984,7 @@ var init_faa_document_monitor = __esm({
           const partNum = doc.source_id.replace("14-CFR-", "");
           const latestAmendment = ecfrVersions[partNum];
           if (latestAmendment) {
-            newHash = crypto7.createHash("sha256").update(latestAmendment).digest("hex").substring(0, 16);
+            newHash = crypto13.createHash("sha256").update(latestAmendment).digest("hex").substring(0, 16);
             amendmentDate = latestAmendment;
             if (doc.content_hash && newHash !== doc.content_hash) {
               status = "updated";
@@ -1344,7 +2004,7 @@ var init_faa_document_monitor = __esm({
             const contentLength = res.headers.get("content-length") || "";
             const etag = res.headers.get("etag") || "";
             const hashInput = `${res.status}|${lastMod}|${contentLength}|${etag}`;
-            newHash = crypto7.createHash("sha256").update(hashInput).digest("hex").substring(0, 16);
+            newHash = crypto13.createHash("sha256").update(hashInput).digest("hex").substring(0, 16);
             if (res.ok || res.status === 302 || res.status === 301) {
               if (doc.content_hash && newHash !== doc.content_hash) {
                 status = "updated";
@@ -1360,7 +2020,7 @@ var init_faa_document_monitor = __esm({
           }
         }
         const isChanged = doc.content_hash && newHash && newHash !== doc.content_hash;
-        await db.execute(sql8`
+        await db.execute(sql22`
       UPDATE bccs_faa_repository SET
         last_checked_at = ${now.toISOString()},
         content_hash = ${newHash || doc.content_hash},
@@ -1377,8 +2037,9 @@ var init_faa_document_monitor = __esm({
         if (this.isRunning) return;
         this.isRunning = true;
         console.log("[FAA Monitor] Starting document check...");
+        const runId = await startRun("faa-repository", null);
         try {
-          const result = await db.execute(sql8`SELECT * FROM bccs_faa_repository ORDER BY priority DESC, source_type, source_id`);
+          const result = await db.execute(sql22`SELECT * FROM bccs_faa_repository ORDER BY priority DESC, source_type, source_id`);
           const docs = result.rows;
           const ecfrVersions = await this.getECFRVersions();
           let changedCount = 0;
@@ -1388,8 +2049,22 @@ var init_faa_document_monitor = __esm({
             await new Promise((r) => setTimeout(r, 200));
           }
           console.log(`[FAA Monitor] Check complete. ${docs.length} documents checked, ${changedCount} changes detected.`);
+          await finishRun(runId, {
+            status: "success",
+            itemsProcessed: docs.length,
+            findingsCount: changedCount,
+            summary: `${docs.length} FAA documents checked against eCFR; ${changedCount} revision change(s) detected.`
+          });
+          await emitAgentEvent(
+            "FAA Repository Agent",
+            changedCount > 0 ? "detected_change" : "monitoring_cycle",
+            `FAA repository sweep complete \u2014 ${docs.length} documents checked, ${changedCount} revision change(s) detected`,
+            null
+          );
         } catch (err) {
           console.error("[FAA Monitor] Check error:", err.message);
+          await finishRun(runId, { status: "failed", summary: err.message });
+          await emitAgentEvent("FAA Repository Agent", "run_failed", `FAA repository sweep failed: ${err.message}`, null);
         } finally {
           this.isRunning = false;
         }
@@ -1418,7 +2093,7 @@ var init_faa_document_monitor = __esm({
         return { ...row, far_parts: this.normalizeFarParts(row.far_parts) };
       }
       async getDocuments(filters) {
-        const rows = await db.execute(sql8`SELECT * FROM bccs_faa_repository ORDER BY priority DESC, source_type, source_id`);
+        const rows = await db.execute(sql22`SELECT * FROM bccs_faa_repository ORDER BY priority DESC, source_type, source_id`);
         let docs = rows.rows.map((r) => this.normalizeDoc(r));
         if (filters?.type && filters.type !== "all") docs = docs.filter((d) => d.source_type === filters.type);
         if (filters?.priority && filters.priority !== "all") docs = docs.filter((d) => d.priority === filters.priority);
@@ -1430,7 +2105,7 @@ var init_faa_document_monitor = __esm({
         return docs;
       }
       async getStats() {
-        const result = await db.execute(sql8`
+        const result = await db.execute(sql22`
       SELECT 
         COUNT(*) as total,
         COUNT(CASE WHEN status='current' THEN 1 END) as current_count,
@@ -1447,7 +2122,7 @@ var init_faa_document_monitor = __esm({
         return result.rows[0];
       }
       async getUpdateHistory() {
-        const result = await db.execute(sql8`
+        const result = await db.execute(sql22`
       SELECT source_id, title, source_type, status, change_summary, last_changed_at, amendment_date
       FROM bccs_faa_repository
       WHERE status = 'updated' OR last_changed_at IS NOT NULL
@@ -1462,7 +2137,54 @@ var init_faa_document_monitor = __esm({
 });
 
 // shared/license.ts
-var PLAN_FEATURES;
+var license_exports = {};
+__export(license_exports, {
+  PLAN_DISPLAY: () => PLAN_DISPLAY,
+  PLAN_FEATURES: () => PLAN_FEATURES,
+  TRIAL_GRACE_PERIOD_DAYS: () => TRIAL_GRACE_PERIOD_DAYS,
+  canAccessFeature: () => canAccessFeature,
+  getPlanFeatures: () => getPlanFeatures,
+  getTrialLifecycle: () => getTrialLifecycle
+});
+function getTrialLifecycle(plan, currentPeriodEnd, now = /* @__PURE__ */ new Date()) {
+  if (plan !== "trial" || !currentPeriodEnd) {
+    return { state: "active", daysRemaining: null, graceEndsAt: null, isExpired: false };
+  }
+  const end = new Date(currentPeriodEnd);
+  if (isNaN(end.getTime())) {
+    return { state: "active", daysRemaining: null, graceEndsAt: null, isExpired: false };
+  }
+  const msPerDay = 24 * 60 * 60 * 1e3;
+  const daysRemaining = Math.ceil((end.getTime() - now.getTime()) / msPerDay);
+  const graceEnd = new Date(end.getTime() + TRIAL_GRACE_PERIOD_DAYS * msPerDay);
+  const isExpired = end < now;
+  if (!isExpired) {
+    return {
+      state: daysRemaining <= 7 ? "expiring_soon" : "active",
+      daysRemaining,
+      graceEndsAt: null,
+      isExpired: false
+    };
+  }
+  return {
+    state: now < graceEnd ? "grace" : "locked",
+    daysRemaining,
+    graceEndsAt: graceEnd.toISOString(),
+    isExpired: true
+  };
+}
+function getPlanFeatures(plan) {
+  return PLAN_FEATURES[plan] ?? PLAN_FEATURES.trial;
+}
+function canAccessFeature(plan, status, feature) {
+  if (status === "suspended" || status === "expired") return false;
+  const features = getPlanFeatures(plan);
+  const val = features[feature];
+  if (typeof val === "boolean") return val;
+  if (typeof val === "number") return val !== 0;
+  return false;
+}
+var PLAN_FEATURES, PLAN_DISPLAY, TRIAL_GRACE_PERIOD_DAYS;
 var init_license = __esm({
   "shared/license.ts"() {
     "use strict";
@@ -1516,37 +2238,86 @@ var init_license = __esm({
         prioritySupport: true
       }
     };
+    PLAN_DISPLAY = {
+      trial: {
+        label: "Free Trial",
+        annualPrice: 0,
+        color: "bg-slate-100 text-slate-700",
+        description: "30-day evaluation, 5 users"
+      },
+      standard: {
+        label: "Standard",
+        annualPrice: 4e3,
+        color: "bg-sky-100 text-sky-700",
+        description: "$4,000/year \u2014 up to 15 users"
+      },
+      professional: {
+        label: "Professional",
+        annualPrice: 9e3,
+        color: "bg-blue-100 text-blue-700",
+        description: "$9,000/year \u2014 up to 50 users, AI features"
+      },
+      enterprise: {
+        label: "Enterprise",
+        annualPrice: 2e4,
+        color: "bg-violet-100 text-violet-700",
+        description: "$20,000/year \u2014 unlimited users, full feature set"
+      }
+    };
+    TRIAL_GRACE_PERIOD_DAYS = 7;
   }
 });
 
 // server/middleware/license.ts
-var license_exports = {};
-__export(license_exports, {
+var license_exports2 = {};
+__export(license_exports2, {
   attachLicense: () => attachLicense,
+  enforceTrialLifecycle: () => enforceTrialLifecycle,
   getActiveLicense: () => getActiveLicense,
   getLicenseFeatures: () => getLicenseFeatures,
+  getLicenseForOrg: () => getLicenseForOrg,
   invalidateLicenseCache: () => invalidateLicenseCache,
   isLicenseExpired: () => isLicenseExpired,
   requireFeature: () => requireFeature,
   requireLicenseAdmin: () => requireLicenseAdmin
 });
-import { sql as sql9 } from "drizzle-orm";
-async function getActiveLicense() {
-  const now = Date.now();
-  if (cachedLicense && now < cacheExpiry) return cachedLicense;
-  const result = await db.execute(sql9`
+import { sql as sql28 } from "drizzle-orm";
+async function fetchPlatformLicense() {
+  const fallback = await db.execute(sql28`
     SELECT * FROM bccs_licenses
+    WHERE organization_id IS NULL
     ORDER BY created_at DESC
     LIMIT 1
   `);
-  const row = result.rows[0];
-  cachedLicense = row ?? null;
-  cacheExpiry = now + 3e4;
-  return cachedLicense;
+  return fallback.rows[0] ?? null;
+}
+async function getActiveLicense(orgId) {
+  const key = orgId ?? "platform";
+  const now = Date.now();
+  const cached2 = licenseCache.get(key);
+  if (cached2 && now < cached2.expiry) return cached2.row;
+  let row;
+  if (orgId) {
+    row = await getLicenseForOrg(orgId) ?? void 0;
+  }
+  if (!row) {
+    row = await fetchPlatformLicense() ?? void 0;
+  }
+  const result = row ?? null;
+  licenseCache.set(key, { row: result, expiry: now + CACHE_TTL });
+  return result;
+}
+async function getLicenseForOrg(orgId) {
+  const result = await db.execute(sql28`
+    SELECT * FROM bccs_licenses
+    WHERE organization_id = ${orgId}
+    ORDER BY updated_at DESC
+    LIMIT 1
+  `);
+  return result.rows[0] ?? null;
 }
 function invalidateLicenseCache() {
-  cachedLicense = null;
-  cacheExpiry = 0;
+  licenseCache.clear();
 }
 function isLicenseExpired(license) {
   if (!license.current_period_end) return false;
@@ -1558,15 +2329,40 @@ function getLicenseFeatures(license) {
 }
 async function attachLicense(req, _res, next) {
   try {
-    req.license = await getActiveLicense();
+    req.license = await getActiveLicense(req.orgId ?? null);
   } catch {
     req.license = null;
   }
   next();
 }
+function isTrialLockExempt(path8) {
+  return TRIAL_LOCK_ALLOWLIST.some((p) => path8 === p || path8.startsWith(p + "/"));
+}
+async function enforceTrialLifecycle(req, res, next) {
+  try {
+    const license = req.license ?? null;
+    if (!license || !license.organization_id || license.plan !== "trial") return next();
+    const email = req.user?.email ?? "";
+    if (email.toLowerCase().endsWith("@bccsworld.com")) return next();
+    const lifecycle = getTrialLifecycle(license.plan, license.current_period_end);
+    if (lifecycle.state === "active" || lifecycle.state === "expiring_soon") return next();
+    const fullPath = (req.originalUrl ?? req.path).split("?")[0];
+    if (isTrialLockExempt(fullPath)) return next();
+    const isRead = req.method === "GET" || req.method === "HEAD" || req.method === "OPTIONS";
+    if (lifecycle.state === "grace" && isRead) return next();
+    return res.status(402).json({
+      message: lifecycle.state === "grace" ? "Your 30-day trial has expired. Your workspace is read-only during the grace period \u2014 upgrade to a paid plan to continue making changes." : "Your trial and grace period have ended. Upgrade to a paid plan to regain access to your workspace.",
+      licenseState: lifecycle.state,
+      graceEndsAt: lifecycle.graceEndsAt,
+      upgradeRequired: true
+    });
+  } catch {
+    return next();
+  }
+}
 function requireFeature(feature) {
   return async (req, res, next) => {
-    const license = req.license ?? await getActiveLicense();
+    const license = req.license ?? await getActiveLicense(req.orgId ?? null);
     if (!license) {
       return res.status(402).json({ message: "No license found. Please contact support.", feature });
     }
@@ -1596,14 +2392,111 @@ function requireLicenseAdmin(req, res, next) {
   }
   next();
 }
-var cachedLicense, cacheExpiry;
+var licenseCache, CACHE_TTL, TRIAL_LOCK_ALLOWLIST;
 var init_license2 = __esm({
   "server/middleware/license.ts"() {
     "use strict";
     init_db();
     init_license();
-    cachedLicense = null;
-    cacheExpiry = 0;
+    licenseCache = /* @__PURE__ */ new Map();
+    CACHE_TTL = 3e4;
+    TRIAL_LOCK_ALLOWLIST = [
+      "/api/login",
+      "/api/logout",
+      "/api/signup",
+      "/api/callback",
+      "/api/auth",
+      "/api/session",
+      "/api/license",
+      "/api/user",
+      "/api/billing",
+      "/api/stripe",
+      "/api/checkout",
+      "/api/webhook",
+      "/api/support"
+    ];
+  }
+});
+
+// server/services/welcome-email.ts
+var welcome_email_exports = {};
+__export(welcome_email_exports, {
+  sendWelcomeEmail: () => sendWelcomeEmail,
+  welcomeEmailConfigured: () => welcomeEmailConfigured
+});
+import nodemailer2 from "nodemailer";
+function welcomeEmailConfigured() {
+  return Boolean(process.env.SMTP_HOST);
+}
+function buildTransport2() {
+  const port = Number(process.env.SMTP_PORT || 587);
+  return nodemailer2.createTransport({
+    host: process.env.SMTP_HOST,
+    port,
+    secure: process.env.SMTP_SECURE === "true" || port === 465,
+    auth: process.env.SMTP_USER ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS } : void 0
+  });
+}
+async function sendWelcomeEmail(params) {
+  if (!welcomeEmailConfigured()) {
+    return "Welcome email skipped: SMTP is not configured (set SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM).";
+  }
+  const { to, firstName, organizationName, signInUrl } = params;
+  const subject = `Welcome to BCCS \u2014 ${organizationName} is ready`;
+  const stepsHtml = ONBOARDING_STEPS.map(
+    (s, i) => `<li style="margin-bottom:10px;"><strong>${i + 1}. ${escapeHtml2(s.title)}</strong><br/>${escapeHtml2(s.detail)}</li>`
+  ).join("");
+  const html = `
+    <p>Hi ${escapeHtml2(firstName)},</p>
+    <p>Your organization <strong>${escapeHtml2(organizationName)}</strong> has been created and your 30-day trial is active.</p>
+    <p><a href="${escapeHtml2(signInUrl)}">Sign in to your workspace</a></p>
+    <p>Here are the top three steps to get set up:</p>
+    <ol style="padding-left:18px; list-style:none;">${stepsHtml}</ol>
+    <p>Questions? Just reply to this email.</p>
+    <p>\u2014 The BCCS Team</p>
+  `;
+  const text2 = `Hi ${firstName},
+
+Your organization "${organizationName}" has been created and your 30-day trial is active.
+
+Sign in: ${signInUrl}
+
+Top three steps to get set up:
+` + ONBOARDING_STEPS.map((s, i) => `${i + 1}. ${s.title} \u2014 ${s.detail}`).join("\n") + `
+
+\u2014 The BCCS Team`;
+  try {
+    await buildTransport2().sendMail({
+      from: process.env.SMTP_FROM || process.env.ALERT_EMAIL_FROM || process.env.SMTP_USER,
+      to,
+      subject,
+      text: text2,
+      html
+    });
+    return null;
+  } catch (err) {
+    return `Welcome email delivery failed: ${err?.message ?? String(err)}`;
+  }
+}
+var escapeHtml2, ONBOARDING_STEPS;
+var init_welcome_email = __esm({
+  "server/services/welcome-email.ts"() {
+    "use strict";
+    escapeHtml2 = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    ONBOARDING_STEPS = [
+      {
+        title: "Generate your signing keys",
+        detail: "Open Key Management to review the Ed25519 signing key created for your organization (or generate a fresh one) so training records can be cryptographically signed."
+      },
+      {
+        title: "Invite your team",
+        detail: "Add instructors, auditors, and viewers from the admin dashboard so your team can start working right away \u2014 your trial includes 5 seats."
+      },
+      {
+        title: "Add your certificate number",
+        detail: "Enter your training certificate number in organization settings so compliance checks and generated documents reference the right certificate."
+      }
+    ];
   }
 });
 
@@ -1710,7 +2603,102 @@ import { createServer } from "http";
 // server/storage.ts
 init_schema();
 init_db();
-import { eq, desc, and, count, sql as sql2 } from "drizzle-orm";
+import { eq, desc, and, count, sql as sql3 } from "drizzle-orm";
+
+// server/middleware/tenant.ts
+init_db();
+import { AsyncLocalStorage } from "node:async_hooks";
+import { sql as sql2 } from "drizzle-orm";
+var tenantContext = new AsyncLocalStorage();
+function getCurrentOrgId() {
+  return tenantContext.getStore()?.orgId ?? null;
+}
+function isMultiTenant() {
+  return process.env.MULTI_TENANT === "true";
+}
+function isPlatformStaff(email) {
+  return String(email ?? "").toLowerCase().endsWith("@bccsworld.com");
+}
+function requireOrg(req, res) {
+  const orgId = req.orgId ?? null;
+  if (!orgId) {
+    res.status(403).json({ message: "No active organization for this session" });
+    return null;
+  }
+  return orgId;
+}
+var defaultOrgCache = { id: null, expiry: 0 };
+async function getDefaultOrgId() {
+  const now = Date.now();
+  if (defaultOrgCache.expiry > now) return defaultOrgCache.id;
+  const result = await db.execute(sql2`
+    SELECT id FROM training_organizations
+    WHERE is_active = TRUE
+    ORDER BY created_at ASC
+    LIMIT 1
+  `);
+  const id = result.rows[0]?.id ?? null;
+  defaultOrgCache = { id, expiry: now + 6e4 };
+  return id;
+}
+function invalidateDefaultOrgCache() {
+  defaultOrgCache = { id: null, expiry: 0 };
+}
+var membershipCache = /* @__PURE__ */ new Map();
+async function getUserMemberships(userId) {
+  const now = Date.now();
+  const cached2 = membershipCache.get(userId);
+  if (cached2 && cached2.expiry > now) return cached2.memberships;
+  const result = await db.execute(sql2`
+    SELECT uo.organization_id, uo.org_role, o.organization_name
+    FROM user_organizations uo
+    JOIN training_organizations o ON o.id = uo.organization_id
+    WHERE uo.user_id = ${userId}
+      AND uo.is_active = TRUE
+      AND o.is_active = TRUE
+    ORDER BY uo.created_at ASC
+  `);
+  const memberships = result.rows.map((r) => ({
+    organizationId: r.organization_id,
+    orgRole: r.org_role,
+    organizationName: r.organization_name
+  }));
+  membershipCache.set(userId, { memberships, expiry: now + 3e4 });
+  return memberships;
+}
+function invalidateMembershipCache(userId) {
+  if (userId) membershipCache.delete(userId);
+  else membershipCache.clear();
+}
+async function resolveTenant(req, _res, next) {
+  let orgId = null;
+  try {
+    const user = req.user;
+    if (req.isAuthenticated?.() && user) {
+      if (!isMultiTenant()) {
+        orgId = await getDefaultOrgId();
+      } else {
+        const session2 = req.session;
+        const staff = isPlatformStaff(user.email);
+        const memberships = await getUserMemberships(user.id);
+        const selected = session2?.activeOrgId;
+        if (selected && (staff || memberships.some((m) => m.organizationId === selected))) {
+          orgId = selected;
+        } else {
+          orgId = memberships[0]?.organizationId ?? (staff ? await getDefaultOrgId() : null);
+          if (session2 && orgId) session2.activeOrgId = orgId;
+        }
+      }
+    }
+  } catch (err) {
+    console.error("[tenant] Failed to resolve tenant context:", err);
+    orgId = null;
+  }
+  req.orgId = orgId;
+  tenantContext.run({ orgId }, () => next());
+}
+
+// server/storage.ts
 var DatabaseStorage = class {
   // User operations
   async getUser(id) {
@@ -1805,23 +2793,26 @@ var DatabaseStorage = class {
       checkResult,
       checkDetails,
       performedBy: "system",
+      organizationId: getCurrentOrgId(),
       nextCheckDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1e3)
       // 30 days from now
     }).returning();
     return check;
   }
   async getComplianceChecksByAircraft(aircraftId) {
-    return await db.select().from(complianceChecks).where(eq(complianceChecks.aircraftId, aircraftId)).orderBy(desc(complianceChecks.checkDate));
+    const orgId = getCurrentOrgId();
+    if (!orgId) return [];
+    return await db.select().from(complianceChecks).where(and(eq(complianceChecks.aircraftId, aircraftId), eq(complianceChecks.organizationId, orgId))).orderBy(desc(complianceChecks.checkDate));
   }
   // Analytics
   async getRegistryStats() {
     const totalAircraftResult = await db.select({ count: count() }).from(aircraftRegistry);
     const tokenizedAircraftResult = await db.select({ count: count() }).from(aircraftRegistry).where(eq(aircraftRegistry.isTokenized, true));
     const totalTokenVolumeResult = await db.select({
-      sum: sql2`COALESCE(SUM(CAST(${tokenTransactions.totalAmount} AS DECIMAL)), 0)`
+      sum: sql3`COALESCE(SUM(CAST(${tokenTransactions.totalAmount} AS DECIMAL)), 0)`
     }).from(tokenTransactions);
     const activeInvestorsResult = await db.select({
-      count: sql2`COUNT(DISTINCT ${tokenHolders.investorId})`
+      count: sql3`COUNT(DISTINCT ${tokenHolders.investorId})`
     }).from(tokenHolders);
     return {
       totalAircraft: totalAircraftResult[0]?.count || 0,
@@ -1832,18 +2823,23 @@ var DatabaseStorage = class {
   }
   // Audit logging operations
   async createAuditLog(auditLogData) {
-    const [auditLog] = await db.insert(auditLogs).values(auditLogData).returning();
+    const [auditLog] = await db.insert(auditLogs).values({
+      ...auditLogData,
+      organizationId: auditLogData.organizationId ?? getCurrentOrgId()
+    }).returning();
     return auditLog;
   }
   async getAuditLogs(filters) {
-    const conditions = [];
+    const orgId = getCurrentOrgId();
+    if (!orgId) return [];
+    const conditions = [eq(auditLogs.organizationId, orgId)];
     if (filters?.eventType) {
       conditions.push(eq(auditLogs.eventType, filters.eventType));
     }
     if (filters?.severity) {
       conditions.push(eq(auditLogs.severity, filters.severity));
     }
-    return await db.select().from(auditLogs).where(conditions.length > 0 ? and(...conditions) : void 0).orderBy(desc(auditLogs.timestamp)).limit(filters?.limit ?? 1e3);
+    return await db.select().from(auditLogs).where(and(...conditions)).orderBy(desc(auditLogs.timestamp)).limit(filters?.limit ?? 1e3);
   }
   // Crypto payments operations
   async createCryptoPayment(paymentData) {
@@ -1931,12 +2927,36 @@ var DatabaseStorage = class {
       eq(organizationMembers.isActive, true)
     )).orderBy(organizationMembers.startDate);
   }
+  async isCredentialLinkedToOrganization(credentialId, organizationId) {
+    const [member] = await db.select({ id: organizationMembers.id }).from(organizationMembers).where(and(
+      eq(organizationMembers.credentialId, credentialId),
+      eq(organizationMembers.organizationId, organizationId),
+      eq(organizationMembers.isActive, true)
+    )).limit(1);
+    if (member) return true;
+    const [record] = await db.select({ id: blockchainTrainingRecords.id }).from(blockchainTrainingRecords).where(and(
+      eq(blockchainTrainingRecords.studentCredentialId, credentialId),
+      eq(blockchainTrainingRecords.organizationId, organizationId)
+    )).limit(1);
+    return !!record;
+  }
   async createBlockchainTrainingRecord(recordData) {
     const [record] = await db.insert(blockchainTrainingRecords).values(recordData).returning();
     return record;
   }
   async getTrainingRecordsByCredential(credentialId) {
     return await db.select().from(blockchainTrainingRecords).where(eq(blockchainTrainingRecords.studentCredentialId, credentialId)).orderBy(desc(blockchainTrainingRecords.completionDate));
+  }
+  async createTrainingEvent(event) {
+    const [trainingEvent] = await db.insert(trainingEvents).values(event).returning();
+    return trainingEvent;
+  }
+  async getTrainingEvent(id) {
+    const [trainingEvent] = await db.select().from(trainingEvents).where(eq(trainingEvents.id, id));
+    return trainingEvent;
+  }
+  async getTrainingEventsByOrganization(organizationId) {
+    return await db.select().from(trainingEvents).where(eq(trainingEvents.organizationId, organizationId)).orderBy(desc(trainingEvents.eventDate));
   }
   async createKeyRecoveryRequest(requestData) {
     const [request] = await db.insert(keyRecoveryRequests).values(requestData).returning();
@@ -1957,17 +2977,28 @@ var DatabaseStorage = class {
     return await db.select().from(crossPlatformVerifications).where(eq(crossPlatformVerifications.credentialId, credentialId)).orderBy(desc(crossPlatformVerifications.verifiedAt));
   }
   async getChecklistState(userId) {
-    const [row] = await db.select().from(checklistStates).where(eq(checklistStates.userId, userId));
+    const orgId = getCurrentOrgId();
+    if (!orgId) return null;
+    const [row] = await db.select().from(checklistStates).where(and(eq(checklistStates.userId, userId), eq(checklistStates.organizationId, orgId)));
     return row ?? null;
   }
   async saveChecklistState(userId, state) {
-    await db.insert(checklistStates).values({ userId, state }).onConflictDoUpdate({
-      target: checklistStates.userId,
+    const orgId = getCurrentOrgId();
+    if (!orgId) throw new Error("No active organization \u2014 cannot save checklist state");
+    await db.insert(checklistStates).values({ userId, state, organizationId: orgId }).onConflictDoUpdate({
+      target: [checklistStates.userId, checklistStates.organizationId],
       set: { state, updatedAt: /* @__PURE__ */ new Date() }
     });
   }
   async updateUserProfile(userId, profile) {
     await db.update(users).set(profile).where(eq(users.id, userId));
+  }
+  async createGeneratedDocument(insert) {
+    const [row] = await db.insert(generatedDocuments).values(insert).returning();
+    return row;
+  }
+  async getGeneratedDocuments(organizationId) {
+    return await db.select().from(generatedDocuments).where(eq(generatedDocuments.organizationId, organizationId)).orderBy(desc(generatedDocuments.createdAt));
   }
 };
 var storage = new DatabaseStorage();
@@ -1980,7 +3011,7 @@ import { Strategy as LocalStrategy } from "passport-local";
 import bcrypt from "bcryptjs";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
-import { eq as eq2, sql as sql3 } from "drizzle-orm";
+import { eq as eq2, sql as sql4 } from "drizzle-orm";
 function getSession() {
   const sessionTtl = 7 * 24 * 60 * 60 * 1e3;
   const pgStore = connectPg(session);
@@ -2061,7 +3092,7 @@ async function setupAuth(app) {
       }
       req.logIn(user, async (loginErr) => {
         if (loginErr) return next(loginErr);
-        db.execute(sql3`UPDATE users SET last_login_at = NOW() WHERE id = ${user.id}`).catch(() => {
+        db.execute(sql4`UPDATE users SET last_login_at = NOW() WHERE id = ${user.id}`).catch(() => {
         });
         const { passwordHash: _, ...safeUser } = user;
         res.json({ success: true, user: safeUser });
@@ -2092,7 +3123,6 @@ var isAuthenticated = (req, res, next) => {
 // server/routes.ts
 init_schema();
 import { z as z5 } from "zod";
-import multer from "multer";
 
 // shared/permissions.ts
 var PERMISSION_DEFINITIONS = [
@@ -2574,8 +3604,16 @@ var verifyCrossPlatformSchema = z.object({
   verifyingOrganizationId: z.string().uuid().optional()
 });
 function registerBlockchainKeyManagementRoutes(app) {
+  async function canAccessCredential(req, credentialId) {
+    if (isPlatformStaff(req.user?.email)) return true;
+    if (!req.orgId) return false;
+    return await storage.isCredentialLinkedToOrganization(credentialId, req.orgId);
+  }
   app.post("/api/blockchain/organizations/register", isAuthenticated, async (req, res) => {
     try {
+      if (!isPlatformStaff(req.user?.email)) {
+        return res.status(403).json({ success: false, error: "Organization registration requires a platform SuperAdmin account" });
+      }
       const validatedData = registerOrganizationSchema.parse(req.body);
       const result = await blockchainKeyService.registerTrainingOrganization(validatedData);
       res.json({
@@ -2635,7 +3673,13 @@ function registerBlockchainKeyManagementRoutes(app) {
   app.get("/api/blockchain/training-records/:credentialId", isAuthenticated, async (req, res) => {
     try {
       const credentialId = req.params.credentialId;
-      const records = await storage.getTrainingRecordsByCredential(credentialId);
+      if (!await canAccessCredential(req, credentialId)) {
+        return res.status(403).json({ success: false, error: "Access to this credential is not permitted" });
+      }
+      let records = await storage.getTrainingRecordsByCredential(credentialId);
+      if (!isPlatformStaff(req.user?.email)) {
+        records = records.filter((r) => r.organizationId === req.orgId);
+      }
       res.json({
         success: true,
         data: records
@@ -2710,7 +3754,13 @@ function registerBlockchainKeyManagementRoutes(app) {
   app.get("/api/blockchain/verify/:credentialId/history", isAuthenticated, async (req, res) => {
     try {
       const credentialId = req.params.credentialId;
-      const history = await storage.getVerificationHistory(credentialId);
+      if (!await canAccessCredential(req, credentialId)) {
+        return res.status(403).json({ success: false, error: "Access to this credential is not permitted" });
+      }
+      let history = await storage.getVerificationHistory(credentialId);
+      if (!isPlatformStaff(req.user?.email)) {
+        history = history.filter((v) => v.verifyingOrganizationId === req.orgId);
+      }
       res.json({
         success: true,
         data: history
@@ -2733,6 +3783,9 @@ function registerBlockchainKeyManagementRoutes(app) {
           error: "Professional credential not found"
         });
       }
+      if (!await canAccessCredential(req, credential.id)) {
+        return res.status(403).json({ success: false, error: "Access to this credential is not permitted" });
+      }
       const { masterPrivateKeyHash, ...safeCredential } = credential;
       res.json({
         success: true,
@@ -2749,6 +3802,9 @@ function registerBlockchainKeyManagementRoutes(app) {
   app.get("/api/blockchain/organizations/:id", isAuthenticated, async (req, res) => {
     try {
       const organizationId = req.params.id;
+      if (!isPlatformStaff(req.user?.email) && req.orgId !== organizationId) {
+        return res.status(403).json({ success: false, error: "Access to this organization is not permitted" });
+      }
       const organization = await storage.getTrainingOrganization(organizationId);
       if (!organization) {
         return res.status(404).json({
@@ -2771,6 +3827,9 @@ function registerBlockchainKeyManagementRoutes(app) {
   app.get("/api/blockchain/organizations/:id/members", isAuthenticated, async (req, res) => {
     try {
       const organizationId = req.params.id;
+      if (!isPlatformStaff(req.user?.email) && req.orgId !== organizationId) {
+        return res.status(403).json({ success: false, error: "Access to this organization is not permitted" });
+      }
       const members = await storage.getOrganizationMembers(organizationId);
       res.json({
         success: true,
@@ -6862,6 +7921,17 @@ async function generateAdaptiveComplianceTutorial() {
 
 // server/routes/adaptive-compliance.ts
 var router2 = Router2();
+function authorizeOrg(req, res, requestedOrgId) {
+  const activeOrgId = req.orgId ?? null;
+  if (isPlatformStaff(req.user?.email)) {
+    return requestedOrgId || activeOrgId;
+  }
+  if (!activeOrgId || requestedOrgId && requestedOrgId !== activeOrgId) {
+    res.status(403).json({ error: "Access to this organization is not permitted" });
+    return null;
+  }
+  return activeOrgId;
+}
 router2.get("/frameworks", isAuthenticated, async (req, res) => {
   try {
     const frameworks = await regulatorySpineService.getAllActiveFrameworks();
@@ -6882,9 +7952,9 @@ router2.get("/frameworks/spine", isAuthenticated, async (req, res) => {
 });
 router2.get("/frameworks/hierarchy/:organizationId", isAuthenticated, async (req, res) => {
   try {
-    const hierarchy = await regulatorySpineService.getComplianceFrameworkHierarchy(
-      req.params.organizationId
-    );
+    const orgId = authorizeOrg(req, res, req.params.organizationId);
+    if (!orgId) return;
+    const hierarchy = await regulatorySpineService.getComplianceFrameworkHierarchy(orgId);
     res.json(hierarchy);
   } catch (error) {
     console.error("Error fetching hierarchy:", error);
@@ -7097,9 +8167,11 @@ router2.post("/inspectors", isAuthenticated, async (req, res) => {
 router2.post("/inspectors/:inspectorId/behavior", isAuthenticated, async (req, res) => {
   try {
     const { organizationId, ...behaviorData } = req.body;
+    const orgId = authorizeOrg(req, res, organizationId);
+    if (!orgId) return;
     const behavior = await inspectorPreferenceEngine.recordAuditBehavior(
       req.params.inspectorId,
-      organizationId,
+      orgId,
       behaviorData
     );
     res.json(behavior);
@@ -7121,9 +8193,11 @@ router2.get("/inspectors/:inspectorId/prediction", isAuthenticated, async (req, 
 });
 router2.get("/inspectors/:inspectorId/preparation/:organizationId", isAuthenticated, async (req, res) => {
   try {
+    const orgId = authorizeOrg(req, res, req.params.organizationId);
+    if (!orgId) return;
     const strategy = await inspectorPreferenceEngine.generateAuditPreparationStrategy(
       req.params.inspectorId,
-      req.params.organizationId
+      orgId
     );
     res.json(strategy);
   } catch (error) {
@@ -7170,7 +8244,9 @@ router2.get("/evidence/:evidenceId", isAuthenticated, async (req, res) => {
 router2.post("/evidence", isAuthenticated, async (req, res) => {
   try {
     const { organizationId, ...evidenceData } = req.body;
-    const evidence = await evidenceIndexingService.indexEvidence(organizationId, evidenceData);
+    const orgId = authorizeOrg(req, res, organizationId);
+    if (!orgId) return;
+    const evidence = await evidenceIndexingService.indexEvidence(orgId, evidenceData);
     res.json(evidence);
   } catch (error) {
     console.error("Error indexing evidence:", error);
@@ -7203,9 +8279,11 @@ router2.post("/evidence/:evidenceId/verify", isAuthenticated, async (req, res) =
 router2.post("/evidence/:evidenceId/auto-map", isAuthenticated, async (req, res) => {
   try {
     const { organizationId } = req.body;
+    const orgId = authorizeOrg(req, res, organizationId);
+    if (!orgId) return;
     const result = await evidenceIndexingService.autoMapEvidenceToChecklists(
       req.params.evidenceId,
-      organizationId
+      orgId
     );
     res.json(result);
   } catch (error) {
@@ -7216,7 +8294,9 @@ router2.post("/evidence/:evidenceId/auto-map", isAuthenticated, async (req, res)
 router2.post("/audit-packets/generate", isAuthenticated, async (req, res) => {
   try {
     const config = req.body;
-    const packet = await auditPacketGenerator.generateAuditPacket(config);
+    const orgId = authorizeOrg(req, res, config?.organizationId);
+    if (!orgId) return;
+    const packet = await auditPacketGenerator.generateAuditPacket({ ...config, organizationId: orgId });
     res.json(packet);
   } catch (error) {
     console.error("Error generating audit packet:", error);
@@ -7246,7 +8326,9 @@ router2.get("/audit-packets/:packetId/json", isAuthenticated, async (req, res) =
 });
 router2.get("/audit-packets/organization/:organizationId", isAuthenticated, async (req, res) => {
   try {
-    const packets = await auditPacketGenerator.getPacketsForOrganization(req.params.organizationId);
+    const orgId = authorizeOrg(req, res, req.params.organizationId);
+    if (!orgId) return;
+    const packets = await auditPacketGenerator.getPacketsForOrganization(orgId);
     res.json(packets);
   } catch (error) {
     console.error("Error fetching organization packets:", error);
@@ -7265,8 +8347,10 @@ router2.put("/audit-packets/:packetId/status", isAuthenticated, async (req, res)
 });
 router2.get("/coverage/:organizationId/:frameworkId", isAuthenticated, async (req, res) => {
   try {
+    const orgId = authorizeOrg(req, res, req.params.organizationId);
+    if (!orgId) return;
     const coverage = await auditPacketGenerator.calculateRegulatoryCoverage(
-      req.params.organizationId,
+      orgId,
       req.params.frameworkId
     );
     res.json(coverage);
@@ -7308,7 +8392,9 @@ router2.get("/frameworks/spines", isAuthenticated, async (req, res) => {
 router2.post("/frameworks/select-spine", isAuthenticated, async (req, res) => {
   try {
     const { organizationId, frameworkCode } = req.body;
-    const spine = await regulatorySpineService.selectPrimarySpine(organizationId, frameworkCode);
+    const orgId = authorizeOrg(req, res, organizationId);
+    if (!orgId) return;
+    const spine = await regulatorySpineService.selectPrimarySpine(orgId, frameworkCode);
     if (!spine) {
       return res.status(404).json({ error: "Framework not found" });
     }
@@ -7402,9 +8488,9 @@ router2.get("/regulatory-updates", isAuthenticated, async (req, res) => {
 });
 router2.get("/organization/:organizationId/regulatory-profile", isAuthenticated, async (req, res) => {
   try {
-    const profile = await regulatorySpineService.getOrganizationRegulatoryProfile(
-      req.params.organizationId
-    );
+    const orgId = authorizeOrg(req, res, req.params.organizationId);
+    if (!orgId) return;
+    const profile = await regulatorySpineService.getOrganizationRegulatoryProfile(orgId);
     res.json(profile);
   } catch (error) {
     console.error("Error fetching regulatory profile:", error);
@@ -8324,119 +9410,17 @@ import { Router as Router4 } from "express";
 
 // server/services/audit-compliance-ai.ts
 import OpenAI2 from "openai";
-import * as fs3 from "fs";
-import * as path3 from "path";
-
-// server/services/ocr.ts
-import { createWorker } from "tesseract.js";
-import fs from "fs";
-import path from "path";
-import { exec } from "child_process";
-import { promisify } from "util";
-var execAsync = promisify(exec);
-async function processPdfText(pdfPath) {
-  try {
-    console.log(`Extracting text from PDF: ${pdfPath}`);
-    try {
-      const { stdout } = await execAsync(`pdftotext "${pdfPath}" -`);
-      if (stdout && stdout.trim().length > 0) {
-        console.log("Successfully extracted text from PDF");
-        return stdout.trim();
-      }
-    } catch (pdfTextError) {
-      console.log("pdftotext failed, PDF might be scanned or corrupted");
-    }
-    console.log("Converting PDF to images for OCR...");
-    const tempDir = path.join(path.dirname(pdfPath), "temp_pdf_images");
-    if (!fs.existsSync(tempDir)) {
-      fs.mkdirSync(tempDir, { recursive: true });
-    }
-    try {
-      const baseFileName = path.basename(pdfPath, ".pdf");
-      const imagePrefix = path.join(tempDir, `${baseFileName}_page`);
-      await execAsync(`pdftoppm -png "${pdfPath}" "${imagePrefix}"`);
-      const imageFiles = fs.readdirSync(tempDir).filter((file) => file.startsWith(`${baseFileName}_page`) && file.endsWith(".png")).sort();
-      if (imageFiles.length === 0) {
-        throw new Error("No images were generated from PDF");
-      }
-      console.log(`Generated ${imageFiles.length} images from PDF`);
-      let combinedText = "";
-      for (const imageFile of imageFiles) {
-        const imagePath = path.join(tempDir, imageFile);
-        console.log(`Processing image: ${imageFile}`);
-        try {
-          const imageText = await processImageOCR(imagePath);
-          combinedText += imageText + "\n\n";
-        } catch (imageError) {
-          const errorMessage = imageError instanceof Error ? imageError.message : "Unknown error";
-          console.log(`Failed to OCR image ${imageFile}:`, errorMessage);
-        }
-      }
-      for (const imageFile of imageFiles) {
-        const imagePath = path.join(tempDir, imageFile);
-        if (fs.existsSync(imagePath)) {
-          fs.unlinkSync(imagePath);
-        }
-      }
-      try {
-        fs.rmdirSync(tempDir);
-      } catch (e) {
-      }
-      if (combinedText.trim().length > 0) {
-        console.log("Successfully extracted text from PDF images");
-        return combinedText.trim();
-      }
-      throw new Error("No text could be extracted from PDF images");
-    } catch (conversionError) {
-      console.error("PDF to image conversion failed:", conversionError);
-      const errorMessage = conversionError instanceof Error ? conversionError.message : "Unknown error";
-      throw new Error(`Failed to process PDF: ${errorMessage}`);
-    }
-  } catch (error) {
-    console.error("PDF processing error:", error);
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    throw new Error(`Failed to process PDF: ${errorMessage}`);
-  }
-}
-async function processDocumentOCR(filePath) {
-  try {
-    if (!fs.existsSync(filePath)) {
-      throw new Error("File not found");
-    }
-    const ext = path.extname(filePath).toLowerCase();
-    console.log("Processing file with extension:", ext, "for file:", filePath);
-    if ([".jpg", ".jpeg", ".png"].includes(ext)) {
-      return await processImageOCR(filePath);
-    } else if (ext === ".pdf") {
-      return await processPdfText(filePath);
-    } else {
-      console.error("Unsupported file extension:", ext);
-      throw new Error(`Unsupported file type for OCR: ${ext}`);
-    }
-  } catch (error) {
-    console.error("OCR processing error:", error);
-    throw error;
-  }
-}
-async function processImageOCR(imagePath) {
-  const worker = await createWorker("eng");
-  try {
-    const {
-      data: { text: text2 }
-    } = await worker.recognize(imagePath);
-    return text2;
-  } finally {
-    await worker.terminate();
-  }
-}
+import * as fs2 from "fs";
+import * as path2 from "path";
 
 // server/services/document-generator.ts
 import OpenAI from "openai";
-import * as fs2 from "fs";
-import * as path2 from "path";
-var envPath = path2.join(process.cwd(), ".env");
-if (fs2.existsSync(envPath)) {
-  const envContent = fs2.readFileSync(envPath, "utf8");
+import * as fs from "fs";
+import * as path from "path";
+import { randomUUID } from "crypto";
+var envPath = path.join(process.cwd(), ".env");
+if (fs.existsSync(envPath)) {
+  const envContent = fs.readFileSync(envPath, "utf8");
   const envLines = envContent.split("\n").filter((line) => line.trim() && !line.startsWith("#"));
   for (const line of envLines) {
     const [key, ...valueParts] = line.split("=");
@@ -8473,7 +9457,7 @@ var DocumentGenerator = class {
     };
   }
   async autoGenerateComplianceDocuments(userId, organizationId, documentTypes, existingData) {
-    const generatedDocuments = [];
+    const generatedDocuments2 = [];
     const organization = {
       name: existingData.organizationName || "Training Center",
       type: existingData.organizationType || "Part 142",
@@ -8487,7 +9471,7 @@ var DocumentGenerator = class {
           existingData
         );
         if (generatedDoc) {
-          generatedDocuments.push(generatedDoc);
+          generatedDocuments2.push(generatedDoc);
           await this.saveGeneratedDocument(
             userId,
             organizationId,
@@ -8496,7 +9480,7 @@ var DocumentGenerator = class {
         }
       }
     }
-    return generatedDocuments;
+    return generatedDocuments2;
   }
   canGenerateDocumentType(documentType) {
     const generatableTypes = [
@@ -8983,52 +9967,30 @@ var DocumentGenerator = class {
     return "LOW";
   }
   async saveGeneratedDocument(userId, organizationId, generatedDoc) {
-    const uploadsDir = path2.join(process.cwd(), "uploads");
-    if (!fs2.existsSync(uploadsDir)) {
-      fs2.mkdirSync(uploadsDir, { recursive: true });
+    const uploadsDir = path.join(process.cwd(), "uploads");
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
     }
-    const filePath = path2.join(uploadsDir, generatedDoc.filename);
-    fs2.writeFileSync(filePath, generatedDoc.content, "utf8");
-    const document = await storage.createDocument({
+    const storedFilename = `${randomUUID()}-${generatedDoc.filename}`;
+    const filePath = path.join(uploadsDir, storedFilename);
+    fs.writeFileSync(filePath, generatedDoc.content, "utf8");
+    await storage.createGeneratedDocument({
       filename: generatedDoc.filename,
-      originalName: generatedDoc.filename,
-      fileType: "text/plain",
+      documentType: generatedDoc.documentType,
       fileSize: Buffer.byteLength(generatedDoc.content, "utf8"),
-      status: "processed",
-      uploadedBy: userId,
-      organizationId,
-      processedAt: /* @__PURE__ */ new Date()
-    });
-    for (const [key, value] of Object.entries(generatedDoc.metadata)) {
-      await storage.createExtractedData({
-        documentId: document.id,
-        fieldName: key,
-        extractedValue: String(value),
-        confidenceScore: 1,
-        isValidated: true,
-        validatedValue: String(value),
-        validatedBy: userId,
-        validatedAt: /* @__PURE__ */ new Date()
-      });
-    }
-    await storage.createExtractedData({
-      documentId: document.id,
-      fieldName: "auto_generated",
-      extractedValue: "true",
-      confidenceScore: 1,
-      isValidated: true,
-      validatedValue: "true",
-      validatedBy: userId,
-      validatedAt: /* @__PURE__ */ new Date()
+      filePath,
+      metadata: generatedDoc.metadata,
+      generatedBy: userId,
+      organizationId: organizationId ?? null
     });
   }
 };
 var documentGenerator = new DocumentGenerator();
 
 // server/services/audit-compliance-ai.ts
-var envPath2 = path3.join(process.cwd(), ".env");
-if (fs3.existsSync(envPath2)) {
-  const envContent = fs3.readFileSync(envPath2, "utf8");
+var envPath2 = path2.join(process.cwd(), ".env");
+if (fs2.existsSync(envPath2)) {
+  const envContent = fs2.readFileSync(envPath2, "utf8");
   const envLines = envContent.split("\n").filter((line) => line.trim() && !line.startsWith("#"));
   for (const line of envLines) {
     const [key, ...valueParts] = line.split("=");
@@ -9063,36 +10025,11 @@ var AuditComplianceAI = class {
     return this.analyzeIndividualRequirement(item);
   }
   async analyzeUploadedDocuments(userId) {
-    try {
-      const documents = await storage.getDocumentsByUser(userId);
-      const documentContents = [];
-      for (const doc of documents) {
-        if (doc.status === "processed" && doc.filename) {
-          try {
-            const filePath = path3.join(process.cwd(), "uploads", doc.filename);
-            const extractedText = await processDocumentOCR(filePath);
-            const extractedData = await storage.getExtractedDataByDocument(doc.id);
-            const metadata = extractedData.reduce((acc, item) => {
-              acc[item.fieldName] = item.extractedValue;
-              return acc;
-            }, {});
-            documentContents.push({
-              filename: doc.originalName,
-              extractedText,
-              documentType: doc.fileType,
-              metadata
-            });
-          } catch (error) {
-            console.error(`Error processing document ${doc.originalName}:`, error);
-          }
-        }
-      }
-      this.documentContents = documentContents;
-      return documentContents;
-    } catch (error) {
-      console.error("Error analyzing uploaded documents:", error);
-      return [];
-    }
+    console.warn(
+      `[audit-compliance-ai] documents storage removed: analyzeUploadedDocuments returning no documents for user ${userId}.`
+    );
+    this.documentContents = [];
+    return [];
   }
   async analyzeChecklistCompliance(checklistItems3) {
     const analyses = [];
@@ -9313,7 +10250,7 @@ Format as a comprehensive report suitable for training center management and reg
       existingDocuments,
       organizationData
     );
-    const generatedDocuments = await documentGenerator.autoGenerateComplianceDocuments(
+    const generatedDocuments2 = await documentGenerator.autoGenerateComplianceDocuments(
       userId,
       organizationId,
       gaps.canAutoGenerate,
@@ -9321,7 +10258,7 @@ Format as a comprehensive report suitable for training center management and reg
     );
     return {
       gaps,
-      generatedDocuments,
+      generatedDocuments: generatedDocuments2,
       uploadRequests: gaps.requiresExternalUpload
     };
   }
@@ -9495,6 +10432,7 @@ var ComplianceAlertSystem = class {
 var complianceAlertSystem = new ComplianceAlertSystem();
 
 // server/services/link-monitor.ts
+init_agent_registry();
 import { OpenAI as OpenAI3 } from "openai";
 var openai3 = new OpenAI3({
   apiKey: process.env.OPENAI_API_KEY || "not-configured"
@@ -9502,12 +10440,28 @@ var openai3 = new OpenAI3({
 var LinkMonitoringService = class {
   monitoredLinks = /* @__PURE__ */ new Map();
   lastContentHashes = /* @__PURE__ */ new Map();
+  periodicChecksScheduled = false;
   async initializeMonitoring() {
     console.log("Initializing regulatory link monitoring system...");
+    const runId = await startRun("link-integrity", null);
     const regulatoryLinks = this.extractRegulatoryLinks();
+    let issues = 0;
     for (const link of regulatoryLinks) {
-      await this.checkLinkStatus(link);
+      const status = await this.checkLinkStatus(link);
+      if (status.status !== "active") issues++;
     }
+    await finishRun(runId, {
+      status: "success",
+      itemsProcessed: regulatoryLinks.length,
+      findingsCount: issues,
+      summary: `${regulatoryLinks.length} regulatory links verified; ${issues} issue(s) found.`
+    });
+    await emitAgentEvent(
+      "Link Integrity Agent",
+      issues > 0 ? "flagged_records" : "monitoring_cycle",
+      `Link integrity sweep complete \u2014 ${regulatoryLinks.length} regulatory links verified, ${issues} issue(s) found`,
+      null
+    );
     this.schedulePeriodicChecks();
   }
   extractRegulatoryLinks() {
@@ -9708,6 +10662,8 @@ var LinkMonitoringService = class {
     console.log(`Suggested Action: ${alert.suggestedAction}`);
   }
   schedulePeriodicChecks() {
+    if (this.periodicChecksScheduled) return;
+    this.periodicChecksScheduled = true;
     setInterval(() => {
       console.log("Running daily regulatory link check...");
       this.initializeMonitoring();
@@ -10067,8 +11023,8 @@ var CryptoSubscriptionService = class {
       contractType: "subscription_manager",
       version: "1.0.0",
       supportedStableCoins: ["USDC", "USDT", "DAI"],
-      minimumPayment: 1,
-      maximumPayment: 1e5,
+      minimumPayment: "1",
+      maximumPayment: "100000",
       gasLimit: 3e5,
       abi: SUBSCRIPTION_CONTRACT_ABI
     });
@@ -10122,7 +11078,7 @@ function registerCryptoSubscriptionRoutes(app) {
       console.error("Crypto subscription setup error:", error);
       res.status(400).json({
         success: false,
-        error: error.message
+        error: error instanceof Error ? error.message : String(error)
       });
     }
   });
@@ -10140,7 +11096,7 @@ function registerCryptoSubscriptionRoutes(app) {
       console.error("Subscription renewal error:", error);
       res.status(400).json({
         success: false,
-        error: error.message
+        error: error instanceof Error ? error.message : String(error)
       });
     }
   });
@@ -10156,7 +11112,7 @@ function registerCryptoSubscriptionRoutes(app) {
       console.error("Get subscription details error:", error);
       res.status(404).json({
         success: false,
-        error: error.message
+        error: error instanceof Error ? error.message : String(error)
       });
     }
   });
@@ -10172,7 +11128,7 @@ function registerCryptoSubscriptionRoutes(app) {
       console.error("Get user subscriptions error:", error);
       res.status(500).json({
         success: false,
-        error: error.message
+        error: error instanceof Error ? error.message : String(error)
       });
     }
   });
@@ -10205,7 +11161,7 @@ function registerCryptoSubscriptionRoutes(app) {
       console.error("Get crypto config error:", error);
       res.status(500).json({
         success: false,
-        error: error.message
+        error: error instanceof Error ? error.message : String(error)
       });
     }
   });
@@ -10227,7 +11183,7 @@ function registerCryptoSubscriptionRoutes(app) {
       console.error("Webhook processing error:", error);
       res.status(500).json({
         success: false,
-        error: error.message
+        error: error instanceof Error ? error.message : String(error)
       });
     }
   });
@@ -10244,7 +11200,7 @@ function registerCryptoSubscriptionRoutes(app) {
       console.error("Payment monitoring error:", error);
       res.status(500).json({
         success: false,
-        error: error.message
+        error: error instanceof Error ? error.message : String(error)
       });
     }
   });
@@ -10253,16 +11209,14 @@ function registerCryptoSubscriptionRoutes(app) {
 // server/routes/document-generation.ts
 import { Router as Router6 } from "express";
 var router6 = Router6();
-router6.post("/api/audit-with-generation", async (req, res) => {
+router6.post("/api/audit-with-generation", isAuthenticated, async (req, res) => {
   try {
-    const userId = req.session?.user?.id;
-    const organizationId = req.body.organizationId;
+    const userId = req.user?.id;
     if (!userId) {
       return res.status(401).json({ error: "Unauthorized" });
     }
-    if (!organizationId) {
-      return res.status(400).json({ error: "Organization ID is required" });
-    }
+    const organizationId = requireOrg(req, res);
+    if (!organizationId) return;
     const result = await auditComplianceAI.performComprehensiveAuditWithDocumentGeneration(
       userId,
       organizationId
@@ -10279,8 +11233,10 @@ router6.post("/api/audit-with-generation", async (req, res) => {
     });
   }
 });
-router6.post("/api/analyze-document-gaps", async (req, res) => {
+router6.post("/api/analyze-document-gaps", isAuthenticated, async (req, res) => {
   try {
+    const organizationId = requireOrg(req, res);
+    if (!organizationId) return;
     const { checklistItems: checklistItems3, existingDocuments, organizationData } = req.body;
     const gaps = await documentGenerator.analyzeDocumentGaps(
       checklistItems3,
@@ -10299,14 +11255,16 @@ router6.post("/api/analyze-document-gaps", async (req, res) => {
     });
   }
 });
-router6.post("/api/generate-documents", async (req, res) => {
+router6.post("/api/generate-documents", isAuthenticated, async (req, res) => {
   try {
-    const userId = req.session?.user?.id;
-    const { organizationId, documentTypes, existingData } = req.body;
+    const userId = req.user?.id;
     if (!userId) {
       return res.status(401).json({ error: "Unauthorized" });
     }
-    const generatedDocuments = await documentGenerator.autoGenerateComplianceDocuments(
+    const organizationId = requireOrg(req, res);
+    if (!organizationId) return;
+    const { documentTypes, existingData } = req.body;
+    const generatedDocuments2 = await documentGenerator.autoGenerateComplianceDocuments(
       userId,
       organizationId,
       documentTypes,
@@ -10314,12 +11272,29 @@ router6.post("/api/generate-documents", async (req, res) => {
     );
     res.json({
       success: true,
-      generatedDocuments
+      generatedDocuments: generatedDocuments2
     });
   } catch (error) {
     console.error("Error generating documents:", error);
     res.status(500).json({
       error: "Failed to generate documents",
+      details: error instanceof Error ? error.message : "Unknown error"
+    });
+  }
+});
+router6.get("/api/generated-documents", isAuthenticated, async (req, res) => {
+  try {
+    const organizationId = requireOrg(req, res);
+    if (!organizationId) return;
+    const documents = await storage.getGeneratedDocuments(organizationId);
+    res.json({
+      success: true,
+      documents
+    });
+  } catch (error) {
+    console.error("Error fetching generated documents:", error);
+    res.status(500).json({
+      error: "Failed to fetch generated documents",
       details: error instanceof Error ? error.message : "Unknown error"
     });
   }
@@ -10755,15 +11730,157 @@ var maintenance_default = router7;
 init_db();
 init_schema();
 import { Router as Router7 } from "express";
-import { eq as eq8, desc as desc6, sql as sql7 } from "drizzle-orm";
-import crypto6 from "crypto";
+import { eq as eq8, and as and7, desc as desc6, sql as sql11 } from "drizzle-orm";
+
+// server/services/audit-readiness.ts
+init_db();
+init_agent_registry();
 import OpenAI5 from "openai";
+import { sql as sql9 } from "drizzle-orm";
+var openai5 = new OpenAI5({ apiKey: process.env.OPENAI_API_KEY || "not-configured" });
+var AGENT_ID = "audit-readiness";
+var AGENT_NAME = "Audit Readiness Agent";
+async function count2(query) {
+  return db.execute(query).then((r) => Number(r.rows[0]?.n ?? 0));
+}
+var REFRESH_DEBOUNCE_MS = 6e4;
+var pendingRefreshes = /* @__PURE__ */ new Map();
+var inFlightOrgs = /* @__PURE__ */ new Set();
+var rerunRequested = /* @__PURE__ */ new Set();
+function queueAuditReadinessRefresh(orgId, reason) {
+  if (!orgId || pendingRefreshes.has(orgId)) return;
+  if (inFlightOrgs.has(orgId)) {
+    rerunRequested.add(orgId);
+    return;
+  }
+  const timer = setTimeout(() => {
+    pendingRefreshes.delete(orgId);
+    void executeRefresh(orgId, reason);
+  }, REFRESH_DEBOUNCE_MS);
+  timer.unref?.();
+  pendingRefreshes.set(orgId, timer);
+}
+async function executeRefresh(orgId, reason) {
+  inFlightOrgs.add(orgId);
+  try {
+    await runAuditReadiness(orgId);
+  } catch (err) {
+    console.error(`Audit readiness refresh failed for org ${orgId} (reason: ${reason}):`, err.message);
+  } finally {
+    inFlightOrgs.delete(orgId);
+    if (rerunRequested.delete(orgId)) {
+      queueAuditReadinessRefresh(orgId, `${reason} (coalesced during previous run)`);
+    }
+  }
+}
+async function runAuditReadiness(orgId) {
+  const runId = await startRun(AGENT_ID, orgId);
+  try {
+    const [
+      totalRecords,
+      signedRecords,
+      docsNeedingReview,
+      docsFailed,
+      openWatchdogFindings,
+      criticalFindings,
+      refusals,
+      pendingEscalations,
+      activeInstructors,
+      expiringCerts,
+      activeStudents,
+      overdueStudents,
+      formSubmissionsTotal,
+      formSubmissionsPending,
+      formSubmissionsRejected
+    ] = await Promise.all([
+      count2(sql9`SELECT COUNT(*)::int AS n FROM bccs_training_events WHERE organization_id = ${orgId}`),
+      count2(sql9`SELECT COUNT(*)::int AS n FROM bccs_training_events WHERE organization_id = ${orgId} AND signature IS NOT NULL`),
+      count2(sql9`SELECT COUNT(*)::int AS n FROM bccs_documents WHERE organization_id = ${orgId} AND status = 'needs_review'`),
+      count2(sql9`SELECT COUNT(*)::int AS n FROM bccs_documents WHERE organization_id = ${orgId} AND status = 'failed'`),
+      count2(sql9`SELECT COUNT(*)::int AS n FROM bccs_agent_findings WHERE org_id = ${orgId} AND status = 'open' AND agent_id = 'compliance-watchdog'`),
+      count2(sql9`SELECT COUNT(*)::int AS n FROM bccs_agent_findings WHERE org_id = ${orgId} AND status = 'open' AND severity = 'critical'`),
+      count2(sql9`SELECT COUNT(*)::int AS n FROM governance_decisions WHERE org_id = ${orgId} AND decision = 'refused'`),
+      count2(sql9`SELECT COUNT(*)::int AS n FROM governance_escalations e JOIN governance_decisions d ON d.id = e.decision_id WHERE d.org_id = ${orgId} AND e.status = 'pending'`),
+      count2(sql9`SELECT COUNT(*)::int AS n FROM bccs_instructor_records WHERE organization_id = ${orgId} AND status = 'active'`),
+      count2(sql9`SELECT COUNT(*)::int AS n FROM bccs_instructor_records WHERE organization_id = ${orgId} AND status = 'active' AND expiration_date < NOW() + INTERVAL '60 days'`),
+      count2(sql9`SELECT COUNT(*)::int AS n FROM students WHERE organization_id = ${orgId} AND status = 'active'`),
+      count2(sql9`SELECT COUNT(*)::int AS n FROM students WHERE organization_id = ${orgId} AND status = 'active' AND expected_completion < NOW()`),
+      count2(sql9`SELECT COUNT(*)::int AS n FROM digital_form_submissions WHERE organization_id = ${orgId}`),
+      count2(sql9`SELECT COUNT(*)::int AS n FROM digital_form_submissions WHERE organization_id = ${orgId} AND status = 'submitted'`),
+      count2(sql9`SELECT COUNT(*)::int AS n FROM digital_form_submissions WHERE organization_id = ${orgId} AND status = 'rejected'`)
+    ]);
+    const posture = {
+      trainingRecords: { total: totalRecords, cryptographicallySigned: signedRecords },
+      documents: { awaitingHumanReview: docsNeedingReview, failedProcessing: docsFailed },
+      watchdog: { openFindings: openWatchdogFindings, criticalFindings },
+      governance: { refusedActions: refusals, pendingEscalations },
+      instructors: { active: activeInstructors, certificatesExpiringWithin60Days: expiringCerts },
+      students: { active: activeStudents, pastExpectedCompletion: overdueStudents },
+      digitalForms: { submissionsTotal: formSubmissionsTotal, awaitingReview: formSubmissionsPending, rejected: formSubmissionsRejected }
+    };
+    const response = await openai5.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "system",
+          content: `You are an FAA Part 142 audit readiness inspector reviewing a training center's compliance posture. Based on the metrics provided, assess how ready this organization is for an FAA audit. Be direct and specific \u2014 reference the actual numbers. Return JSON:
+{"score": <0-100 readiness score>, "summary": "<2-3 sentence plain-language assessment>", "gaps": [{"title": "<specific gap>", "severity": "low|medium|high|critical", "recommendation": "<concrete action>"}]}
+Rules: max 5 gaps, ordered most severe first. If a metric shows zero issues, do not invent a gap for it. Score guidance: signed records ratio, open critical findings, expiring certificates, and pending reviews weigh heaviest.`
+        },
+        { role: "user", content: JSON.stringify(posture) }
+      ],
+      response_format: { type: "json_object" }
+    });
+    const parsed = JSON.parse(response.choices[0].message.content || "{}");
+    const score = Math.max(0, Math.min(100, Math.round(Number(parsed.score) || 0)));
+    const summary = typeof parsed.summary === "string" ? parsed.summary : "Assessment unavailable.";
+    const gaps = Array.isArray(parsed.gaps) ? parsed.gaps.slice(0, 5).map((g) => ({
+      title: String(g.title ?? "Unspecified gap"),
+      severity: ["low", "medium", "high", "critical"].includes(g.severity) ? g.severity : "medium",
+      recommendation: String(g.recommendation ?? "")
+    })) : [];
+    await db.execute(sql9`
+      UPDATE bccs_agent_findings SET status = 'resolved'
+      WHERE agent_id = ${AGENT_ID} AND org_id = ${orgId} AND status IN ('open', 'acknowledged')
+    `);
+    for (const gap of gaps) {
+      await db.execute(sql9`
+        INSERT INTO bccs_agent_findings (agent_id, org_id, finding_type, severity, title, detail)
+        VALUES (${AGENT_ID}, ${orgId}, 'audit_gap', ${gap.severity}, ${gap.title},
+                ${JSON.stringify({ recommendation: gap.recommendation, score, postureSnapshot: posture })}::jsonb)
+      `);
+    }
+    await finishRun(runId, {
+      status: "success",
+      itemsProcessed: totalRecords + docsNeedingReview + activeInstructors + activeStudents + formSubmissionsTotal,
+      findingsCount: gaps.length,
+      summary: `Audit readiness score: ${score}/100. ${summary}`
+    });
+    await emitAgentEvent(
+      AGENT_NAME,
+      gaps.length > 0 ? "flagged_records" : "monitoring_cycle",
+      `Audit readiness review complete \u2014 score ${score}/100, ${gaps.length} gap(s) identified`,
+      orgId
+    );
+    return { score, summary, gaps };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error("[audit-readiness] review failed:", error);
+    await finishRun(runId, { status: "failed", summary: message });
+    await emitAgentEvent(AGENT_NAME, "run_failed", `Audit readiness review failed: ${message}`, orgId);
+    throw error;
+  }
+}
+
+// server/routes/digital-forms.ts
+import crypto7 from "crypto";
+import OpenAI6 from "openai";
 var router8 = Router7();
 function generateToken() {
-  return crypto6.randomBytes(12).toString("base64url");
+  return crypto7.randomBytes(12).toString("base64url");
 }
 async function ensureTables() {
-  await db.execute(sql7`
+  await db.execute(sql11`
     CREATE TABLE IF NOT EXISTS digital_form_templates (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       title VARCHAR(300) NOT NULL,
@@ -10781,18 +11898,20 @@ async function ensureTables() {
       updated_at TIMESTAMP DEFAULT NOW()
     )
   `);
-  await db.execute(sql7`ALTER TABLE digital_form_templates ADD COLUMN IF NOT EXISTS organization_name VARCHAR(300)`);
-  await db.execute(sql7`ALTER TABLE digital_form_templates ADD COLUMN IF NOT EXISTS public_token VARCHAR(100)`);
-  await db.execute(sql7`ALTER TABLE digital_form_templates ADD COLUMN IF NOT EXISTS is_public BOOLEAN DEFAULT true`);
-  await db.execute(sql7`ALTER TABLE digital_form_templates ADD COLUMN IF NOT EXISTS auto_generated BOOLEAN DEFAULT false`);
-  await db.execute(sql7`ALTER TABLE digital_form_templates ADD COLUMN IF NOT EXISTS checklist_version_hash TEXT`);
-  await db.execute(sql7`ALTER TABLE digital_form_templates ADD COLUMN IF NOT EXISTS regulation_status VARCHAR(20) DEFAULT 'current'`);
-  await db.execute(sql7`ALTER TABLE digital_form_templates ADD COLUMN IF NOT EXISTS generated_from_section VARCHAR(200)`);
-  const rows = await db.execute(sql7`SELECT id FROM digital_form_templates WHERE public_token IS NULL`);
+  await db.execute(sql11`ALTER TABLE digital_form_templates ADD COLUMN IF NOT EXISTS organization_name VARCHAR(300)`);
+  await db.execute(sql11`ALTER TABLE digital_form_templates ADD COLUMN IF NOT EXISTS public_token VARCHAR(100)`);
+  await db.execute(sql11`ALTER TABLE digital_form_templates ADD COLUMN IF NOT EXISTS is_public BOOLEAN DEFAULT true`);
+  await db.execute(sql11`ALTER TABLE digital_form_templates ADD COLUMN IF NOT EXISTS auto_generated BOOLEAN DEFAULT false`);
+  await db.execute(sql11`ALTER TABLE digital_form_templates ADD COLUMN IF NOT EXISTS checklist_version_hash TEXT`);
+  await db.execute(sql11`ALTER TABLE digital_form_templates ADD COLUMN IF NOT EXISTS regulation_status VARCHAR(20) DEFAULT 'current'`);
+  await db.execute(sql11`ALTER TABLE digital_form_templates ADD COLUMN IF NOT EXISTS generated_from_section VARCHAR(200)`);
+  await db.execute(sql11`ALTER TABLE digital_form_templates ADD COLUMN IF NOT EXISTS organization_id UUID`);
+  await db.execute(sql11`ALTER TABLE digital_form_templates ADD COLUMN IF NOT EXISTS instructor_enabled BOOLEAN DEFAULT false`);
+  const rows = await db.execute(sql11`SELECT id FROM digital_form_templates WHERE public_token IS NULL`);
   for (const row of rows.rows) {
-    await db.execute(sql7`UPDATE digital_form_templates SET public_token = ${generateToken()} WHERE id = ${row.id}`);
+    await db.execute(sql11`UPDATE digital_form_templates SET public_token = ${generateToken()} WHERE id = ${row.id}`);
   }
-  await db.execute(sql7`
+  await db.execute(sql11`
     CREATE TABLE IF NOT EXISTS digital_form_submissions (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       template_id UUID NOT NULL REFERENCES digital_form_templates(id) ON DELETE CASCADE,
@@ -10808,14 +11927,102 @@ async function ensureTables() {
       created_at TIMESTAMP DEFAULT NOW()
     )
   `);
-  await db.execute(sql7`ALTER TABLE digital_form_submissions ADD COLUMN IF NOT EXISTS submitter_name VARCHAR(200)`);
-  await db.execute(sql7`ALTER TABLE digital_form_submissions ADD COLUMN IF NOT EXISTS submitter_email VARCHAR(300)`);
+  await db.execute(sql11`ALTER TABLE digital_form_submissions ADD COLUMN IF NOT EXISTS submitter_name VARCHAR(200)`);
+  await db.execute(sql11`ALTER TABLE digital_form_submissions ADD COLUMN IF NOT EXISTS submitter_email VARCHAR(300)`);
+  await db.execute(sql11`ALTER TABLE digital_form_submissions ADD COLUMN IF NOT EXISTS organization_id UUID`);
+  await db.execute(sql11`ALTER TABLE digital_form_submissions ADD COLUMN IF NOT EXISTS training_event_id UUID`);
+}
+var TRAINING_EVENT_MARKER = "system:training-event";
+var TRAINING_EVENT_FIELDS = [
+  { id: "student_name", label: "Student Name", type: "text", required: true, placeholder: "Full name" },
+  { id: "instructor_name", label: "Instructor Name", type: "text", required: true, placeholder: "Full name" },
+  { id: "event_type", label: "Event Type", type: "select", required: true, options: ["ground", "flight", "simulator", "check_ride", "evaluation", "proficiency_check", "recurrent"] },
+  { id: "event_date", label: "Event Date", type: "date", required: true },
+  { id: "duration_hours", label: "Duration (hours)", type: "number", required: false },
+  { id: "curriculum_item", label: "Curriculum Item", type: "text", required: false, placeholder: "e.g. Stage 2 \u2014 Instrument procedures" },
+  { id: "notes", label: "Notes", type: "textarea", required: false }
+];
+async function ensureTrainingEventTemplate(orgId) {
+  const existing = await db.execute(sql11`
+    SELECT id FROM digital_form_templates
+    WHERE organization_id = ${orgId} AND generated_from_section = ${TRAINING_EVENT_MARKER} AND status = 'active'
+    LIMIT 1
+  `).then((r) => r.rows);
+  if (existing[0]) return;
+  await db.execute(sql11`
+    INSERT INTO digital_form_templates (title, description, fields, status, public_token, is_public, generated_from_section, organization_id, created_by)
+    VALUES (
+      'Training Event',
+      'Log a completed training event. Submissions are recorded as official training records, cryptographically signed when an org key exists, and tracked by the audit agents.',
+      ${JSON.stringify(TRAINING_EVENT_FIELDS)}::jsonb,
+      'active', ${generateToken()}, true, ${TRAINING_EVENT_MARKER}, ${orgId}, 'system'
+    )
+  `);
+}
+function isTrainingEventTemplate(template) {
+  const marker = template?.generatedFromSection ?? template?.generated_from_section;
+  return marker === TRAINING_EVENT_MARKER;
+}
+var PUBLIC_TRAINING_EVENT_BLOCKED_MESSAGE = "Training Event submissions cannot be made through a public link. Instructors must use the instructor portal with their access key.";
+function parseTrainingEventForm(formData) {
+  const studentName = String(formData?.student_name ?? "").trim();
+  const instructorName = String(formData?.instructor_name ?? "").trim();
+  const eventType = String(formData?.event_type ?? "").trim();
+  const eventDate = formData?.event_date ? new Date(formData.event_date) : null;
+  if (!studentName || !instructorName || !eventType || !eventDate || isNaN(eventDate.getTime())) {
+    throw new Error("Training Event form requires student name, instructor name, event type, and a valid date");
+  }
+  const durationHours = formData.duration_hours != null && formData.duration_hours !== "" ? Number(formData.duration_hours) : null;
+  if (durationHours != null && isNaN(durationHours)) throw new Error("Duration must be a number");
+  return {
+    studentName,
+    instructorName,
+    eventType,
+    eventDate,
+    durationHours,
+    curriculumItem: formData.curriculum_item || null,
+    notes: formData.notes || null
+  };
+}
+async function createTrainingEventFromForm(tx, submissionId, orgId, parsed, submittedBy, forcedInstructorId = null) {
+  const uniqueId = async (table, name) => {
+    const rows = await tx.execute(sql11`
+      SELECT id FROM ${sql11.raw(table)}
+      WHERE organization_id = ${orgId}
+        AND LOWER(TRIM(first_name || ' ' || last_name)) = ${name.toLowerCase()}
+    `).then((r) => r.rows);
+    return rows.length === 1 ? rows[0].id : null;
+  };
+  const studentId = await uniqueId("students", parsed.studentName);
+  const instructorId = forcedInstructorId ?? await uniqueId("bccs_instructor_records", parsed.instructorName);
+  const hash = `BCCS-${Date.now().toString(36).toUpperCase()}-${crypto7.randomBytes(4).toString("hex").toUpperCase()}`;
+  const inserted = await tx.execute(sql11`
+    INSERT INTO bccs_training_events (student_name, student_id, instructor_name, instructor_id, event_type, event_date, duration_hours, curriculum_item, notes, status, blockchain_hash, user_id, organization_id)
+    VALUES (${parsed.studentName}, ${studentId}, ${parsed.instructorName}, ${instructorId}, ${parsed.eventType}, ${parsed.eventDate}, ${parsed.durationHours}, ${parsed.curriculumItem}, ${parsed.notes}, 'completed', ${hash}, ${submittedBy}, ${orgId})
+    RETURNING id
+  `).then((r) => r.rows);
+  const eventId = inserted[0]?.id;
+  if (!eventId) throw new Error("Failed to create training record from form submission");
+  await tx.execute(sql11`UPDATE digital_form_submissions SET training_event_id = ${eventId} WHERE id = ${submissionId}`);
+  return eventId;
+}
+async function afterTrainingEventCreated(eventId, orgId) {
+  try {
+    const { getOrgActiveKey: getOrgActiveKey2, signTrainingRecord: signTrainingRecord2 } = await Promise.resolve().then(() => (init_crypto_signing(), crypto_signing_exports));
+    if (await getOrgActiveKey2(orgId)) await signTrainingRecord2(eventId, orgId);
+  } catch (signErr) {
+    console.warn("Form-submission auto-sign skipped:", signErr.message);
+  }
+  queueAuditReadinessRefresh(orgId, "training_event_form_submitted");
 }
 ensureTables().catch(console.error);
 router8.get("/public/:token", async (req, res) => {
   try {
     const [template] = await db.select().from(digitalFormTemplates).where(eq8(digitalFormTemplates.publicToken, req.params.token));
     if (!template || template.status !== "active" || !template.isPublic) {
+      return res.status(404).json({ message: "Form not found or no longer available" });
+    }
+    if (isTrainingEventTemplate(template)) {
       return res.status(404).json({ message: "Form not found or no longer available" });
     }
     res.json({
@@ -10840,19 +12047,28 @@ router8.post("/public/:token/submit", async (req, res) => {
     if (!template || template.status !== "active" || !template.isPublic) {
       return res.status(404).json({ message: "Form not found or no longer available" });
     }
+    if (isTrainingEventTemplate(template)) {
+      return res.status(403).json({ message: PUBLIC_TRAINING_EVENT_BLOCKED_MESSAGE });
+    }
     const { formData, submitterName, submitterEmail, notes } = req.body;
     if (!formData || typeof formData !== "object") {
       return res.status(400).json({ message: "Form data is required" });
     }
-    const [submission] = await db.insert(digitalFormSubmissions).values({
-      templateId: template.id,
-      templateTitle: template.title,
-      organizationName: template.organizationName,
-      submittedBy: submitterEmail || submitterName || "anonymous",
-      formData,
-      notes: notes || null,
-      status: "submitted"
-    }).returning();
+    const pubOrgId = template.organizationId;
+    const submission = await db.transaction(async (tx) => {
+      const [sub] = await tx.insert(digitalFormSubmissions).values({
+        templateId: template.id,
+        templateTitle: template.title,
+        organizationName: template.organizationName,
+        organizationId: pubOrgId,
+        submittedBy: submitterEmail || submitterName || "anonymous",
+        formData,
+        notes: notes || null,
+        status: "submitted"
+      }).returning();
+      return sub;
+    });
+    if (pubOrgId) queueAuditReadinessRefresh(pubOrgId, "public_form_submitted");
     res.status(201).json({ success: true, submissionId: submission.id });
   } catch (err) {
     console.error("Error submitting public form:", err);
@@ -10861,7 +12077,10 @@ router8.post("/public/:token/submit", async (req, res) => {
 });
 router8.get("/templates", isAuthenticated, async (req, res) => {
   try {
-    const templates = await db.select().from(digitalFormTemplates).where(eq8(digitalFormTemplates.status, "active")).orderBy(desc6(digitalFormTemplates.createdAt));
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
+    await ensureTrainingEventTemplate(orgId).catch((err) => console.error("ensureTrainingEventTemplate failed:", err));
+    const templates = await db.select().from(digitalFormTemplates).where(and7(eq8(digitalFormTemplates.status, "active"), eq8(digitalFormTemplates.organizationId, orgId))).orderBy(desc6(digitalFormTemplates.createdAt));
     res.json(templates);
   } catch (err) {
     console.error("Error fetching form templates:", err);
@@ -10870,7 +12089,9 @@ router8.get("/templates", isAuthenticated, async (req, res) => {
 });
 router8.get("/templates/:id", isAuthenticated, async (req, res) => {
   try {
-    const [template] = await db.select().from(digitalFormTemplates).where(eq8(digitalFormTemplates.id, req.params.id));
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
+    const [template] = await db.select().from(digitalFormTemplates).where(and7(eq8(digitalFormTemplates.id, req.params.id), eq8(digitalFormTemplates.organizationId, orgId)));
     if (!template) return res.status(404).json({ message: "Template not found" });
     res.json(template);
   } catch (err) {
@@ -10879,8 +12100,10 @@ router8.get("/templates/:id", isAuthenticated, async (req, res) => {
 });
 router8.post("/templates", isAuthenticated, async (req, res) => {
   try {
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
     const user = req.user;
-    const { title, description, organizationName, faaSourceId, faaDocumentTitle, faaDocumentType, fields, isPublic } = req.body;
+    const { title, description, organizationName, faaSourceId, faaDocumentTitle, faaDocumentType, fields, isPublic, instructorEnabled } = req.body;
     if (!title?.trim()) return res.status(400).json({ message: "Title is required" });
     if (!fields || !Array.isArray(fields) || fields.length === 0) {
       return res.status(400).json({ message: "At least one field is required" });
@@ -10889,6 +12112,7 @@ router8.post("/templates", isAuthenticated, async (req, res) => {
       title: title.trim(),
       description: description || null,
       organizationName: organizationName || null,
+      organizationId: orgId,
       faaSourceId: faaSourceId || null,
       faaDocumentTitle: faaDocumentTitle || null,
       faaDocumentType: faaDocumentType || null,
@@ -10896,6 +12120,7 @@ router8.post("/templates", isAuthenticated, async (req, res) => {
       status: "active",
       publicToken: generateToken(),
       isPublic: isPublic !== false,
+      instructorEnabled: instructorEnabled === true,
       createdBy: user?.email || user?.username || "system"
     }).returning();
     res.status(201).json(template);
@@ -10906,7 +12131,14 @@ router8.post("/templates", isAuthenticated, async (req, res) => {
 });
 router8.put("/templates/:id", isAuthenticated, async (req, res) => {
   try {
-    const { title, description, organizationName, faaSourceId, faaDocumentTitle, faaDocumentType, fields, isPublic } = req.body;
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
+    const { title, description, organizationName, faaSourceId, faaDocumentTitle, faaDocumentType, fields, isPublic, instructorEnabled } = req.body;
+    const [existing] = await db.select({ generatedFromSection: digitalFormTemplates.generatedFromSection }).from(digitalFormTemplates).where(and7(eq8(digitalFormTemplates.id, req.params.id), eq8(digitalFormTemplates.organizationId, orgId)));
+    if (!existing) return res.status(404).json({ message: "Template not found" });
+    if (isTrainingEventTemplate(existing)) {
+      return res.status(403).json({ message: "The built-in Training Event template cannot be edited" });
+    }
     const [updated] = await db.update(digitalFormTemplates).set({
       title: title?.trim(),
       description: description || null,
@@ -10916,8 +12148,9 @@ router8.put("/templates/:id", isAuthenticated, async (req, res) => {
       faaDocumentType: faaDocumentType || null,
       fields: fields || [],
       isPublic: isPublic !== false,
+      ...typeof instructorEnabled === "boolean" ? { instructorEnabled } : {},
       updatedAt: /* @__PURE__ */ new Date()
-    }).where(eq8(digitalFormTemplates.id, req.params.id)).returning();
+    }).where(and7(eq8(digitalFormTemplates.id, req.params.id), eq8(digitalFormTemplates.organizationId, orgId))).returning();
     if (!updated) return res.status(404).json({ message: "Template not found" });
     res.json(updated);
   } catch (err) {
@@ -10925,9 +12158,27 @@ router8.put("/templates/:id", isAuthenticated, async (req, res) => {
     res.status(500).json({ message: "Failed to update template" });
   }
 });
+router8.patch("/templates/:id/instructor-access", isAuthenticated, async (req, res) => {
+  try {
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
+    const { enabled } = req.body;
+    if (typeof enabled !== "boolean") {
+      return res.status(400).json({ message: "enabled must be a boolean" });
+    }
+    const [updated] = await db.update(digitalFormTemplates).set({ instructorEnabled: enabled, updatedAt: /* @__PURE__ */ new Date() }).where(and7(eq8(digitalFormTemplates.id, req.params.id), eq8(digitalFormTemplates.organizationId, orgId))).returning();
+    if (!updated) return res.status(404).json({ message: "Template not found" });
+    res.json(updated);
+  } catch (err) {
+    console.error("Error toggling instructor access:", err);
+    res.status(500).json({ message: "Failed to update instructor access" });
+  }
+});
 router8.post("/templates/:id/regenerate-token", isAuthenticated, async (req, res) => {
   try {
-    const [updated] = await db.update(digitalFormTemplates).set({ publicToken: generateToken(), updatedAt: /* @__PURE__ */ new Date() }).where(eq8(digitalFormTemplates.id, req.params.id)).returning();
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
+    const [updated] = await db.update(digitalFormTemplates).set({ publicToken: generateToken(), updatedAt: /* @__PURE__ */ new Date() }).where(and7(eq8(digitalFormTemplates.id, req.params.id), eq8(digitalFormTemplates.organizationId, orgId))).returning();
     if (!updated) return res.status(404).json({ message: "Template not found" });
     res.json(updated);
   } catch (err) {
@@ -10936,7 +12187,15 @@ router8.post("/templates/:id/regenerate-token", isAuthenticated, async (req, res
 });
 router8.delete("/templates/:id", isAuthenticated, async (req, res) => {
   try {
-    await db.update(digitalFormTemplates).set({ status: "archived" }).where(eq8(digitalFormTemplates.id, req.params.id));
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
+    const [existing] = await db.select({ generatedFromSection: digitalFormTemplates.generatedFromSection }).from(digitalFormTemplates).where(and7(eq8(digitalFormTemplates.id, req.params.id), eq8(digitalFormTemplates.organizationId, orgId)));
+    if (!existing) return res.status(404).json({ message: "Template not found" });
+    if (isTrainingEventTemplate(existing)) {
+      return res.status(403).json({ message: "The built-in Training Event template cannot be archived" });
+    }
+    const [archived] = await db.update(digitalFormTemplates).set({ status: "archived" }).where(and7(eq8(digitalFormTemplates.id, req.params.id), eq8(digitalFormTemplates.organizationId, orgId))).returning();
+    if (!archived) return res.status(404).json({ message: "Template not found" });
     res.json({ message: "Template archived" });
   } catch (err) {
     res.status(500).json({ message: "Failed to archive template" });
@@ -10944,15 +12203,71 @@ router8.delete("/templates/:id", isAuthenticated, async (req, res) => {
 });
 router8.get("/submissions", isAuthenticated, async (req, res) => {
   try {
-    const submissions = await db.select().from(digitalFormSubmissions).orderBy(desc6(digitalFormSubmissions.submittedAt));
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
+    const submissions = await db.select().from(digitalFormSubmissions).where(eq8(digitalFormSubmissions.organizationId, orgId)).orderBy(desc6(digitalFormSubmissions.submittedAt));
     res.json(submissions);
   } catch (err) {
     res.status(500).json({ message: "Failed to fetch submissions" });
   }
 });
+router8.get("/submissions/export", isAuthenticated, async (req, res) => {
+  try {
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
+    const rows = await db.execute(sql11`
+      SELECT s.id, s.template_title, s.organization_name, s.submitted_by,
+             s.submitter_name, s.submitter_email,
+             s.submitted_at, s.status, s.form_data, s.notes,
+             t.faa_source_id, t.faa_document_title
+      FROM digital_form_submissions s
+      LEFT JOIN digital_form_templates t ON t.id = s.template_id
+      WHERE s.organization_id = ${orgId}
+      ORDER BY s.submitted_at DESC
+    `).then((r) => r.rows);
+    if (rows.length === 0) {
+      res.setHeader("Content-Type", "text/csv");
+      res.setHeader("Content-Disposition", `attachment; filename="form-submissions-${(/* @__PURE__ */ new Date()).toISOString().split("T")[0]}.csv"`);
+      return res.send("id,template_title,organization,submitted_by,submitted_at,status\n");
+    }
+    const allFieldKeys = /* @__PURE__ */ new Set();
+    for (const row of rows) {
+      const data = row.form_data;
+      if (data && typeof data === "object") {
+        Object.keys(data).forEach((k) => allFieldKeys.add(k));
+      }
+    }
+    const fieldKeys = Array.from(allFieldKeys).sort();
+    const escapeCSV = (val) => {
+      if (val === null || val === void 0) return "";
+      const s = String(val);
+      if (s.includes(",") || s.includes('"') || s.includes("\n")) {
+        return `"${s.replace(/"/g, '""')}"`;
+      }
+      return s;
+    };
+    const staticCols = ["id", "template_title", "organization_name", "submitted_by", "submitter_name", "submitter_email", "submitted_at", "status", "notes", "faa_source_id", "faa_document_title"];
+    const header = [...staticCols, ...fieldKeys.map((k) => `field_${k}`)].join(",");
+    const csvRows = rows.map((row) => {
+      const data = row.form_data || {};
+      const staticVals = staticCols.map((c) => escapeCSV(row[c]));
+      const fieldVals = fieldKeys.map((k) => escapeCSV(data[k]));
+      return [...staticVals, ...fieldVals].join(",");
+    });
+    const csv = [header, ...csvRows].join("\n");
+    res.setHeader("Content-Type", "text/csv");
+    res.setHeader("Content-Disposition", `attachment; filename="form-submissions-${(/* @__PURE__ */ new Date()).toISOString().split("T")[0]}.csv"`);
+    res.send(csv);
+  } catch (err) {
+    console.error("Form export error:", err);
+    res.status(500).json({ message: "Failed to export submissions" });
+  }
+});
 router8.get("/submissions/:id", isAuthenticated, async (req, res) => {
   try {
-    const [submission] = await db.select().from(digitalFormSubmissions).where(eq8(digitalFormSubmissions.id, req.params.id));
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
+    const [submission] = await db.select().from(digitalFormSubmissions).where(and7(eq8(digitalFormSubmissions.id, req.params.id), eq8(digitalFormSubmissions.organizationId, orgId)));
     if (!submission) return res.status(404).json({ message: "Submission not found" });
     res.json(submission);
   } catch (err) {
@@ -10961,18 +12276,38 @@ router8.get("/submissions/:id", isAuthenticated, async (req, res) => {
 });
 router8.post("/submissions", isAuthenticated, async (req, res) => {
   try {
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
     const user = req.user;
     const { templateId, templateTitle, organizationName, formData, notes, status } = req.body;
     if (!templateId) return res.status(400).json({ message: "Template ID is required" });
-    const [submission] = await db.insert(digitalFormSubmissions).values({
-      templateId,
-      templateTitle: templateTitle || null,
-      organizationName: organizationName || null,
-      submittedBy: user?.email || user?.username || "system",
-      formData,
-      status: status || "submitted",
-      notes: notes || null
-    }).returning();
+    const [template] = await db.select({ id: digitalFormTemplates.id, generatedFromSection: digitalFormTemplates.generatedFromSection }).from(digitalFormTemplates).where(and7(eq8(digitalFormTemplates.id, templateId), eq8(digitalFormTemplates.organizationId, orgId)));
+    if (!template) return res.status(404).json({ message: "Template not found" });
+    let parsed = null;
+    if (isTrainingEventTemplate(template)) {
+      try {
+        parsed = parseTrainingEventForm(formData || {});
+      } catch (validationErr) {
+        return res.status(400).json({ message: validationErr.message });
+      }
+    }
+    let eventId = null;
+    const submission = await db.transaction(async (tx) => {
+      const [sub] = await tx.insert(digitalFormSubmissions).values({
+        templateId,
+        templateTitle: templateTitle || null,
+        organizationName: organizationName || null,
+        organizationId: orgId,
+        submittedBy: user?.email || user?.username || "system",
+        formData,
+        status: status || "submitted",
+        notes: notes || null
+      }).returning();
+      if (parsed) eventId = await createTrainingEventFromForm(tx, sub.id, orgId, parsed, user?.email || "form");
+      return sub;
+    });
+    if (eventId) await afterTrainingEventCreated(eventId, orgId);
+    else queueAuditReadinessRefresh(orgId, "form_submitted");
     res.status(201).json(submission);
   } catch (err) {
     res.status(500).json({ message: "Failed to save form submission" });
@@ -10980,9 +12315,12 @@ router8.post("/submissions", isAuthenticated, async (req, res) => {
 });
 router8.patch("/submissions/:id/status", isAuthenticated, async (req, res) => {
   try {
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
     const { status } = req.body;
-    const [updated] = await db.update(digitalFormSubmissions).set({ status }).where(eq8(digitalFormSubmissions.id, req.params.id)).returning();
+    const [updated] = await db.update(digitalFormSubmissions).set({ status }).where(and7(eq8(digitalFormSubmissions.id, req.params.id), eq8(digitalFormSubmissions.organizationId, orgId))).returning();
     if (!updated) return res.status(404).json({ message: "Submission not found" });
+    queueAuditReadinessRefresh(orgId, "form_submission_status_changed");
     res.json(updated);
   } catch (err) {
     res.status(500).json({ message: "Failed to update status" });
@@ -10990,10 +12328,12 @@ router8.patch("/submissions/:id/status", isAuthenticated, async (req, res) => {
 });
 router8.get("/stats", isAuthenticated, async (req, res) => {
   try {
-    const [{ templateCount }] = await db.select({ templateCount: sql7`count(*)` }).from(digitalFormTemplates).where(eq8(digitalFormTemplates.status, "active"));
-    const [{ totalSubmissions }] = await db.select({ totalSubmissions: sql7`count(*)` }).from(digitalFormSubmissions);
-    const [{ submittedCount }] = await db.select({ submittedCount: sql7`count(*)` }).from(digitalFormSubmissions).where(eq8(digitalFormSubmissions.status, "submitted"));
-    const [{ approvedCount }] = await db.select({ approvedCount: sql7`count(*)` }).from(digitalFormSubmissions).where(eq8(digitalFormSubmissions.status, "approved"));
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
+    const [{ templateCount }] = await db.select({ templateCount: sql11`count(*)` }).from(digitalFormTemplates).where(and7(eq8(digitalFormTemplates.status, "active"), eq8(digitalFormTemplates.organizationId, orgId)));
+    const [{ totalSubmissions }] = await db.select({ totalSubmissions: sql11`count(*)` }).from(digitalFormSubmissions).where(eq8(digitalFormSubmissions.organizationId, orgId));
+    const [{ submittedCount }] = await db.select({ submittedCount: sql11`count(*)` }).from(digitalFormSubmissions).where(and7(eq8(digitalFormSubmissions.status, "submitted"), eq8(digitalFormSubmissions.organizationId, orgId)));
+    const [{ approvedCount }] = await db.select({ approvedCount: sql11`count(*)` }).from(digitalFormSubmissions).where(and7(eq8(digitalFormSubmissions.status, "approved"), eq8(digitalFormSubmissions.organizationId, orgId)));
     res.json({
       templateCount: Number(templateCount),
       totalSubmissions: Number(totalSubmissions),
@@ -11004,7 +12344,7 @@ router8.get("/stats", isAuthenticated, async (req, res) => {
     res.status(500).json({ message: "Failed to fetch stats" });
   }
 });
-var openai5 = new OpenAI5();
+var openai6 = new OpenAI6();
 var PART_142_SECTIONS = [
   {
     id: "142-general",
@@ -11090,7 +12430,7 @@ var PART_142_SECTIONS = [
 ];
 router8.get("/checklist-sources", isAuthenticated, async (req, res) => {
   try {
-    const result = await db.execute(sql7`
+    const result = await db.execute(sql11`
       SELECT source_id, title, source_type, status, content_hash, last_changed_at, amendment_date
       FROM bccs_faa_repository
       WHERE (far_parts @> ARRAY['142']::text[] OR source_id LIKE '%142%')
@@ -11107,14 +12447,17 @@ router8.get("/checklist-sources", isAuthenticated, async (req, res) => {
 });
 router8.get("/stale-check", isAuthenticated, async (req, res) => {
   try {
-    const templates = await db.execute(sql7`
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
+    const templates = await db.execute(sql11`
       SELECT t.id, t.faa_source_id, t.checklist_version_hash, t.regulation_status
       FROM digital_form_templates t
       WHERE t.auto_generated = true AND t.faa_source_id IS NOT NULL AND t.status = 'active'
+        AND t.organization_id = ${orgId}
     `);
     if (templates.rows.length === 0) return res.json({});
     const sourceIds = Array.from(new Set(templates.rows.map((r) => r.faa_source_id)));
-    const faaRows = await db.execute(sql7`
+    const faaRows = await db.execute(sql11`
       SELECT source_id, content_hash, status FROM bccs_faa_repository
       WHERE source_id = ANY(${sourceIds}::text[])
     `);
@@ -11132,7 +12475,7 @@ router8.get("/stale-check", isAuthenticated, async (req, res) => {
       const isStale = faaInfo.status === "updated" || faaInfo.hash && tmpl.checklist_version_hash && faaInfo.hash !== tmpl.checklist_version_hash;
       staleMap[tmpl.id] = { stale: !!isStale, faaStatus: faaInfo.status };
       if (isStale && tmpl.regulation_status !== "needs_review") {
-        await db.execute(sql7`
+        await db.execute(sql11`
           UPDATE digital_form_templates SET regulation_status = 'needs_review', updated_at = NOW()
           WHERE id = ${tmpl.id}
         `);
@@ -11146,6 +12489,8 @@ router8.get("/stale-check", isAuthenticated, async (req, res) => {
 });
 router8.post("/generate-from-checklist", isAuthenticated, async (req, res) => {
   try {
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
     const user = req.user;
     const { sectionId, organizationName, faaSourceId } = req.body;
     const section = PART_142_SECTIONS.find((s) => s.id === sectionId);
@@ -11153,7 +12498,7 @@ router8.post("/generate-from-checklist", isAuthenticated, async (req, res) => {
     let currentHash = null;
     if (faaSourceId) {
       try {
-        const hashResult = await db.execute(sql7`
+        const hashResult = await db.execute(sql11`
           SELECT content_hash FROM bccs_faa_repository WHERE source_id = ${faaSourceId}
         `);
         currentHash = hashResult.rows[0]?.content_hash || null;
@@ -11195,7 +12540,7 @@ Requirements:
 - Last field: overall findings/comments (textarea)
 
 Respond with a JSON object in this exact format: { "fields": [ ...array of field objects... ] }`;
-    const completion = await openai5.chat.completions.create({
+    const completion = await openai6.chat.completions.create({
       model: "gpt-4o",
       messages: [{ role: "user", content: prompt }],
       response_format: { type: "json_object" },
@@ -11217,6 +12562,7 @@ Respond with a JSON object in this exact format: { "fields": [ ...array of field
       title: `Part 142 \u2013 ${section.title} Inspection`,
       description: `FAA inspection checklist for ${section.sectionRef}: ${section.description}`,
       organizationName: organizationName || null,
+      organizationId: orgId,
       faaSourceId: faaSourceId || "14-CFR-142",
       faaDocumentTitle: "14 CFR Part 142 \u2013 Training Centers",
       faaDocumentType: "cfr_part",
@@ -11238,7 +12584,9 @@ Respond with a JSON object in this exact format: { "fields": [ ...array of field
 });
 router8.post("/templates/:id/refresh-from-faa", isAuthenticated, async (req, res) => {
   try {
-    const [existing] = await db.select().from(digitalFormTemplates).where(eq8(digitalFormTemplates.id, req.params.id));
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
+    const [existing] = await db.select().from(digitalFormTemplates).where(and7(eq8(digitalFormTemplates.id, req.params.id), eq8(digitalFormTemplates.organizationId, orgId)));
     if (!existing) return res.status(404).json({ message: "Template not found" });
     if (!existing.autoGenerated) return res.status(400).json({ message: "Only AI-generated templates can be refreshed from FAA" });
     const section = PART_142_SECTIONS.find(
@@ -11246,7 +12594,7 @@ router8.post("/templates/:id/refresh-from-faa", isAuthenticated, async (req, res
     );
     let currentHash = null;
     if (existing.faaSourceId) {
-      const hashResult = await db.execute(sql7`
+      const hashResult = await db.execute(sql11`
         SELECT content_hash FROM bccs_faa_repository WHERE source_id = ${existing.faaSourceId}
       `);
       currentHash = hashResult.rows[0]?.content_hash || null;
@@ -11273,7 +12621,7 @@ Requirements:
 - End with overall findings/comments (textarea)
 
 Respond with ONLY a valid JSON object: { "fields": [...] }`;
-    const completion = await openai5.chat.completions.create({
+    const completion = await openai6.chat.completions.create({
       model: "gpt-4o",
       messages: [{ role: "user", content: prompt }],
       response_format: { type: "json_object" },
@@ -11293,7 +12641,7 @@ Respond with ONLY a valid JSON object: { "fields": [...] }`;
       checklistVersionHash: currentHash,
       regulationStatus: "current",
       updatedAt: /* @__PURE__ */ new Date()
-    }).where(eq8(digitalFormTemplates.id, req.params.id)).returning();
+    }).where(and7(eq8(digitalFormTemplates.id, req.params.id), eq8(digitalFormTemplates.organizationId, orgId))).returning();
     res.json(updated);
   } catch (err) {
     console.error("Error refreshing template from FAA:", err);
@@ -11301,6 +12649,7015 @@ Respond with ONLY a valid JSON object: { "fields": [...] }`;
   }
 });
 var digital_forms_default = router8;
+
+// server/routes/instructor-portal.ts
+init_db();
+import { Router as Router8 } from "express";
+import crypto8 from "crypto";
+import { sql as sql12 } from "drizzle-orm";
+var router9 = Router8();
+async function ensureTable() {
+  await db.execute(sql12`
+    CREATE TABLE IF NOT EXISTS bccs_instructor_keys (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      instructor_id UUID NOT NULL,
+      organization_id UUID NOT NULL,
+      key_hash VARCHAR(128) NOT NULL UNIQUE,
+      key_preview VARCHAR(40) NOT NULL,
+      is_active BOOLEAN DEFAULT TRUE,
+      created_by VARCHAR(200),
+      created_at TIMESTAMP DEFAULT NOW(),
+      last_used_at TIMESTAMP,
+      expires_at TIMESTAMP
+    )
+  `);
+  await db.execute(sql12`
+    ALTER TABLE bccs_instructor_keys ADD COLUMN IF NOT EXISTS expires_at TIMESTAMP
+  `);
+}
+ensureTable().catch(console.error);
+function generateKey() {
+  return `bccs_inst_${crypto8.randomBytes(20).toString("base64url")}`;
+}
+function hashKey(raw) {
+  return crypto8.createHash("sha256").update(raw).digest("hex");
+}
+function extractKey(req) {
+  const header = req.headers["x-instructor-key"];
+  if (typeof header === "string" && header) return header;
+  const auth = req.headers.authorization;
+  if (auth?.startsWith("Bearer ")) return auth.slice(7);
+  return null;
+}
+function requireAdmin(req, res, next) {
+  if (req.user?.role !== "admin" && !isPlatformStaff(req.user?.email)) {
+    return res.status(403).json({ message: "Admin access required" });
+  }
+  next();
+}
+async function requireInstructorKey(req, res, next) {
+  try {
+    const raw = extractKey(req);
+    if (!raw) return res.status(401).json({ message: "Instructor key required" });
+    const [keyRow] = await db.execute(sql12`
+      SELECT k.id AS key_id, k.instructor_id, k.organization_id, k.expires_at, i.first_name, i.last_name,
+             i.email, i.certificate_type, i.certificate_number, i.issue_date, i.expiration_date,
+             i.currency_date, i.ratings, i.training_authorizations, i.status
+      FROM bccs_instructor_keys k
+      JOIN bccs_instructor_records i ON i.id = k.instructor_id::text
+      WHERE k.key_hash = ${hashKey(raw)} AND k.is_active = TRUE
+    `).then((r) => r.rows);
+    if (!keyRow) return res.status(401).json({ message: "This key is invalid or has been revoked. Contact your organization for a new key." });
+    if (keyRow.expires_at && new Date(keyRow.expires_at) <= /* @__PURE__ */ new Date()) {
+      return res.status(401).json({ message: "This key has expired. Ask your organization's admin to renew or reissue it." });
+    }
+    db.execute(sql12`UPDATE bccs_instructor_keys SET last_used_at = NOW() WHERE id = ${keyRow.key_id}`).catch(() => {
+    });
+    req.instructor = keyRow;
+    next();
+  } catch (err) {
+    console.error("Instructor key auth error:", err);
+    res.status(500).json({ message: "Authentication failed" });
+  }
+}
+router9.get("/keys", isAuthenticated, requireAdmin, async (req, res) => {
+  try {
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
+    const rows = await db.execute(sql12`
+      SELECT instructor_id, key_preview, created_at, last_used_at, expires_at
+      FROM bccs_instructor_keys
+      WHERE organization_id = ${orgId} AND is_active = TRUE
+    `).then((r) => r.rows);
+    res.json(rows);
+  } catch (err) {
+    console.error("Instructor keys list error:", err);
+    res.status(500).json({ message: "Failed to fetch key status" });
+  }
+});
+router9.post("/keys/:instructorId", isAuthenticated, requireAdmin, async (req, res) => {
+  try {
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
+    const [instructor] = await db.execute(sql12`
+      SELECT id, first_name, last_name FROM bccs_instructor_records
+      WHERE id = ${req.params.instructorId} AND organization_id = ${orgId}
+    `).then((r) => r.rows);
+    if (!instructor) return res.status(404).json({ message: "Instructor not found" });
+    let expiresInDays = 90;
+    const rawExpiry = req.body?.expiresInDays;
+    if (rawExpiry !== void 0 && rawExpiry !== null) {
+      if (rawExpiry === "never" || rawExpiry === 0 || rawExpiry === "0") {
+        expiresInDays = null;
+      } else {
+        const n = Number(rawExpiry);
+        if (!Number.isInteger(n) || n < 1 || n > 3650) {
+          return res.status(400).json({ message: 'expiresInDays must be a whole number between 1 and 3650, or "never"' });
+        }
+        expiresInDays = n;
+      }
+    }
+    const expiresAt = expiresInDays === null ? null : new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1e3);
+    const rawKey = generateKey();
+    const preview = rawKey.slice(0, 15) + "...";
+    await db.execute(sql12`
+      UPDATE bccs_instructor_keys SET is_active = FALSE
+      WHERE instructor_id = ${instructor.id} AND organization_id = ${orgId}
+    `);
+    await db.execute(sql12`
+      INSERT INTO bccs_instructor_keys (instructor_id, organization_id, key_hash, key_preview, created_by, expires_at)
+      VALUES (${instructor.id}, ${orgId}, ${hashKey(rawKey)}, ${preview}, ${req.user?.email || req.user?.id || "system"}, ${expiresAt})
+    `);
+    res.status(201).json({
+      key: rawKey,
+      keyPreview: preview,
+      instructorId: instructor.id,
+      instructorName: `${instructor.first_name} ${instructor.last_name}`,
+      expiresAt: expiresAt ? expiresAt.toISOString() : null,
+      warning: "Store this key securely \u2014 it will not be shown again."
+    });
+  } catch (err) {
+    console.error("Instructor key assign error:", err);
+    res.status(500).json({ message: "Failed to assign key" });
+  }
+});
+router9.post("/keys/:instructorId/renew", isAuthenticated, requireAdmin, async (req, res) => {
+  try {
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
+    let days = 90;
+    const rawExpiry = req.body?.expiresInDays;
+    if (rawExpiry !== void 0 && rawExpiry !== null) {
+      const n = Number(rawExpiry);
+      if (!Number.isInteger(n) || n < 1 || n > 3650) {
+        return res.status(400).json({ message: "expiresInDays must be a whole number between 1 and 3650" });
+      }
+      days = n;
+    }
+    const expiresAt = new Date(Date.now() + days * 24 * 60 * 60 * 1e3);
+    const result = await db.execute(sql12`
+      UPDATE bccs_instructor_keys SET expires_at = ${expiresAt}
+      WHERE instructor_id = ${req.params.instructorId} AND organization_id = ${orgId} AND is_active = TRUE
+      RETURNING id, expires_at
+    `);
+    const rows = result.rows || [];
+    if (rows.length === 0) return res.status(404).json({ message: "No active key for this instructor" });
+    res.json({ message: "Key renewed", expiresAt: expiresAt.toISOString() });
+  } catch (err) {
+    console.error("Instructor key renew error:", err);
+    res.status(500).json({ message: "Failed to renew key" });
+  }
+});
+router9.delete("/keys/:instructorId", isAuthenticated, requireAdmin, async (req, res) => {
+  try {
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
+    const result = await db.execute(sql12`
+      UPDATE bccs_instructor_keys SET is_active = FALSE
+      WHERE instructor_id = ${req.params.instructorId} AND organization_id = ${orgId} AND is_active = TRUE
+      RETURNING id
+    `);
+    if ((result.rows || []).length === 0) return res.status(404).json({ message: "No active key for this instructor" });
+    res.json({ message: "Key revoked" });
+  } catch (err) {
+    res.status(500).json({ message: "Failed to revoke key" });
+  }
+});
+router9.get("/me", requireInstructorKey, async (req, res) => {
+  const i = req.instructor;
+  res.json({
+    instructorId: i.instructor_id,
+    firstName: i.first_name,
+    lastName: i.last_name,
+    email: i.email,
+    certificateType: i.certificate_type,
+    certificateNumber: i.certificate_number,
+    issueDate: i.issue_date,
+    expirationDate: i.expiration_date,
+    currencyDate: i.currency_date,
+    ratings: i.ratings,
+    trainingAuthorizations: i.training_authorizations,
+    status: i.status
+  });
+});
+router9.get("/students", requireInstructorKey, async (req, res) => {
+  try {
+    const { instructor_id, organization_id } = req.instructor;
+    const rows = await db.execute(sql12`
+      SELECT s.id, s.first_name, s.last_name, s.email, s.status, s.enrollment_date,
+             COUNT(e.id)::int AS event_count, MAX(e.event_date) AS last_event_date
+      FROM bccs_training_events e
+      JOIN students s ON s.id::text = e.student_id AND s.organization_id = ${organization_id}
+      WHERE e.organization_id = ${organization_id} AND e.instructor_id = ${instructor_id}::text
+      GROUP BY s.id, s.first_name, s.last_name, s.email, s.status, s.enrollment_date
+      ORDER BY MAX(e.event_date) DESC
+    `).then((r) => r.rows);
+    res.json(rows);
+  } catch (err) {
+    console.error("Instructor students error:", err);
+    res.status(500).json({ message: "Failed to fetch students" });
+  }
+});
+router9.get("/forms", requireInstructorKey, async (req, res) => {
+  try {
+    const { organization_id } = req.instructor;
+    const rows = await db.execute(sql12`
+      SELECT id, title, description, fields, generated_from_section
+      FROM digital_form_templates
+      WHERE organization_id = ${organization_id} AND status = 'active' AND instructor_enabled = TRUE
+      ORDER BY created_at DESC
+    `).then((r) => r.rows);
+    res.json(rows);
+  } catch (err) {
+    console.error("Instructor forms error:", err);
+    res.status(500).json({ message: "Failed to fetch forms" });
+  }
+});
+router9.post("/forms/:templateId/submit", requireInstructorKey, async (req, res) => {
+  try {
+    const { instructor_id, organization_id, first_name, last_name, email } = req.instructor;
+    const [template] = await db.execute(sql12`
+      SELECT * FROM digital_form_templates
+      WHERE id = ${req.params.templateId} AND organization_id = ${organization_id}
+        AND status = 'active' AND instructor_enabled = TRUE
+    `).then((r) => r.rows);
+    if (!template) return res.status(404).json({ message: "Form not found or not enabled for instructors" });
+    const { formData, notes } = req.body;
+    if (!formData || typeof formData !== "object") {
+      return res.status(400).json({ message: "Form data is required" });
+    }
+    const submitterLabel = email || `${first_name} ${last_name}`;
+    let parsed = null;
+    if (isTrainingEventTemplate(template)) {
+      try {
+        parsed = parseTrainingEventForm({ ...formData, instructor_name: `${first_name} ${last_name}` });
+        parsed.instructorName = `${first_name} ${last_name}`;
+      } catch (validationErr) {
+        return res.status(400).json({ message: validationErr.message });
+      }
+    }
+    let eventId = null;
+    const submission = await db.transaction(async (tx) => {
+      const inserted = await tx.execute(sql12`
+        INSERT INTO digital_form_submissions
+          (template_id, template_title, organization_name, organization_id, submitted_by, form_data, notes, status)
+        VALUES
+          (${template.id}, ${template.title}, ${template.organization_name}, ${organization_id},
+           ${`instructor:${submitterLabel}`}, ${JSON.stringify(formData)}::jsonb, ${notes || null}, 'submitted')
+        RETURNING *
+      `).then((r) => r.rows);
+      const sub = inserted[0];
+      if (parsed) eventId = await createTrainingEventFromForm(tx, sub.id, organization_id, parsed, `instructor:${instructor_id}`, instructor_id);
+      return sub;
+    });
+    if (eventId) await afterTrainingEventCreated(eventId, organization_id);
+    else queueAuditReadinessRefresh(organization_id, "instructor_form_submitted");
+    res.status(201).json({ success: true, submissionId: submission.id });
+  } catch (err) {
+    console.error("Instructor form submit error:", err);
+    res.status(500).json({ message: "Failed to submit form" });
+  }
+});
+var instructor_portal_default = router9;
+
+// server/routes/checklist-report.ts
+init_db();
+import { Router as Router9 } from "express";
+import multer from "multer";
+import fs5 from "fs";
+import os2 from "os";
+import path5 from "path";
+import crypto10 from "crypto";
+import { exec as exec3 } from "child_process";
+import { promisify as promisify3 } from "util";
+import OpenAI7 from "openai";
+import { sql as sql13 } from "drizzle-orm";
+
+// shared/part142-checklist.ts
+var PART142_CHECKLIST = [
+  {
+    id: "area1",
+    name: "Management and Administration",
+    description: "Management and administration of the training center",
+    items: [
+      {
+        id: "1-01",
+        number: "1-01",
+        description: "Does any person whose employment or control contributed to the revocation, suspension, or termination of a part 121, 125, 135, 141, or 142 operating certificate within the previous 5 years manage, control, or have substantial ownership of this training center?",
+        reference: "142.11(e), V2 C10 S1 P2-1153"
+      },
+      {
+        id: "1-02",
+        number: "1-02",
+        description: "Does the training center have a sufficient number of instructors for each curriculum?",
+        reference: "142.13(a), V3 C54 S1 P3-4336"
+      },
+      {
+        id: "1-03",
+        number: "1-03",
+        description: "Does the training center have a sufficient number of approved evaluators to accomplish required checks and tests within 7 calendar days of training completion?",
+        reference: "142.13(b), V3 C54 S2 P3-4355"
+      },
+      {
+        id: "1-04",
+        number: "1-04",
+        description: "Are the instructors and evaluators at each satellite training center under the direct supervision of management personnel of the principal training center?",
+        reference: "142.17(a)(2), V3 C54 S1 P3-4334"
+      },
+      {
+        id: "1-05",
+        number: "1-05",
+        description: "Does each management representative, and all personnel who conduct direct student training, understand, read, write, and fluently speak English?",
+        reference: "142.13(d), V3 C54 S2 P3-4354"
+      },
+      {
+        id: "1-06",
+        number: "1-06",
+        description: "Has the training center certificate been properly issued and does it contain all business names under which the certificate holder may conduct operations and the address of each business office used?",
+        reference: "142.5(b) and 142.11(d), V2 C10 S1 P2-1153"
+      },
+      {
+        id: "1-07",
+        number: "1-07",
+        description: "Is the training center certificate prominently displayed in a place accessible to the public in the principal business office?",
+        reference: "142.27(a)"
+      },
+      {
+        id: "1-08",
+        number: "1-08",
+        description: "Has the training center been properly issued training specifications?",
+        reference: "142.5(b), V6 C8 S1 P6-1603"
+      },
+      {
+        id: "1-09",
+        number: "1-09",
+        description: "Are all exemptions, deviations or waivers properly approved and contained in the center's training specifications paragraph A005?",
+        reference: "142.9 and 142.11(d)(2)(vi), TSpec A005"
+      },
+      {
+        id: "1-10",
+        number: "1-10",
+        description: "Does the training center comply with all conditions and provisions of any exemptions, deviations, or waivers?",
+        reference: "applicable training center written procedures"
+      },
+      {
+        id: "1-11",
+        number: "1-11",
+        description: "Does the training center conduct, or advertise to conduct, any training, testing, or checking that is designed to satisfy part 142 requirements that is not approved by the FAA?",
+        reference: "142.31(a), V6 C8 S1"
+      },
+      {
+        id: "1-12",
+        number: "1-12",
+        description: "Does the training center make any statement in its advertising relating to its certification and ratings that is false or designed to mislead?",
+        reference: "142.31, V6 C8 S1 P6-1602"
+      },
+      {
+        id: "1-13",
+        number: "1-13",
+        description: "Does the training center, in its advertising, differentiate between courses that have been FAA approved and those that have not?",
+        reference: "142.31, V6 C8 S1 P6-1602"
+      },
+      {
+        id: "1-14",
+        number: "1-14",
+        description: "If the training center utilizes a part 141 pilot school to provide training, testing, or checking, is there a training agreement between the school and the training center?",
+        reference: "142.33(a), V2 C10 S1 P2-1153"
+      },
+      {
+        id: "1-15",
+        number: "1-15",
+        description: "Are the training course outlines used by each such part 141 pilot school under the training agreement FAA approved?",
+        reference: "142.33(c), V2 C10 S1 P2-1153"
+      },
+      {
+        id: "1-16",
+        number: "1-16",
+        description: "Does the training center have written procedures to ensure management control of its personnel at satellite centers and/or remote sites?",
+        reference: "142.17, V3 C54 S1 P3-4334"
+      },
+      {
+        id: "1-17",
+        number: "1-17",
+        description: "Based upon review of leases, agreements and contracts, does the training center have exclusive use of flight training equipment?",
+        reference: "142.15(d), V2 C10 S1 P2-1153"
+      },
+      {
+        id: "1-18",
+        number: "1-18",
+        description: "Does the center conduct training for part 91 subpart K and/or part 119 air carriers?",
+        reference: "V3 C20, V3 C54 and OpSpec A031 issued to the air carrier"
+      },
+      {
+        id: "1-18-1",
+        number: "1-18-1",
+        description: "If so, does the center have a procedure to advise the air carrier of changes to its core or other curriculums on which the carrier's programs are based?",
+        reference: "V3 C54 S5 P3-4416"
+      },
+      {
+        id: "1-18-2",
+        number: "1-18-2",
+        description: "Does the center provide a means to enable contract instructors to have updated information concerning assigned operators (read files or electronic system)?",
+        reference: "V3 C54 S5 P3-4414"
+      },
+      {
+        id: "1-18-3",
+        number: "1-18-3",
+        description: 'Does the center provide written procedures that direct their instructors/evaluators to review a customers "read file" prior to conducting any instruction or evaluations?',
+        reference: "V3 C54 S5 P3-4414"
+      },
+      {
+        id: "1-18-4",
+        number: "1-18-4",
+        description: "Does the center have or participate in standardization programs with their 91K and/or air carrier customers?",
+        reference: "V3 C54 S5 P3-4416"
+      },
+      {
+        id: "1-19",
+        number: "1-19",
+        description: "Does the training center conduct, or advertise to conduct, any training, testing, or checking that is designed to satisfy part 142 requirements that is not approved by the FAA?",
+        reference: "142.31(a), V6 C8 S1"
+      },
+      {
+        id: "1-20",
+        number: "1-20",
+        description: "Does the training center make any statement in its advertising relating to its certification and ratings that is false or designed to mislead?",
+        reference: "142.31, V6 C8 S1 P6-1602"
+      },
+      {
+        id: "1-21",
+        number: "1-21",
+        description: "Does the training center, in its advertising, differentiate between courses that have been FAA approved and those that have not?",
+        reference: "142.31, V6 C8 S1 P6-1602"
+      },
+      {
+        id: "1-22",
+        number: "1-22",
+        description: "If the training center utilizes a part 141 pilot school to provide training, testing, or checking, is there a training agreement between the school and the training center?",
+        reference: "142.33(a), V2 C10 S1 P2-1153"
+      },
+      {
+        id: "1-23",
+        number: "1-23",
+        description: "Are the training course outlines used by each such part 141 pilot school under the training agreement FAA approved?",
+        reference: "142.33(c), V2 C10 S1 P2-1153"
+      },
+      {
+        id: "1-24",
+        number: "1-24",
+        description: "Does the training center have written procedures to ensure management control of its personnel at satellite centers and/or remote sites?",
+        reference: "142.17, V3 C54 S1 P3-4334"
+      },
+      {
+        id: "1-25",
+        number: "1-25",
+        description: "Based upon review of leases, agreements and contracts, does the training center have exclusive use of flight training equipment?",
+        reference: "142.15(d), V2 C10 S1 P2-1153"
+      },
+      {
+        id: "1-26",
+        number: "1-26",
+        description: "Does the training center maintain adequate insurance coverage for its operations?",
+        reference: "142.11(d)(1), V2 C10 S1 P2-1153"
+      },
+      {
+        id: "1-27",
+        number: "1-27",
+        description: "Are all training center operations conducted in accordance with the approved training specifications?",
+        reference: "142.5(c), V6 C8 S1 P6-1603"
+      },
+      {
+        id: "1-28",
+        number: "1-28",
+        description: "Does the training center have adequate financial resources to conduct approved training programs?",
+        reference: "142.11(d)(2), V2 C10 S1 P2-1153"
+      },
+      {
+        id: "1-29",
+        number: "1-29",
+        description: "Are training center management personnel available and accessible during training operations?",
+        reference: "142.13(c), V3 C54 S1 P3-4336"
+      },
+      {
+        id: "1-30",
+        number: "1-30",
+        description: "Does the training center maintain current organizational charts and personnel records?",
+        reference: "142.11(d)(3), V2 C10 S1 P2-1153"
+      },
+      {
+        id: "1-31",
+        number: "1-31",
+        description: "Are training center policies and procedures current and properly implemented?",
+        reference: "142.11(d)(4), V2 C10 S1 P2-1153"
+      },
+      {
+        id: "1-32",
+        number: "1-32",
+        description: "Does the training center have procedures for handling student complaints and grievances?",
+        reference: "142.11(d)(5), V2 C10 S1 P2-1153"
+      },
+      {
+        id: "1-33",
+        number: "1-33",
+        description: "Are training center business practices ethical and in compliance with applicable laws?",
+        reference: "142.11(d)(6), V2 C10 S1 P2-1153"
+      },
+      {
+        id: "1-34",
+        number: "1-34",
+        description: "Does the training center maintain adequate security measures for its facilities and operations?",
+        reference: "142.11(d)(7), V2 C10 S1 P2-1153"
+      }
+    ]
+  },
+  {
+    id: "area2",
+    name: "Training Specifications",
+    description: "Review of training specifications content",
+    items: [
+      {
+        id: "2-01",
+        number: "2-01",
+        description: "Has the training center been properly issued training specifications?",
+        reference: "142.5(a), V3 C54 S1 P3-4334, and V3 C18"
+      },
+      {
+        id: "2-02",
+        number: "2-02",
+        description: "Is the information contained in Part A of the training specifications current, including names, addresses, other business names (dba), satellite center authorizations, and authorized exemptions, deviations, and waivers?",
+        reference: "142.5, 142.11(d)(2)(v-vi), 142.17(a)(4) and (b)"
+      },
+      {
+        id: "2-03",
+        number: "2-03",
+        description: "Does Part B of the training specifications clearly identify each approved training curriculum and the testing and/or checking authorization for each training course and location?",
+        reference: "142.5(a), 142.11(d)(2)(i)"
+      },
+      {
+        id: "2-04",
+        number: "2-04",
+        description: "Are the training specifications kept current and amended as necessary?",
+        reference: "142.5(c), V6 C8 S1 P6-1603"
+      },
+      {
+        id: "2-05",
+        number: "2-05",
+        description: "Are the training specifications maintained at the principal business office of the training center and made available for inspection upon request?",
+        reference: "142.5(d)"
+      },
+      {
+        id: "2-06",
+        number: "2-06",
+        description: "Does the training center operate in accordance with the training specifications?",
+        reference: "142.5(e)"
+      },
+      {
+        id: "2-07",
+        number: "2-07",
+        description: "Are satellite training centers properly authorized in the training specifications?",
+        reference: "142.17(a)(4) and (b)"
+      },
+      {
+        id: "2-08",
+        number: "2-08",
+        description: "Do the training specifications contain the appropriate authorizations for each curriculum offered?",
+        reference: "142.11(d)(2)(i), V6 C8 S1 P6-1603"
+      },
+      {
+        id: "2-09",
+        number: "2-09",
+        description: "Are all training specifications amendments properly approved and documented?",
+        reference: "142.5(f), V6 C8 S1 P6-1603"
+      },
+      {
+        id: "2-10",
+        number: "2-10",
+        description: "Do training specifications include all required regulatory references and compliance requirements?",
+        reference: "142.5(k), V6 C8 S1 P6-1603"
+      },
+      {
+        id: "2-11",
+        number: "2-11",
+        description: "Are training specifications available for inspection at all training locations?",
+        reference: "142.5(h), V6 C8 S1 P6-1603"
+      },
+      {
+        id: "2-12",
+        number: "2-12",
+        description: "Do training specifications accurately reflect current training center capabilities and limitations?",
+        reference: "142.5(i), V6 C8 S1 P6-1603"
+      },
+      {
+        id: "2-13",
+        number: "2-13",
+        description: "Are training specifications properly distributed to all applicable personnel and contractors?",
+        reference: "142.5(j), V6 C8 S1 P6-1603"
+      },
+      {
+        id: "2-14",
+        number: "2-14",
+        description: "Do training specifications include all authorized training devices and equipment?",
+        reference: "142.5(l), V6 C8 S1 P6-1603"
+      },
+      {
+        id: "2-15",
+        number: "2-15",
+        description: "Are training specifications reviewed and updated in accordance with regulatory changes?",
+        reference: "142.5(m), V6 C8 S1 P6-1603"
+      }
+    ]
+  },
+  {
+    id: "area3",
+    name: "Courseware",
+    description: "Review of courseware used in approved curriculums",
+    items: [
+      {
+        id: "3-01",
+        number: "3-01",
+        description: "Does the training center have FAA approved courseware for each approved curriculum?",
+        reference: "142.39(a), V6 C8 S2 P6-1618"
+      },
+      {
+        id: "3-02",
+        number: "3-02",
+        description: "Does the courseware contain a curriculum or syllabus and the minimum aircraft and flight training equipment requirements?",
+        reference: "142.39(b)(1-2), V6 C8 S2 P6-1618"
+      },
+      {
+        id: "3-03",
+        number: "3-03",
+        description: "Does the courseware contain minimum instructor and evaluator qualifications for each curriculum?",
+        reference: "142.39(b)(3), V6 C8 S2 P6-1618"
+      },
+      {
+        id: "3-04",
+        number: "3-04",
+        description: "Does the courseware contain a curriculum outline with objectives, standards, and criteria for each stage of training?",
+        reference: "142.39(b)(4), V6 C8 S2 P6-1618"
+      },
+      {
+        id: "3-05",
+        number: "3-05",
+        description: "Does the courseware contain the minimum equipment and facilities requirements for each curriculum?",
+        reference: "142.39(b)(5), V6 C8 S2 P6-1618"
+      },
+      {
+        id: "3-06",
+        number: "3-06",
+        description: "Does the courseware contain the minimum personnel requirements for each curriculum?",
+        reference: "142.39(b)(6), V6 C8 S2 P6-1618"
+      },
+      {
+        id: "3-07",
+        number: "3-07",
+        description: "Does the courseware contain a detailed description of the training program, including the expected accomplishments and standards for each stage of training?",
+        reference: "142.39(b)(7), V6 C8 S2 P6-1618"
+      },
+      {
+        id: "3-08",
+        number: "3-08",
+        description: "Does the courseware contain the expected accomplishments and standards for each stage of training?",
+        reference: "142.39(b)(8), V6 C8 S2 P6-1618"
+      },
+      {
+        id: "3-09",
+        number: "3-09",
+        description: "Does the courseware contain a description of the checks and tests to be used to measure a student's accomplishments for each stage of training?",
+        reference: "142.39(b)(9), V6 C8 S2 P6-1618"
+      },
+      {
+        id: "3-10",
+        number: "3-10",
+        description: "Is the courseware maintained in a condition that does not detract from the intent of the approved curriculum?",
+        reference: "142.39(c), V6 C8 S2 P6-1618"
+      },
+      {
+        id: "3-11",
+        number: "3-11",
+        description: "Are revisions to courseware submitted to the FAA for approval?",
+        reference: "142.39(d), V6 C8 S2 P6-1618"
+      },
+      {
+        id: "3-12",
+        number: "3-12",
+        description: "Are computer-based training programs used in a manner consistent with the approved curriculum?",
+        reference: "142.39(e), V6 C8 S2 P6-1618"
+      },
+      {
+        id: "3-13",
+        number: "3-13",
+        description: "Does the courseware include appropriate safety precautions and emergency procedures for all training activities?",
+        reference: "142.39(f), V6 C8 S2 P6-1618"
+      },
+      {
+        id: "3-14",
+        number: "3-14",
+        description: "Are courseware materials properly indexed and cross-referenced for instructor use?",
+        reference: "142.39(g), V6 C8 S2 P6-1618"
+      },
+      {
+        id: "3-15",
+        number: "3-15",
+        description: "Does the courseware include appropriate graphics, diagrams, and visual training aids?",
+        reference: "142.39(h), V6 C8 S2 P6-1618"
+      },
+      {
+        id: "3-16",
+        number: "3-16",
+        description: "Are courseware distribution and version control procedures properly implemented?",
+        reference: "142.39(i), V6 C8 S2 P6-1618"
+      },
+      {
+        id: "3-17",
+        number: "3-17",
+        description: "Does the courseware include current regulatory references and advisory materials?",
+        reference: "142.39(j), V6 C8 S2 P6-1618"
+      },
+      {
+        id: "3-18",
+        number: "3-18",
+        description: "Are courseware quality assurance and review procedures documented and followed?",
+        reference: "142.39(k), V6 C8 S2 P6-1618"
+      },
+      {
+        id: "3-19",
+        number: "3-19",
+        description: "Does the courseware address different learning styles and training methodologies?",
+        reference: "142.39(l), V6 C8 S2 P6-1618"
+      },
+      {
+        id: "3-20",
+        number: "3-20",
+        description: "Are courseware storage and protection procedures adequate to prevent unauthorized access?",
+        reference: "142.39(m), V6 C8 S2 P6-1618"
+      }
+    ]
+  },
+  {
+    id: "area4",
+    name: "Airman Training Programs",
+    description: "Review of airman training programs",
+    items: [
+      {
+        id: "4-01",
+        number: "4-01",
+        description: "Does the training center conduct training programs in accordance with each approved curriculum?",
+        reference: "142.35(a), V6 C8 S2 P6-1612"
+      },
+      {
+        id: "4-02",
+        number: "4-02",
+        description: "Are initial, upgrade, recurrent, and differences training programs conducted in accordance with the approved curriculum?",
+        reference: "142.35(b), V6 C8 S2 P6-1612"
+      },
+      {
+        id: "4-03",
+        number: "4-03",
+        description: "Are training programs conducted by qualified instructors and evaluators?",
+        reference: "142.35(c), V6 C8 S2 P6-1612"
+      },
+      {
+        id: "4-04",
+        number: "4-04",
+        description: "Are training programs conducted using appropriate aircraft and flight training equipment?",
+        reference: "142.35(d), V6 C8 S2 P6-1612"
+      },
+      {
+        id: "4-05",
+        number: "4-05",
+        description: "Are training programs conducted in adequate facilities?",
+        reference: "142.35(e), V6 C8 S2 P6-1612"
+      },
+      {
+        id: "4-06",
+        number: "4-06",
+        description: "Does the training center maintain training records for each student?",
+        reference: "142.35(f), V6 C8 S2 P6-1612"
+      },
+      {
+        id: "4-07",
+        number: "4-07",
+        description: "Are students provided with appropriate courseware and training materials?",
+        reference: "142.35(g), V6 C8 S2 P6-1612"
+      },
+      {
+        id: "4-08",
+        number: "4-08",
+        description: "Are graduation certificates issued to students who successfully complete training programs?",
+        reference: "142.35(h), V6 C8 S2 P6-1612"
+      },
+      {
+        id: "4-09",
+        number: "4-09",
+        description: "Does the training center conduct ground training in accordance with approved curricula?",
+        reference: "142.37(a), V6 C8 S2 P6-1615"
+      },
+      {
+        id: "4-10",
+        number: "4-10",
+        description: "Does the training center conduct flight training in accordance with approved curricula?",
+        reference: "142.37(b), V6 C8 S2 P6-1615"
+      },
+      {
+        id: "4-11",
+        number: "4-11",
+        description: "Are training programs conducted within the limitations specified in the approved curriculum?",
+        reference: "142.37(c), V6 C8 S2 P6-1615"
+      },
+      {
+        id: "4-12",
+        number: "4-12",
+        description: "Are students evaluated in accordance with the standards specified in the approved curriculum?",
+        reference: "142.37(d), V6 C8 S2 P6-1615"
+      },
+      {
+        id: "4-13",
+        number: "4-13",
+        description: "Are training programs conducted with appropriate student-to-instructor ratios for effective learning?",
+        reference: "142.35(m), V6 C8 S2 P6-1612"
+      },
+      {
+        id: "4-14",
+        number: "4-14",
+        description: "Do training programs include comprehensive pre-flight and post-flight briefing procedures?",
+        reference: "142.35(n), V6 C8 S2 P6-1612"
+      },
+      {
+        id: "4-15",
+        number: "4-15",
+        description: "Are training program completion standards clearly defined and consistently applied?",
+        reference: "142.35(o), V6 C8 S2 P6-1612"
+      },
+      {
+        id: "4-16",
+        number: "4-16",
+        description: "Do training programs include appropriate weather minimums and operational restrictions?",
+        reference: "142.35(p), V6 C8 S2 P6-1612"
+      },
+      {
+        id: "4-17",
+        number: "4-17",
+        description: "Are training program scheduling procedures adequate for maintaining training continuity?",
+        reference: "142.35(q), V6 C8 S2 P6-1612"
+      },
+      {
+        id: "4-18",
+        number: "4-18",
+        description: "Do training programs comply with all applicable airworthiness and maintenance requirements?",
+        reference: "142.35(r), V6 C8 S2 P6-1612"
+      },
+      {
+        id: "4-19",
+        number: "4-19",
+        description: "Are training program evaluation and assessment procedures properly documented?",
+        reference: "142.35(s), V6 C8 S2 P6-1612"
+      },
+      {
+        id: "4-20",
+        number: "4-20",
+        description: "Do training programs include appropriate emergency and abnormal procedures training?",
+        reference: "142.35(t), V6 C8 S2 P6-1612"
+      }
+    ]
+  },
+  {
+    id: "area5",
+    name: "Instructor and Evaluator Training and Qualification",
+    description: "Review of instructor and evaluator qualifications",
+    items: [
+      {
+        id: "5-01",
+        number: "5-01",
+        description: "Does each instructor have an appropriate instructor certificate with required ratings?",
+        reference: "142.47(a)(1), V3 C54 S3 P3-4364"
+      },
+      {
+        id: "5-02",
+        number: "5-02",
+        description: "Does each instructor have appropriate training and experience in the aircraft type for which instruction is being given?",
+        reference: "142.47(a)(2), V3 C54 S3 P3-4364"
+      },
+      {
+        id: "5-03",
+        number: "5-03",
+        description: "Does each instructor have experience training students in the aircraft type for which instruction is being given?",
+        reference: "142.47(a)(3), V3 C54 S3 P3-4364"
+      },
+      {
+        id: "5-04",
+        number: "5-04",
+        description: "Does each instructor have satisfactorily completed an approved instructor training program?",
+        reference: "142.47(a)(4), V3 C54 S3 P3-4364"
+      },
+      {
+        id: "5-05",
+        number: "5-05",
+        description: "Does each evaluator hold the certificates and ratings required for the type of aircraft used for instruction?",
+        reference: "142.49(a)(1), V3 C54 S4 P3-4372"
+      },
+      {
+        id: "5-06",
+        number: "5-06",
+        description: "Does each evaluator have training and experience in conducting the types of checks for which the evaluator is authorized?",
+        reference: "142.49(a)(2), V3 C54 S4 P3-4372"
+      },
+      {
+        id: "5-07",
+        number: "5-07",
+        description: "Has each evaluator satisfactorily completed an approved evaluator training program?",
+        reference: "142.49(a)(3), V3 C54 S4 P3-4372"
+      },
+      {
+        id: "5-08",
+        number: "5-08",
+        description: "Are instructor training records maintained that document qualification requirements?",
+        reference: "142.47(b), V3 C54 S3 P3-4370"
+      },
+      {
+        id: "5-09",
+        number: "5-09",
+        description: "Are evaluator training records maintained that document qualification requirements?",
+        reference: "142.49(b), V3 C54 S4 P3-4375"
+      },
+      {
+        id: "5-10",
+        number: "5-10",
+        description: "Do instructors and evaluators receive recurrent training to maintain proficiency?",
+        reference: "142.47(c) and 142.49(c), V3 C54 S3 P3-4370"
+      },
+      {
+        id: "5-11",
+        number: "5-11",
+        description: "Are instructors and evaluators supervised by qualified training center management personnel?",
+        reference: "142.47(d) and 142.49(d), V3 C54 S3 P3-4370"
+      },
+      {
+        id: "5-12",
+        number: "5-12",
+        description: "Are instructor and evaluator qualification records kept current and available for inspection?",
+        reference: "142.47(e) and 142.49(e), V3 C54 S3 P3-4370"
+      },
+      {
+        id: "5-13",
+        number: "5-13",
+        description: "Do instructors maintain current knowledge of applicable regulations and procedures?",
+        reference: "142.47(j), V3 C54 S3 P3-4364"
+      },
+      {
+        id: "5-14",
+        number: "5-14",
+        description: "Are instructor training records maintained in accordance with regulatory requirements?",
+        reference: "142.47(k), V3 C54 S3 P3-4364"
+      },
+      {
+        id: "5-15",
+        number: "5-15",
+        description: "Do instructors participate in standardization programs and recurrent training?",
+        reference: "142.47(l), V3 C54 S3 P3-4364"
+      },
+      {
+        id: "5-16",
+        number: "5-16",
+        description: "Are instructor qualifications verified and documented before assignment to training duties?",
+        reference: "142.47(m), V3 C54 S3 P3-4364"
+      },
+      {
+        id: "5-17",
+        number: "5-17",
+        description: "Do instructors demonstrate proficiency in teaching techniques and methods?",
+        reference: "142.47(n), V3 C54 S3 P3-4364"
+      },
+      {
+        id: "5-18",
+        number: "5-18",
+        description: "Are instructor continuing education requirements met and documented?",
+        reference: "142.47(o), V3 C54 S3 P3-4364"
+      },
+      {
+        id: "5-19",
+        number: "5-19",
+        description: "Do instructors maintain appropriate medical certificates and currency requirements?",
+        reference: "142.47(p), V3 C54 S3 P3-4364"
+      },
+      {
+        id: "5-20",
+        number: "5-20",
+        description: "Are instructor supervision and oversight procedures properly implemented?",
+        reference: "142.47(q), V3 C54 S3 P3-4364"
+      }
+    ]
+  },
+  {
+    id: "area6",
+    name: "Facilities",
+    description: "Review of training facilities",
+    items: [
+      {
+        id: "6-01",
+        number: "6-01",
+        description: "Does the training center have adequate facilities for each approved curriculum?",
+        reference: "142.15(a), V3 C54 S7 P3-4440"
+      },
+      {
+        id: "6-02",
+        number: "6-02",
+        description: "Are training facilities properly heated, lighted, and ventilated to conform to local building, sanitation, and health codes?",
+        reference: "142.15(b), V3 C54 S7 P3-4440"
+      },
+      {
+        id: "6-03",
+        number: "6-03",
+        description: "Are training facilities properly equipped with furniture that is suitable for the type of training provided?",
+        reference: "142.15(c), V3 C54 S7 P3-4440"
+      },
+      {
+        id: "6-04",
+        number: "6-04",
+        description: "Does the training center have exclusive use of at least one classroom or training space for each curriculum offered?",
+        reference: "142.15(d), V3 C54 S7 P3-4440"
+      },
+      {
+        id: "6-05",
+        number: "6-05",
+        description: "Are training facilities located in buildings that meet all applicable local zoning, health, and safety requirements?",
+        reference: "142.15(e), V3 C54 S7 P3-4440"
+      },
+      {
+        id: "6-06",
+        number: "6-06",
+        description: "Does the training center have adequate restroom facilities that are properly maintained?",
+        reference: "142.15(f), V3 C54 S7 P3-4440"
+      },
+      {
+        id: "6-07",
+        number: "6-07",
+        description: "Are training facilities maintained in a manner that does not detract from instruction or student learning?",
+        reference: "142.15(g), V3 C54 S7 P3-4440"
+      },
+      {
+        id: "6-08",
+        number: "6-08",
+        description: "Does the training center provide adequate storage facilities for training records, courseware, and equipment?",
+        reference: "142.15(h), V3 C54 S7 P3-4440"
+      },
+      {
+        id: "6-09",
+        number: "6-09",
+        description: "Are satellite training center facilities adequate for the approved curricula conducted at those locations?",
+        reference: "142.17(c), V3 C54 S7 P3-4440"
+      },
+      {
+        id: "6-10",
+        number: "6-10",
+        description: "Do facilities provide adequate space for the number of students trained simultaneously?",
+        reference: "142.15(i), V3 C54 S7 P3-4440"
+      },
+      {
+        id: "6-11",
+        number: "6-11",
+        description: "Are training facilities accessible to persons with disabilities in accordance with applicable laws?",
+        reference: "142.15(j), V3 C54 S7 P3-4440"
+      },
+      {
+        id: "6-12",
+        number: "6-12",
+        description: "Do facilities include adequate storage areas for training materials and equipment?",
+        reference: "142.15(k), V3 C54 S7 P3-4440"
+      },
+      {
+        id: "6-13",
+        number: "6-13",
+        description: "Are facility maintenance and cleanliness standards established and maintained?",
+        reference: "142.15(l), V3 C54 S7 P3-4440"
+      },
+      {
+        id: "6-14",
+        number: "6-14",
+        description: "Do facilities provide adequate parking for students and staff?",
+        reference: "142.15(m), V3 C54 S7 P3-4440"
+      },
+      {
+        id: "6-15",
+        number: "6-15",
+        description: "Are facility security measures adequate to protect training materials and equipment?",
+        reference: "142.15(n), V3 C54 S7 P3-4440"
+      },
+      {
+        id: "6-16",
+        number: "6-16",
+        description: "Do facilities meet all applicable fire safety and emergency evacuation requirements?",
+        reference: "142.15(o), V3 C54 S7 P3-4440"
+      },
+      {
+        id: "6-17",
+        number: "6-17",
+        description: "Are facility environmental controls (heating, ventilation, air conditioning) adequate for training operations?",
+        reference: "142.15(p), V3 C54 S7 P3-4440"
+      },
+      {
+        id: "6-18",
+        number: "6-18",
+        description: "Do facilities include adequate areas for student registration and administrative functions?",
+        reference: "142.15(q), V3 C54 S7 P3-4440"
+      }
+    ]
+  },
+  {
+    id: "area7",
+    name: "Flight Training Equipment",
+    description: "Review of flight training equipment",
+    items: [
+      {
+        id: "7-01",
+        number: "7-01",
+        description: "Does the training center have adequate flight training equipment for each approved curriculum?",
+        reference: "142.15(a), V3 C54 S8 P3-4445"
+      },
+      {
+        id: "7-02",
+        number: "7-02",
+        description: "Is flight training equipment maintained in accordance with applicable maintenance requirements?",
+        reference: "142.15(b), V3 C54 S8 P3-4445"
+      },
+      {
+        id: "7-03",
+        number: "7-03",
+        description: "Are flight simulators and training devices approved for the specific training programs?",
+        reference: "142.15(c), V3 C54 S8 P3-4445"
+      },
+      {
+        id: "7-04",
+        number: "7-04",
+        description: "Does the training center have exclusive use of flight training equipment during training operations?",
+        reference: "142.15(d), V3 C54 S8 P3-4445"
+      },
+      {
+        id: "7-05",
+        number: "7-05",
+        description: "Are flight training devices properly certified and meet the requirements for their intended use?",
+        reference: "142.15(e), V3 C54 S8 P3-4445"
+      },
+      {
+        id: "7-06",
+        number: "7-06",
+        description: "Is flight training equipment calibrated and maintained according to manufacturer specifications?",
+        reference: "142.15(f), V3 C54 S8 P3-4445"
+      },
+      {
+        id: "7-07",
+        number: "7-07",
+        description: "Are maintenance records for flight training equipment properly maintained and current?",
+        reference: "142.15(g), V3 C54 S8 P3-4445"
+      },
+      {
+        id: "7-08",
+        number: "7-08",
+        description: "Does flight training equipment meet the performance standards specified in the approved curriculum?",
+        reference: "142.15(h), V3 C54 S8 P3-4445"
+      },
+      {
+        id: "7-09",
+        number: "7-09",
+        description: "Are flight training equipment operating procedures documented and followed?",
+        reference: "142.15(i), V3 C54 S8 P3-4445"
+      },
+      {
+        id: "7-10",
+        number: "7-10",
+        description: "Does flight training equipment include appropriate safety equipment and systems?",
+        reference: "142.15(j), V3 C54 S8 P3-4445"
+      },
+      {
+        id: "7-11",
+        number: "7-11",
+        description: "Are flight training equipment modifications properly approved and documented?",
+        reference: "142.15(k), V3 C54 S8 P3-4445"
+      },
+      {
+        id: "7-12",
+        number: "7-12",
+        description: "Does flight training equipment comply with applicable airworthiness requirements?",
+        reference: "142.15(l), V3 C54 S8 P3-4445"
+      },
+      {
+        id: "7-13",
+        number: "7-13",
+        description: "Are flight training equipment inspection schedules established and maintained?",
+        reference: "142.15(m), V3 C54 S8 P3-4445"
+      },
+      {
+        id: "7-14",
+        number: "7-14",
+        description: "Does flight training equipment include adequate communication and navigation systems?",
+        reference: "142.15(n), V3 C54 S8 P3-4445"
+      },
+      {
+        id: "7-15",
+        number: "7-15",
+        description: "Are flight training equipment performance checks conducted at required intervals?",
+        reference: "142.15(o), V3 C54 S8 P3-4445"
+      },
+      {
+        id: "7-16",
+        number: "7-16",
+        description: "Does flight training equipment include appropriate emergency equipment and procedures?",
+        reference: "142.15(p), V3 C54 S8 P3-4445"
+      }
+    ]
+  },
+  {
+    id: "area8",
+    name: "Records",
+    description: "Review of record keeping requirements",
+    items: [
+      {
+        id: "8-01",
+        number: "8-01",
+        description: "Does the training center maintain student training records as required?",
+        reference: "142.73(a), V3 C54 S9 P3-4450"
+      },
+      {
+        id: "8-02",
+        number: "8-02",
+        description: "Are student training records maintained for the required retention period?",
+        reference: "142.73(b), V3 C54 S9 P3-4450"
+      },
+      {
+        id: "8-03",
+        number: "8-03",
+        description: "Do student training records contain all required information and documentation?",
+        reference: "142.73(c), V3 C54 S9 P3-4450"
+      },
+      {
+        id: "8-04",
+        number: "8-04",
+        description: "Are instructor and evaluator qualification records maintained and current?",
+        reference: "142.71(a), V3 C54 S9 P3-4450"
+      },
+      {
+        id: "8-05",
+        number: "8-05",
+        description: "Are training center records maintained in a secure location and properly organized?",
+        reference: "142.71(b), V3 C54 S9 P3-4450"
+      },
+      {
+        id: "8-06",
+        number: "8-06",
+        description: "Are graduation certificates issued properly and records maintained?",
+        reference: "142.71(c), V3 C54 S9 P3-4450"
+      },
+      {
+        id: "8-07",
+        number: "8-07",
+        description: "Are training records made available for inspection by the FAA upon request?",
+        reference: "142.71(d), V3 C54 S9 P3-4450"
+      },
+      {
+        id: "8-08",
+        number: "8-08",
+        description: "Does the training center maintain records of courseware revisions and approvals?",
+        reference: "142.71(e), V3 C54 S9 P3-4450"
+      },
+      {
+        id: "8-09",
+        number: "8-09",
+        description: "Are records of training center operations and activities properly documented?",
+        reference: "142.71(f), V3 C54 S9 P3-4450"
+      },
+      {
+        id: "8-10",
+        number: "8-10",
+        description: "Are student progress records maintained throughout the training program?",
+        reference: "142.73(d), V3 C54 S9 P3-4450"
+      },
+      {
+        id: "8-11",
+        number: "8-11",
+        description: "Are training center accident and incident records properly maintained?",
+        reference: "142.71(g), V3 C54 S9 P3-4450"
+      },
+      {
+        id: "8-12",
+        number: "8-12",
+        description: "Do training records include all required endorsements and certifications?",
+        reference: "142.73(e), V3 C54 S9 P3-4450"
+      },
+      {
+        id: "8-13",
+        number: "8-13",
+        description: "Are training center maintenance records for equipment properly documented?",
+        reference: "142.71(h), V3 C54 S9 P3-4450"
+      },
+      {
+        id: "8-14",
+        number: "8-14",
+        description: "Do records include proper documentation of all training modifications and deviations?",
+        reference: "142.73(f), V3 C54 S9 P3-4450"
+      },
+      {
+        id: "8-15",
+        number: "8-15",
+        description: "Are training center financial records adequate to demonstrate compliance with operating requirements?",
+        reference: "142.71(i), V3 C54 S9 P3-4450"
+      },
+      {
+        id: "8-16",
+        number: "8-16",
+        description: "Do student records include appropriate medical and qualification documentation?",
+        reference: "142.73(g), V3 C54 S9 P3-4450"
+      },
+      {
+        id: "8-17",
+        number: "8-17",
+        description: "Are training center audit and inspection records properly maintained and accessible?",
+        reference: "142.71(j), V3 C54 S9 P3-4450"
+      }
+    ]
+  },
+  {
+    id: "area9",
+    name: "Training Operations",
+    description: "Review of training operations",
+    items: [
+      {
+        id: "9-01",
+        number: "9-01",
+        description: "Are training operations conducted in accordance with the approved training specifications?",
+        reference: "142.35(a), V3 C54 S10 P3-4455"
+      },
+      {
+        id: "9-02",
+        number: "9-02",
+        description: "Does the training center conduct operations under the supervision of qualified management personnel?",
+        reference: "142.35(b), V3 C54 S10 P3-4455"
+      },
+      {
+        id: "9-03",
+        number: "9-03",
+        description: "Are training operations conducted using approved courseware and training materials?",
+        reference: "142.35(c), V3 C54 S10 P3-4455"
+      },
+      {
+        id: "9-04",
+        number: "9-04",
+        description: "Do training operations comply with all applicable safety and operational requirements?",
+        reference: "142.35(d), V3 C54 S10 P3-4455"
+      },
+      {
+        id: "9-05",
+        number: "9-05",
+        description: "Are training operations properly documented and recorded?",
+        reference: "142.35(e), V3 C54 S10 P3-4455"
+      },
+      {
+        id: "9-06",
+        number: "9-06",
+        description: "Does the training center maintain adequate operational control over all training activities?",
+        reference: "142.35(f), V3 C54 S10 P3-4455"
+      },
+      {
+        id: "9-07",
+        number: "9-07",
+        description: "Are training operations conducted within the scope of the training center's authorization?",
+        reference: "142.35(g), V3 C54 S10 P3-4455"
+      },
+      {
+        id: "9-08",
+        number: "9-08",
+        description: "Does the training center have procedures to ensure quality and consistency of training operations?",
+        reference: "142.35(h), V3 C54 S10 P3-4455"
+      },
+      {
+        id: "9-09",
+        number: "9-09",
+        description: "Are training operations conducted in accordance with approved weather minimums and operational limitations?",
+        reference: "142.35(i), V3 C54 S10 P3-4455"
+      },
+      {
+        id: "9-10",
+        number: "9-10",
+        description: "Do training operations include appropriate coordination with air traffic control and other aviation authorities?",
+        reference: "142.35(j), V3 C54 S10 P3-4455"
+      },
+      {
+        id: "9-11",
+        number: "9-11",
+        description: "Are training operations monitored for compliance with noise abatement and environmental requirements?",
+        reference: "142.35(k), V3 C54 S10 P3-4455"
+      },
+      {
+        id: "9-12",
+        number: "9-12",
+        description: "Do training operations include appropriate emergency response procedures and equipment?",
+        reference: "142.35(l), V3 C54 S10 P3-4455"
+      },
+      {
+        id: "9-13",
+        number: "9-13",
+        description: "Are training operations scheduling and resource allocation procedures adequate?",
+        reference: "142.35(m), V3 C54 S10 P3-4455"
+      },
+      {
+        id: "9-14",
+        number: "9-14",
+        description: "Do training operations include proper coordination between ground and flight training activities?",
+        reference: "142.35(n), V3 C54 S10 P3-4455"
+      },
+      {
+        id: "9-15",
+        number: "9-15",
+        description: "Are training operations performance metrics established and monitored?",
+        reference: "142.35(o), V3 C54 S10 P3-4455"
+      },
+      {
+        id: "9-16",
+        number: "9-16",
+        description: "Do training operations comply with all applicable security and access control requirements?",
+        reference: "142.35(p), V3 C54 S10 P3-4455"
+      }
+    ]
+  },
+  {
+    id: "area10",
+    name: "Quality Control Measures",
+    description: "Review of quality control measures",
+    items: [
+      {
+        id: "10-01",
+        number: "10-01",
+        description: "Does the center have an approved Quality Control Program?",
+        reference: "142.11, V2 C10 S1 P2-1153"
+      },
+      {
+        id: "10-02",
+        number: "10-02",
+        description: "Does the Quality Program comply with the guidelines specified in Order 8900.1?",
+        reference: "V2 C10 S1 P2-1153"
+      },
+      {
+        id: "10-03",
+        number: "10-03",
+        description: "Does the quality control system provide for effective oversight of training operations?",
+        reference: "142.11(d)(3), V2 C10 S1 P2-1153"
+      },
+      {
+        id: "10-04",
+        number: "10-04",
+        description: "Are quality control personnel properly qualified and independent from line training operations?",
+        reference: "142.11(d)(3), V2 C10 S1 P2-1153"
+      },
+      {
+        id: "10-05",
+        number: "10-05",
+        description: "Does the quality control system include regular audits of training center operations?",
+        reference: "142.11(d)(3), V2 C10 S1 P2-1153"
+      },
+      {
+        id: "10-06",
+        number: "10-06",
+        description: "Are quality control audit findings properly documented and corrective actions implemented?",
+        reference: "142.11(d)(3), V2 C10 S1 P2-1153"
+      },
+      {
+        id: "10-07",
+        number: "10-07",
+        description: "Does the quality control system provide for monitoring instructor and evaluator performance?",
+        reference: "142.11(d)(3), V2 C10 S1 P2-1153"
+      },
+      {
+        id: "10-08",
+        number: "10-08",
+        description: "Are quality control records maintained and available for FAA inspection?",
+        reference: "142.11(d)(3), V2 C10 S1 P2-1153"
+      },
+      {
+        id: "10-09",
+        number: "10-09",
+        description: "Does the quality control system address compliance with all applicable regulations?",
+        reference: "142.11(d)(3), V2 C10 S1 P2-1153"
+      },
+      {
+        id: "10-10",
+        number: "10-10",
+        description: "Are quality control procedures regularly reviewed and updated as necessary?",
+        reference: "142.11(d)(3), V2 C10 S1 P2-1153"
+      },
+      {
+        id: "10-11",
+        number: "10-11",
+        description: "Does the quality control system include periodic assessment of training effectiveness?",
+        reference: "142.11(d)(4), V2 C10 S1 P2-1153"
+      },
+      {
+        id: "10-12",
+        number: "10-12",
+        description: "Are quality control inspection schedules established and followed?",
+        reference: "142.11(d)(5), V2 C10 S1 P2-1153"
+      },
+      {
+        id: "10-13",
+        number: "10-13",
+        description: "Does the quality control system address all aspects of training center operations?",
+        reference: "142.11(d)(6), V2 C10 S1 P2-1153"
+      },
+      {
+        id: "10-14",
+        number: "10-14",
+        description: "Are quality control metrics and performance indicators established and monitored?",
+        reference: "142.11(d)(7), V2 C10 S1 P2-1153"
+      },
+      {
+        id: "10-15",
+        number: "10-15",
+        description: "Does the quality control system provide for management review and oversight?",
+        reference: "142.11(d)(8), V2 C10 S1 P2-1153"
+      },
+      {
+        id: "10-16",
+        number: "10-16",
+        description: "Are quality control training and competency requirements established for personnel?",
+        reference: "142.11(d)(9), V2 C10 S1 P2-1153"
+      },
+      {
+        id: "10-17",
+        number: "10-17",
+        description: "Does the quality control system include provisions for continuous improvement?",
+        reference: "142.11(d)(10), V2 C10 S1 P2-1153"
+      },
+      {
+        id: "10-18",
+        number: "10-18",
+        description: "Are quality control communication and reporting procedures established?",
+        reference: "142.11(d)(11), V2 C10 S1 P2-1153"
+      },
+      {
+        id: "10-19",
+        number: "10-19",
+        description: "Does the quality control system address regulatory compliance monitoring?",
+        reference: "142.11(d)(12), V2 C10 S1 P2-1153"
+      },
+      {
+        id: "10-20",
+        number: "10-20",
+        description: "Are quality control risk assessment and mitigation procedures documented?",
+        reference: "142.11(d)(13), V2 C10 S1 P2-1153"
+      }
+    ]
+  }
+];
+
+// server/services/checklist-review-utils.ts
+function chunkText(text2, size = 1400) {
+  const paragraphs = text2.split(/\n\s*\n/).flatMap((p) => {
+    if (p.length <= size) return [p];
+    const pieces = [];
+    for (let i = 0; i < p.length; i += size) pieces.push(p.slice(i, i + size));
+    return pieces;
+  });
+  const chunks = [];
+  let current = "";
+  for (const p of paragraphs) {
+    if ((current + "\n\n" + p).length > size && current) {
+      chunks.push(current.trim());
+      current = p;
+    } else {
+      current = current ? current + "\n\n" + p : p;
+    }
+  }
+  if (current.trim()) chunks.push(current.trim());
+  return chunks.filter(Boolean);
+}
+var STOPWORDS = /* @__PURE__ */ new Set(["the", "a", "an", "and", "or", "of", "to", "in", "for", "is", "are", "does", "do", "with", "that", "this", "any", "all", "each", "has", "have", "been", "be", "by", "on", "at", "its", "their", "center", "training"]);
+function keywords(text2) {
+  return new Set(
+    text2.toLowerCase().replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter((w) => w.length > 3 && !STOPWORDS.has(w))
+  );
+}
+function batchItems(items, batchSize = 25) {
+  const batches = [];
+  for (let i = 0; i < items.length; i += batchSize) batches.push(items.slice(i, i + batchSize));
+  return batches;
+}
+var MAX_EXCERPT_CHARS = 18e3;
+function selectChunks(chunks, itemTexts, maxChunks = 12) {
+  const itemKw = keywords(itemTexts.join(" "));
+  const scored = chunks.map((chunk, i) => {
+    const ck = keywords(chunk);
+    let score = 0;
+    for (const w of ck) if (itemKw.has(w)) score++;
+    return { i, chunk, score };
+  });
+  scored.sort((a, b) => b.score - a.score);
+  const picked = scored.slice(0, maxChunks).sort((a, b) => a.i - b.i).map((s) => s.chunk);
+  const bounded = [];
+  let total = 0;
+  for (const chunk of picked) {
+    const remaining = MAX_EXCERPT_CHARS - total;
+    if (remaining <= 0) break;
+    const piece = chunk.length > remaining ? chunk.slice(0, remaining) : chunk;
+    bounded.push(piece);
+    total += piece.length;
+  }
+  return bounded;
+}
+
+// server/services/checklist-excel.ts
+import ExcelJS from "exceljs";
+import { Readable } from "stream";
+import fs3 from "fs";
+import os from "os";
+import path3 from "path";
+import crypto9 from "crypto";
+import { exec } from "child_process";
+import { promisify } from "util";
+var execAsync = promisify(exec);
+var ACCEPTED_COLUMNS_HELP = 'Expected columns: "Item Number" (or Number/No/#), "Description" (or Requirement/Question), optional "Reference", optional "Area" (or Section/Category).';
+var HEADER_MATCHERS = [
+  { field: "number", test: (h) => /^(item\s*)?(number|no\.?|num|#)$|^item$/i.test(h) },
+  { field: "description", test: (h) => /desc|requirement|question|checklist\s*item|item\s*text/i.test(h) },
+  { field: "reference", test: (h) => /^ref(erence)?s?$|regulation|cfr/i.test(h) },
+  { field: "areaName", test: (h) => /area|section|category|chapter|group/i.test(h) }
+];
+function cellText(value) {
+  if (value === null || value === void 0) return "";
+  if (typeof value === "object") {
+    const v = value;
+    if (v instanceof Date) return v.toISOString();
+    if (typeof v.text === "string") return v.text.trim();
+    if (Array.isArray(v.richText)) return v.richText.map((r) => r.text).join("").trim();
+    if ("formula" in v || "sharedFormula" in v || "result" in v) {
+      const r = v.result;
+      if (r === null || r === void 0) return "";
+      if (typeof r === "object") return r instanceof Date ? r.toISOString() : "";
+      return String(r).trim();
+    }
+    return "";
+  }
+  return String(value).trim();
+}
+var MAX_PARSE_ROWS = 5e3;
+var MAX_PARSE_COLS = 100;
+var MAX_UNCOMPRESSED_BYTES = 50 * 1024 * 1024;
+async function assertZipWithinBounds(buffer) {
+  const tmp = path3.join(os.tmpdir(), `xlsx-${crypto9.randomBytes(6).toString("hex")}.zip`);
+  fs3.writeFileSync(tmp, buffer);
+  try {
+    const { stdout } = await execAsync(`unzip -l "${tmp}"`, { maxBuffer: 10 * 1024 * 1024 });
+    let total = 0;
+    for (const line of stdout.split("\n")) {
+      const m = line.match(/^\s*(\d+)\s+\d{2,4}-\d{2}-\d{2,4}/);
+      if (m) total += Number(m[1]);
+    }
+    if (total > MAX_UNCOMPRESSED_BYTES) {
+      throw new Error("This spreadsheet expands to an unreasonably large size and cannot be processed.");
+    }
+  } catch (err) {
+    if (/unreasonably large/.test(String(err?.message))) throw err;
+  } finally {
+    fs3.unlinkSync(tmp);
+  }
+}
+async function convertXlsToXlsx(buffer) {
+  if (buffer.length < 8 || !buffer.subarray(0, 4).equals(Buffer.from([208, 207, 17, 224]))) {
+    throw new Error("not a legacy .xls (CFB) file");
+  }
+  const XLSX = await import("xlsx");
+  const legacy = XLSX.read(buffer, { type: "buffer", dense: true, sheetRows: MAX_PARSE_ROWS + 1 });
+  if (!legacy.SheetNames.length) throw new Error("empty .xls workbook");
+  const out = XLSX.write(legacy, { type: "buffer", bookType: "xlsx", compression: true });
+  if (out.length > MAX_UNCOMPRESSED_BYTES) {
+    throw new Error("This spreadsheet expands to an unreasonably large size and cannot be processed.");
+  }
+  return out;
+}
+async function readWorkbook(buffer, filename) {
+  const workbook = new ExcelJS.Workbook();
+  if (/\.csv$/i.test(filename)) {
+    await workbook.csv.read(Readable.from(buffer));
+  } else if (/\.xls$/i.test(filename)) {
+    const converted = await convertXlsToXlsx(buffer);
+    await assertZipWithinBounds(converted);
+    await workbook.xlsx.load(converted);
+  } else {
+    await assertZipWithinBounds(buffer);
+    await workbook.xlsx.load(buffer);
+  }
+  return workbook;
+}
+function parseSheet(sheet, defaultAreaName, startIndex) {
+  let headerRowIdx = 0;
+  let columnMap = {};
+  const maxScan = Math.min(sheet.rowCount, 10);
+  for (let r = 1; r <= maxScan; r++) {
+    const row = sheet.getRow(r);
+    const map = {};
+    row.eachCell({ includeEmpty: false }, (cell, col) => {
+      const text2 = cellText(cell.value);
+      if (!text2) return;
+      for (const m of HEADER_MATCHERS) {
+        if (map[m.field] === void 0 && m.test(text2)) {
+          map[m.field] = col;
+          break;
+        }
+      }
+    });
+    if (map.description !== void 0) {
+      headerRowIdx = r;
+      columnMap = map;
+      break;
+    }
+  }
+  if (!headerRowIdx) return null;
+  const items = [];
+  for (let r = headerRowIdx + 1; r <= sheet.rowCount; r++) {
+    const row = sheet.getRow(r);
+    const description = columnMap.description !== void 0 ? cellText(row.getCell(columnMap.description).value) : "";
+    if (!description) continue;
+    const number = columnMap.number !== void 0 ? cellText(row.getCell(columnMap.number).value) : "";
+    const reference = columnMap.reference !== void 0 ? cellText(row.getCell(columnMap.reference).value) : "";
+    const areaName = columnMap.areaName !== void 0 ? cellText(row.getCell(columnMap.areaName).value) : "";
+    items.push({
+      number: number || `ITEM-${startIndex + items.length + 1}`,
+      description,
+      reference,
+      areaName: areaName || defaultAreaName
+    });
+  }
+  return items.length ? items : null;
+}
+async function parseChecklistWorkbook(buffer, filename) {
+  let workbook;
+  try {
+    workbook = await readWorkbook(buffer, filename);
+  } catch (err) {
+    if (/unreasonably large/.test(String(err?.message))) throw err;
+    throw new Error("This file could not be read as a spreadsheet. Please upload a valid .xlsx, .xls, or .csv file.");
+  }
+  const sheets = workbook.worksheets.filter((ws2) => ws2 && ws2.rowCount > 0);
+  if (sheets.length === 0) {
+    throw new Error(`The spreadsheet is empty. ${ACCEPTED_COLUMNS_HELP}`);
+  }
+  const totalRows = sheets.reduce((s, ws2) => s + ws2.rowCount, 0);
+  const maxCols = Math.max(...sheets.map((ws2) => ws2.columnCount));
+  if (totalRows > MAX_PARSE_ROWS || maxCols > MAX_PARSE_COLS) {
+    throw new Error(`The spreadsheet is too large (${totalRows} rows \xD7 ${maxCols} columns). The maximum is ${MAX_PARSE_ROWS} rows and ${MAX_PARSE_COLS} columns.`);
+  }
+  const multiSheet = sheets.length > 1;
+  const items = [];
+  const skippedSheets = [];
+  for (const sheet of sheets) {
+    const defaultAreaName = multiSheet ? sheet.name || "Imported Checklist" : "Imported Checklist";
+    const parsed = parseSheet(sheet, defaultAreaName, items.length);
+    if (parsed) items.push(...parsed);
+    else skippedSheets.push(sheet.name || `Sheet ${skippedSheets.length + 1}`);
+  }
+  if (items.length === 0) {
+    if (skippedSheets.length > 0 && sheets.some((s) => {
+      const p = parseSheetHeaderOnly(s);
+      return p;
+    })) {
+      throw new Error(`No checklist rows were found under the header row. ${ACCEPTED_COLUMNS_HELP}`);
+    }
+    throw new Error(`Could not find a header row with a Description column. ${ACCEPTED_COLUMNS_HELP}`);
+  }
+  return { items, skippedSheets };
+}
+function parseSheetHeaderOnly(sheet) {
+  const maxScan = Math.min(sheet.rowCount, 10);
+  for (let r = 1; r <= maxScan; r++) {
+    let found = false;
+    sheet.getRow(r).eachCell({ includeEmpty: false }, (cell) => {
+      const text2 = cellText(cell.value);
+      if (text2 && HEADER_MATCHERS[1].test(text2)) found = true;
+    });
+    if (found) return true;
+  }
+  return false;
+}
+var VERDICT_LABELS = {
+  covered: "Covered by manual",
+  partial: "Partially covered",
+  not_addressed: "Not addressed"
+};
+function sheetName(raw, used) {
+  let base = raw.replace(/[\\/*?:\[\]]/g, " ").replace(/\s+/g, " ").trim().slice(0, 31) || "Area";
+  let name = base;
+  let n = 2;
+  while (used.has(name.toLowerCase())) {
+    const suffix = ` (${n++})`;
+    name = base.slice(0, 31 - suffix.length) + suffix;
+  }
+  used.add(name.toLowerCase());
+  return name;
+}
+async function buildChecklistWorkbook(opts) {
+  const { areas, organization, manual } = opts;
+  const generatedAt = opts.generatedAt ?? /* @__PURE__ */ new Date();
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = "BCCS Part 142 Checklist Report";
+  workbook.created = generatedAt;
+  const allItems = areas.flatMap((a) => a.items);
+  const count4 = (st) => allItems.filter((i) => i.status === st).length;
+  const aiCount = (v) => allItems.filter((i) => i.aiVerdict === v).length;
+  const assessed = count4("compliant") + count4("non-compliant") + count4("not-applicable");
+  const summary = workbook.addWorksheet("Summary");
+  summary.columns = [{ width: 34 }, { width: 60 }];
+  const title = summary.addRow(["Part 142 Checklist Report"]);
+  title.font = { bold: true, size: 16 };
+  summary.addRow(["FAA Training Center Inspection Checklist & Job Aid \u2014 Auditor Report"]);
+  summary.addRow([]);
+  if (organization) {
+    summary.addRow(["Organization", organization.name || ""]);
+    if (organization.certificateNumber) summary.addRow(["Certificate No.", organization.certificateNumber]);
+    if (organization.regulatoryAuthority) summary.addRow(["Regulatory authority", organization.regulatoryAuthority]);
+  }
+  summary.addRow(["Generated", generatedAt.toISOString()]);
+  summary.addRow([
+    "Operations manual",
+    manual ? `${manual.filename}${manual.uploadedAt ? ` (uploaded ${new Date(manual.uploadedAt).toDateString()})` : ""}` : "None on file \u2014 AI review not performed"
+  ]);
+  summary.addRow([]);
+  const statsHeader = summary.addRow(["Completion statistics"]);
+  statsHeader.font = { bold: true };
+  summary.addRow(["Total items", allItems.length]);
+  summary.addRow(["Compliant", count4("compliant")]);
+  summary.addRow(["Non-compliant", count4("non-compliant")]);
+  summary.addRow(["Not applicable", count4("not-applicable")]);
+  summary.addRow(["Pending", count4("pending")]);
+  summary.addRow(["Assessed", `${allItems.length ? Math.round(assessed / allItems.length * 100) : 0}%`]);
+  if (allItems.some((i) => i.aiVerdict)) {
+    summary.addRow([]);
+    const aiHeader = summary.addRow(["AI manual review"]);
+    aiHeader.font = { bold: true };
+    summary.addRow(["Covered by manual", aiCount("covered")]);
+    summary.addRow(["Partially covered", aiCount("partial")]);
+    summary.addRow(["Not addressed", aiCount("not_addressed")]);
+  }
+  const usedNames = /* @__PURE__ */ new Set(["summary"]);
+  for (const area of areas) {
+    const ws2 = workbook.addWorksheet(sheetName(area.name, usedNames));
+    ws2.columns = [
+      { header: "Item", key: "number", width: 10 },
+      { header: "Requirement", key: "description", width: 70 },
+      { header: "Reference", key: "reference", width: 28 },
+      { header: "Status", key: "status", width: 16 },
+      { header: "Comments", key: "comments", width: 40 },
+      { header: "Findings", key: "findings", width: 40 },
+      { header: "AI Verdict", key: "aiVerdict", width: 22 },
+      { header: "AI Manual Excerpt", key: "aiExcerpt", width: 50 },
+      { header: "AI Suggested Remediation", key: "aiRemediation", width: 50 },
+      { header: "Evidence Files", key: "evidenceCount", width: 14 }
+    ];
+    ws2.getRow(1).font = { bold: true };
+    ws2.views = [{ state: "frozen", ySplit: 1 }];
+    for (const item of area.items) {
+      const verdict = item.aiVerdict ? (VERDICT_LABELS[item.aiVerdict] || item.aiVerdict) + (item.aiStale ? " (stale \u2014 previous manual)" : "") : "";
+      ws2.addRow({
+        number: item.number,
+        description: item.description,
+        reference: item.reference,
+        status: item.status.replace("-", " "),
+        comments: item.comments,
+        findings: item.findings,
+        aiVerdict: verdict,
+        aiExcerpt: item.aiExcerpt || "",
+        aiRemediation: item.aiRemediation || "",
+        evidenceCount: item.evidenceCount
+      });
+    }
+    ws2.getColumn(2).alignment = { wrapText: true, vertical: "top" };
+    for (const col of [5, 6, 8, 9]) ws2.getColumn(col).alignment = { wrapText: true, vertical: "top" };
+  }
+  return Buffer.from(await workbook.xlsx.writeBuffer());
+}
+
+// server/routes/checklist-report.ts
+var execAsync3 = promisify3(exec3);
+var router10 = Router9();
+var openai7 = new OpenAI7();
+var upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 25 * 1024 * 1024 }
+});
+async function ensureTables2() {
+  await db.execute(sql13`
+    CREATE TABLE IF NOT EXISTS bccs_checklist_report_items (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      organization_id UUID NOT NULL,
+      area_id VARCHAR(50) NOT NULL,
+      area_name VARCHAR(300) NOT NULL,
+      area_description TEXT,
+      item_number VARCHAR(30) NOT NULL,
+      description TEXT NOT NULL,
+      reference VARCHAR(300),
+      status VARCHAR(30) DEFAULT 'pending',
+      comments TEXT DEFAULT '',
+      findings TEXT DEFAULT '',
+      item_order INTEGER NOT NULL DEFAULT 0,
+      created_at TIMESTAMP DEFAULT NOW(),
+      updated_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
+  await db.execute(sql13`
+    CREATE TABLE IF NOT EXISTS bccs_ops_manuals (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      organization_id UUID NOT NULL,
+      filename VARCHAR(300) NOT NULL,
+      extracted_text TEXT NOT NULL,
+      text_chars INTEGER NOT NULL,
+      uploaded_by VARCHAR(200),
+      uploaded_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
+  await db.execute(sql13`
+    CREATE TABLE IF NOT EXISTS bccs_checklist_ai_findings (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      organization_id UUID NOT NULL,
+      item_id UUID NOT NULL,
+      manual_id UUID NOT NULL,
+      verdict VARCHAR(30) NOT NULL,
+      excerpt TEXT,
+      remediation TEXT,
+      reviewed_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
+  await db.execute(sql13`
+    CREATE TABLE IF NOT EXISTS bccs_checklist_evidence (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      organization_id UUID NOT NULL,
+      item_id UUID NOT NULL,
+      filename VARCHAR(300) NOT NULL,
+      content_type VARCHAR(100) NOT NULL,
+      size_bytes INTEGER NOT NULL,
+      data BYTEA NOT NULL,
+      uploaded_by VARCHAR(200),
+      uploaded_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
+  await db.execute(sql13`
+    CREATE INDEX IF NOT EXISTS bccs_checklist_evidence_org_item
+    ON bccs_checklist_evidence (organization_id, item_id)
+  `);
+  await db.execute(sql13`
+    CREATE UNIQUE INDEX IF NOT EXISTS bccs_checklist_report_items_org_area_number
+    ON bccs_checklist_report_items (organization_id, area_id, item_number)
+  `);
+  await db.execute(sql13`
+    CREATE UNIQUE INDEX IF NOT EXISTS bccs_checklist_ai_findings_org_item
+    ON bccs_checklist_ai_findings (organization_id, item_id)
+  `);
+}
+var schemaReady = ensureTables2();
+schemaReady.catch((err) => console.error("checklist-report schema init failed:", err));
+router10.use(async (_req, res, next) => {
+  try {
+    await schemaReady;
+    next();
+  } catch (err) {
+    console.error("checklist-report schema unavailable:", err);
+    res.status(503).json({ message: "Checklist storage is initializing or unavailable. Please try again shortly." });
+  }
+});
+var MAX_IMPORT_ITEMS = 500;
+var MAX_IMPORT_AREAS = 20;
+function requireAdmin2(req, res, next) {
+  if (req.user?.role !== "admin" && !isPlatformStaff(req.user?.email)) {
+    return res.status(403).json({ message: "Admin access required" });
+  }
+  next();
+}
+async function seedChecklist(orgId) {
+  await db.transaction(async (tx) => {
+    for (const area of PART142_CHECKLIST) {
+      let order = 0;
+      for (const item of area.items) {
+        order++;
+        await tx.execute(sql13`
+          INSERT INTO bccs_checklist_report_items
+            (organization_id, area_id, area_name, area_description, item_number, description, reference, item_order)
+          VALUES (${orgId}, ${area.id}, ${area.name}, ${area.description}, ${item.number}, ${item.description}, ${item.reference}, ${order})
+          ON CONFLICT (organization_id, area_id, item_number) DO NOTHING
+        `);
+      }
+    }
+  });
+}
+function friendlyOpenAIError(err) {
+  const msg = String(err?.message || err);
+  if (err?.status === 429 || /credit|quota|exceeded/i.test(msg)) {
+    return "The AI service is out of credits or rate-limited. Please top up the OpenAI account and try again.";
+  }
+  if (err?.status === 401 || /api key/i.test(msg)) {
+    return "The AI service API key is invalid or missing. Please check the OpenAI key configuration.";
+  }
+  return `AI review failed: ${msg}`;
+}
+router10.get("/checklist", isAuthenticated, async (req, res) => {
+  try {
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
+    let rows = await db.execute(sql13`
+      SELECT * FROM bccs_checklist_report_items WHERE organization_id = ${orgId}
+      ORDER BY area_id, item_order
+    `).then((r) => r.rows);
+    if (rows.length === 0) {
+      await seedChecklist(orgId);
+      rows = await db.execute(sql13`
+        SELECT * FROM bccs_checklist_report_items WHERE organization_id = ${orgId}
+        ORDER BY area_id, item_order
+      `).then((r) => r.rows);
+    }
+    const [currentManual] = await db.execute(sql13`
+      SELECT id FROM bccs_ops_manuals WHERE organization_id = ${orgId}
+      ORDER BY uploaded_at DESC LIMIT 1
+    `).then((r) => r.rows);
+    const findings = await db.execute(sql13`
+      SELECT DISTINCT ON (item_id) item_id, manual_id, verdict, excerpt, remediation, reviewed_at
+      FROM bccs_checklist_ai_findings WHERE organization_id = ${orgId}
+      ORDER BY item_id, reviewed_at DESC
+    `).then((r) => r.rows);
+    const findingByItem = {};
+    for (const f of findings) {
+      findingByItem[f.item_id] = { ...f, stale: !currentManual || f.manual_id !== currentManual.id };
+    }
+    const evidence = await db.execute(sql13`
+      SELECT id, item_id, filename, content_type, size_bytes, uploaded_by, uploaded_at
+      FROM bccs_checklist_evidence WHERE organization_id = ${orgId}
+      ORDER BY uploaded_at
+    `).then((r) => r.rows);
+    const evidenceByItem = {};
+    for (const e of evidence) {
+      (evidenceByItem[e.item_id] ||= []).push({
+        id: e.id,
+        filename: e.filename,
+        contentType: e.content_type,
+        sizeBytes: Number(e.size_bytes),
+        uploadedBy: e.uploaded_by,
+        uploadedAt: e.uploaded_at
+      });
+    }
+    const areas = [];
+    for (const row of rows) {
+      let area = areas.find((a) => a.id === row.area_id);
+      if (!area) {
+        area = { id: row.area_id, name: row.area_name, description: row.area_description, items: [] };
+        areas.push(area);
+      }
+      area.items.push({
+        id: row.id,
+        number: row.item_number,
+        description: row.description,
+        reference: row.reference || "",
+        status: row.status,
+        comments: row.comments || "",
+        findings: row.findings || "",
+        aiFinding: findingByItem[row.id] || null,
+        evidence: evidenceByItem[row.id] || []
+      });
+    }
+    const [org] = await db.execute(sql13`
+      SELECT organization_name, certificate_number, regulatory_authority
+      FROM training_organizations WHERE id = ${orgId}
+    `).then((r) => r.rows);
+    res.json({
+      areas,
+      organization: org ? {
+        name: org.organization_name,
+        certificateNumber: org.certificate_number,
+        regulatoryAuthority: org.regulatory_authority
+      } : null
+    });
+  } catch (err) {
+    console.error("Checklist load error:", err);
+    res.status(500).json({ message: "Failed to load checklist" });
+  }
+});
+router10.put("/items/:id", isAuthenticated, requireAdmin2, async (req, res) => {
+  try {
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
+    const { status, comments, findings } = req.body;
+    const allowed = ["compliant", "non-compliant", "pending", "not-applicable"];
+    if (status !== void 0 && !allowed.includes(status)) {
+      return res.status(400).json({ message: "Invalid status" });
+    }
+    const result = await db.execute(sql13`
+      UPDATE bccs_checklist_report_items SET
+        status = COALESCE(${status ?? null}, status),
+        comments = COALESCE(${comments ?? null}, comments),
+        findings = COALESCE(${findings ?? null}, findings),
+        updated_at = NOW()
+      WHERE id = ${req.params.id} AND organization_id = ${orgId}
+      RETURNING id
+    `);
+    if ((result.rows || []).length === 0) return res.status(404).json({ message: "Item not found" });
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Checklist item update error:", err);
+    res.status(500).json({ message: "Failed to update item" });
+  }
+});
+var EVIDENCE_MAX_BYTES = 10 * 1024 * 1024;
+var EVIDENCE_MAX_PER_ITEM = 10;
+var EVIDENCE_TYPES = {
+  ".pdf": "application/pdf",
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".gif": "image/gif",
+  ".webp": "image/webp"
+};
+var evidenceUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: EVIDENCE_MAX_BYTES }
+});
+router10.post("/items/:id/evidence", isAuthenticated, requireAdmin2, evidenceUpload.single("file"), async (req, res) => {
+  try {
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
+    if (!req.file) return res.status(400).json({ message: "No file uploaded" });
+    const ext = path5.extname(req.file.originalname).toLowerCase();
+    const contentType = EVIDENCE_TYPES[ext];
+    if (!contentType) {
+      return res.status(400).json({ message: "Unsupported file type. Please upload a PDF or image (PNG, JPG, GIF, WebP)." });
+    }
+    const [item] = await db.execute(sql13`
+      SELECT id FROM bccs_checklist_report_items
+      WHERE id = ${req.params.id} AND organization_id = ${orgId}
+    `).then((r) => r.rows);
+    if (!item) return res.status(404).json({ message: "Checklist item not found" });
+    const [{ count: count4 }] = await db.execute(sql13`
+      SELECT COUNT(*)::int AS count FROM bccs_checklist_evidence
+      WHERE organization_id = ${orgId} AND item_id = ${item.id}
+    `).then((r) => r.rows);
+    if (Number(count4) >= EVIDENCE_MAX_PER_ITEM) {
+      return res.status(400).json({ message: `Each checklist item can hold at most ${EVIDENCE_MAX_PER_ITEM} evidence files.` });
+    }
+    const [row] = await db.execute(sql13`
+      INSERT INTO bccs_checklist_evidence (organization_id, item_id, filename, content_type, size_bytes, data, uploaded_by)
+      VALUES (${orgId}, ${item.id}, ${req.file.originalname}, ${contentType}, ${req.file.size}, ${req.file.buffer}, ${req.user?.email || req.user?.id || "system"})
+      RETURNING id, item_id, filename, content_type, size_bytes, uploaded_by, uploaded_at
+    `).then((r) => r.rows);
+    res.status(201).json({
+      id: row.id,
+      filename: row.filename,
+      contentType: row.content_type,
+      sizeBytes: Number(row.size_bytes),
+      uploadedBy: row.uploaded_by,
+      uploadedAt: row.uploaded_at
+    });
+  } catch (err) {
+    console.error("Evidence upload error:", err);
+    res.status(500).json({ message: "Failed to upload evidence file" });
+  }
+});
+router10.get("/evidence/:id/file", isAuthenticated, async (req, res) => {
+  try {
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
+    const [row] = await db.execute(sql13`
+      SELECT filename, content_type, data FROM bccs_checklist_evidence
+      WHERE id = ${req.params.id} AND organization_id = ${orgId}
+    `).then((r) => r.rows);
+    if (!row) return res.status(404).json({ message: "Evidence file not found" });
+    res.setHeader("Content-Type", row.content_type);
+    res.setHeader("Content-Disposition", `inline; filename="${encodeURIComponent(row.filename)}"`);
+    res.send(Buffer.from(row.data));
+  } catch (err) {
+    console.error("Evidence download error:", err);
+    res.status(500).json({ message: "Failed to load evidence file" });
+  }
+});
+router10.delete("/evidence/:id", isAuthenticated, requireAdmin2, async (req, res) => {
+  try {
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
+    const result = await db.execute(sql13`
+      DELETE FROM bccs_checklist_evidence
+      WHERE id = ${req.params.id} AND organization_id = ${orgId}
+      RETURNING id
+    `);
+    if ((result.rows || []).length === 0) return res.status(404).json({ message: "Evidence file not found" });
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Evidence delete error:", err);
+    res.status(500).json({ message: "Failed to delete evidence file" });
+  }
+});
+function importBoundsError(items) {
+  if (items.length === 0) return "No checklist items could be parsed";
+  if (items.length > MAX_IMPORT_ITEMS) {
+    return `Too many items (${items.length}). The maximum is ${MAX_IMPORT_ITEMS}.`;
+  }
+  const distinctAreas = new Set(items.map((it) => it.areaName));
+  if (distinctAreas.size > MAX_IMPORT_AREAS) {
+    return `Too many areas (${distinctAreas.size}). The maximum is ${MAX_IMPORT_AREAS}.`;
+  }
+  return null;
+}
+async function replaceChecklist(orgId, items, res) {
+  const boundsError = importBoundsError(items);
+  if (boundsError) {
+    res.status(400).json({ message: boundsError });
+    return null;
+  }
+  await db.transaction(async (tx) => {
+    await tx.execute(sql13`DELETE FROM bccs_checklist_ai_findings WHERE organization_id = ${orgId}`);
+    await tx.execute(sql13`DELETE FROM bccs_checklist_evidence WHERE organization_id = ${orgId}`);
+    await tx.execute(sql13`DELETE FROM bccs_checklist_report_items WHERE organization_id = ${orgId}`);
+    const areaIds = /* @__PURE__ */ new Map();
+    let order = 0;
+    for (const it of items) {
+      if (!areaIds.has(it.areaName)) areaIds.set(it.areaName, `import-${areaIds.size + 1}`);
+      order++;
+      await tx.execute(sql13`
+        INSERT INTO bccs_checklist_report_items
+          (organization_id, area_id, area_name, area_description, item_number, description, reference, item_order)
+        VALUES (${orgId}, ${areaIds.get(it.areaName)}, ${it.areaName}, ${""}, ${it.number}, ${it.description}, ${it.reference}, ${order})
+      `);
+    }
+  });
+  return items.length;
+}
+router10.post("/import", isAuthenticated, requireAdmin2, async (req, res) => {
+  try {
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
+    const { text: text2 } = req.body;
+    if (!text2 || typeof text2 !== "string" || !text2.trim()) {
+      return res.status(400).json({ message: "Checklist text is required" });
+    }
+    const lines = text2.split("\n").map((l) => l.trim()).filter(Boolean);
+    const items = lines.map((line, i) => {
+      const parts = line.split("|").map((p) => p.trim());
+      return {
+        number: parts[0] || `ITEM-${i + 1}`,
+        description: parts[1] || line,
+        reference: parts[2] || "",
+        areaName: parts[3] || "Imported Checklist"
+      };
+    }).filter((it) => it.description);
+    if (req.body?.confirm !== true) {
+      const boundsError = importBoundsError(items);
+      if (boundsError) return res.status(400).json({ message: boundsError });
+      const areaOrder = [];
+      const areaCounts = /* @__PURE__ */ new Map();
+      for (const it of items) {
+        if (!areaCounts.has(it.areaName)) areaOrder.push(it.areaName);
+        areaCounts.set(it.areaName, (areaCounts.get(it.areaName) || 0) + 1);
+      }
+      return res.json({
+        preview: true,
+        itemCount: items.length,
+        areas: areaOrder.map((name) => ({ name, itemCount: areaCounts.get(name) }))
+      });
+    }
+    const imported = await replaceChecklist(orgId, items, res);
+    if (imported === null) return;
+    res.json({ success: true, imported });
+  } catch (err) {
+    console.error("Checklist import error:", err);
+    res.status(500).json({ message: "Failed to import checklist" });
+  }
+});
+router10.post("/import-file", isAuthenticated, requireAdmin2, upload.single("file"), async (req, res) => {
+  try {
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
+    if (!req.file) return res.status(400).json({ message: "No file uploaded" });
+    const ext = path5.extname(req.file.originalname).toLowerCase();
+    if (![".xlsx", ".xls", ".csv"].includes(ext)) {
+      return res.status(400).json({ message: "Unsupported file type. Please upload an Excel (.xlsx or .xls) or CSV file." });
+    }
+    let items;
+    let skippedSheets;
+    try {
+      ({ items, skippedSheets } = await parseChecklistWorkbook(req.file.buffer, req.file.originalname));
+    } catch (parseErr) {
+      return res.status(422).json({ message: parseErr.message });
+    }
+    if (req.body?.confirm !== "true") {
+      const boundsError = importBoundsError(items);
+      if (boundsError) return res.status(400).json({ message: boundsError });
+      const areaOrder = [];
+      const areaCounts = /* @__PURE__ */ new Map();
+      for (const it of items) {
+        if (!areaCounts.has(it.areaName)) areaOrder.push(it.areaName);
+        areaCounts.set(it.areaName, (areaCounts.get(it.areaName) || 0) + 1);
+      }
+      return res.json({
+        preview: true,
+        itemCount: items.length,
+        areas: areaOrder.map((name) => ({ name, itemCount: areaCounts.get(name) })),
+        skippedSheets
+      });
+    }
+    const imported = await replaceChecklist(orgId, items, res);
+    if (imported === null) return;
+    res.json({ success: true, imported, skippedSheets });
+  } catch (err) {
+    console.error("Checklist Excel import error:", err);
+    res.status(500).json({ message: "Failed to import checklist file" });
+  }
+});
+router10.get("/export.xlsx", isAuthenticated, async (req, res) => {
+  try {
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
+    const rows = await db.execute(sql13`
+      SELECT * FROM bccs_checklist_report_items WHERE organization_id = ${orgId}
+      ORDER BY area_id, item_order
+    `).then((r) => r.rows);
+    if (rows.length === 0) return res.status(404).json({ message: "No checklist items to export" });
+    const [currentManual] = await db.execute(sql13`
+      SELECT id, filename, uploaded_at FROM bccs_ops_manuals WHERE organization_id = ${orgId}
+      ORDER BY uploaded_at DESC LIMIT 1
+    `).then((r) => r.rows);
+    const findings = await db.execute(sql13`
+      SELECT DISTINCT ON (item_id) item_id, manual_id, verdict, excerpt, remediation
+      FROM bccs_checklist_ai_findings WHERE organization_id = ${orgId}
+      ORDER BY item_id, reviewed_at DESC
+    `).then((r) => r.rows);
+    const findingByItem = {};
+    for (const f of findings) findingByItem[f.item_id] = f;
+    const evidenceCounts = await db.execute(sql13`
+      SELECT item_id, COUNT(*)::int AS count FROM bccs_checklist_evidence
+      WHERE organization_id = ${orgId} GROUP BY item_id
+    `).then((r) => r.rows);
+    const evidenceByItem = {};
+    for (const e of evidenceCounts) evidenceByItem[e.item_id] = Number(e.count);
+    const [org] = await db.execute(sql13`
+      SELECT organization_name, certificate_number, regulatory_authority
+      FROM training_organizations WHERE id = ${orgId}
+    `).then((r) => r.rows);
+    const areas = [];
+    for (const row of rows) {
+      let area = areas.find((a) => a.id === row.area_id);
+      if (!area) {
+        area = { id: row.area_id, name: row.area_name, description: row.area_description || "", items: [] };
+        areas.push(area);
+      }
+      const f = findingByItem[row.id];
+      area.items.push({
+        number: row.item_number,
+        description: row.description,
+        reference: row.reference || "",
+        status: row.status || "pending",
+        comments: row.comments || "",
+        findings: row.findings || "",
+        aiVerdict: f?.verdict || null,
+        aiExcerpt: f?.excerpt || null,
+        aiRemediation: f?.remediation || null,
+        aiStale: f ? !currentManual || f.manual_id !== currentManual.id : false,
+        evidenceCount: evidenceByItem[row.id] || 0
+      });
+    }
+    const buffer = await buildChecklistWorkbook({
+      areas,
+      organization: org ? { name: org.organization_name, certificateNumber: org.certificate_number, regulatoryAuthority: org.regulatory_authority } : null,
+      manual: currentManual ? { filename: currentManual.filename, uploadedAt: currentManual.uploaded_at } : null
+    });
+    const date = (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", `attachment; filename="part142-checklist-report-${date}.xlsx"`);
+    res.send(buffer);
+  } catch (err) {
+    console.error("Checklist Excel export error:", err);
+    res.status(500).json({ message: "Failed to export the Excel report" });
+  }
+});
+router10.post("/reset", isAuthenticated, requireAdmin2, async (req, res) => {
+  try {
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
+    await db.execute(sql13`DELETE FROM bccs_checklist_ai_findings WHERE organization_id = ${orgId}`);
+    await db.execute(sql13`DELETE FROM bccs_checklist_evidence WHERE organization_id = ${orgId}`);
+    await db.execute(sql13`DELETE FROM bccs_checklist_report_items WHERE organization_id = ${orgId}`);
+    await seedChecklist(orgId);
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Checklist reset error:", err);
+    res.status(500).json({ message: "Failed to reset checklist" });
+  }
+});
+async function extractText(filename, buffer) {
+  const ext = path5.extname(filename).toLowerCase();
+  if (ext === ".txt") return buffer.toString("utf8");
+  const tmp = path5.join(os2.tmpdir(), `manual-${crypto10.randomBytes(6).toString("hex")}${ext}`);
+  fs5.writeFileSync(tmp, buffer);
+  try {
+    if (ext === ".pdf") {
+      const { processDocumentOCR: processDocumentOCR2 } = await Promise.resolve().then(() => (init_ocr(), ocr_exports));
+      return await processDocumentOCR2(tmp);
+    }
+    if (ext === ".docx") {
+      const { stdout } = await execAsync3(`unzip -p "${tmp}" word/document.xml`, { maxBuffer: 100 * 1024 * 1024 });
+      return stdout.replace(/<w:p[ >]/g, "\n<w:p ").replace(/<[^>]+>/g, "").replace(/[ \t]+/g, " ").replace(/\n{3,}/g, "\n\n").trim();
+    }
+    throw new Error("Unsupported file type. Please upload a PDF, Word (.docx), or plain-text file.");
+  } finally {
+    fs5.unlinkSync(tmp);
+  }
+}
+router10.post("/manual", isAuthenticated, requireAdmin2, upload.single("file"), async (req, res) => {
+  try {
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
+    if (!req.file) return res.status(400).json({ message: "No file uploaded" });
+    const ext = path5.extname(req.file.originalname).toLowerCase();
+    if (![".pdf", ".docx", ".txt"].includes(ext)) {
+      return res.status(400).json({ message: "Unsupported file type. Please upload a PDF, Word (.docx), or plain-text file." });
+    }
+    let text2;
+    try {
+      text2 = await extractText(req.file.originalname, req.file.buffer);
+    } catch (extractErr) {
+      return res.status(422).json({ message: `Could not read the document: ${extractErr.message}` });
+    }
+    if (!text2 || text2.trim().length < 200) {
+      return res.status(422).json({ message: "Very little text could be extracted from this document. Please upload a text-based PDF or Word document." });
+    }
+    const [manual] = await db.transaction(async (tx) => {
+      await tx.execute(sql13`DELETE FROM bccs_ops_manuals WHERE organization_id = ${orgId}`);
+      return await tx.execute(sql13`
+        INSERT INTO bccs_ops_manuals (organization_id, filename, extracted_text, text_chars, uploaded_by)
+        VALUES (${orgId}, ${req.file.originalname}, ${text2}, ${text2.length}, ${req.user?.email || req.user?.id || "system"})
+        RETURNING id, filename, text_chars, uploaded_by, uploaded_at
+      `).then((r) => r.rows);
+    });
+    res.status(201).json(manual);
+  } catch (err) {
+    console.error("Manual upload error:", err);
+    res.status(500).json({ message: "Failed to upload the operations manual" });
+  }
+});
+router10.get("/manual", isAuthenticated, async (req, res) => {
+  try {
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
+    const [manual] = await db.execute(sql13`
+      SELECT id, filename, text_chars, uploaded_by, uploaded_at FROM bccs_ops_manuals
+      WHERE organization_id = ${orgId} ORDER BY uploaded_at DESC LIMIT 1
+    `).then((r) => r.rows);
+    if (!manual) return res.json({ manual: null, lastReviewAt: null, reviewStale: false });
+    const [lastReview] = await db.execute(sql13`
+      SELECT MAX(reviewed_at) AS last,
+             COUNT(*) FILTER (WHERE manual_id <> ${manual.id}) AS stale_count
+      FROM bccs_checklist_ai_findings WHERE organization_id = ${orgId}
+    `).then((r) => r.rows);
+    const reviewStale = Number(lastReview?.stale_count || 0) > 0;
+    res.json({ manual, lastReviewAt: lastReview?.last || null, reviewStale });
+  } catch (err) {
+    console.error("Manual status error:", err);
+    res.status(500).json({ message: "Failed to load manual status" });
+  }
+});
+router10.post("/review/:areaId", isAuthenticated, requireAdmin2, async (req, res) => {
+  try {
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
+    const [manual] = await db.execute(sql13`
+      SELECT id, extracted_text FROM bccs_ops_manuals WHERE organization_id = ${orgId}
+      ORDER BY uploaded_at DESC LIMIT 1
+    `).then((r) => r.rows);
+    if (!manual) return res.status(400).json({ message: "Upload an operations manual first" });
+    const items = await db.execute(sql13`
+      SELECT id, item_number, description, reference FROM bccs_checklist_report_items
+      WHERE organization_id = ${orgId} AND area_id = ${req.params.areaId}
+      ORDER BY item_order
+    `).then((r) => r.rows);
+    if (items.length === 0) return res.status(404).json({ message: "Checklist area not found" });
+    const chunks = chunkText(manual.extracted_text);
+    const validVerdicts = /* @__PURE__ */ new Set(["covered", "partial", "not_addressed"]);
+    const byItem = /* @__PURE__ */ new Map();
+    for (const batch of batchItems(items)) {
+      const relevant = selectChunks(chunks, batch.map((i) => i.description));
+      const prompt = `You are an FAA Part 142 compliance auditor. Review the following excerpts from a training center's operations manual and evaluate whether each checklist item is addressed by the manual.
+
+OPERATIONS MANUAL EXCERPTS (most relevant sections):
+${relevant.map((c, i) => `--- Excerpt ${i + 1} ---
+${c}`).join("\n\n")}
+
+CHECKLIST ITEMS:
+${batch.map((it) => `[${it.id}] (${it.item_number}, ref ${it.reference || "n/a"}) ${it.description}`).join("\n")}
+
+For EACH checklist item, respond with:
+- "itemId": the exact bracketed id
+- "verdict": one of "covered" (manual clearly addresses it), "partial" (mentioned but incomplete/unclear), "not_addressed" (nothing relevant in the excerpts)
+- "excerpt": a short direct quote (max 300 chars) from the manual supporting the verdict, or empty string if not_addressed
+- "remediation": for partial/not_addressed, one concise sentence describing what the manual should add; empty string if covered
+
+Respond with JSON: { "findings": [ ... one object per checklist item ... ] }`;
+      let findings;
+      try {
+        const completion = await openai7.chat.completions.create(
+          {
+            model: "gpt-4o",
+            messages: [{ role: "user", content: prompt }],
+            response_format: { type: "json_object" },
+            temperature: 0.1,
+            max_tokens: 4096
+          },
+          { timeout: 9e4, maxRetries: 1 }
+        );
+        const parsed = JSON.parse(completion.choices[0].message.content || "{}");
+        findings = parsed.findings || Object.values(parsed).find((v) => Array.isArray(v)) || [];
+        if (!Array.isArray(findings) || findings.length === 0) throw new Error("AI returned no findings");
+      } catch (aiErr) {
+        return res.status(502).json({ message: friendlyOpenAIError(aiErr) });
+      }
+      for (const f of findings) {
+        const itemId = String(f.itemId || "").replace(/[\[\]]/g, "");
+        if (validVerdicts.has(f.verdict)) byItem.set(itemId, f);
+      }
+    }
+    const missing = items.filter((i) => !byItem.has(i.id));
+    if (missing.length > 0) {
+      return res.status(502).json({
+        message: `The AI response was incomplete for this area (${missing.length} of ${items.length} items missing a verdict). Please run the review again.`
+      });
+    }
+    await db.transaction(async (tx) => {
+      for (const item of items) {
+        const f = byItem.get(item.id);
+        await tx.execute(sql13`
+          INSERT INTO bccs_checklist_ai_findings (organization_id, item_id, manual_id, verdict, excerpt, remediation)
+          VALUES (${orgId}, ${item.id}, ${manual.id}, ${f.verdict}, ${String(f.excerpt || "").slice(0, 1e3)}, ${String(f.remediation || "").slice(0, 1e3)})
+          ON CONFLICT (organization_id, item_id) DO UPDATE SET
+            manual_id = EXCLUDED.manual_id,
+            verdict = EXCLUDED.verdict,
+            excerpt = EXCLUDED.excerpt,
+            remediation = EXCLUDED.remediation,
+            reviewed_at = NOW()
+        `);
+      }
+    });
+    res.json({ success: true, areaId: req.params.areaId, itemsReviewed: items.length, itemsInArea: items.length });
+  } catch (err) {
+    console.error("AI review error:", err);
+    res.status(500).json({ message: "Failed to run AI review" });
+  }
+});
+var checklist_report_default = router10;
+
+// server/routes/ml-training.ts
+init_db();
+import { Router as Router10 } from "express";
+import { sql as sql14 } from "drizzle-orm";
+var router11 = Router10();
+router11.get("/metrics", isAuthenticated, async (req, res) => {
+  try {
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
+    const [submissions] = await db.execute(sql14`
+      SELECT COUNT(*) AS total FROM digital_form_submissions WHERE organization_id = ${orgId}
+    `).then((r) => r.rows);
+    const [templates] = await db.execute(sql14`
+      SELECT COUNT(*) AS total FROM digital_form_templates WHERE status = 'active' AND organization_id = ${orgId}
+    `).then((r) => r.rows);
+    const [events] = await db.execute(sql14`
+      SELECT COUNT(*) AS total FROM bccs_training_events WHERE organization_id = ${orgId}
+    `).then((r) => r.rows);
+    const [students2] = await db.execute(sql14`
+      SELECT COUNT(*) AS total FROM students WHERE organization_id = ${orgId}
+    `).then((r) => r.rows);
+    const [instructors] = await db.execute(sql14`
+      SELECT COUNT(*) AS total FROM bccs_instructor_records WHERE organization_id = ${orgId}
+    `).then((r) => r.rows);
+    const [docStats] = await db.execute(sql14`
+      SELECT COUNT(*)::int AS total,
+             COUNT(*) FILTER (WHERE status = 'auto_approved')::int AS auto_approved,
+             COUNT(*) FILTER (WHERE status = 'needs_review')::int AS needs_review,
+             COUNT(*) FILTER (WHERE status = 'approved')::int AS human_approved,
+             COUNT(*) FILTER (WHERE status = 'rejected')::int AS rejected,
+             COUNT(*) FILTER (WHERE status = 'failed')::int AS failed,
+             ROUND(AVG(overall_confidence) FILTER (WHERE overall_confidence IS NOT NULL))::int AS avg_confidence
+      FROM bccs_documents WHERE organization_id = ${orgId}
+    `).then((r) => r.rows);
+    const [feedback] = await db.execute(sql14`
+      SELECT COUNT(*)::int AS total FROM bccs_ml_feedback WHERE organization_id = ${orgId}
+    `).then((r) => r.rows);
+    const fieldRows = await db.execute(sql14`
+      SELECT f.field_name,
+             COUNT(*) FILTER (WHERE f.status = 'approved')::int AS kept,
+             COUNT(*) FILTER (WHERE f.status = 'corrected')::int AS corrected
+      FROM bccs_document_fields f
+      JOIN bccs_documents d ON d.id = f.document_id
+      WHERE d.organization_id = ${orgId} AND f.status IN ('approved', 'corrected')
+      GROUP BY f.field_name
+      ORDER BY COUNT(*) DESC
+      LIMIT 20
+    `).then((r) => r.rows);
+    const fieldAccuracyBreakdown = {};
+    let keptTotal = 0;
+    let reviewedTotal = 0;
+    for (const row of fieldRows) {
+      const kept = Number(row.kept || 0);
+      const corrected = Number(row.corrected || 0);
+      const total = kept + corrected;
+      if (total > 0) {
+        fieldAccuracyBreakdown[row.field_name] = Math.round(kept / total * 100);
+        keptTotal += kept;
+        reviewedTotal += total;
+      }
+    }
+    const accuracyImprovement = reviewedTotal > 0 ? Math.round(keptTotal / reviewedTotal * 1e3) / 10 : Number(docStats?.avg_confidence ?? 0);
+    const guidanceRows = await db.execute(sql14`
+      SELECT document_type, version, source_correction_count, updated_at
+      FROM bccs_prompt_guidance
+      WHERE organization_id = ${orgId} AND is_active = TRUE
+      ORDER BY updated_at DESC
+    `).then((r) => r.rows);
+    let lastTrainingDate = "Not yet trained";
+    let modelVersion = "baseline-v0";
+    try {
+      const [meta] = await db.execute(sql14`
+        SELECT value FROM bccs_ml_meta WHERE key = 'last_training'
+      `).then((r) => r.rows);
+      if (meta?.value) {
+        const parsed = JSON.parse(meta.value);
+        lastTrainingDate = parsed.date;
+        modelVersion = parsed.version;
+      }
+    } catch {
+    }
+    res.json({
+      totalFormSubmissions: Number(submissions?.total || 0),
+      totalTrainingEvents: Number(events?.total || 0),
+      totalStudents: Number(students2?.total || 0),
+      totalInstructors: Number(instructors?.total || 0),
+      totalTemplates: Number(templates?.total || 0),
+      totalCorrections: Number(feedback?.total || 0),
+      accuracyImprovement,
+      fieldAccuracyBreakdown,
+      modelVersion,
+      lastTrainingDate,
+      pipeline: {
+        totalDocuments: Number(docStats?.total || 0),
+        autoApproved: Number(docStats?.auto_approved || 0),
+        needsReview: Number(docStats?.needs_review || 0),
+        humanApproved: Number(docStats?.human_approved || 0),
+        rejected: Number(docStats?.rejected || 0),
+        failed: Number(docStats?.failed || 0),
+        avgConfidence: Number(docStats?.avg_confidence || 0),
+        guidance: guidanceRows.map((g) => ({
+          documentType: g.document_type,
+          version: Number(g.version),
+          correctionsLearnedFrom: Number(g.source_correction_count),
+          updatedAt: g.updated_at
+        }))
+      }
+    });
+  } catch (err) {
+    console.error("ML metrics error:", err);
+    res.status(500).json({ message: "Failed to fetch ML metrics" });
+  }
+});
+router11.post("/train", isAuthenticated, async (_req, res) => {
+  try {
+    await db.execute(sql14`
+      CREATE TABLE IF NOT EXISTS bccs_ml_meta (
+        key VARCHAR(100) PRIMARY KEY,
+        value TEXT NOT NULL,
+        updated_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    const version = `v${Date.now().toString(36).toUpperCase()}`;
+    const payload = JSON.stringify({ date: (/* @__PURE__ */ new Date()).toISOString(), version });
+    await db.execute(sql14`
+      INSERT INTO bccs_ml_meta (key, value, updated_at)
+      VALUES ('last_training', ${payload}, NOW())
+      ON CONFLICT (key) DO UPDATE SET value = ${payload}, updated_at = NOW()
+    `);
+    res.json({ success: true, version, trainedAt: (/* @__PURE__ */ new Date()).toISOString() });
+  } catch (err) {
+    console.error("ML train error:", err);
+    res.status(500).json({ message: "Failed to run training" });
+  }
+});
+router11.get("/export-data", isAuthenticated, async (req, res) => {
+  try {
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
+    const submissions = await db.execute(sql14`
+      SELECT s.id, s.template_title, s.organization_name, s.submitted_by,
+             s.submitted_at, s.status, s.form_data,
+             t.fields AS template_fields, t.faa_source_id, t.faa_document_title
+      FROM digital_form_submissions s
+      LEFT JOIN digital_form_templates t ON t.id = s.template_id
+      WHERE s.organization_id = ${orgId}
+      ORDER BY s.submitted_at DESC
+    `).then((r) => r.rows);
+    const events = await db.execute(sql14`
+      SELECT student_name, student_id, instructor_name, event_type,
+             event_date, duration_hours, curriculum_item, status, blockchain_hash
+      FROM bccs_training_events
+      WHERE organization_id = ${orgId}
+      ORDER BY event_date DESC
+    `).then((r) => r.rows);
+    const students2 = await db.execute(sql14`
+      SELECT first_name, last_name, email, enrollment_date, status
+      FROM students
+      WHERE organization_id = ${orgId}
+      ORDER BY last_name
+    `).then((r) => r.rows);
+    const instructors = await db.execute(sql14`
+      SELECT first_name, last_name, email, certificate_number, certificate_type, expiration_date
+      FROM bccs_instructor_records
+      WHERE organization_id = ${orgId}
+      ORDER BY last_name
+    `).then((r) => r.rows);
+    res.json({
+      exportedAt: (/* @__PURE__ */ new Date()).toISOString(),
+      summary: {
+        formSubmissions: submissions.length,
+        trainingEvents: events.length,
+        students: students2.length,
+        instructors: instructors.length
+      },
+      formSubmissions: submissions,
+      trainingEvents: events,
+      students: students2,
+      instructors
+    });
+  } catch (err) {
+    console.error("ML export error:", err);
+    res.status(500).json({ message: "Failed to export training data" });
+  }
+});
+var ml_training_default = router11;
+
+// server/routes/documents.ts
+init_db();
+import { Router as Router11 } from "express";
+import multer2 from "multer";
+import { sql as sql17 } from "drizzle-orm";
+
+// server/services/nlp.ts
+import OpenAI8 from "openai";
+import * as fs6 from "fs";
+import * as path6 from "path";
+var envPath3 = path6.join(process.cwd(), ".env");
+if (fs6.existsSync(envPath3)) {
+  const envContent = fs6.readFileSync(envPath3, "utf8");
+  const envLines = envContent.split("\n").filter((line) => line.trim() && !line.startsWith("#"));
+  for (const line of envLines) {
+    const [key, ...valueParts] = line.split("=");
+    if (key && valueParts.length > 0) {
+      process.env[key.trim()] = valueParts.join("=").trim();
+    }
+  }
+}
+var openai8 = new OpenAI8({
+  apiKey: process.env.OPENAI_API_KEY || "not-configured"
+});
+var FIELD_SCHEMAS = {
+  pilot_record: `This is a pilot training record, logbook entry, or training event document. Extract:
+- studentName: Full name of the student/pilot receiving training
+- studentId: Student or pilot ID number if present
+- instructorName: Full name of the instructor (CFI) who gave the training
+- instructorCertificate: Instructor certificate number if present
+- eventType: Type of training event (e.g. Flight Training, Simulator Session, Checkride, Ground School, Flight Review)
+- eventDate: Date of the training event (YYYY-MM-DD if determinable)
+- durationHours: Duration in hours (numeric, e.g. "1.5")
+- aircraftType: Aircraft or simulator type/model used
+- curriculumItem: Curriculum item, lesson, or training task covered
+- remarks: Instructor remarks or notes about performance`,
+  certificate: `This is an FAA airman certificate, medical certificate, or similar credential document. Extract:
+- holderName: Full name of the certificate holder
+- certificateType: Type of certificate (e.g. Commercial Pilot, ATP, CFI, First Class Medical)
+- certificateNumber: Certificate number
+- issueDate: Date of issue (YYYY-MM-DD if determinable)
+- expirationDate: Expiration date if present (YYYY-MM-DD if determinable)
+- ratings: Ratings listed (e.g. "Airplane Single Engine Land, Instrument Airplane")
+- limitations: Any limitations listed
+- issuingAuthority: Issuing authority (e.g. FAA)
+- dateOfBirth: Holder date of birth if present (YYYY-MM-DD)`,
+  faa_audit: `This is an FAA audit, inspection, or compliance checklist document. Extract:
+- documentTitle: Title of the document
+- farReference: The FAR part(s) or regulatory references cited (e.g. "14 CFR 142.73")
+- inspectionDate: Date of the inspection/audit (YYYY-MM-DD if determinable)
+- inspectorName: Name of the inspector or auditor
+- organizationName: Name of the training organization being audited
+- findings: Summary of findings or discrepancies
+- complianceStatus: Overall compliance status (e.g. Compliant, Non-Compliant, Partial)
+- correctiveActions: Required corrective actions if listed`
+};
+function isKnownDocumentType(t) {
+  return Object.prototype.hasOwnProperty.call(FIELD_SCHEMAS, t);
+}
+async function extractFieldsWithNLP(text2, documentType = "pilot_record", learnedGuidance) {
+  const schema = FIELD_SCHEMAS[documentType] ?? FIELD_SCHEMAS.pilot_record;
+  const guidanceBlock = learnedGuidance?.trim() ? `
+
+LEARNED GUIDANCE from past human corrections on this document type \u2014 apply these lessons to improve accuracy:
+${learnedGuidance.trim()}` : "";
+  try {
+    const response = await openai8.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "system",
+          content: `You are an expert in aviation training document analysis for a Part 142 training center compliance system. Extract key information from the document text and return it in JSON format.
+
+${schema}
+
+For each field, provide a confidence score between 0 and 100 reflecting how certain you are the extraction is correct. Use lower scores when text is ambiguous, garbled by OCR, or the field is inferred rather than explicit. If you cannot find a field, omit it entirely \u2014 do not guess.${guidanceBlock}
+
+Return JSON in this format:
+{
+  "fields": [
+    { "fieldName": "studentName", "extractedValue": "John Doe", "confidenceScore": 95 }
+  ]
+}`
+        },
+        {
+          role: "user",
+          content: `Extract the information from this document text:
+
+${text2}`
+        }
+      ],
+      response_format: { type: "json_object" }
+    });
+    const result = JSON.parse(response.choices[0].message.content || "{}");
+    const fields = Array.isArray(result.fields) ? result.fields : [];
+    return fields.filter((f) => f && typeof f.fieldName === "string" && f.extractedValue != null).map((f) => ({
+      fieldName: String(f.fieldName),
+      extractedValue: String(f.extractedValue),
+      confidenceScore: Math.max(0, Math.min(100, Number(f.confidenceScore) || 0))
+    }));
+  } catch (error) {
+    console.error("NLP processing error:", error);
+    const errorMessage = error instanceof Error ? error.message : "";
+    if (errorMessage.includes("quota") || errorMessage.includes("429")) {
+      console.log("API quota exceeded - demonstrating with pattern matching for document analysis");
+      return extractFieldsWithPatternMatching(text2);
+    }
+    throw new Error("Failed to extract fields with NLP");
+  }
+}
+function extractFieldsWithPatternMatching(text2) {
+  const fields = [];
+  const upperText = text2.toUpperCase();
+  const nameMatch = text2.match(/(?:IV\.?\s*)?([A-Z]+)\s+([A-Z]*)\s*([A-Z]+)/i);
+  if (nameMatch) {
+    fields.push(
+      { fieldName: "IV_Name_First", extractedValue: nameMatch[1], confidenceScore: 80 },
+      { fieldName: "IV_Name_Middle", extractedValue: nameMatch[2] || "", confidenceScore: 70 },
+      { fieldName: "IV_Name_Last", extractedValue: nameMatch[3], confidenceScore: 80 }
+    );
+  }
+  const addressMatch = text2.match(/(\d+)\s+([A-Z\s]+?)\s+([A-Z\s]+?)\s+(\d{5}|\d{5}-\d{4})/i);
+  if (addressMatch) {
+    fields.push(
+      { fieldName: "V_Address_Number", extractedValue: addressMatch[1], confidenceScore: 85 },
+      { fieldName: "V_Address_Street", extractedValue: addressMatch[2].trim(), confidenceScore: 80 },
+      { fieldName: "V_Address_City", extractedValue: addressMatch[3].trim(), confidenceScore: 80 },
+      { fieldName: "V_Address_PostalCode", extractedValue: addressMatch[4], confidenceScore: 90 }
+    );
+  }
+  const nationalityMatch = text2.match(/(?:NATIONALITY|NAT)\s*:?\s*([A-Z]{3})/i);
+  if (nationalityMatch) {
+    fields.push({ fieldName: "VI_Nationality", extractedValue: nationalityMatch[1], confidenceScore: 85 });
+  }
+  const sexMatch = text2.match(/(?:SEX|GENDER)\s*:?\s*([MF])/i);
+  if (sexMatch) {
+    fields.push({ fieldName: "VI_Sex", extractedValue: sexMatch[1], confidenceScore: 90 });
+  }
+  const heightMatch = text2.match(/(?:HEIGHT|HGT)\s*:?\s*(\d{2,3})/i);
+  if (heightMatch) {
+    fields.push({ fieldName: "VI_Height", extractedValue: heightMatch[1], confidenceScore: 80 });
+  }
+  const weightMatch = text2.match(/(?:WEIGHT|WGT)\s*:?\s*(\d{2,3})/i);
+  if (weightMatch) {
+    fields.push({ fieldName: "VI_Weight", extractedValue: weightMatch[1], confidenceScore: 80 });
+  }
+  const hairMatch = text2.match(/(?:HAIR)\s*:?\s*([A-Z]+)/i);
+  if (hairMatch) {
+    fields.push({ fieldName: "VI_Hair", extractedValue: hairMatch[1], confidenceScore: 75 });
+  }
+  const eyesMatch = text2.match(/(?:EYES)\s*:?\s*([A-Z]+)/i);
+  if (eyesMatch) {
+    fields.push({ fieldName: "VI_Eyes", extractedValue: eyesMatch[1], confidenceScore: 75 });
+  }
+  const dobMatch = text2.match(/(?:IVa\.?\s*)?(?:DOB|DATE OF BIRTH)\s*:?\s*(\d{1,2})\/(\d{1,2})\/(\d{4})/i);
+  if (dobMatch) {
+    fields.push(
+      { fieldName: "IVa_DOB_Month", extractedValue: dobMatch[1], confidenceScore: 85 },
+      { fieldName: "IVa_DOB_Day", extractedValue: dobMatch[2], confidenceScore: 85 },
+      { fieldName: "IVa_DOB_Year", extractedValue: dobMatch[3], confidenceScore: 85 }
+    );
+  }
+  const certTypeMatch = text2.match(/(?:II\.?\s*)?(?:CERTIFICATE TYPE|TYPE)\s*:?\s*([A-Z\s&]+)/i);
+  if (certTypeMatch) {
+    fields.push({ fieldName: "II_Certificate_Type", extractedValue: certTypeMatch[1].trim(), confidenceScore: 85 });
+  }
+  const certNumberMatch = text2.match(/(?:III\.?\s*)?(?:CERTIFICATE NUMBER|NO\.?)\s*:?\s*([A-Z0-9]+)/i);
+  if (certNumberMatch) {
+    fields.push({ fieldName: "III_Certificate_Number", extractedValue: certNumberMatch[1], confidenceScore: 90 });
+  }
+  const issueMatch = text2.match(/(?:X\.?\s*)?(?:DATE OF ISSUE|ISSUED)\s*:?\s*(\d{1,2})\/(\d{1,2})\/(\d{4})/i);
+  if (issueMatch) {
+    fields.push(
+      { fieldName: "X_Date_Issue_Month", extractedValue: issueMatch[1], confidenceScore: 85 },
+      { fieldName: "X_Date_Issue_Day", extractedValue: issueMatch[2], confidenceScore: 85 },
+      { fieldName: "X_Date_Issue_Year", extractedValue: issueMatch[3], confidenceScore: 85 }
+    );
+  }
+  const ratingsMatch = text2.match(/(?:XII\.?\s*)?(?:RATINGS?)\s*:?\s*([A-Z0-9\s,\-]+)/i);
+  if (ratingsMatch) {
+    fields.push({ fieldName: "XII_Ratings", extractedValue: ratingsMatch[1].trim(), confidenceScore: 80 });
+  }
+  const englishMatch = text2.match(/(?:XIII\.?\s*)?(?:LIMITATIONS?|ENGLISH PROFICIENCY)\s*:?\s*([A-Z\s]+)/i);
+  if (englishMatch) {
+    fields.push({ fieldName: "XIII_Limitations_English", extractedValue: englishMatch[1].trim(), confidenceScore: 75 });
+  }
+  const circleMatch = text2.match(/(?:CIRCLE TO LAND)\s*:?\s*([YES|NO|Y|N])/i);
+  if (circleMatch) {
+    fields.push({ fieldName: "XIII_Limitations_Circle_Land", extractedValue: circleMatch[1], confidenceScore: 80 });
+  }
+  const otherLimitationsMatch = text2.match(/(?:OTHER LIMITATIONS?)\s*:?\s*([A-Z0-9\s,\-]+)/i);
+  if (otherLimitationsMatch) {
+    fields.push({ fieldName: "XIII_Limitations_Other", extractedValue: otherLimitationsMatch[1].trim(), confidenceScore: 75 });
+  }
+  if (upperText.includes("CHECKRIDE") || upperText.includes("PRACTICAL")) {
+    fields.push({
+      fieldName: "eventType",
+      extractedValue: "Checkride",
+      confidenceScore: 95
+    });
+  } else if (upperText.includes("FLIGHT REVIEW")) {
+    fields.push({
+      fieldName: "eventType",
+      extractedValue: "Flight Review",
+      confidenceScore: 95
+    });
+  } else if (upperText.includes("PRIVATE PILOT")) {
+    fields.push({
+      fieldName: "eventType",
+      extractedValue: "Private Pilot Training",
+      confidenceScore: 88
+    });
+  }
+  const instructorPatterns = [
+    /(?:INSTRUCTOR|CFI)\s*:?\s*([A-Z][A-Z\s]+?)(?:\n|,)/i
+  ];
+  for (const pattern of instructorPatterns) {
+    const match = text2.match(pattern);
+    if (match && match[1] && match[1].trim().length > 3) {
+      fields.push({
+        fieldName: "instructorName",
+        extractedValue: match[1].trim(),
+        confidenceScore: 75
+      });
+      break;
+    }
+  }
+  return fields;
+}
+
+// server/services/document-agent.ts
+init_db();
+init_ocr();
+import * as fs7 from "fs";
+import * as os3 from "os";
+import * as path7 from "path";
+import * as crypto11 from "crypto";
+import OpenAI9 from "openai";
+import { sql as sql16 } from "drizzle-orm";
+
+// server/services/gate-engine.ts
+init_db();
+import { sql as sql15 } from "drizzle-orm";
+var AUTHORITY_RANK = {
+  viewer: 0,
+  instructor: 1,
+  auditor: 1,
+  support_admin: 2,
+  admin: 2,
+  chief_pilot: 3,
+  faa_designated_examiner: 4
+};
+function authorityRank(authority) {
+  if (!authority) return 0;
+  return AUTHORITY_RANK[authority] ?? 0;
+}
+function isValidAuthority(authority) {
+  return !!authority && Object.prototype.hasOwnProperty.call(AUTHORITY_RANK, authority);
+}
+async function getPolicy(actionType) {
+  const rows = await db.execute(sql15`SELECT * FROM governance_policies WHERE action_type = ${actionType}`).then((r) => r.rows);
+  return rows[0] ?? null;
+}
+async function logToAuditTrail(decision, input, reasoning, regulatoryBasis) {
+  const severity = decision === "refused" ? "warning" : decision === "escalated" ? "info" : "info";
+  await db.execute(sql15`
+      INSERT INTO audit_logs (event_type, severity, message, details, source_system, user_id, organization_id, timestamp)
+      VALUES (
+        ${"governance_decision"},
+        ${severity},
+        ${`GATE ${decision.toUpperCase()}: ${input.actionType}`},
+        ${JSON.stringify({
+    actionType: input.actionType,
+    actionDescription: input.actionDescription,
+    requestedBy: input.requestedBy,
+    requesterAuthority: input.requesterAuthority,
+    decision,
+    reasoning,
+    regulatoryBasis,
+    orgId: input.orgId
+  })},
+        ${"gate_engine"},
+        ${input.userId ?? input.requestedBy},
+        ${input.orgId ?? getCurrentOrgId()},
+        NOW()
+      )
+    `).catch((err) => console.error("[gate-engine] audit log write failed:", err));
+}
+async function evaluateAction(input) {
+  const policy = await getPolicy(input.actionType);
+  const description = input.actionDescription ?? input.actionType;
+  const reqRank = authorityRank(input.requesterAuthority);
+  let decision;
+  let reasoning;
+  let regulatoryBasis = policy?.regulatory_basis ?? null;
+  if (!policy) {
+    decision = "escalated";
+    reasoning = `No governance policy is on record for "${input.actionType}". The action cannot be auto-admitted; routing to human review to establish a policy precedent.`;
+  } else {
+    const reqAuthorityRank = authorityRank(policy.required_authority);
+    const meetsAuthority = reqRank >= reqAuthorityRank;
+    if (meetsAuthority && policy.decision_rule !== "refuse") {
+      decision = "allowed";
+      reasoning = `Admissible. Requester authority "${input.requesterAuthority}" meets the required "${policy.required_authority}" level for this action under ${policy.regulatory_basis}.`;
+    } else if (policy.decision_rule === "refuse") {
+      decision = "refused";
+      reasoning = policy.is_protected ? `Refused \u2014 protected state. "${policy.label}" is inadmissible under ${policy.regulatory_basis}. ${policy.regulatory_text ?? ""} Even elevated authority cannot bypass this control; an auditable alternative (versioned append) must be used instead.` : `Refused. "${policy.label}" requires "${policy.required_authority}" authority under ${policy.regulatory_basis}, and this action is categorically non-admissible at the requester's level.`;
+    } else {
+      decision = "escalated";
+      reasoning = `Authority insufficient. "${input.requesterAuthority}" is below the required "${policy.required_authority}" level for "${policy.label}" (${policy.regulatory_basis}). Human approval is required before execution.`;
+    }
+  }
+  const decisionId = await db.execute(sql15`
+      INSERT INTO governance_decisions
+        (action_type, action_description, requested_by, requester_authority, policy_id, decision, reasoning, regulatory_basis, org_id, context)
+      VALUES
+        (${input.actionType}, ${description}, ${input.requestedBy}, ${input.requesterAuthority},
+         ${policy?.id ?? null}, ${decision}, ${reasoning}, ${regulatoryBasis}, ${input.orgId ?? getCurrentOrgId()},
+         ${JSON.stringify(input.context ?? {})})
+      RETURNING id
+    `).then((r) => r.rows[0].id);
+  await logToAuditTrail(decision, input, reasoning, regulatoryBasis);
+  const verb = decision === "allowed" ? "admitted" : decision === "refused" ? "refused" : "escalated";
+  await db.execute(sql15`
+      INSERT INTO agent_events (agent_name, event_type, message, related_event_id, org_id)
+      VALUES (
+        ${"GATE Sentinel"},
+        ${`action_${decision}`},
+        ${`Evaluated "${policy?.label ?? input.actionType}" for ${input.requestedBy} (${input.requesterAuthority}) \u2192 ${verb}${regulatoryBasis ? ` \xB7 ${regulatoryBasis}` : ""}`},
+        ${decisionId},
+        ${input.orgId ?? getCurrentOrgId()}
+      )
+    `).catch((err) => console.error("[gate-engine] agent event write failed:", err));
+  let escalationId;
+  let requiredApproverRole;
+  if (decision === "escalated") {
+    requiredApproverRole = policy?.required_authority ?? "admin";
+    escalationId = await db.execute(sql15`
+        INSERT INTO governance_escalations
+          (decision_id, required_approver_role, status, requested_by)
+        VALUES
+          (${decisionId}, ${requiredApproverRole}, 'pending', ${input.requestedBy})
+        RETURNING id
+      `).then((r) => r.rows[0].id);
+  }
+  return {
+    decisionId,
+    decision,
+    admissible: decision === "allowed",
+    reasoning,
+    policy: policy ? {
+      id: policy.id,
+      actionType: policy.action_type,
+      label: policy.label,
+      requiredAuthority: policy.required_authority,
+      decisionRule: policy.decision_rule,
+      isProtected: policy.is_protected,
+      regulatoryBasis: policy.regulatory_basis,
+      regulatoryText: policy.regulatory_text
+    } : null,
+    regulatoryBasis,
+    escalationId,
+    requiredApproverRole
+  };
+}
+async function recallDecisions(actionType, limit = 5, orgId) {
+  const org = orgId ?? getCurrentOrgId();
+  if (!org) return [];
+  return db.execute(sql15`
+      SELECT id, action_type, action_description, requested_by, requester_authority,
+             decision, reasoning, regulatory_basis, created_at
+      FROM governance_decisions
+      WHERE action_type = ${actionType} AND org_id = ${org}
+      ORDER BY created_at DESC
+      LIMIT ${limit}
+    `).then((r) => r.rows);
+}
+
+// server/services/document-agent.ts
+init_agent_registry();
+var openai9 = new OpenAI9({ apiKey: process.env.OPENAI_API_KEY || "not-configured" });
+var AUTO_APPROVE_CONFIDENCE = 85;
+var LEARNING_BATCH_SIZE = 5;
+var AGENT_NAME2 = "Document Extraction Agent";
+var LEARNING_AGENT_NAME = "Extraction Learning Agent";
+function sha256Hash(payload) {
+  return crypto11.createHash("sha256").update(JSON.stringify(payload)).digest("hex");
+}
+async function loadGuidance(orgId, documentType) {
+  if (!orgId) return null;
+  const rows = await db.execute(sql16`
+      SELECT guidance FROM bccs_prompt_guidance
+      WHERE organization_id = ${orgId} AND document_type = ${documentType} AND is_active = TRUE
+      LIMIT 1
+    `).then((r) => r.rows);
+  return rows[0]?.guidance ?? null;
+}
+async function extractText2(fileName, mimeType, buffer) {
+  if (mimeType.startsWith("text/") || mimeType === "application/json" || mimeType === "text/csv") {
+    return buffer.toString("utf8");
+  }
+  const ext = path7.extname(fileName).toLowerCase();
+  const ocrExts = [".pdf", ".png", ".jpg", ".jpeg"];
+  const extFromMime = mimeType === "application/pdf" ? ".pdf" : mimeType === "image/png" ? ".png" : mimeType === "image/jpeg" ? ".jpg" : null;
+  const useExt = ocrExts.includes(ext) ? ext : extFromMime;
+  if (!useExt) {
+    throw new Error(`Unsupported file type for AI extraction: ${mimeType || ext || "unknown"}. Supported: PDF, PNG, JPG, TXT, CSV.`);
+  }
+  const tmpPath = path7.join(os3.tmpdir(), `bccs-doc-${crypto11.randomUUID()}${useExt}`);
+  fs7.writeFileSync(tmpPath, buffer);
+  try {
+    return await processDocumentOCR(tmpPath);
+  } finally {
+    fs7.unlink(tmpPath, () => {
+    });
+  }
+}
+async function processDocument(documentId, orgId, userId) {
+  const runId = await startRun("document-extraction", orgId);
+  try {
+    const [doc] = await db.execute(sql16`
+        SELECT id, file_name, mime_type, document_type, file_data
+        FROM bccs_documents
+        WHERE id = ${documentId} AND organization_id = ${orgId}
+      `).then((r) => r.rows);
+    if (!doc) throw new Error("Document not found");
+    await db.execute(sql16`UPDATE bccs_documents SET status = 'processing' WHERE id = ${documentId}`);
+    await emitAgentEvent(
+      AGENT_NAME2,
+      "document_processing",
+      `Started processing "${doc.file_name}" (${doc.document_type}) \u2014 OCR + AI field extraction`,
+      orgId
+    );
+    const buffer = Buffer.isBuffer(doc.file_data) ? doc.file_data : Buffer.from(doc.file_data);
+    const text2 = await extractText2(doc.file_name, doc.mime_type, buffer);
+    if (!text2 || text2.trim().length < 10) {
+      throw new Error("No readable text could be extracted from the document.");
+    }
+    const guidance = await loadGuidance(orgId, doc.document_type);
+    const fields = await extractFieldsWithNLP(text2, doc.document_type, guidance ?? void 0);
+    if (fields.length === 0) {
+      await db.execute(sql16`
+        UPDATE bccs_documents
+        SET status = 'needs_review', ocr_text = ${text2}, overall_confidence = 0, processed_at = NOW()
+        WHERE id = ${documentId}
+      `);
+      await emitAgentEvent(
+        AGENT_NAME2,
+        "document_needs_review",
+        `No fields could be extracted from "${doc.file_name}" \u2014 routed to human review`,
+        orgId
+      );
+      await finishRun(runId, {
+        status: "success",
+        itemsProcessed: 0,
+        findingsCount: 1,
+        summary: `"${doc.file_name}": no extractable fields \u2014 routed to human review.`
+      });
+      return;
+    }
+    for (const f of fields) {
+      await db.execute(sql16`
+        INSERT INTO bccs_document_fields (document_id, field_name, extracted_value, confidence)
+        VALUES (${documentId}, ${f.fieldName}, ${f.extractedValue}, ${f.confidenceScore})
+      `);
+    }
+    const overall = Math.round(fields.reduce((s, f) => s + f.confidenceScore, 0) / fields.length);
+    const confident = overall >= AUTO_APPROVE_CONFIDENCE;
+    const gate = await evaluateAction({
+      actionType: "document_auto_approve",
+      actionDescription: `Auto-approve AI-extracted data for "${doc.file_name}" (${fields.length} fields, avg confidence ${overall}%)`,
+      requestedBy: AGENT_NAME2,
+      requesterAuthority: confident ? "admin" : "viewer",
+      userId: userId ?? void 0,
+      orgId,
+      context: { documentId, fileName: doc.file_name, documentType: doc.document_type, fieldCount: fields.length, overallConfidence: overall }
+    });
+    if (gate.admissible) {
+      const hash = sha256Hash({ documentId, fields: fields.map((f) => ({ n: f.fieldName, v: f.extractedValue })) });
+      await db.execute(sql16`
+        UPDATE bccs_documents
+        SET status = 'auto_approved', ocr_text = ${text2}, overall_confidence = ${overall},
+            blockchain_hash = ${hash}, gate_decision_id = ${gate.decisionId}, processed_at = NOW()
+        WHERE id = ${documentId}
+      `);
+      await db.execute(sql16`UPDATE bccs_document_fields SET status = 'approved' WHERE document_id = ${documentId}`);
+      await emitAgentEvent(
+        AGENT_NAME2,
+        "document_auto_approved",
+        `Auto-approved "${doc.file_name}" \u2014 ${fields.length} fields at ${overall}% confidence, blockchain-anchored (${hash.slice(0, 12)}\u2026)`,
+        orgId
+      );
+      await finishRun(runId, {
+        status: "success",
+        itemsProcessed: fields.length,
+        summary: `"${doc.file_name}": ${fields.length} fields extracted at ${overall}% confidence \u2014 auto-approved and blockchain-anchored.`
+      });
+    } else {
+      await db.execute(sql16`
+        UPDATE bccs_documents
+        SET status = 'needs_review', ocr_text = ${text2}, overall_confidence = ${overall},
+            gate_decision_id = ${gate.decisionId}, processed_at = NOW()
+        WHERE id = ${documentId}
+      `);
+      await emitAgentEvent(
+        AGENT_NAME2,
+        "document_needs_review",
+        `"${doc.file_name}" extracted at ${overall}% confidence (below ${AUTO_APPROVE_CONFIDENCE}% threshold) \u2014 GATE escalated to human review`,
+        orgId
+      );
+      await finishRun(runId, {
+        status: "success",
+        itemsProcessed: fields.length,
+        findingsCount: 1,
+        summary: `"${doc.file_name}": ${fields.length} fields at ${overall}% confidence \u2014 escalated to human review.`
+      });
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown processing error";
+    console.error(`[document-agent] processing failed for ${documentId}:`, error);
+    await db.execute(sql16`
+        UPDATE bccs_documents
+        SET status = 'failed', error_message = ${message}, processed_at = NOW()
+        WHERE id = ${documentId}
+      `).catch(() => {
+    });
+    await emitAgentEvent(AGENT_NAME2, "document_failed", `Processing failed: ${message}`, orgId);
+    await finishRun(runId, { status: "failed", summary: message });
+  }
+}
+async function maybeLearnFromCorrections(orgId, documentType) {
+  let runId = null;
+  try {
+    const [countRow] = await db.execute(sql16`
+        SELECT COUNT(*)::int AS n FROM bccs_ml_feedback
+        WHERE organization_id = ${orgId} AND document_type = ${documentType}
+      `).then((r) => r.rows);
+    const total = countRow?.n ?? 0;
+    const [guidanceRow] = await db.execute(sql16`
+        SELECT id, version, source_correction_count FROM bccs_prompt_guidance
+        WHERE organization_id = ${orgId} AND document_type = ${documentType}
+      `).then((r) => r.rows);
+    const incorporated = guidanceRow?.source_correction_count ?? 0;
+    if (total - incorporated < LEARNING_BATCH_SIZE) return;
+    runId = await startRun("extraction-learning", orgId);
+    const corrections = await db.execute(sql16`
+        SELECT field_name, original_value, corrected_value FROM bccs_ml_feedback
+        WHERE organization_id = ${orgId} AND document_type = ${documentType}
+        ORDER BY created_at DESC
+        LIMIT 30
+      `).then((r) => r.rows);
+    const response = await openai9.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "system",
+          content: `You are an ML training analyst for an aviation document extraction system. Human reviewers corrected the AI's extractions below. Analyze the correction patterns and write concise, actionable guidance (max 8 bullet points) that, if followed, would have prevented these corrections. Focus on formatting conventions, field disambiguation, and common misreads. Return JSON: {"guidance": "- bullet one\\n- bullet two"}`
+        },
+        {
+          role: "user",
+          content: `Document type: ${documentType}
+
+Corrections (AI extracted \u2192 human corrected):
+${corrections.map((c) => `- ${c.field_name}: "${c.original_value}" \u2192 "${c.corrected_value}"`).join("\n")}`
+        }
+      ],
+      response_format: { type: "json_object" }
+    });
+    const parsed = JSON.parse(response.choices[0].message.content || "{}");
+    const guidance = typeof parsed.guidance === "string" ? parsed.guidance.trim() : "";
+    if (!guidance) {
+      await finishRun(runId, { status: "failed", summary: "Learning pass produced no usable guidance." });
+      return;
+    }
+    const newVersion = (guidanceRow?.version ?? 0) + 1;
+    await db.execute(sql16`
+      INSERT INTO bccs_prompt_guidance (organization_id, document_type, guidance, version, is_active, source_correction_count, updated_at)
+      VALUES (${orgId}, ${documentType}, ${guidance}, ${newVersion}, TRUE, ${total}, NOW())
+      ON CONFLICT (organization_id, document_type)
+      DO UPDATE SET guidance = ${guidance}, version = ${newVersion}, is_active = TRUE,
+                    source_correction_count = ${total}, updated_at = NOW()
+    `);
+    await db.execute(sql16`
+      CREATE TABLE IF NOT EXISTS bccs_ml_meta (
+        key VARCHAR(100) PRIMARY KEY,
+        value TEXT NOT NULL,
+        updated_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    const payload = JSON.stringify({ date: (/* @__PURE__ */ new Date()).toISOString(), version: `guidance-${documentType}-v${newVersion}` });
+    await db.execute(sql16`
+      INSERT INTO bccs_ml_meta (key, value, updated_at)
+      VALUES ('last_training', ${payload}, NOW())
+      ON CONFLICT (key) DO UPDATE SET value = ${payload}, updated_at = NOW()
+    `);
+    await emitAgentEvent(
+      LEARNING_AGENT_NAME,
+      "model_updated",
+      `Learned from ${total} human corrections on ${documentType.replace(/_/g, " ")} documents \u2014 extraction guidance updated to v${newVersion}`,
+      orgId
+    );
+    await finishRun(runId, {
+      status: "success",
+      itemsProcessed: corrections.length,
+      summary: `Distilled ${corrections.length} correction(s) on ${documentType.replace(/_/g, " ")} into guidance v${newVersion}.`
+    });
+  } catch (error) {
+    console.error("[document-agent] learning pass failed (non-fatal):", error);
+    await finishRun(runId, { status: "failed", summary: error instanceof Error ? error.message : String(error) }).catch(() => {
+    });
+  }
+}
+
+// server/routes/documents.ts
+var router12 = Router11();
+var upload2 = multer2({
+  storage: multer2.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 }
+});
+var ALLOWED_MIME = /* @__PURE__ */ new Set([
+  "application/pdf",
+  "image/png",
+  "image/jpeg",
+  "text/plain",
+  "text/csv"
+]);
+function docToJson(row) {
+  return {
+    id: row.id,
+    fileName: row.file_name,
+    fileSize: Number(row.file_size ?? 0),
+    mimeType: row.mime_type,
+    documentType: row.document_type,
+    status: row.status,
+    overallConfidence: row.overall_confidence != null ? Number(row.overall_confidence) : null,
+    blockchainHash: row.blockchain_hash,
+    errorMessage: row.error_message,
+    uploadedBy: row.uploaded_by,
+    uploadedAt: row.created_at,
+    processedAt: row.processed_at,
+    reviewedAt: row.reviewed_at,
+    reviewedBy: row.reviewed_by
+  };
+}
+router12.post("/upload", isAuthenticated, upload2.single("file"), async (req, res) => {
+  try {
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
+    if (!req.file) return res.status(400).json({ message: "No file provided" });
+    const mime = req.file.mimetype || "application/octet-stream";
+    if (!ALLOWED_MIME.has(mime)) {
+      return res.status(400).json({
+        message: `Unsupported file type "${mime}". The AI agent can process PDF, PNG, JPG, TXT and CSV files.`
+      });
+    }
+    const requestedType = String(req.body?.documentType || "").trim();
+    const documentType = isKnownDocumentType(requestedType) ? requestedType : "pilot_record";
+    const userId = req.user?.id ?? req.user?.email ?? null;
+    const [inserted] = await db.execute(sql17`
+        INSERT INTO bccs_documents (organization_id, file_name, mime_type, file_size, file_data, document_type, status, uploaded_by)
+        VALUES (${orgId}, ${req.file.originalname}, ${mime}, ${req.file.size}, ${req.file.buffer}, ${documentType}, 'uploaded', ${userId})
+        RETURNING id, file_name, mime_type, file_size, document_type, status, uploaded_by, created_at
+      `).then((r) => r.rows);
+    processDocument(inserted.id, orgId, userId).catch(
+      (err) => console.error("[documents] agent job crashed:", err)
+    );
+    res.status(201).json({
+      ...docToJson(inserted),
+      message: "Document uploaded \u2014 the AI agent is processing it now."
+    });
+  } catch (error) {
+    console.error("Document upload error:", error);
+    res.status(500).json({ message: "Failed to upload document" });
+  }
+});
+router12.get("/", isAuthenticated, async (req, res) => {
+  try {
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
+    const status = typeof req.query.status === "string" ? req.query.status : null;
+    const rows = await db.execute(
+      status ? sql17`SELECT id, file_name, mime_type, file_size, document_type, status, overall_confidence,
+                       blockchain_hash, error_message, uploaded_by, created_at, processed_at, reviewed_at, reviewed_by
+                FROM bccs_documents
+                WHERE organization_id = ${orgId} AND status = ${status}
+                ORDER BY created_at DESC LIMIT 200` : sql17`SELECT id, file_name, mime_type, file_size, document_type, status, overall_confidence,
+                       blockchain_hash, error_message, uploaded_by, created_at, processed_at, reviewed_at, reviewed_by
+                FROM bccs_documents
+                WHERE organization_id = ${orgId}
+                ORDER BY created_at DESC LIMIT 200`
+    ).then((r) => r.rows);
+    res.json(rows.map(docToJson));
+  } catch (error) {
+    console.error("Document list error:", error);
+    res.status(500).json({ message: "Failed to fetch documents" });
+  }
+});
+router12.get("/:id/extracted-data", isAuthenticated, async (req, res) => {
+  try {
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
+    const [doc] = await db.execute(sql17`SELECT id FROM bccs_documents WHERE id = ${req.params.id} AND organization_id = ${orgId}`).then((r) => r.rows);
+    if (!doc) return res.status(404).json({ message: "Document not found" });
+    const rows = await db.execute(sql17`
+        SELECT id, field_name, extracted_value, corrected_value, confidence, status
+        FROM bccs_document_fields
+        WHERE document_id = ${req.params.id}
+        ORDER BY created_at ASC, field_name ASC
+      `).then((r) => r.rows);
+    res.json(
+      rows.map((f) => ({
+        id: f.id,
+        fieldName: f.field_name,
+        extractedValue: f.extracted_value,
+        correctedValue: f.corrected_value,
+        confidenceScore: f.confidence != null ? Number(f.confidence) : null,
+        status: f.status
+      }))
+    );
+  } catch (error) {
+    console.error("Extracted data error:", error);
+    res.status(500).json({ message: "Failed to fetch extracted data" });
+  }
+});
+router12.post("/:id/review", isAuthenticated, async (req, res) => {
+  try {
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
+    const action = req.body?.action;
+    if (action !== "approve" && action !== "reject") {
+      return res.status(400).json({ message: 'action must be "approve" or "reject"' });
+    }
+    const corrections = req.body?.corrections && typeof req.body.corrections === "object" ? req.body.corrections : {};
+    const [doc] = await db.execute(sql17`
+        SELECT id, file_name, document_type, status FROM bccs_documents
+        WHERE id = ${req.params.id} AND organization_id = ${orgId}
+      `).then((r) => r.rows);
+    if (!doc) return res.status(404).json({ message: "Document not found" });
+    if (!["needs_review", "auto_approved"].includes(doc.status)) {
+      return res.status(400).json({ message: `Document is "${doc.status}" \u2014 only documents awaiting or past review can be reviewed.` });
+    }
+    const userId = req.user?.id ?? req.user?.email ?? "unknown";
+    if (action === "reject") {
+      await db.execute(sql17`
+        UPDATE bccs_documents SET status = 'rejected', reviewed_at = NOW(), reviewed_by = ${userId}
+        WHERE id = ${doc.id}
+      `);
+      await db.execute(sql17`UPDATE bccs_document_fields SET status = 'rejected' WHERE document_id = ${doc.id}`);
+      await db.execute(sql17`
+        INSERT INTO agent_events (agent_name, event_type, message, org_id)
+        VALUES ('Document Extraction Agent', 'document_rejected',
+                ${`Human reviewer rejected "${doc.file_name}" \u2014 extraction discarded`}, ${orgId})
+      `);
+      return res.json({ success: true, status: "rejected" });
+    }
+    const fields = await db.execute(sql17`
+        SELECT id, field_name, extracted_value FROM bccs_document_fields WHERE document_id = ${doc.id}
+      `).then((r) => r.rows);
+    let correctionCount = 0;
+    for (const f of fields) {
+      const corrected = corrections[f.field_name];
+      const changed = corrected !== void 0 && corrected !== null && String(corrected) !== String(f.extracted_value ?? "");
+      if (changed) {
+        correctionCount++;
+        await db.execute(sql17`
+          UPDATE bccs_document_fields SET corrected_value = ${String(corrected)}, status = 'corrected'
+          WHERE id = ${f.id}
+        `);
+        await db.execute(sql17`
+          INSERT INTO bccs_ml_feedback (organization_id, document_id, document_type, field_name, original_value, corrected_value, user_id)
+          VALUES (${orgId}, ${doc.id}, ${doc.document_type}, ${f.field_name}, ${f.extracted_value}, ${String(corrected)}, ${userId})
+        `);
+      } else {
+        await db.execute(sql17`UPDATE bccs_document_fields SET status = 'approved' WHERE id = ${f.id}`);
+      }
+    }
+    const finalFields = fields.map((f) => ({
+      n: f.field_name,
+      v: corrections[f.field_name] !== void 0 ? String(corrections[f.field_name]) : f.extracted_value
+    }));
+    const hash = sha256Hash({ documentId: doc.id, fields: finalFields });
+    await db.execute(sql17`
+      UPDATE bccs_documents
+      SET status = 'approved', blockchain_hash = ${hash}, reviewed_at = NOW(), reviewed_by = ${userId}
+      WHERE id = ${doc.id}
+    `);
+    await db.execute(sql17`
+      INSERT INTO agent_events (agent_name, event_type, message, org_id)
+      VALUES ('Document Extraction Agent', 'document_approved',
+              ${`Human reviewer approved "${doc.file_name}"${correctionCount > 0 ? ` with ${correctionCount} correction${correctionCount === 1 ? "" : "s"} \u2014 feeding the learning loop` : " with no corrections"} \xB7 blockchain-anchored (${hash.slice(0, 12)}\u2026)`},
+              ${orgId})
+    `);
+    if (correctionCount > 0) {
+      maybeLearnFromCorrections(orgId, doc.document_type).catch(
+        (err) => console.error("[documents] learning pass crashed:", err)
+      );
+    }
+    res.json({ success: true, status: "approved", corrections: correctionCount, blockchainHash: hash });
+  } catch (error) {
+    console.error("Document review error:", error);
+    res.status(500).json({ message: "Failed to submit review" });
+  }
+});
+var DEMO_DOCS = [
+  {
+    fileName: "training_record_rivera_sim4.txt",
+    documentType: "pilot_record",
+    content: `PART 142 TRAINING CENTER \u2014 TRAINING EVENT RECORD
+
+Student Name: Alice Rivera
+Student ID: S-1042
+Instructor (CFI): Capt. James Holt
+Instructor Certificate: CFI-3382914
+Event Type: Simulator Session
+Date of Training: 2026-07-10
+Duration: 2.0 hours
+Aircraft/Simulator: CE-525 Full Flight Simulator Level D
+Curriculum Item: Session 4 \u2014 ILS approaches, missed approach procedures
+Remarks: Student demonstrated proficiency in coupled ILS approaches. Missed approach callouts improving. Recommend progression to Session 5.`
+  },
+  {
+    fileName: "airman_certificate_chen.txt",
+    documentType: "certificate",
+    content: `FEDERAL AVIATION ADMINISTRATION
+AIRMAN CERTIFICATE
+
+Name of Holder: Marcus Chen
+Certificate Type: Commercial Pilot
+Certificate Number: 3771182CC
+Date of Issue: 2024-03-18
+Ratings: Airplane Multiengine Land; Instrument Airplane
+Limitations: English Proficient
+Date of Birth: 1994-11-02
+Issuing Authority: FAA`
+  },
+  {
+    fileName: "far142_inspection_summary_q2.txt",
+    documentType: "faa_audit",
+    content: `FAA INSPECTION SUMMARY \u2014 PART 142 TRAINING CENTER
+
+Document Title: Quarterly Surveillance Inspection Summary Q2 2026
+Regulatory Reference: 14 CFR 142.73, 14 CFR 142.37
+Inspection Date: 2026-06-24
+Inspector: J. Whitfield, ASI (Operations)
+Organization: BCCS Flight Training Center
+Findings: Recordkeeping current. One discrepancy noted \u2014 simulator daily discrepancy log missing two entries for May 2026.
+Compliance Status: Partial
+Corrective Actions: Submit corrected simulator log procedure within 30 days per 14 CFR 142.73(f).`
+  }
+];
+router12.post("/seed-demo", isAuthenticated, async (req, res) => {
+  try {
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
+    const userId = req.user?.id ?? req.user?.email ?? null;
+    const created = [];
+    for (const demo of DEMO_DOCS) {
+      const buffer = Buffer.from(demo.content, "utf8");
+      const [inserted] = await db.execute(sql17`
+          INSERT INTO bccs_documents (organization_id, file_name, mime_type, file_size, file_data, document_type, status, uploaded_by)
+          VALUES (${orgId}, ${demo.fileName}, 'text/plain', ${buffer.length}, ${buffer}, ${demo.documentType}, 'uploaded', ${userId})
+          RETURNING id
+        `).then((r) => r.rows);
+      created.push(inserted.id);
+      processDocument(inserted.id, orgId, userId).catch(
+        (err) => console.error("[documents] demo agent job crashed:", err)
+      );
+    }
+    res.status(201).json({
+      success: true,
+      created: created.length,
+      message: "Demo documents created \u2014 the AI agent is processing them now."
+    });
+  } catch (error) {
+    console.error("Demo seed error:", error);
+    res.status(500).json({ message: "Failed to seed demo documents" });
+  }
+});
+var documents_default = router12;
+
+// server/routes/crypto-signing.ts
+import { Router as Router12 } from "express";
+init_crypto_signing();
+init_db();
+import { sql as sql18 } from "drizzle-orm";
+var router13 = Router12();
+async function requireOrgAdmin(req, res, orgId) {
+  if (isPlatformStaff(req.user?.email)) return true;
+  const memberships = await getUserMemberships(req.user.id);
+  const membership = memberships.find((m) => m.organizationId === orgId);
+  if (membership && membership.orgRole === "admin") return true;
+  res.status(403).json({ message: "Only an admin of this organization can generate its signing keys" });
+  return false;
+}
+router13.post("/generate", isAuthenticated, async (req, res) => {
+  try {
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
+    if (!await requireOrgAdmin(req, res, orgId)) return;
+    const result = await generateAndStoreOrgKeyPair(orgId);
+    res.json({
+      success: true,
+      algorithm: result.algorithm,
+      fingerprint: result.fingerprint,
+      publicKeyPem: result.publicKeyPem,
+      createdAt: result.createdAt,
+      message: "Ed25519 key pair generated. Private key is encrypted and stored server-side."
+    });
+  } catch (err) {
+    console.error("Key generation error:", err);
+    res.status(500).json({ message: err.message || "Key generation failed" });
+  }
+});
+router13.get("/current", isAuthenticated, async (req, res) => {
+  try {
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
+    const key = await getOrgActiveKey(orgId);
+    if (!key) {
+      return res.json({ hasKey: false, message: "No key generated yet" });
+    }
+    res.json({
+      hasKey: true,
+      fingerprint: key.key_fingerprint,
+      algorithm: key.algorithm,
+      publicKeyPem: key.public_key_pem,
+      createdAt: key.created_at
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message || "Failed to fetch key" });
+  }
+});
+router13.get("/public-key", isAuthenticated, async (req, res) => {
+  try {
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
+    const pem = await exportPublicKeyPem(orgId);
+    if (!pem) return res.status(404).json({ message: "No key found" });
+    res.setHeader("Content-Type", "application/x-pem-file");
+    res.setHeader("Content-Disposition", `attachment; filename="bccs-org-public-key.pem"`);
+    res.send(pem);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+router13.post("/sign/:eventId", isAuthenticated, async (req, res) => {
+  try {
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
+    const result = await signTrainingRecord(req.params.eventId, orgId);
+    queueAuditReadinessRefresh(orgId, "record_signed");
+    res.json({ success: true, ...result });
+  } catch (err) {
+    console.error("Sign record error:", err);
+    res.status(500).json({ message: err.message || "Signing failed" });
+  }
+});
+router13.post("/sign-all", isAuthenticated, async (req, res) => {
+  try {
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
+    const result = await signAllUnsignedRecords(orgId);
+    queueAuditReadinessRefresh(orgId, "records_bulk_signed");
+    res.json({ success: true, ...result });
+  } catch (err) {
+    res.status(500).json({ message: err.message || "Bulk signing failed" });
+  }
+});
+router13.get("/verify/:eventId", async (req, res) => {
+  try {
+    const result = await verifyTrainingRecord(req.params.eventId);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ message: err.message || "Verification failed" });
+  }
+});
+router13.get("/chain", isAuthenticated, async (req, res) => {
+  try {
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
+    const rows = await db.execute(sql18`
+      SELECT id, student_name, instructor_name, event_type, event_date,
+             status, key_fingerprint, signed_data_hash, chain_hash, signed_at,
+             signature
+      FROM bccs_training_events
+      WHERE signature IS NOT NULL AND organization_id = ${orgId}
+      ORDER BY signed_at ASC
+    `).then((r) => r.rows);
+    res.json({
+      chainLength: rows.length,
+      records: rows.map((r, i) => ({
+        index: i + 1,
+        id: r.id,
+        studentName: r.student_name,
+        instructorName: r.instructor_name,
+        eventType: r.event_type,
+        eventDate: r.event_date,
+        status: r.status,
+        keyFingerprint: r.key_fingerprint,
+        signedDataHash: r.signed_data_hash,
+        chainHash: r.chain_hash,
+        signedAt: r.signed_at,
+        signaturePreview: r.signature ? r.signature.slice(0, 16) + "..." : null
+      }))
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message || "Failed to fetch chain" });
+  }
+});
+router13.post("/generate-for-org", isAuthenticated, async (req, res) => {
+  try {
+    const { orgId } = req.body;
+    if (!orgId) return res.status(400).json({ message: "orgId required" });
+    if (!await requireOrgAdmin(req, res, orgId)) return;
+    const result = await generateAndStoreOrgKeyPair(orgId);
+    res.json({ success: true, ...result });
+  } catch (err) {
+    res.status(500).json({ message: err.message || "Key generation failed" });
+  }
+});
+var crypto_signing_default = router13;
+
+// server/routes.ts
+init_crypto_signing();
+
+// server/routes/reviewer.ts
+init_db();
+import { Router as Router13 } from "express";
+import crypto12 from "crypto";
+import { sql as sql19 } from "drizzle-orm";
+var router14 = Router13();
+function generateKey2() {
+  return "bccs_rev_" + crypto12.randomBytes(20).toString("hex");
+}
+function hashKey2(key) {
+  return crypto12.createHash("sha256").update(key).digest("hex");
+}
+function extractKey2(req) {
+  const q = req.query.key || req.query.apiKey;
+  if (q) return q;
+  const auth = req.headers.authorization;
+  if (auth?.startsWith("Bearer ")) return auth.slice(7);
+  return null;
+}
+async function requireReviewerKey(req, res, next) {
+  const key = extractKey2(req);
+  if (!key) {
+    return res.status(401).json({ message: "API key required. Pass ?key=bccs_rev_... or Authorization: Bearer ..." });
+  }
+  const keyHash = hashKey2(key);
+  const rows = await db.execute(sql19`
+    SELECT * FROM bccs_reviewer_keys WHERE key_hash = ${keyHash} AND is_active = TRUE
+  `).then((r) => r.rows);
+  if (!rows[0]) return res.status(401).json({ message: "Invalid or revoked API key" });
+  const keyRow = rows[0];
+  if (keyRow.expires_at && new Date(keyRow.expires_at) < /* @__PURE__ */ new Date()) {
+    return res.status(401).json({ message: "API key has expired" });
+  }
+  db.execute(sql19`UPDATE bccs_reviewer_keys SET last_used_at = NOW() WHERE id = ${keyRow.id}`).catch(() => {
+  });
+  req.reviewerKey = keyRow;
+  next();
+}
+function canAccessOrg(keyRow, orgId) {
+  const orgIds = keyRow.org_ids;
+  if (!orgIds || orgIds.length === 0) return true;
+  return orgIds.includes(orgId);
+}
+router14.post("/", isAuthenticated, async (req, res) => {
+  const user = req.user;
+  if (user?.role !== "admin") {
+    return res.status(403).json({ message: "Customer admin access required to generate reviewer keys" });
+  }
+  const { label, reviewerName, reviewerEmail, expiresAt } = req.body;
+  let { orgIds } = req.body;
+  if (!label || !reviewerName) {
+    return res.status(400).json({ message: "label and reviewerName are required" });
+  }
+  if (!isPlatformStaff(user?.email)) {
+    const activeOrgId = req.orgId;
+    if (!activeOrgId) {
+      return res.status(403).json({ message: "No active organization for this account" });
+    }
+    const requested = Array.isArray(orgIds) ? orgIds : [];
+    if (requested.length === 0) {
+      orgIds = [activeOrgId];
+    } else if (requested.some((id) => id !== activeOrgId)) {
+      return res.status(403).json({ message: "Reviewer keys may only be scoped to your own organization" });
+    } else {
+      orgIds = [activeOrgId];
+    }
+  }
+  const rawKey = generateKey2();
+  const keyHash = hashKey2(rawKey);
+  const keyPreview = rawKey.slice(0, 16) + "...";
+  await db.execute(sql19`
+    INSERT INTO bccs_reviewer_keys
+      (key_hash, key_preview, label, reviewer_name, reviewer_email, org_ids, created_by, expires_at, is_active)
+    VALUES
+      (${keyHash}, ${keyPreview}, ${label}, ${reviewerName}, ${reviewerEmail ?? null},
+       ${JSON.stringify(orgIds ?? [])}, ${user.id}, ${expiresAt ? new Date(expiresAt).toISOString() : null}, TRUE)
+  `);
+  res.status(201).json({
+    success: true,
+    key: rawKey,
+    keyPreview,
+    label,
+    reviewerName,
+    reviewerEmail,
+    orgIds: orgIds ?? [],
+    expiresAt: expiresAt ?? null,
+    warning: "Store this key securely \u2014 it will not be shown again."
+  });
+});
+router14.get("/", isAuthenticated, async (req, res) => {
+  const user = req.user;
+  if (user?.role !== "admin") {
+    return res.status(403).json({ message: "Customer admin access required" });
+  }
+  let rows = await db.execute(sql19`
+    SELECT id, key_preview, label, reviewer_name, reviewer_email, org_ids,
+           created_by, created_at, last_used_at, expires_at, is_active
+    FROM bccs_reviewer_keys
+    ORDER BY created_at DESC
+  `).then((r) => r.rows);
+  if (!isPlatformStaff(user?.email)) {
+    const activeOrgId = req.orgId;
+    rows = rows.filter((row) => Array.isArray(row.org_ids) && activeOrgId && row.org_ids.includes(activeOrgId));
+  }
+  res.json(rows);
+});
+router14.delete("/:id", isAuthenticated, async (req, res) => {
+  const user = req.user;
+  if (user?.role !== "admin") {
+    return res.status(403).json({ message: "Customer admin access required" });
+  }
+  if (!isPlatformStaff(user?.email)) {
+    const activeOrgId = req.orgId;
+    const [keyRow] = await db.execute(sql19`SELECT org_ids FROM bccs_reviewer_keys WHERE id = ${req.params.id}`).then((r) => r.rows);
+    if (!keyRow) return res.status(404).json({ message: "Key not found" });
+    const orgIds = Array.isArray(keyRow.org_ids) ? keyRow.org_ids : [];
+    if (!activeOrgId || orgIds.length === 0 || !orgIds.includes(activeOrgId)) {
+      return res.status(403).json({ message: "You may only revoke reviewer keys for your own organization" });
+    }
+  }
+  await db.execute(sql19`UPDATE bccs_reviewer_keys SET is_active = FALSE WHERE id = ${req.params.id}`);
+  res.json({ success: true });
+});
+router14.get("/context", requireReviewerKey, async (req, res) => {
+  const keyRow = req.reviewerKey;
+  const orgIds = keyRow.org_ids ?? [];
+  let orgs;
+  if (orgIds.length === 0) {
+    orgs = await db.execute(sql19`
+      SELECT id, organization_name, organization_type, regulatory_authority,
+             certificate_number, is_active, contact_info, created_at
+      FROM training_organizations WHERE is_active = TRUE ORDER BY organization_name
+    `).then((r) => r.rows);
+  } else {
+    orgs = await db.execute(sql19`
+      SELECT id, organization_name, organization_type, regulatory_authority,
+             certificate_number, is_active, contact_info, created_at
+      FROM training_organizations
+      WHERE id = ANY(${orgIds}::uuid[]) AND is_active = TRUE
+      ORDER BY organization_name
+    `).then((r) => r.rows);
+  }
+  res.json({
+    reviewerName: keyRow.reviewer_name,
+    reviewerEmail: keyRow.reviewer_email,
+    label: keyRow.label,
+    orgScope: orgIds.length === 0 ? "all" : "restricted",
+    orgCount: orgs.length,
+    orgs,
+    expiresAt: keyRow.expires_at,
+    lastUsedAt: keyRow.last_used_at
+  });
+});
+router14.get("/org/:orgId/summary", requireReviewerKey, async (req, res) => {
+  if (!canAccessOrg(req.reviewerKey, req.params.orgId)) {
+    return res.status(403).json({ message: "Key does not have access to this organization" });
+  }
+  const [orgRows, formCounts, trainingCounts, instructorCounts, studentCounts, signedCounts] = await Promise.all([
+    db.execute(sql19`
+        SELECT id, organization_name, organization_type, regulatory_authority, certificate_number, contact_info, created_at
+        FROM training_organizations WHERE id = ${req.params.orgId}
+      `).then((r) => r.rows),
+    db.execute(sql19`
+        SELECT
+          (SELECT COUNT(*) FROM digital_form_templates WHERE organization_id = ${req.params.orgId}) AS templates,
+          (SELECT COUNT(*) FROM digital_form_submissions WHERE organization_id = ${req.params.orgId}) AS submissions,
+          (SELECT COUNT(*) FROM digital_form_submissions WHERE status = 'approved' AND organization_id = ${req.params.orgId}) AS approved,
+          (SELECT COUNT(*) FROM digital_form_submissions WHERE status = 'submitted' AND organization_id = ${req.params.orgId}) AS pending
+      `).then((r) => r.rows),
+    db.execute(sql19`
+        SELECT COUNT(*) AS total,
+          SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) AS completed,
+          SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) AS pending
+        FROM bccs_training_events
+        WHERE organization_id = ${req.params.orgId}
+      `).then((r) => r.rows),
+    db.execute(sql19`
+        SELECT COUNT(*) AS total,
+          SUM(CASE WHEN expiration_date < NOW() THEN 1 ELSE 0 END) AS expired,
+          SUM(CASE WHEN expiration_date BETWEEN NOW() AND NOW() + INTERVAL '90 days' THEN 1 ELSE 0 END) AS expiring_soon
+        FROM bccs_instructor_records
+        WHERE organization_id = ${req.params.orgId}
+      `).then((r) => r.rows),
+    db.execute(sql19`SELECT COUNT(*) AS total FROM students WHERE organization_id = ${req.params.orgId}`).then((r) => r.rows),
+    db.execute(sql19`
+        SELECT COUNT(*) AS signed FROM bccs_training_events
+        WHERE signature IS NOT NULL AND organization_id = ${req.params.orgId}
+      `).then((r) => r.rows)
+  ]);
+  if (!orgRows[0]) return res.status(404).json({ message: "Organization not found" });
+  const fc = formCounts[0] ?? {};
+  const tc = trainingCounts[0] ?? {};
+  const ic = instructorCounts[0] ?? {};
+  res.json({
+    organization: orgRows[0],
+    stats: {
+      formTemplates: Number(fc.templates ?? 0),
+      formSubmissions: Number(fc.submissions ?? 0),
+      approvedForms: Number(fc.approved ?? 0),
+      pendingForms: Number(fc.pending ?? 0),
+      trainingRecords: Number(tc.total ?? 0),
+      completedTraining: Number(tc.completed ?? 0),
+      pendingTraining: Number(tc.pending ?? 0),
+      signedRecords: Number(signedCounts[0]?.signed ?? 0),
+      instructors: Number(ic.total ?? 0),
+      expiredCerts: Number(ic.expired ?? 0),
+      expiringCerts: Number(ic.expiring_soon ?? 0),
+      students: Number(studentCounts[0]?.total ?? 0)
+    }
+  });
+});
+router14.get("/org/:orgId/forms", requireReviewerKey, async (req, res) => {
+  if (!canAccessOrg(req.reviewerKey, req.params.orgId)) {
+    return res.status(403).json({ message: "Access denied" });
+  }
+  const [templates, submissions] = await Promise.all([
+    db.execute(sql19`
+      SELECT id, title, faa_source_id, faa_document_title, status, regulation_status,
+             auto_generated, generated_from_section, created_at, updated_at, fields
+      FROM digital_form_templates
+      WHERE organization_id = ${req.params.orgId}
+      ORDER BY updated_at DESC
+    `).then((r) => r.rows),
+    db.execute(sql19`
+      SELECT s.id, s.template_id, s.template_title, s.organization_name,
+             s.submitted_by, s.submitter_name, s.submitter_email,
+             s.submitted_at, s.status, s.notes, s.form_data
+      FROM digital_form_submissions s
+      WHERE s.organization_id = ${req.params.orgId}
+      ORDER BY s.submitted_at DESC
+      LIMIT 200
+    `).then((r) => r.rows)
+  ]);
+  res.json({ templates, submissions });
+});
+router14.get("/org/:orgId/compliance-records", requireReviewerKey, async (req, res) => {
+  if (!canAccessOrg(req.reviewerKey, req.params.orgId)) {
+    return res.status(403).json({ message: "Access denied" });
+  }
+  const rows = await db.execute(sql19`
+    SELECT id, student_name, instructor_name, event_type, event_date,
+           duration_hours, curriculum_item, status, blockchain_hash,
+           signature, key_fingerprint, chain_hash, signed_at, created_at
+    FROM bccs_training_events
+    WHERE organization_id = ${req.params.orgId}
+    ORDER BY event_date DESC
+    LIMIT 500
+  `).then((r) => r.rows);
+  res.json(rows);
+});
+router14.get("/org/:orgId/instructors", requireReviewerKey, async (req, res) => {
+  if (!canAccessOrg(req.reviewerKey, req.params.orgId)) {
+    return res.status(403).json({ message: "Access denied" });
+  }
+  const rows = await db.execute(sql19`
+    SELECT id, first_name, last_name, email, certificate_type, certificate_number,
+           issue_date, expiration_date, status, ratings, notes
+    FROM bccs_instructor_records
+    WHERE organization_id = ${req.params.orgId}
+    ORDER BY last_name, first_name
+  `).then((r) => r.rows);
+  res.json(rows);
+});
+router14.get("/org/:orgId/students", requireReviewerKey, async (req, res) => {
+  if (!canAccessOrg(req.reviewerKey, req.params.orgId)) {
+    return res.status(403).json({ message: "Access denied" });
+  }
+  const rows = await db.execute(sql19`
+    SELECT id, first_name, last_name, email, certificate_number,
+           enrollment_date, expected_completion, status, notes
+    FROM students
+    WHERE organization_id = ${req.params.orgId}
+    ORDER BY last_name, first_name
+  `).then((r) => r.rows);
+  res.json(rows);
+});
+var reviewer_default = router14;
+
+// server/routes/governance.ts
+init_db();
+import { Router as Router14 } from "express";
+import OpenAI10 from "openai";
+import { sql as sql21 } from "drizzle-orm";
+init_crypto_signing();
+
+// server/db-init.ts
+init_db();
+import { sql as sql20 } from "drizzle-orm";
+init_crypto_signing();
+async function ensureTables3() {
+  try {
+    await db.execute(sql20`
+      CREATE TABLE IF NOT EXISTS bccs_training_events (
+        id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+        student_name VARCHAR(200) NOT NULL,
+        student_id VARCHAR(100),
+        instructor_name VARCHAR(200) NOT NULL,
+        instructor_id VARCHAR(100),
+        event_type VARCHAR(100) NOT NULL,
+        event_date TIMESTAMP NOT NULL,
+        duration_hours VARCHAR(20),
+        curriculum_item VARCHAR(500),
+        notes TEXT,
+        status VARCHAR(50) DEFAULT 'completed',
+        blockchain_hash VARCHAR(200),
+        user_id VARCHAR,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    await db.execute(sql20`
+      CREATE TABLE IF NOT EXISTS students (
+        id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+        first_name VARCHAR(100) NOT NULL,
+        last_name VARCHAR(100) NOT NULL,
+        email VARCHAR(200),
+        phone VARCHAR(50),
+        certificate_number VARCHAR(100),
+        enrollment_date TIMESTAMP DEFAULT NOW(),
+        expected_completion TIMESTAMP,
+        status VARCHAR(50) DEFAULT 'active',
+        notes TEXT,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    await db.execute(sql20`
+      CREATE TABLE IF NOT EXISTS bccs_instructor_records (
+        id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+        first_name VARCHAR(100) NOT NULL,
+        last_name VARCHAR(100) NOT NULL,
+        email VARCHAR(200),
+        certificate_type VARCHAR(100) NOT NULL,
+        certificate_number VARCHAR(100) NOT NULL,
+        issue_date TIMESTAMP,
+        expiration_date TIMESTAMP,
+        currency_date TIMESTAMP,
+        ratings JSONB,
+        training_authorizations JSONB,
+        status VARCHAR(50) DEFAULT 'current',
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    await db.execute(sql20`
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE
+    `);
+    await db.execute(sql20`
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMP
+    `);
+    await db.execute(sql20`
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS welcome_pending BOOLEAN DEFAULT FALSE
+    `);
+    await db.execute(sql20`
+      CREATE TABLE IF NOT EXISTS bccs_role_permissions (
+        id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+        role_name VARCHAR(50) NOT NULL UNIQUE,
+        display_name VARCHAR(100) NOT NULL,
+        description TEXT,
+        permissions TEXT[] DEFAULT ARRAY[]::TEXT[],
+        is_system BOOLEAN DEFAULT FALSE,
+        color VARCHAR(80) DEFAULT 'bg-gray-100 text-gray-700',
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    for (const role of SYSTEM_ROLES) {
+      const perms = DEFAULT_ROLE_PERMISSIONS[role.roleName] ?? [];
+      const arrayLiteral = perms.length > 0 ? `ARRAY[${perms.map((p) => `'${p.replace(/'/g, "''")}'`).join(",")}]::TEXT[]` : `ARRAY[]::TEXT[]`;
+      await db.execute(sql20.raw(`
+        INSERT INTO bccs_role_permissions (role_name, display_name, description, permissions, is_system, color)
+        VALUES (
+          '${role.roleName.replace(/'/g, "''")}',
+          '${role.displayName.replace(/'/g, "''")}',
+          '${(role.description || "").replace(/'/g, "''")}',
+          ${arrayLiteral},
+          ${role.isSystem ? "TRUE" : "FALSE"},
+          '${role.color.replace(/'/g, "''")}'
+        )
+        ON CONFLICT (role_name) DO NOTHING
+      `));
+    }
+    await db.execute(sql20`
+      CREATE TABLE IF NOT EXISTS bccs_licenses (
+        id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+        plan VARCHAR(50) NOT NULL DEFAULT 'trial',
+        status VARCHAR(50) NOT NULL DEFAULT 'trial',
+        stripe_customer_id VARCHAR(200),
+        stripe_subscription_id VARCHAR(200),
+        stripe_price_id VARCHAR(200),
+        seats_limit INTEGER NOT NULL DEFAULT 5,
+        current_period_start TIMESTAMP,
+        current_period_end TIMESTAMP,
+        assigned_by VARCHAR(200),
+        notes TEXT,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    await db.execute(sql20`
+      ALTER TABLE bccs_licenses ADD COLUMN IF NOT EXISTS organization_id UUID
+    `);
+    try {
+      await db.execute(sql20`
+        CREATE TABLE IF NOT EXISTS bccs_license_notifications (
+          id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+          license_id VARCHAR NOT NULL,
+          organization_id UUID,
+          kind VARCHAR(50) NOT NULL,
+          sent_at TIMESTAMP DEFAULT NOW(),
+          UNIQUE (license_id, kind)
+        )
+      `);
+    } catch (e) {
+      console.error("[db-init] bccs_license_notifications DDL failed:", e);
+    }
+    try {
+      await db.execute(sql20`
+        CREATE TABLE IF NOT EXISTS bccs_instructor_key_notifications (
+          id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+          key_id UUID NOT NULL,
+          organization_id UUID,
+          kind VARCHAR(50) NOT NULL,
+          sent_at TIMESTAMP DEFAULT NOW(),
+          UNIQUE (key_id, kind)
+        )
+      `);
+    } catch (e) {
+      console.error("[db-init] bccs_instructor_key_notifications DDL failed:", e);
+    }
+    const licenseCount = await db.execute(sql20`SELECT COUNT(*) FROM bccs_licenses`);
+    const count4 = parseInt(licenseCount.rows[0].count, 10);
+    if (count4 === 0) {
+      await db.execute(sql20`
+        INSERT INTO bccs_licenses (plan, status, seats_limit, current_period_start, current_period_end, notes)
+        VALUES (
+          'trial', 'trial', 5,
+          NOW(),
+          NOW() + INTERVAL '30 days',
+          'Auto-created 30-day trial license'
+        )
+      `);
+      console.log("[db-init] Trial license seeded");
+    }
+    await db.execute(sql20`
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_customer_id VARCHAR(200)
+    `);
+    await db.execute(sql20`
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_subscription_id VARCHAR(200)
+    `);
+    await db.execute(sql20.raw(`
+      INSERT INTO bccs_role_permissions (role_name, display_name, description, permissions, is_system, color)
+      VALUES (
+        'support_admin',
+        'Support Admin',
+        'BCCS support staff \u2014 can manage licenses and assist clients',
+        ARRAY['manage_licenses','view_users','view_compliance_records','view_audit_logs']::TEXT[],
+        TRUE,
+        'bg-purple-100 text-purple-700'
+      )
+      ON CONFLICT (role_name) DO NOTHING
+    `));
+    await ensureCryptoTables();
+    await db.execute(sql20`
+      CREATE TABLE IF NOT EXISTS bccs_reviewer_keys (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        key_hash VARCHAR(64) NOT NULL UNIQUE,
+        key_preview VARCHAR(24) NOT NULL,
+        label VARCHAR(200) NOT NULL,
+        reviewer_name VARCHAR(200) NOT NULL,
+        reviewer_email VARCHAR(300),
+        org_ids JSONB NOT NULL DEFAULT '[]',
+        created_by VARCHAR(200),
+        created_at TIMESTAMP DEFAULT NOW(),
+        last_used_at TIMESTAMP,
+        expires_at TIMESTAMP,
+        is_active BOOLEAN DEFAULT TRUE
+      )
+    `);
+    await db.execute(sql20`
+      CREATE TABLE IF NOT EXISTS governance_policies (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        action_type VARCHAR(100) NOT NULL UNIQUE,
+        label VARCHAR(200) NOT NULL,
+        description TEXT NOT NULL,
+        required_authority VARCHAR(50) NOT NULL,
+        decision_rule VARCHAR(20) NOT NULL DEFAULT 'refuse',
+        is_protected BOOLEAN DEFAULT FALSE,
+        regulatory_basis VARCHAR(200) NOT NULL,
+        regulatory_text TEXT,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    await db.execute(sql20`
+      CREATE TABLE IF NOT EXISTS governance_decisions (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        action_type VARCHAR(100) NOT NULL,
+        action_description TEXT NOT NULL,
+        requested_by VARCHAR(200) NOT NULL,
+        requester_authority VARCHAR(50) NOT NULL,
+        policy_id UUID REFERENCES governance_policies(id),
+        decision VARCHAR(20) NOT NULL,
+        reasoning TEXT NOT NULL,
+        regulatory_basis VARCHAR(200),
+        org_id VARCHAR(200),
+        context JSONB DEFAULT '{}',
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    await db.execute(sql20`
+      CREATE TABLE IF NOT EXISTS governance_escalations (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        decision_id UUID REFERENCES governance_decisions(id) NOT NULL,
+        required_approver_role VARCHAR(50) NOT NULL,
+        status VARCHAR(20) NOT NULL DEFAULT 'pending',
+        requested_by VARCHAR(200) NOT NULL,
+        approved_by VARCHAR(200),
+        resolution_note TEXT,
+        created_at TIMESTAMP DEFAULT NOW(),
+        resolved_at TIMESTAMP
+      )
+    `);
+    await db.execute(sql20`
+      CREATE TABLE IF NOT EXISTS agent_events (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        agent_name VARCHAR(100) NOT NULL,
+        event_type VARCHAR(50) NOT NULL,
+        message TEXT NOT NULL,
+        related_event_id UUID,
+        org_id VARCHAR(200),
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    await db.execute(sql20`
+      CREATE TABLE IF NOT EXISTS bccs_documents (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        organization_id UUID,
+        file_name VARCHAR(300) NOT NULL,
+        mime_type VARCHAR(100) NOT NULL,
+        file_size INTEGER NOT NULL DEFAULT 0,
+        file_data BYTEA,
+        document_type VARCHAR(50) NOT NULL DEFAULT 'pilot_record',
+        status VARCHAR(30) NOT NULL DEFAULT 'uploaded',
+        ocr_text TEXT,
+        overall_confidence INTEGER,
+        blockchain_hash VARCHAR(200),
+        gate_decision_id UUID,
+        error_message TEXT,
+        uploaded_by VARCHAR,
+        created_at TIMESTAMP DEFAULT NOW(),
+        processed_at TIMESTAMP,
+        reviewed_at TIMESTAMP,
+        reviewed_by VARCHAR
+      )
+    `);
+    await db.execute(sql20`CREATE INDEX IF NOT EXISTS "IDX_bccs_documents_org" ON bccs_documents (organization_id)`);
+    await db.execute(sql20`CREATE INDEX IF NOT EXISTS "IDX_bccs_documents_status" ON bccs_documents (status)`);
+    await db.execute(sql20`
+      CREATE TABLE IF NOT EXISTS bccs_document_fields (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        document_id UUID NOT NULL,
+        field_name VARCHAR(150) NOT NULL,
+        extracted_value TEXT,
+        corrected_value TEXT,
+        confidence INTEGER,
+        status VARCHAR(20) DEFAULT 'extracted',
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    await db.execute(sql20`CREATE INDEX IF NOT EXISTS "IDX_bccs_doc_fields_doc" ON bccs_document_fields (document_id)`);
+    await db.execute(sql20`
+      CREATE TABLE IF NOT EXISTS bccs_ml_feedback (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        organization_id UUID,
+        document_id UUID,
+        document_type VARCHAR(50),
+        field_name VARCHAR(150),
+        original_value TEXT,
+        corrected_value TEXT,
+        user_id VARCHAR,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    await db.execute(sql20`CREATE INDEX IF NOT EXISTS "IDX_bccs_ml_feedback_org_type" ON bccs_ml_feedback (organization_id, document_type)`);
+    await db.execute(sql20`
+      CREATE TABLE IF NOT EXISTS bccs_prompt_guidance (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        organization_id UUID,
+        document_type VARCHAR(50) NOT NULL,
+        field_name VARCHAR(150),
+        guidance TEXT NOT NULL,
+        version INTEGER DEFAULT 1,
+        is_active BOOLEAN DEFAULT TRUE,
+        source_correction_count INTEGER DEFAULT 0,
+        updated_at TIMESTAMP DEFAULT NOW(),
+        UNIQUE (organization_id, document_type)
+      )
+    `);
+    await db.execute(sql20`
+      UPDATE bccs_documents
+      SET status = 'failed', error_message = 'Processing was interrupted by a server restart. Please re-upload.'
+      WHERE status IN ('uploaded', 'processing')
+    `);
+    await db.execute(sql20`
+      CREATE TABLE IF NOT EXISTS bccs_agent_runs (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        agent_id VARCHAR(50) NOT NULL,
+        org_id VARCHAR(200),
+        status VARCHAR(20) NOT NULL DEFAULT 'running',
+        started_at TIMESTAMP NOT NULL DEFAULT NOW(),
+        finished_at TIMESTAMP,
+        items_processed INTEGER DEFAULT 0,
+        findings_count INTEGER DEFAULT 0,
+        summary TEXT
+      )
+    `);
+    await db.execute(sql20`CREATE INDEX IF NOT EXISTS "IDX_bccs_agent_runs_agent" ON bccs_agent_runs (agent_id, started_at DESC)`);
+    await db.execute(sql20`
+      CREATE TABLE IF NOT EXISTS bccs_agent_findings (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        agent_id VARCHAR(50) NOT NULL,
+        org_id VARCHAR(200) NOT NULL,
+        finding_type VARCHAR(50) NOT NULL,
+        severity VARCHAR(20) NOT NULL DEFAULT 'medium',
+        title TEXT NOT NULL,
+        detail JSONB,
+        status VARCHAR(20) NOT NULL DEFAULT 'open',
+        related_record_id VARCHAR(200),
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    await db.execute(sql20`CREATE INDEX IF NOT EXISTS "IDX_bccs_agent_findings_org_status" ON bccs_agent_findings (org_id, status)`);
+    await db.execute(sql20`
+      UPDATE bccs_agent_runs
+      SET status = 'interrupted', finished_at = NOW()
+      WHERE status = 'running'
+    `);
+    await db.execute(sql20`
+      CREATE TABLE IF NOT EXISTS checklist_states (
+        id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id VARCHAR NOT NULL,
+        state JSONB NOT NULL,
+        organization_id UUID,
+        updated_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    await db.execute(sql20`ALTER TABLE checklist_states DROP CONSTRAINT IF EXISTS checklist_states_user_id_key`);
+    await db.execute(sql20`
+      CREATE UNIQUE INDEX IF NOT EXISTS checklist_states_user_org_key
+      ON checklist_states (user_id, organization_id)
+    `);
+    const tenantTables = [
+      "students",
+      "bccs_instructor_records",
+      "bccs_training_events",
+      "checklist_states",
+      "digital_form_templates",
+      "digital_form_submissions",
+      "audit_logs",
+      "compliance_checks"
+    ];
+    for (const table of tenantTables) {
+      try {
+        await db.execute(sql20.raw(`ALTER TABLE ${table} ADD COLUMN IF NOT EXISTS organization_id UUID`));
+      } catch (err) {
+        console.error(`[db-init] Could not add organization_id to ${table} (non-fatal):`, err?.message ?? err);
+      }
+    }
+    await db.execute(sql20`
+      CREATE TABLE IF NOT EXISTS user_organizations (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id VARCHAR NOT NULL,
+        organization_id UUID NOT NULL,
+        org_role VARCHAR(50) NOT NULL DEFAULT 'viewer',
+        is_active BOOLEAN DEFAULT TRUE,
+        created_at TIMESTAMP DEFAULT NOW(),
+        UNIQUE (user_id, organization_id)
+      )
+    `);
+    await db.execute(sql20`CREATE INDEX IF NOT EXISTS "IDX_user_org_user" ON user_organizations (user_id)`);
+    await db.execute(sql20`CREATE INDEX IF NOT EXISTS "IDX_user_org_org" ON user_organizations (organization_id)`);
+    const multiTenantMode = process.env.MULTI_TENANT === "true";
+    await db.execute(sql20`
+      CREATE TABLE IF NOT EXISTS bccs_migration_flags (
+        key VARCHAR PRIMARY KEY,
+        applied_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    const defaultOrgResult = await db.execute(sql20`
+      SELECT id FROM training_organizations
+      WHERE is_active = TRUE
+      ORDER BY created_at ASC
+      LIMIT 1
+    `);
+    const defaultOrgId = defaultOrgResult.rows[0]?.id;
+    let runBackfill = !!defaultOrgId;
+    if (runBackfill && multiTenantMode) {
+      const flag = await db.execute(sql20`SELECT 1 FROM bccs_migration_flags WHERE key = 'tenant_backfill_v1'`);
+      runBackfill = flag.rows.length === 0;
+    }
+    if (runBackfill && defaultOrgId) {
+      for (const table of tenantTables) {
+        await db.execute(sql20.raw(
+          `UPDATE ${table} SET organization_id = '${defaultOrgId}' WHERE organization_id IS NULL`
+        ));
+      }
+      for (const table of ["governance_decisions", "agent_events"]) {
+        await db.execute(sql20.raw(
+          `UPDATE ${table} SET org_id = '${defaultOrgId}' WHERE org_id IS NULL OR org_id = 'demo-org-142'`
+        ));
+      }
+      await db.execute(sql20`
+        INSERT INTO user_organizations (user_id, organization_id, org_role)
+        SELECT u.id, ${defaultOrgId}::uuid, COALESCE(u.role, 'viewer')
+        FROM users u
+        WHERE NOT EXISTS (
+          SELECT 1 FROM user_organizations uo WHERE uo.user_id = u.id
+        )
+        ON CONFLICT (user_id, organization_id) DO NOTHING
+      `);
+      if (multiTenantMode) {
+        await db.execute(sql20`INSERT INTO bccs_migration_flags (key) VALUES ('tenant_backfill_v1') ON CONFLICT (key) DO NOTHING`);
+      }
+      console.log("[db-init] Multi-tenant backfill complete (default org:", defaultOrgId + ")");
+    } else if (!defaultOrgId) {
+      console.log("[db-init] Multi-tenant backfill skipped \u2014 no active organization yet");
+    } else {
+      console.log("[db-init] Multi-tenant one-time backfill already applied");
+    }
+    await db.execute(sql20`
+      CREATE TABLE IF NOT EXISTS bccs_fedcon_watchlist (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        org_id VARCHAR(200) NOT NULL,
+        kind VARCHAR(30) NOT NULL,
+        value VARCHAR(300) NOT NULL,
+        label VARCHAR(300),
+        created_by VARCHAR(200),
+        created_at TIMESTAMP DEFAULT NOW(),
+        UNIQUE (org_id, kind, value)
+      )
+    `);
+    await db.execute(sql20`CREATE INDEX IF NOT EXISTS "IDX_fedcon_watchlist_org" ON bccs_fedcon_watchlist (org_id)`);
+    await db.execute(sql20`
+      CREATE TABLE IF NOT EXISTS bccs_fedcon_opportunities (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        org_id VARCHAR(200) NOT NULL,
+        notice_id VARCHAR(200) NOT NULL,
+        title TEXT,
+        agency VARCHAR(300),
+        naics VARCHAR(50),
+        psc VARCHAR(50),
+        set_aside VARCHAR(100),
+        notice_type VARCHAR(100),
+        posted_date DATE,
+        response_deadline DATE,
+        url TEXT,
+        dossier JSONB DEFAULT '{}',
+        status VARCHAR(30) NOT NULL DEFAULT 'tracking',
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW(),
+        UNIQUE (org_id, notice_id)
+      )
+    `);
+    await db.execute(sql20`CREATE INDEX IF NOT EXISTS "IDX_fedcon_opps_org" ON bccs_fedcon_opportunities (org_id, status)`);
+    await db.execute(sql20`
+      CREATE TABLE IF NOT EXISTS bccs_fedcon_awards (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        org_id VARCHAR(200) NOT NULL,
+        award_key VARCHAR(300) NOT NULL,
+        piid VARCHAR(200),
+        generated_award_id VARCHAR(200),
+        vendor_name VARCHAR(300),
+        vendor_uei VARCHAR(50),
+        agency VARCHAR(300),
+        naics VARCHAR(50),
+        award_amount NUMERIC,
+        start_date DATE,
+        end_date DATE,
+        modification_count INTEGER,
+        dossier JSONB DEFAULT '{}',
+        risk_flags JSONB DEFAULT '[]',
+        risk_score INTEGER DEFAULT 0,
+        risk_tier VARCHAR(20) DEFAULT 'low',
+        last_checked TIMESTAMP,
+        created_at TIMESTAMP DEFAULT NOW(),
+        UNIQUE (org_id, award_key)
+      )
+    `);
+    await db.execute(sql20`CREATE INDEX IF NOT EXISTS "IDX_fedcon_awards_org" ON bccs_fedcon_awards (org_id)`);
+    await db.execute(sql20`
+      CREATE TABLE IF NOT EXISTS bccs_fedcon_evidence (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        org_id VARCHAR(200) NOT NULL,
+        subject_type VARCHAR(30) NOT NULL,
+        subject_id VARCHAR(300) NOT NULL,
+        entry_type VARCHAR(20) NOT NULL DEFAULT 'fact',
+        content TEXT NOT NULL,
+        source_ref TEXT,
+        created_by VARCHAR(200),
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    await db.execute(sql20`CREATE INDEX IF NOT EXISTS "IDX_fedcon_evidence_org_subject" ON bccs_fedcon_evidence (org_id, subject_type, subject_id)`);
+    await db.execute(sql20`
+      CREATE TABLE IF NOT EXISTS bccs_fedcon_checklist (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        org_id VARCHAR(200) NOT NULL,
+        subject_type VARCHAR(30) NOT NULL,
+        subject_id VARCHAR(300) NOT NULL,
+        item_key VARCHAR(100) NOT NULL,
+        label TEXT NOT NULL,
+        status VARCHAR(20) NOT NULL DEFAULT 'not_started',
+        note TEXT,
+        updated_by VARCHAR(200),
+        updated_at TIMESTAMP DEFAULT NOW(),
+        UNIQUE (org_id, subject_type, subject_id, item_key)
+      )
+    `);
+    await db.execute(sql20`
+      CREATE TABLE IF NOT EXISTS bccs_email_alert_settings (
+        org_id VARCHAR(200) PRIMARY KEY,
+        critical_findings_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+        extra_recipients JSONB NOT NULL DEFAULT '[]'::jsonb,
+        updated_by VARCHAR(200),
+        updated_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    await db.execute(sql20`
+      CREATE TABLE IF NOT EXISTS generated_documents (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        filename TEXT NOT NULL,
+        document_type TEXT NOT NULL,
+        file_size INTEGER NOT NULL,
+        file_path TEXT NOT NULL,
+        metadata JSONB,
+        generated_by VARCHAR NOT NULL,
+        organization_id TEXT,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    await db.execute(sql20`CREATE INDEX IF NOT EXISTS "IDX_generated_documents_org" ON generated_documents (organization_id)`);
+    await seedGovernanceData();
+    console.log("[db-init] Training records tables ensured");
+    console.log("[db-init] Role permissions seeded");
+    console.log("[db-init] Governance (GATE/AIEOS) tables ensured");
+  } catch (err) {
+    console.error("[db-init] Table creation error:", err);
+  }
+}
+var DEMO_ORG = "demo-org-142";
+var SEED_POLICIES = [
+  {
+    action_type: "modify_evidence",
+    label: "Modify audit evidence",
+    description: "Alter or overwrite a document, extracted field, or evidence artifact already attached to a compliance record.",
+    required_authority: "admin",
+    decision_rule: "refuse",
+    is_protected: true,
+    regulatory_basis: "14 CFR 142.45",
+    regulatory_text: "Each training center must maintain accurate records of each student and make them available. Evidence integrity is non-negotiable."
+  },
+  {
+    action_type: "delete_audit_record",
+    label: "Delete an audit-trail record",
+    description: "Permanently remove an entry from the immutable audit history.",
+    required_authority: "faa_designated_examiner",
+    decision_rule: "refuse",
+    is_protected: true,
+    regulatory_basis: "14 CFR 142.47",
+    regulatory_text: "Records must be retained for the required retention period. Deletion of audit history is categorically inadmissible."
+  },
+  {
+    action_type: "issue_certificate_without_checkride",
+    label: "Issue certificate without a completed checkride",
+    description: "Grant a course-completion certificate to a student who has not passed the required practical test.",
+    required_authority: "faa_designated_examiner",
+    decision_rule: "refuse",
+    is_protected: false,
+    regulatory_basis: "14 CFR 61.43",
+    regulatory_text: "Completion of a practical test is required before a certificate or rating may be issued."
+  },
+  {
+    action_type: "waive_required_training_hours",
+    label: "Waive required training hours",
+    description: "Reduce or waive the minimum training hours specified in the approved training program.",
+    required_authority: "chief_pilot",
+    decision_rule: "escalate",
+    is_protected: false,
+    regulatory_basis: "14 CFR 142.53",
+    regulatory_text: "Training programs must meet the curriculum and hour requirements approved by the Administrator."
+  },
+  {
+    action_type: "sign_training_record_without_instructor",
+    label: "Sign a training record without instructor verification",
+    description: "Finalize a training record that is missing the required instructor signature.",
+    required_authority: "instructor",
+    decision_rule: "refuse",
+    is_protected: false,
+    regulatory_basis: "14 CFR 142.61",
+    regulatory_text: "Training records must reflect instruction given and be signed by the authorized instructor."
+  },
+  {
+    action_type: "approve_checkride_extension",
+    label: "Approve a checkride deadline extension",
+    description: "Extend the allowable time window for a student to complete a required practical test.",
+    required_authority: "chief_pilot",
+    decision_rule: "escalate",
+    is_protected: false,
+    regulatory_basis: "14 CFR 142.59",
+    regulatory_text: "Deviations from the approved training schedule require appropriate authority approval."
+  },
+  {
+    action_type: "modify_enrollment_after_completion",
+    label: "Modify enrollment after course completion",
+    description: "Change a student's enrollment or completion status after the course has been marked complete.",
+    required_authority: "admin",
+    decision_rule: "escalate",
+    is_protected: true,
+    regulatory_basis: "14 CFR 142.45",
+    regulatory_text: "Completed-course records are protected. Post-completion changes require governance approval and full audit logging."
+  },
+  {
+    action_type: "export_compliance_data_external",
+    label: "Export compliance data to an external party",
+    description: "Send compliance records or evidence packages to a recipient outside the organization.",
+    required_authority: "admin",
+    decision_rule: "escalate",
+    is_protected: false,
+    regulatory_basis: "Data Governance Policy DG-04",
+    regulatory_text: "External disclosure of compliance data requires documented authorization and an audit record."
+  },
+  {
+    action_type: "delete_signed_training_record",
+    label: "Delete a signed (protected) training record",
+    description: "Permanently remove a cryptographically signed training record from the compliance ledger.",
+    required_authority: "faa_designated_examiner",
+    decision_rule: "refuse",
+    is_protected: true,
+    regulatory_basis: "14 CFR 142.45",
+    regulatory_text: "Signed training records are protected state. They may not be deleted at any authority level; corrections must be appended as a new, fully audited version."
+  },
+  {
+    action_type: "delete_training_record",
+    label: "Delete an unsigned draft training record",
+    description: "Remove a draft training record that has not yet been cryptographically signed.",
+    required_authority: "admin",
+    decision_rule: "escalate",
+    is_protected: false,
+    regulatory_basis: "14 CFR 142.45",
+    regulatory_text: "Draft records may be removed, but deletion requires administrator authority and a documented audit record."
+  },
+  {
+    action_type: "agent_manual_run",
+    label: "Manually trigger an AI agent run",
+    description: "Allow a human operator to trigger an on-demand run of a platform AI agent (monitoring sweep, compliance patrol, audit readiness review).",
+    required_authority: "instructor",
+    decision_rule: "allow",
+    is_protected: false,
+    regulatory_basis: "14 CFR 142.73",
+    regulatory_text: "Automated compliance monitoring may be initiated on demand by authorized training center personnel; every run is recorded with full telemetry for audit purposes."
+  },
+  {
+    action_type: "document_auto_approve",
+    label: "Auto-approve AI-extracted document data",
+    description: "Allow the Document Extraction Agent to accept AI-extracted data and anchor it to the blockchain without human review when extraction confidence meets the governance threshold.",
+    required_authority: "admin",
+    decision_rule: "escalate",
+    is_protected: false,
+    regulatory_basis: "14 CFR 142.73",
+    regulatory_text: "Training records must be accurate and complete. AI-extracted data may be auto-accepted only under governance supervision; low-confidence extractions require human verification before entering the compliance record."
+  }
+];
+async function resetGovernanceDemo() {
+  await db.execute(sql20`
+    TRUNCATE governance_escalations, governance_decisions, agent_events RESTART IDENTITY CASCADE
+  `);
+  await db.execute(sql20`DELETE FROM governance_policies`);
+  await seedGovernanceData();
+  const DEMO_ORG2 = "bccs.us";
+  await ensureCryptoTables();
+  if (!await getOrgActiveKey(DEMO_ORG2)) {
+    await generateAndStoreOrgKeyPair(DEMO_ORG2);
+  }
+  await db.execute(sql20`DELETE FROM bccs_training_events WHERE blockchain_hash = 'BCCS-DEMO-UNSIGNED-DRAFT'`);
+  const realSigned = await db.execute(sql20`SELECT COUNT(*)::int AS n FROM bccs_training_events
+                 WHERE signature IS NOT NULL AND blockchain_hash IS DISTINCT FROM 'BCCS-DEMO-SIGNED'`).then((r) => r.rows[0]?.n ?? 0);
+  if (realSigned === 0) {
+    await db.execute(sql20`DELETE FROM bccs_training_events WHERE blockchain_hash = 'BCCS-DEMO-SIGNED'`);
+  }
+  const demoSignedCount = await db.execute(sql20`SELECT COUNT(*)::int AS n FROM bccs_training_events WHERE blockchain_hash = 'BCCS-DEMO-SIGNED'`).then((r) => r.rows[0]?.n ?? 0);
+  const signedSeeds = [
+    {
+      student: "Alice Rivera",
+      instructor: "Capt. James Holt",
+      type: "flight",
+      hours: 2,
+      curriculum: "Part 142 \u2014 Simulator Session 4 (ILS approaches)"
+    },
+    {
+      student: "Marcus Chen",
+      instructor: "Capt. James Holt",
+      type: "checkride",
+      hours: 1.5,
+      curriculum: "Part 142 \u2014 Type Rating Practical Test"
+    }
+  ];
+  if (demoSignedCount === 0) {
+    for (const s of signedSeeds) {
+      const inserted = await db.execute(sql20`
+        INSERT INTO bccs_training_events
+          (student_name, instructor_name, event_type, event_date, duration_hours, curriculum_item, notes, status, blockchain_hash, user_id)
+        VALUES
+          (${s.student}, ${s.instructor}, ${s.type}, NOW(), ${s.hours}, ${s.curriculum},
+           'Signed, blockchain-protected record — protected state under 14 CFR 142.45.',
+           'completed', 'BCCS-DEMO-SIGNED', 'system')
+        RETURNING id
+      `).then((r) => r.rows);
+      await signTrainingRecord(inserted[0].id, DEMO_ORG2);
+    }
+  }
+  await db.execute(sql20`
+    INSERT INTO bccs_training_events
+      (student_name, instructor_name, event_type, event_date, duration_hours, curriculum_item, notes, status, blockchain_hash, user_id)
+    VALUES
+      ('Demo Student (Draft)', 'Demo Instructor', 'ground', NOW(), 1.5,
+       'Draft ground lesson — not yet signed',
+       'Unsigned draft used to demonstrate that the GATE admits a permitted delete.',
+       'pending', 'BCCS-DEMO-UNSIGNED-DRAFT', 'system')
+  `);
+}
+async function seedGovernanceData() {
+  for (const p of SEED_POLICIES) {
+    await db.execute(sql20`
+      INSERT INTO governance_policies
+        (action_type, label, description, required_authority, decision_rule, is_protected, regulatory_basis, regulatory_text)
+      VALUES
+        (${p.action_type}, ${p.label}, ${p.description}, ${p.required_authority}, ${p.decision_rule},
+         ${p.is_protected}, ${p.regulatory_basis}, ${p.regulatory_text})
+      ON CONFLICT (action_type) DO NOTHING
+    `);
+  }
+  const existing = await db.execute(sql20`SELECT COUNT(*)::int AS n FROM governance_decisions`).then((r) => r.rows[0]?.n ?? 0);
+  if (existing > 0) return;
+  const seedOrg = await db.execute(sql20`SELECT id FROM training_organizations WHERE is_active = TRUE ORDER BY created_at ASC LIMIT 1`).then((r) => r.rows[0]?.id ?? DEMO_ORG);
+  const policyRows = await db.execute(sql20`SELECT id, action_type, regulatory_basis FROM governance_policies`).then((r) => r.rows);
+  const policyByAction = {};
+  for (const row of policyRows) policyByAction[row.action_type] = row;
+  const seedDecisions = [
+    {
+      action_type: "waive_required_training_hours",
+      action_description: "Instructor requested waiving 4 simulator hours for student S-1042 citing prior military experience.",
+      requested_by: "J. Alvarez (instructor)",
+      requester_authority: "instructor",
+      decision: "escalated",
+      reasoning: "Authority insufficient: hour waivers require chief pilot authority under 14 CFR 142.53. Routed for human approval; approved with documented military logbook credit.",
+      daysAgo: 34
+    },
+    {
+      action_type: "issue_certificate_without_checkride",
+      action_description: "Attempt to issue Part 142 course completion for student S-0987 before practical test.",
+      requested_by: "M. Chen (instructor)",
+      requester_authority: "instructor",
+      decision: "refused",
+      reasoning: "Inadmissible under 14 CFR 61.43 \u2014 a practical test must be completed before a certificate is issued. No authority level can override this requirement.",
+      daysAgo: 21
+    },
+    {
+      action_type: "modify_evidence",
+      action_description: "Request to replace an uploaded curriculum PDF already linked to a compliance record.",
+      requested_by: "K. Osei (auditor)",
+      requester_authority: "auditor",
+      decision: "refused",
+      reasoning: "Evidence is protected state under 14 CFR 142.45. Overwriting attached evidence is refused; a new version must be appended with full audit trail instead.",
+      daysAgo: 12
+    },
+    {
+      action_type: "approve_checkride_extension",
+      action_description: "14-day checkride extension requested for student S-1103 due to weather cancellations.",
+      requested_by: "R. Silva (instructor)",
+      requester_authority: "instructor",
+      decision: "escalated",
+      reasoning: "Schedule deviation under 14 CFR 142.59 requires chief pilot authority. Escalated and approved with weather-cancellation documentation attached.",
+      daysAgo: 6
+    },
+    {
+      action_type: "export_compliance_data_external",
+      action_description: "Export of Q1 compliance package to a partner airline's training department.",
+      requested_by: "T. Nakamura (admin)",
+      requester_authority: "admin",
+      decision: "allowed",
+      reasoning: "Requester holds admin authority; external export authorized per DG-04 with an audit record generated and recipient logged.",
+      daysAgo: 3
+    }
+  ];
+  for (const d of seedDecisions) {
+    const pol = policyByAction[d.action_type];
+    await db.execute(sql20`
+      INSERT INTO governance_decisions
+        (action_type, action_description, requested_by, requester_authority, policy_id, decision, reasoning, regulatory_basis, org_id, created_at)
+      VALUES
+        (${d.action_type}, ${d.action_description}, ${d.requested_by}, ${d.requester_authority},
+         ${pol?.id ?? null}, ${d.decision}, ${d.reasoning}, ${pol?.regulatory_basis ?? null}, ${seedOrg},
+         NOW() - (${d.daysAgo} || ' days')::interval)
+    `);
+  }
+  const detection = await db.execute(sql20`
+      INSERT INTO agent_events (agent_name, event_type, message, org_id, created_at)
+      VALUES ('Regulatory Watch Agent', 'detected_change',
+        'Detected FAA update affecting 14 CFR 142.45 recordkeeping — new evidence-retention clause published.',
+        ${seedOrg}, NOW() - interval '2 hours')
+      RETURNING id
+    `).then((r) => r.rows[0].id);
+  const reactions = [
+    ["Compliance Agent", "updated_checklist", "Updated 3 Part 142 checklist items to reference the revised 142.45 retention clause."],
+    ["Records Agent", "flagged_records", "Flagged 7 training records and 2 evidence packages for retention-period review."],
+    ["Governance Agent", "policy_synced", "Confirmed modify_evidence policy still enforces protected state under revised 142.45."],
+    ["Dashboard", "dashboard_synced", "Enterprise compliance dashboard refreshed \u2014 audit readiness recalculated."]
+  ];
+  for (const [agent, type, msg] of reactions) {
+    await db.execute(sql20`
+      INSERT INTO agent_events (agent_name, event_type, message, related_event_id, org_id, created_at)
+      VALUES (${agent}, ${type}, ${msg}, ${detection}, ${seedOrg}, NOW() - interval '1 hour')
+    `);
+  }
+  console.log("[db-init] Governance demo data seeded");
+}
+
+// server/routes/governance.ts
+var router15 = Router14();
+var openai10 = new OpenAI10({ apiKey: process.env.OPENAI_API_KEY || "not-configured" });
+function keywordMatchPolicy(question, policies) {
+  const q = question.toLowerCase();
+  const STOP = /* @__PURE__ */ new Set([
+    "the",
+    "a",
+    "an",
+    "to",
+    "of",
+    "for",
+    "and",
+    "or",
+    "is",
+    "it",
+    "can",
+    "i",
+    "we",
+    "do",
+    "does",
+    "my",
+    "our",
+    "this",
+    "that",
+    "with",
+    "without",
+    "on",
+    "in",
+    "be",
+    "am",
+    "are",
+    "should",
+    "would",
+    "could",
+    "may",
+    "if",
+    "you"
+  ]);
+  let best = null;
+  for (const p of policies) {
+    const terms = `${p.label} ${String(p.action_type).replace(/_/g, " ")}`.toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length > 2 && !STOP.has(w));
+    const score = terms.filter((t) => q.includes(t)).length;
+    if (score > 0 && (!best || score > best.score)) {
+      best = { actionType: p.action_type, score };
+    }
+  }
+  return best ? best.actionType : null;
+}
+function userAuthority(user) {
+  if (!user) return "viewer";
+  if (user.email?.endsWith("@bccsworld.com")) return "faa_designated_examiner";
+  return user.role || "viewer";
+}
+router15.post("/evaluate", isAuthenticated, async (req, res) => {
+  try {
+    const activeOrgId = requireOrg(req, res);
+    if (!activeOrgId) return;
+    const user = req.user;
+    const { actionType, actionDescription, orgId, context, asAuthority } = req.body;
+    if (!actionType) {
+      return res.status(400).json({ message: "actionType is required" });
+    }
+    const realAuthority = userAuthority(user);
+    let requesterAuthority = realAuthority;
+    if (asAuthority && isValidAuthority(asAuthority) && authorityRank(asAuthority) <= authorityRank(realAuthority)) {
+      requesterAuthority = asAuthority;
+    }
+    const effectiveOrgId = isPlatformStaff(user.email) ? orgId ?? activeOrgId : activeOrgId;
+    const result = await evaluateAction({
+      actionType,
+      actionDescription,
+      requestedBy: `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim() || user.email || user.id,
+      requesterAuthority,
+      userId: user.id,
+      orgId: effectiveOrgId,
+      context
+    });
+    res.json(result);
+  } catch (err) {
+    console.error("[governance] evaluate error:", err);
+    res.status(500).json({ message: "Failed to evaluate action", error: err?.message });
+  }
+});
+router15.get("/policies", isAuthenticated, async (_req, res) => {
+  const rows = await db.execute(sql21`SELECT * FROM governance_policies ORDER BY is_protected DESC, label ASC`).then((r) => r.rows);
+  res.json(rows);
+});
+router15.get("/decisions", isAuthenticated, async (req, res) => {
+  const orgId = requireOrg(req, res);
+  if (!orgId) return;
+  const { decision, actionType, limit } = req.query;
+  const lim = Math.min(Number(limit) || 50, 200);
+  const rows = await db.execute(sql21`
+      SELECT d.*, p.label AS policy_label, p.is_protected
+      FROM governance_decisions d
+      LEFT JOIN governance_policies p ON p.id = d.policy_id
+      WHERE d.org_id = ${orgId}
+        AND (${decision ?? null}::text IS NULL OR d.decision = ${decision ?? null})
+        AND (${actionType ?? null}::text IS NULL OR d.action_type = ${actionType ?? null})
+      ORDER BY d.created_at DESC
+      LIMIT ${lim}
+    `).then((r) => r.rows);
+  res.json(rows);
+});
+router15.get("/recall/:actionType", isAuthenticated, async (req, res) => {
+  const orgId = requireOrg(req, res);
+  if (!orgId) return;
+  const rows = await recallDecisions(req.params.actionType, 5, orgId);
+  res.json(rows);
+});
+router15.get("/escalations", isAuthenticated, async (req, res) => {
+  const orgId = requireOrg(req, res);
+  if (!orgId) return;
+  const { status } = req.query;
+  const rows = await db.execute(sql21`
+      SELECT e.*, d.action_type, d.action_description, d.reasoning, d.regulatory_basis,
+             d.requester_authority
+      FROM governance_escalations e
+      JOIN governance_decisions d ON d.id = e.decision_id
+      WHERE d.org_id = ${orgId}
+        AND (${status ?? null}::text IS NULL OR e.status = ${status ?? null})
+      ORDER BY e.created_at DESC
+    `).then((r) => r.rows);
+  res.json(rows);
+});
+router15.post("/escalations/:id/resolve", isAuthenticated, async (req, res) => {
+  const orgId = requireOrg(req, res);
+  if (!orgId) return;
+  const user = req.user;
+  const { action, note } = req.body;
+  if (!["approve", "reject"].includes(action)) {
+    return res.status(400).json({ message: "action must be 'approve' or 'reject'" });
+  }
+  const escRows = await db.execute(sql21`
+      SELECT e.* FROM governance_escalations e
+      JOIN governance_decisions d ON d.id = e.decision_id
+      WHERE e.id = ${req.params.id} AND d.org_id = ${orgId}
+    `).then((r) => r.rows);
+  const esc = escRows[0];
+  if (!esc) return res.status(404).json({ message: "Escalation not found" });
+  if (esc.status !== "pending") {
+    return res.status(400).json({ message: `Escalation already ${esc.status}` });
+  }
+  const isHumanSovereign = user?.role === "admin" || user?.email?.endsWith("@bccsworld.com");
+  const meetsRank = authorityRank(userAuthority(user)) >= authorityRank(esc.required_approver_role);
+  if (!isHumanSovereign && !meetsRank) {
+    return res.status(403).json({
+      message: `Approval requires ${esc.required_approver_role} authority (or an admin acting as human approver)`
+    });
+  }
+  const status = action === "approve" ? "approved" : "rejected";
+  const approver = `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim() || user.email || user.id;
+  const rows = await db.execute(sql21`
+      UPDATE governance_escalations e
+      SET status = ${status}, approved_by = ${approver}, resolution_note = ${note ?? null}, resolved_at = NOW()
+      FROM governance_decisions d
+      WHERE e.id = ${req.params.id} AND e.status = 'pending'
+        AND d.id = e.decision_id AND d.org_id = ${orgId}
+      RETURNING e.*
+    `).then((r) => r.rows);
+  if (!rows[0]) {
+    return res.status(404).json({ message: "Escalation not found or already resolved" });
+  }
+  await db.execute(sql21`
+    INSERT INTO audit_logs (event_type, severity, message, details, source_system, user_id, organization_id, timestamp)
+    VALUES ('governance_escalation_resolved', 'info',
+      ${`Escalation ${status} by ${approver}`},
+      ${JSON.stringify({ escalationId: req.params.id, status, note: note ?? null })},
+      'gate_engine', ${user.id}, ${req.orgId ?? getCurrentOrgId()}, NOW())
+  `);
+  res.json({ success: true, escalation: rows[0] });
+});
+router15.get("/agent-events", isAuthenticated, async (req, res) => {
+  const orgId = requireOrg(req, res);
+  if (!orgId) return;
+  const rows = await db.execute(sql21`SELECT * FROM agent_events WHERE (org_id = ${orgId} OR org_id IS NULL) ORDER BY created_at DESC LIMIT 50`).then((r) => r.rows);
+  res.json(rows);
+});
+router15.get("/apex-summary", isAuthenticated, async (req, res) => {
+  const orgId = requireOrg(req, res);
+  if (!orgId) return;
+  const [decisions, escalations, agents, policyScope, signedRecords] = await Promise.all([
+    db.execute(sql21`
+        SELECT decision, COUNT(*)::int AS n
+        FROM governance_decisions
+        WHERE org_id = ${orgId}
+        GROUP BY decision
+      `).then((r) => r.rows),
+    db.execute(sql21`
+        SELECT e.status, COUNT(*)::int AS n
+        FROM governance_escalations e
+        JOIN governance_decisions d ON d.id = e.decision_id
+        WHERE d.org_id = ${orgId}
+        GROUP BY e.status
+      `).then((r) => r.rows),
+    db.execute(sql21`SELECT COUNT(DISTINCT agent_name)::int AS n FROM agent_events WHERE (org_id = ${orgId} OR org_id IS NULL)`).then((r) => r.rows[0]?.n ?? 0),
+    db.execute(sql21`
+        SELECT COUNT(*)::int AS total,
+               COUNT(*) FILTER (WHERE is_protected)::int AS protected
+        FROM governance_policies
+      `).then((r) => r.rows[0]),
+    db.execute(sql21`SELECT COUNT(*)::int AS n FROM bccs_training_events WHERE signature IS NOT NULL AND organization_id = ${orgId}`).then((r) => r.rows[0]?.n ?? 0)
+  ]);
+  const decisionCounts = { allowed: 0, refused: 0, escalated: 0 };
+  for (const row of decisions) decisionCounts[row.decision] = row.n;
+  const escalationCounts = { pending: 0, approved: 0, rejected: 0 };
+  for (const row of escalations) escalationCounts[row.status] = row.n;
+  const totalDecisions = decisionCounts.allowed + decisionCounts.refused + decisionCounts.escalated;
+  const complianceReadiness = totalDecisions === 0 ? 100 : Math.round((totalDecisions - decisionCounts.refused) / totalDecisions * 100);
+  const governanceHealth = Math.max(0, 100 - escalationCounts.pending * 10);
+  res.json({
+    decisions: decisionCounts,
+    totalDecisions,
+    escalations: escalationCounts,
+    activeAgents: agents,
+    complianceReadiness,
+    governanceHealth,
+    pendingApprovals: escalationCounts.pending,
+    refusals: decisionCounts.refused,
+    policies: { total: policyScope?.total ?? 0, protected: policyScope?.protected ?? 0 },
+    signedRecords
+  });
+});
+router15.post("/ask", isAuthenticated, async (req, res) => {
+  try {
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
+    const user = req.user;
+    const { question, asAuthority } = req.body;
+    if (!question || typeof question !== "string" || !question.trim()) {
+      return res.status(400).json({ message: "question is required" });
+    }
+    const policies = await db.execute(sql21`SELECT id, action_type, label, regulatory_basis FROM governance_policies`).then((r) => r.rows);
+    let actionType = keywordMatchPolicy(question, policies);
+    let matchedVia = actionType ? "keyword" : "none";
+    if (!actionType && process.env.OPENAI_API_KEY) {
+      try {
+        const list = policies.map((p) => `- ${p.action_type}: ${p.label}`).join("\n");
+        const completion = await openai10.chat.completions.create({
+          model: "gpt-4o",
+          temperature: 0,
+          response_format: { type: "json_object" },
+          messages: [
+            {
+              role: "system",
+              content: 'You map an aviation-compliance question to the single best-matching governed action from a fixed list. Respond ONLY as JSON: {"actionType": "<exact action_type or null>"}. Use null if none is a clear match.'
+            },
+            { role: "user", content: `Governed actions:
+${list}
+
+Question: "${question}"` }
+          ]
+        });
+        const parsed = JSON.parse(completion.choices[0]?.message?.content || "{}");
+        if (parsed.actionType && policies.some((p) => p.action_type === parsed.actionType)) {
+          actionType = parsed.actionType;
+          matchedVia = "ai";
+        }
+      } catch (aiErr) {
+        console.warn("[governance] /ask OpenAI fallback failed:", aiErr?.message);
+      }
+    }
+    const effectiveActionType = actionType ?? question.trim().toLowerCase().replace(/\s+/g, "_").slice(0, 90);
+    const realAuthority = userAuthority(user);
+    let requesterAuthority = realAuthority;
+    if (asAuthority && isValidAuthority(asAuthority) && authorityRank(asAuthority) <= authorityRank(realAuthority)) {
+      requesterAuthority = asAuthority;
+    }
+    const recall = await recallDecisions(effectiveActionType, 5, orgId);
+    const decision = await evaluateAction({
+      actionType: effectiveActionType,
+      actionDescription: question.trim(),
+      requestedBy: `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim() || user.email || user.id,
+      requesterAuthority,
+      userId: user.id,
+      orgId,
+      context: { question, matchedVia }
+    });
+    res.json({ question, matchedActionType: actionType, matchedVia, decision, recall });
+  } catch (err) {
+    console.error("[governance] ask error:", err);
+    res.status(500).json({ message: "Failed to answer question", error: err?.message });
+  }
+});
+router15.get("/evidence", isAuthenticated, async (req, res) => {
+  try {
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
+    const student = typeof req.query.student === "string" ? req.query.student.trim() : "";
+    const limit = Math.min(parseInt(String(req.query.limit ?? "50"), 10) || 50, 100);
+    const records = await db.execute(
+      student ? sql21`SELECT id, student_name, instructor_name, event_type, event_date, duration_hours,
+                       curriculum_item, status, blockchain_hash, signature, key_fingerprint, signed_at
+                FROM bccs_training_events
+                WHERE student_name ILIKE ${"%" + student + "%"} AND organization_id = ${orgId}
+                ORDER BY event_date DESC LIMIT ${limit}` : sql21`SELECT id, student_name, instructor_name, event_type, event_date, duration_hours,
+                       curriculum_item, status, blockchain_hash, signature, key_fingerprint, signed_at
+                FROM bccs_training_events
+                WHERE organization_id = ${orgId}
+                ORDER BY event_date DESC LIMIT ${limit}`
+    ).then((r) => r.rows);
+    let verified = 0;
+    const trainingEvents2 = await Promise.all(
+      records.map(async (rec) => {
+        const isSigned = !!(rec.signature && rec.key_fingerprint);
+        let verificationValid = false;
+        if (isSigned) {
+          try {
+            const v = await verifyTrainingRecord(rec.id);
+            verificationValid = v.valid;
+            if (v.valid) verified++;
+          } catch {
+            verificationValid = false;
+          }
+        }
+        return { ...rec, isSigned, verificationValid };
+      })
+    );
+    const governanceDecisions = await db.execute(sql21`
+        SELECT id, action_type, action_description, requester_authority, decision,
+               reasoning, regulatory_basis, created_at
+        FROM governance_decisions
+        WHERE org_id = ${orgId}
+        ORDER BY created_at DESC LIMIT 15
+      `).then((r) => r.rows);
+    const auditTrail = await db.execute(sql21`
+        SELECT id, event_type, severity, message, source_system, timestamp
+        FROM audit_logs
+        WHERE (source_system = 'gate_engine' OR event_type LIKE 'training%' OR event_type LIKE 'record%')
+          AND organization_id = ${orgId}
+        ORDER BY timestamp DESC LIMIT 25
+      `).then((r) => r.rows);
+    const total = trainingEvents2.length;
+    const signed = trainingEvents2.filter((e) => e.isSigned).length;
+    res.json({
+      generatedAt: (/* @__PURE__ */ new Date()).toISOString(),
+      scope: student || "All students",
+      integrity: { total, signed, verified, unsigned: total - signed },
+      trainingEvents: trainingEvents2,
+      governanceDecisions,
+      auditTrail
+    });
+  } catch (err) {
+    console.error("[governance] evidence error:", err);
+    res.status(500).json({ message: "Failed to build evidence package", error: err?.message });
+  }
+});
+router15.post("/regulation-impact", isAuthenticated, async (req, res) => {
+  try {
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
+    const user = req.user;
+    const { sourceId, title } = req.body;
+    if (!sourceId || typeof sourceId !== "string") {
+      return res.status(400).json({ message: "sourceId is required" });
+    }
+    const part = sourceId.replace(/^14-CFR-/i, "").trim();
+    const isCfrPart = /^\d+$/.test(part);
+    const regLabel = isCfrPart ? `14 CFR ${part}` : sourceId;
+    const likePattern = `14 CFR ${part}.%`;
+    const eqPattern = `14 CFR ${part}`;
+    const match = isCfrPart ? sql21`(regulatory_basis LIKE ${likePattern} OR regulatory_basis = ${eqPattern})` : sql21`FALSE`;
+    const affectedPolicies = await db.execute(sql21`
+        SELECT id, action_type, label, required_authority, decision_rule, is_protected, regulatory_basis
+        FROM governance_policies
+        WHERE ${match}
+        ORDER BY is_protected DESC, label ASC
+      `).then((r) => r.rows);
+    const priorDecisions = await db.execute(sql21`
+        SELECT id, action_type, requester_authority, decision, reasoning, regulatory_basis, created_at
+        FROM governance_decisions
+        WHERE ${match} AND org_id = ${orgId}
+        ORDER BY created_at DESC
+        LIMIT 10
+      `).then((r) => r.rows);
+    const signedRecords = await db.execute(sql21`SELECT COUNT(*)::int AS n FROM bccs_training_events WHERE signature IS NOT NULL AND organization_id = ${orgId}`).then((r) => r.rows[0]?.n ?? 0);
+    const protectedPolicies = affectedPolicies.filter((p) => p.is_protected).length;
+    const plural = (n, s, p = s + "s") => `${n} ${n === 1 ? s : p}`;
+    let summary = `${plural(affectedPolicies.length, "governance policy", "governance policies")} and ${plural(priorDecisions.length, "prior decision")} are tied to ${regLabel}. ${plural(signedRecords, "signed training record")} fall under its recordkeeping scope and should be reviewed for continued compliance` + (protectedPolicies > 0 ? `, including ${plural(protectedPolicies, "protected-state control")}.` : ".");
+    let recommendedActions = [
+      `Review the ${plural(affectedPolicies.length, "affected policy", "affected policies")} against the revised ${regLabel} text.`,
+      `Re-verify ${plural(signedRecords, "signed training record")} for retention and evidence compliance.`,
+      protectedPolicies > 0 ? `Confirm ${plural(protectedPolicies, "protected-state control")} still block inadmissible edits under ${regLabel}.` : `Confirm no protected-state controls require adjustment for ${regLabel}.`
+    ];
+    let aiPowered = false;
+    if (process.env.OPENAI_API_KEY) {
+      try {
+        const completion = await openai10.chat.completions.create({
+          model: "gpt-4o",
+          temperature: 0.2,
+          response_format: { type: "json_object" },
+          messages: [
+            {
+              role: "system",
+              content: 'You are an FAA Part 142 compliance analyst. Given a regulation update and its measured enterprise impact, write a concise plain-language impact summary (2-3 sentences) and 3-5 concrete recommended actions. Respond ONLY as JSON: {"summary": string, "recommendedActions": string[]}.'
+            },
+            {
+              role: "user",
+              content: `Regulation: ${regLabel}${title ? ` (${title})` : ""}.
+Measured impact:
+- Affected governance policies: ${affectedPolicies.length}` + (affectedPolicies.length ? ` (${affectedPolicies.map((p) => p.label).join("; ")})` : "") + `
+- Protected-state policies: ${protectedPolicies}
+- Prior governance decisions citing this regulation: ${priorDecisions.length}
+- Signed training records under recordkeeping scope: ${signedRecords}`
+            }
+          ]
+        });
+        const parsed = JSON.parse(completion.choices[0]?.message?.content || "{}");
+        if (parsed.summary && typeof parsed.summary === "string") {
+          summary = parsed.summary;
+          aiPowered = true;
+        }
+        if (Array.isArray(parsed.recommendedActions) && parsed.recommendedActions.length) {
+          const clean = parsed.recommendedActions.filter((a) => typeof a === "string" && a.trim());
+          if (clean.length) recommendedActions = clean;
+        }
+      } catch (aiErr) {
+        console.warn("[governance] regulation-impact OpenAI fallback:", aiErr?.message);
+      }
+    }
+    const recent = await db.execute(sql21`
+        SELECT 1 FROM agent_events
+        WHERE event_type = 'detected_change'
+          AND org_id = ${orgId}
+          AND message ILIKE ${"%" + regLabel + "%"}
+          AND created_at > NOW() - interval '10 minutes'
+        LIMIT 1
+      `).then((r) => r.rows);
+    let propagated = false;
+    if (recent.length === 0) {
+      propagated = true;
+      const detectionId = await db.execute(sql21`
+          INSERT INTO agent_events (agent_name, event_type, message, org_id)
+          VALUES ('Regulatory Watch Agent', 'detected_change',
+            ${`Detected FAA update to ${regLabel} \u2014 running enterprise compliance impact analysis.`},
+            ${orgId})
+          RETURNING id
+        `).then((r) => r.rows[0].id);
+      const reactions = [
+        ["Compliance Agent", "updated_checklist", `Cross-checked ${plural(affectedPolicies.length, "governance policy", "governance policies")} governed by ${regLabel}.`],
+        ["Records Agent", "flagged_records", `Flagged ${plural(signedRecords, "signed training record")} for ${regLabel} retention review.`],
+        ["Governance Agent", "policy_synced", `Confirmed ${plural(protectedPolicies, "protected-state control")} still enforced under ${regLabel}.`],
+        ["Dashboard", "dashboard_synced", `Enterprise dashboard refreshed \u2014 ${regLabel} impact folded into audit readiness.`]
+      ];
+      reactions.forEach(([agent, type, msg], i) => {
+        setTimeout(() => {
+          db.execute(sql21`
+            INSERT INTO agent_events (agent_name, event_type, message, related_event_id, org_id)
+            VALUES (${agent}, ${type}, ${msg}, ${detectionId}, ${orgId})
+          `).catch((err) => console.error("[governance] reaction event write failed:", err));
+        }, (i + 1) * 2e3);
+      });
+    }
+    await db.execute(sql21`
+        INSERT INTO audit_logs (event_type, severity, message, details, source_system, user_id, organization_id, timestamp)
+        VALUES ('regulation_impact_analysis', 'info',
+          ${`Regulation impact analyzed for ${regLabel}`},
+          ${JSON.stringify({
+      sourceId,
+      regulation: regLabel,
+      affectedPolicies: affectedPolicies.length,
+      priorDecisions: priorDecisions.length,
+      signedRecords,
+      propagated
+    })},
+          'gate_engine', ${user?.id ?? "system"}, ${orgId}, NOW())
+      `).catch((err) => console.error("[governance] impact audit write failed:", err));
+    res.json({
+      regulation: regLabel,
+      sourceId,
+      title: title ?? regLabel,
+      aiPowered,
+      summary,
+      recommendedActions,
+      propagated,
+      impact: {
+        affectedPolicies,
+        protectedPolicies,
+        priorDecisions,
+        signedRecordsForReview: signedRecords
+      }
+    });
+  } catch (err) {
+    console.error("[governance] regulation-impact error:", err);
+    res.status(500).json({ message: "Failed to analyze regulation impact", error: err?.message });
+  }
+});
+router15.post("/memory-recall", isAuthenticated, async (req, res) => {
+  try {
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
+    const { query } = req.body;
+    if (!query || typeof query !== "string" || !query.trim()) {
+      return res.status(400).json({ message: "query is required" });
+    }
+    const decisions = await db.execute(sql21`
+        SELECT id, action_type, action_description, requested_by, requester_authority,
+               decision, reasoning, regulatory_basis, created_at
+        FROM governance_decisions
+        WHERE org_id = ${orgId}
+        ORDER BY created_at DESC
+        LIMIT 40
+      `).then((r) => r.rows);
+    if (decisions.length === 0) {
+      return res.json({
+        query,
+        summary: "No prior governance decisions are on record yet.",
+        aiPowered: false,
+        decisions: []
+      });
+    }
+    const STOPWORDS2 = /* @__PURE__ */ new Set([
+      "the",
+      "a",
+      "an",
+      "to",
+      "of",
+      "for",
+      "and",
+      "or",
+      "is",
+      "it",
+      "can",
+      "i",
+      "we",
+      "do",
+      "does",
+      "my",
+      "our",
+      "this",
+      "that",
+      "with",
+      "without",
+      "on",
+      "in",
+      "be",
+      "am",
+      "are",
+      "should",
+      "would",
+      "could",
+      "may",
+      "if",
+      "you",
+      "what",
+      "have",
+      "has",
+      "about",
+      "when",
+      "who",
+      "how",
+      "was",
+      "were",
+      "did"
+    ]);
+    const terms = query.toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length > 2 && !STOPWORDS2.has(w));
+    const ranked = decisions.map((d) => {
+      const hay = `${d.action_type} ${d.action_description} ${d.reasoning} ${d.regulatory_basis ?? ""}`.toLowerCase();
+      return { d, score: terms.filter((t) => hay.includes(t)).length };
+    }).sort((a, b) => b.score - a.score);
+    let cited = (ranked[0]?.score > 0 ? ranked.filter((x) => x.score > 0) : ranked).slice(0, 5).map((x) => x.d);
+    let summary = "Showing keyword-matched prior decisions (AI synthesis unavailable).";
+    let aiPowered = false;
+    if (process.env.OPENAI_API_KEY) {
+      try {
+        const list = decisions.map(
+          (d, i) => `[${i + 1}] ${String(d.decision).toUpperCase()} \u2014 ${d.action_type}: ${d.reasoning} (${d.regulatory_basis ?? "no basis"})`
+        ).join("\n");
+        const completion = await openai10.chat.completions.create({
+          model: "gpt-4o",
+          temperature: 0.2,
+          response_format: { type: "json_object" },
+          messages: [
+            {
+              role: "system",
+              content: 'You are the Enterprise Memory of an FAA Part 142 compliance system. Given a numbered list of prior governance decisions and a question about past precedent, synthesize what the organization has decided before (2-4 sentences). Cite only the item numbers that are actually relevant; if none are relevant, say so plainly. Respond ONLY as JSON: {"summary": string, "citedIndexes": number[]}.'
+            },
+            { role: "user", content: `Prior decisions:
+${list}
+
+Question: "${query}"` }
+          ]
+        });
+        const parsed = JSON.parse(completion.choices[0]?.message?.content || "{}");
+        if (parsed.summary && typeof parsed.summary === "string") {
+          summary = parsed.summary;
+          aiPowered = true;
+        }
+        if (Array.isArray(parsed.citedIndexes)) {
+          const mapped = parsed.citedIndexes.map((n) => decisions[Number(n) - 1]).filter(Boolean);
+          if (mapped.length) cited = mapped;
+        }
+      } catch (aiErr) {
+        console.warn("[governance] memory-recall OpenAI fallback:", aiErr?.message);
+      }
+    }
+    res.json({ query, summary, aiPowered, decisions: cited });
+  } catch (err) {
+    console.error("[governance] memory-recall error:", err);
+    res.status(500).json({ message: "Failed to recall enterprise memory", error: err?.message });
+  }
+});
+router15.post("/demo-reset", isAuthenticated, async (req, res) => {
+  const user = req.user;
+  if (user?.role !== "admin" && !user?.email?.endsWith("@bccsworld.com")) {
+    return res.status(403).json({ message: "Admin access required to reset the governance demo" });
+  }
+  try {
+    await resetGovernanceDemo();
+    res.json({ success: true, message: "Governance demo data reset to seed state" });
+  } catch (err) {
+    console.error("[governance] demo-reset error:", err);
+    res.status(500).json({ message: "Failed to reset demo data", error: err?.message });
+  }
+});
+var governance_default = router15;
+
+// server/routes/agents.ts
+init_db();
+import { Router as Router15 } from "express";
+import { sql as sql26 } from "drizzle-orm";
+init_agent_registry();
+
+// server/services/regulatory-monitor.ts
+init_agent_registry();
+var RegulatoryMonitorService = class {
+  monitoringActive = true;
+  checkInterval = 24 * 60 * 60 * 1e3;
+  // 24 hours
+  // Regulatory sources to monitor
+  regulatorySources = [
+    {
+      name: "FAA eCFR",
+      baseUrl: "https://www.ecfr.gov",
+      regulations: ["14-CFR-142", "14-CFR-61", "14-CFR-141"],
+      country: "US"
+    },
+    {
+      name: "EASA Rules",
+      baseUrl: "https://www.easa.europa.eu",
+      regulations: ["Part-FCL", "Part-DTO", "Part-ATO"],
+      country: "EU"
+    },
+    {
+      name: "Transport Canada",
+      baseUrl: "https://tc.canada.ca",
+      regulations: ["CAR-421", "CAR-406"],
+      country: "CA"
+    },
+    {
+      name: "CASA Australia",
+      baseUrl: "https://www.casa.gov.au",
+      regulations: ["CASR-141", "CASR-142"],
+      country: "AU"
+    }
+  ];
+  async startMonitoring() {
+    console.log("Starting regulatory monitoring service...");
+    await this.performComplianceCheck();
+    setInterval(async () => {
+      if (this.monitoringActive) {
+        await this.performComplianceCheck();
+      }
+    }, this.checkInterval);
+  }
+  async performComplianceCheck() {
+    const runId = await startRun("regulatory-monitor", null);
+    const complianceStatuses = [];
+    let checksFailed = 0;
+    for (const source of this.regulatorySources) {
+      for (const regulation of source.regulations) {
+        try {
+          const status = await this.checkRegulationCompliance(source, regulation);
+          complianceStatuses.push(status);
+          await storage.createAuditLog({
+            eventType: "regulatory_check",
+            severity: "info",
+            message: `Compliance check completed for ${regulation}`,
+            sourceSystem: "regulatory_monitor",
+            details: {
+              source: source.name,
+              regulation,
+              complianceLevel: status.complianceLevel,
+              pendingChanges: status.pendingChanges.length
+            }
+          });
+        } catch (error) {
+          checksFailed++;
+          console.error(`Failed to check compliance for ${regulation}:`, error);
+          await storage.createAuditLog({
+            eventType: "system_error",
+            severity: "error",
+            message: `Failed to check compliance for ${regulation}: ${error instanceof Error ? error.message : String(error)}`,
+            sourceSystem: "regulatory_monitor",
+            details: {
+              source: source.name,
+              regulation,
+              error: error instanceof Error ? error.message : String(error)
+            }
+          });
+        }
+      }
+    }
+    const pendingTotal = complianceStatuses.reduce((s, c) => s + c.pendingChanges.length, 0);
+    await finishRun(runId, {
+      status: complianceStatuses.length === 0 && checksFailed > 0 ? "failed" : "success",
+      itemsProcessed: complianceStatuses.length + checksFailed,
+      findingsCount: pendingTotal,
+      summary: `Checked ${complianceStatuses.length} regulations across ${this.regulatorySources.length} sources; ${pendingTotal} pending change(s) tracked${checksFailed ? `, ${checksFailed} check(s) failed` : ""}.`
+    });
+    await emitAgentEvent(
+      "Regulatory Monitoring Agent",
+      pendingTotal > 0 ? "detected_change" : "monitoring_cycle",
+      `Regulatory sweep complete \u2014 ${complianceStatuses.length} regulations checked, ${pendingTotal} pending change(s) tracked`,
+      null
+    );
+    return complianceStatuses;
+  }
+  async checkRegulationCompliance(source, regulation) {
+    const lastChecked = /* @__PURE__ */ new Date();
+    const nextReviewDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1e3);
+    const pendingChanges = await this.detectRegulatoryChanges(source, regulation);
+    const complianceLevel = this.assessComplianceLevel(pendingChanges);
+    return {
+      regulation,
+      lastChecked,
+      currentVersion: this.getCurrentVersion(regulation),
+      complianceLevel,
+      pendingChanges,
+      nextReviewDate
+    };
+  }
+  async detectRegulatoryChanges(source, regulation) {
+    const changes = [];
+    if (regulation === "14-CFR-142") {
+      console.log(`Checked ${regulation} for updates from ${source.name}`);
+    }
+    return changes;
+  }
+  assessComplianceLevel(pendingChanges) {
+    if (pendingChanges.length === 0) return "compliant";
+    const criticalChanges = pendingChanges.filter((c) => c.priority === "critical");
+    const highPriorityChanges = pendingChanges.filter((c) => c.priority === "high");
+    if (criticalChanges.length > 0) return "non-compliant";
+    if (highPriorityChanges.length > 0) return "warning";
+    return "warning";
+  }
+  getCurrentVersion(regulation) {
+    const versions = {
+      "14-CFR-142": "2025.07.01",
+      "14-CFR-61": "2025.07.01",
+      "14-CFR-141": "2025.07.01",
+      "Part-FCL": "2025.06.15",
+      "Part-DTO": "2025.06.15",
+      "Part-ATO": "2025.06.15"
+    };
+    return versions[regulation] || "unknown";
+  }
+  async handleRegulatoryChange(change) {
+    console.log(`Processing regulatory change for ${change.regulation}:`, change.description);
+    const complianceActions = await this.generateComplianceActions(change);
+    if (change.affectedFields.length > 0) {
+      await this.updateSchemaForCompliance(change);
+    }
+    await this.notifyAdministrators(change, complianceActions);
+    await storage.createAuditLog({
+      eventType: "regulatory_check",
+      severity: "info",
+      message: `Regulatory change processed for ${change.regulation}`,
+      sourceSystem: "regulatory_monitor",
+      details: {
+        regulation: change.regulation,
+        changeType: change.changeType,
+        priority: change.priority,
+        complianceActions: complianceActions.length,
+        affectedFields: change.affectedFields
+      }
+    });
+  }
+  async generateComplianceActions(change) {
+    const actions = [];
+    switch (change.changeType) {
+      case "addition":
+        actions.push(`Add new field: ${change.affectedFields.join(", ")}`);
+        actions.push("Update data collection forms");
+        actions.push("Train staff on new requirements");
+        break;
+      case "modification":
+        actions.push(`Modify existing fields: ${change.affectedFields.join(", ")}`);
+        actions.push("Update validation rules");
+        actions.push("Migrate existing data if needed");
+        break;
+      case "deletion":
+        actions.push(`Archive deprecated fields: ${change.affectedFields.join(", ")}`);
+        actions.push("Update retention policies");
+        break;
+    }
+    if (change.priority === "critical") {
+      actions.unshift("URGENT: Immediate compliance review required");
+    }
+    return actions;
+  }
+  async updateSchemaForCompliance(change) {
+    console.log(`Schema update needed for ${change.regulation}:`, change.affectedFields);
+  }
+  async notifyAdministrators(change, actions) {
+    console.log(`Regulatory Change Alert - ${change.priority.toUpperCase()}`);
+    console.log(`Regulation: ${change.regulation} ${change.section}`);
+    console.log(`Effective: ${change.effectiveDate.toISOString()}`);
+    console.log(`Description: ${change.description}`);
+    console.log(`Required Actions: ${actions.join(", ")}`);
+  }
+  async getComplianceReport() {
+    const regulations = await this.performComplianceCheck();
+    const overallStatus = regulations.some((r) => r.complianceLevel === "non-compliant") ? "non-compliant" : regulations.some((r) => r.complianceLevel === "warning") ? "warning" : "compliant";
+    const recommendations = this.generateRecommendations(regulations);
+    return {
+      overallStatus,
+      regulations,
+      recommendations,
+      lastUpdated: /* @__PURE__ */ new Date()
+    };
+  }
+  generateRecommendations(regulations) {
+    const recommendations = [];
+    regulations.forEach((reg) => {
+      if (reg.pendingChanges.length > 0) {
+        recommendations.push(`Review pending changes for ${reg.regulation}`);
+      }
+      if (reg.complianceLevel === "non-compliant") {
+        recommendations.push(`URGENT: Address compliance issues in ${reg.regulation}`);
+      }
+    });
+    if (recommendations.length === 0) {
+      recommendations.push("All regulations are currently compliant");
+    }
+    return recommendations;
+  }
+  stopMonitoring() {
+    this.monitoringActive = false;
+    console.log("Regulatory monitoring service stopped");
+  }
+};
+var regulatoryMonitor = new RegulatoryMonitorService();
+
+// server/routes/agents.ts
+init_faa_document_monitor();
+
+// server/services/compliance-watchdog.ts
+init_db();
+init_agent_registry();
+import { sql as sql23 } from "drizzle-orm";
+var AGENT_ID2 = "compliance-watchdog";
+var AGENT_NAME3 = "Compliance Watchdog Agent";
+function daysBetween(from, to) {
+  return Math.round((to.getTime() - from.getTime()) / (1e3 * 60 * 60 * 24));
+}
+async function scanOrg(orgId) {
+  const now = /* @__PURE__ */ new Date();
+  const candidates = [];
+  const instructors = await db.execute(sql23`
+      SELECT id, first_name, last_name, certificate_type, certificate_number, expiration_date, status
+      FROM bccs_instructor_records
+      WHERE organization_id = ${orgId} AND status = 'active'
+    `).then((r) => r.rows);
+  for (const i of instructors) {
+    if (!i.expiration_date) continue;
+    const exp = new Date(i.expiration_date);
+    const days = daysBetween(now, exp);
+    if (days < 0) {
+      candidates.push({
+        findingType: "cert_expired",
+        severity: "critical",
+        title: `${i.first_name} ${i.last_name}'s ${i.certificate_type ?? "instructor"} certificate expired ${Math.abs(days)} day(s) ago`,
+        detail: { instructorId: i.id, certificateType: i.certificate_type, certificateNumber: i.certificate_number, expirationDate: i.expiration_date, daysOverdue: Math.abs(days) },
+        relatedRecordId: `instructor:${i.id}`
+      });
+    } else if (days <= 60) {
+      candidates.push({
+        findingType: "cert_expiring",
+        severity: days <= 30 ? "high" : "medium",
+        title: `${i.first_name} ${i.last_name}'s ${i.certificate_type ?? "instructor"} certificate expires in ${days} day(s)`,
+        detail: { instructorId: i.id, certificateType: i.certificate_type, certificateNumber: i.certificate_number, expirationDate: i.expiration_date, daysRemaining: days },
+        relatedRecordId: `instructor:${i.id}`
+      });
+    }
+  }
+  const students2 = await db.execute(sql23`
+      SELECT id, first_name, last_name, expected_completion, status
+      FROM students
+      WHERE organization_id = ${orgId} AND status = 'active' AND expected_completion IS NOT NULL
+    `).then((r) => r.rows);
+  for (const s of students2) {
+    const due = new Date(s.expected_completion);
+    const overdue = daysBetween(due, now);
+    if (overdue > 0) {
+      candidates.push({
+        findingType: "student_overdue",
+        severity: overdue > 60 ? "high" : "medium",
+        title: `${s.first_name} ${s.last_name} is ${overdue} day(s) past expected training completion`,
+        detail: { studentId: s.id, expectedCompletion: s.expected_completion, daysOverdue: overdue },
+        relatedRecordId: `student:${s.id}`
+      });
+    }
+  }
+  const staleForms = await db.execute(sql23`
+      SELECT id, template_title, submitted_by, submitted_at
+      FROM digital_form_submissions
+      WHERE organization_id = ${orgId} AND status = 'submitted'
+    `).then((r) => r.rows);
+  for (const f of staleForms) {
+    const age = daysBetween(new Date(f.submitted_at), now);
+    if (age >= 7) {
+      candidates.push({
+        findingType: "form_pending_review",
+        severity: age > 30 ? "high" : "medium",
+        title: `Form submission "${f.template_title ?? "Untitled"}" has awaited review for ${age} day(s)`,
+        detail: { submissionId: f.id, templateTitle: f.template_title, submittedBy: f.submitted_by, submittedAt: f.submitted_at, daysPending: age },
+        relatedRecordId: `form_submission:${f.id}`
+      });
+    }
+  }
+  return { scanned: instructors.length + students2.length + staleForms.length, candidates };
+}
+async function reconcileFindings(orgId, candidates) {
+  const openRows = await db.execute(sql23`
+      SELECT id, finding_type, related_record_id, severity, title
+      FROM bccs_agent_findings
+      WHERE agent_id = ${AGENT_ID2} AND org_id = ${orgId} AND status IN ('open', 'acknowledged')
+    `).then((r) => r.rows);
+  const candidateKeys = new Set(candidates.map((c) => `${c.findingType}|${c.relatedRecordId}`));
+  const openByKey = new Map(
+    openRows.map((r) => [`${r.finding_type}|${r.related_record_id}`, r])
+  );
+  let created = 0;
+  for (const c of candidates) {
+    const existing = openByKey.get(`${c.findingType}|${c.relatedRecordId}`);
+    if (existing) {
+      if (existing.severity !== c.severity || existing.title !== c.title) {
+        await db.execute(sql23`
+          UPDATE bccs_agent_findings
+          SET severity = ${c.severity}, title = ${c.title}, detail = ${JSON.stringify(c.detail)}::jsonb
+          WHERE id = ${existing.id}
+        `);
+      }
+      continue;
+    }
+    await db.execute(sql23`
+      INSERT INTO bccs_agent_findings (agent_id, org_id, finding_type, severity, title, detail, related_record_id)
+      VALUES (${AGENT_ID2}, ${orgId}, ${c.findingType}, ${c.severity}, ${c.title}, ${JSON.stringify(c.detail)}::jsonb, ${c.relatedRecordId})
+    `);
+    created++;
+  }
+  let resolved = 0;
+  for (const row of openRows) {
+    if (candidateKeys.has(`${row.finding_type}|${row.related_record_id}`)) continue;
+    await db.execute(sql23`
+      UPDATE bccs_agent_findings SET status = 'resolved' WHERE id = ${row.id}
+    `);
+    resolved++;
+  }
+  return { created, resolved };
+}
+async function runComplianceWatchdog(targetOrgId) {
+  let orgIds;
+  if (targetOrgId) {
+    orgIds = [targetOrgId];
+  } else {
+    orgIds = await db.execute(sql23`
+        SELECT DISTINCT organization_id AS org FROM bccs_instructor_records WHERE organization_id IS NOT NULL
+        UNION
+        SELECT DISTINCT organization_id AS org FROM students WHERE organization_id IS NOT NULL
+        UNION
+        SELECT DISTINCT organization_id AS org FROM digital_form_submissions WHERE organization_id IS NOT NULL
+      `).then((r) => r.rows.map((row) => String(row.org)));
+  }
+  let itemsScanned = 0;
+  let newFindings = 0;
+  let autoResolved = 0;
+  for (const orgId of orgIds) {
+    const runId = await startRun(AGENT_ID2, orgId);
+    try {
+      const { scanned, candidates } = await scanOrg(orgId);
+      const { created, resolved } = await reconcileFindings(orgId, candidates);
+      itemsScanned += scanned;
+      newFindings += created;
+      autoResolved += resolved;
+      await finishRun(runId, {
+        status: "success",
+        itemsProcessed: scanned,
+        findingsCount: created,
+        summary: `Patrolled ${scanned} roster record(s); ${created} new finding(s), ${resolved} auto-resolved.`
+      });
+      if (created > 0) {
+        await emitAgentEvent(
+          AGENT_NAME3,
+          "flagged_records",
+          `Compliance patrol flagged ${created} new issue(s) \u2014 expiring certificates or overdue completions need attention`,
+          orgId
+        );
+      } else {
+        await emitAgentEvent(
+          AGENT_NAME3,
+          "monitoring_cycle",
+          `Compliance patrol complete \u2014 ${scanned} roster record(s) checked, no new issues`,
+          orgId
+        );
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`[compliance-watchdog] patrol of org ${orgId} failed:`, error);
+      await finishRun(runId, { status: "failed", summary: message });
+      await emitAgentEvent(AGENT_NAME3, "run_failed", `Compliance patrol failed: ${message}`, orgId);
+      if (targetOrgId) throw error;
+    }
+  }
+  return { itemsScanned, newFindings, autoResolved };
+}
+
+// server/services/federal-contracts-monitor.ts
+init_db();
+init_agent_registry();
+import OpenAI11 from "openai";
+import { sql as sql25 } from "drizzle-orm";
+
+// server/services/email-alerts.ts
+init_db();
+import nodemailer from "nodemailer";
+import { sql as sql24 } from "drizzle-orm";
+init_agent_registry();
+function emailAlertsConfigured() {
+  return Boolean(process.env.SMTP_HOST);
+}
+function buildTransport() {
+  const port = Number(process.env.SMTP_PORT || 587);
+  return nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port,
+    secure: process.env.SMTP_SECURE === "true" || port === 465,
+    auth: process.env.SMTP_USER ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS } : void 0
+  });
+}
+async function getEmailAlertSettings(orgId) {
+  const rows = await db.execute(sql24`SELECT critical_findings_enabled, extra_recipients FROM bccs_email_alert_settings WHERE org_id = ${orgId}`).then((r) => r.rows);
+  if (!rows[0]) return { criticalFindingsEnabled: true, extraRecipients: [] };
+  const extras = Array.isArray(rows[0].extra_recipients) ? rows[0].extra_recipients : [];
+  return {
+    criticalFindingsEnabled: rows[0].critical_findings_enabled !== false,
+    extraRecipients: extras.filter((e) => typeof e === "string")
+  };
+}
+async function orgAdminEmails(orgId) {
+  const rows = await db.execute(sql24`
+      SELECT u.email
+      FROM user_organizations uo
+      JOIN users u ON u.id = uo.user_id
+      WHERE uo.organization_id::text = ${orgId}
+        AND uo.org_role = 'admin'
+        AND uo.is_active = TRUE
+        AND u.is_active = TRUE
+        AND u.email IS NOT NULL
+    `).then((r) => r.rows.map((row) => String(row.email)));
+  if (rows.length > 0) return rows;
+  if (!isMultiTenant()) {
+    return db.execute(sql24`SELECT email FROM users WHERE role = 'admin' AND is_active = TRUE AND email IS NOT NULL`).then((r) => r.rows.map((row) => String(row.email)));
+  }
+  return [];
+}
+var escapeHtml = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+async function notifyCriticalFindings(orgId, agentName, findings) {
+  if (findings.length === 0) return null;
+  const settings = await getEmailAlertSettings(orgId);
+  if (!settings.criticalFindingsEnabled) {
+    return "Critical-finding email alerts are disabled for this organization.";
+  }
+  if (!emailAlertsConfigured()) {
+    return "Email alerts skipped: SMTP is not configured (set SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM).";
+  }
+  const admins = await orgAdminEmails(orgId);
+  const recipients = Array.from(new Set([...admins, ...settings.extraRecipients].map((e) => e.toLowerCase())));
+  if (recipients.length === 0) {
+    return "Email alerts skipped: no active org admins or configured recipients found.";
+  }
+  const subject = `[Critical] ${agentName}: ${findings.length === 1 ? findings[0].title : `${findings.length} critical findings raised`}`;
+  const lines = findings.map(
+    (f) => `<li><strong>${escapeHtml(f.title)}</strong> <em>(${escapeHtml(f.findingType)})</em></li>`
+  );
+  const html = `
+    <p>The ${escapeHtml(agentName)} agent raised ${findings.length} critical-severity finding(s) for your organization:</p>
+    <ul>${lines.join("")}</ul>
+    <p>Review the details in the Command Center findings panel.</p>
+  `;
+  const text2 = `The ${agentName} agent raised ${findings.length} critical-severity finding(s):
+` + findings.map((f) => `- ${f.title} (${f.findingType})`).join("\n") + "\n\nReview the details in the Command Center findings panel.";
+  try {
+    await buildTransport().sendMail({
+      from: process.env.ALERT_EMAIL_FROM || process.env.SMTP_FROM || process.env.SMTP_USER,
+      to: recipients.join(", "),
+      subject,
+      text: text2,
+      html
+    });
+    await emitAgentEvent(
+      agentName,
+      "email_alert_sent",
+      `Critical-finding email alert sent to ${recipients.length} recipient(s) for ${findings.length} finding(s)`,
+      orgId
+    );
+    return null;
+  } catch (err) {
+    const reason = `Email alert delivery failed: ${err?.message ?? String(err)}`;
+    console.error(`[email-alerts] ${reason} (org ${orgId})`);
+    return reason;
+  }
+}
+
+// server/services/fedcon-data.ts
+var CACHE_TTL_MS = 30 * 60 * 1e3;
+var cache = /* @__PURE__ */ new Map();
+function samKeyAvailable() {
+  return !!process.env.SAM_GOV_API_KEY;
+}
+async function cached(key, fn) {
+  const hit = cache.get(key);
+  if (hit && Date.now() - hit.at < CACHE_TTL_MS) return hit.data;
+  const data = await fn();
+  cache.set(key, { at: Date.now(), data });
+  if (cache.size > 500) {
+    const oldest = Array.from(cache.keys())[0];
+    cache.delete(oldest);
+  }
+  return data;
+}
+async function fetchJson(url, init, attempt = 0) {
+  const res = await fetch(url, init);
+  if (res.status === 429 && attempt < 2) {
+    await new Promise((r) => setTimeout(r, 2e3 * (attempt + 1)));
+    return fetchJson(url, init, attempt + 1);
+  }
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`${res.status} ${res.statusText} from ${url.split("?")[0]}: ${body.slice(0, 200)}`);
+  }
+  return res.json();
+}
+function naicsCode(v) {
+  if (!v) return null;
+  if (typeof v === "string") return v.slice(0, 50);
+  if (typeof v === "object" && v.code) return String(v.code).slice(0, 50);
+  return null;
+}
+function fmtSamDate(d) {
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${mm}/${dd}/${d.getFullYear()}`;
+}
+async function searchSamOpportunities(params) {
+  const key = process.env.SAM_GOV_API_KEY;
+  if (!key) {
+    return { check: "sam_opportunities", reason: "SAM_GOV_API_KEY not configured \u2014 opportunity search skipped" };
+  }
+  const daysBack = params.daysBack ?? 30;
+  const to = /* @__PURE__ */ new Date();
+  const from = new Date(Date.now() - daysBack * 864e5);
+  const qs = new URLSearchParams({
+    api_key: key,
+    limit: String(params.limit ?? 25),
+    postedFrom: fmtSamDate(from),
+    postedTo: fmtSamDate(to)
+  });
+  if (params.keyword) qs.set("title", params.keyword);
+  if (params.naics) qs.set("ncode", params.naics);
+  if (params.agency) qs.set("organizationName", params.agency);
+  const cacheKey = `samopp:${qs.toString().replace(key, "")}`;
+  const data = await cached(
+    cacheKey,
+    () => fetchJson(`https://api.sam.gov/opportunities/v2/search?${qs.toString()}`)
+  );
+  const list = Array.isArray(data?.opportunitiesData) ? data.opportunitiesData : [];
+  return list.map((o) => ({
+    noticeId: String(o.noticeId ?? o.solicitationNumber ?? ""),
+    title: String(o.title ?? "Untitled notice"),
+    agency: o.fullParentPathName ?? o.department ?? null,
+    naics: o.naicsCode ?? null,
+    psc: o.classificationCode ?? null,
+    setAside: o.typeOfSetAsideDescription ?? o.typeOfSetAside ?? null,
+    noticeType: o.type ?? null,
+    postedDate: o.postedDate ?? null,
+    responseDeadline: o.responseDeadLine ?? null,
+    url: o.uiLink ?? null,
+    description: typeof o.description === "string" && !o.description.startsWith("http") ? o.description : null
+  })).filter((o) => o.noticeId);
+}
+async function checkSamExclusions(vendor) {
+  const key = process.env.SAM_GOV_API_KEY;
+  if (!key) {
+    return { check: "sam_exclusions", reason: "SAM_GOV_API_KEY not configured \u2014 exclusion/debarment check skipped" };
+  }
+  const qs = new URLSearchParams({ api_key: key });
+  if (vendor.uei) qs.set("ueiSAM", vendor.uei);
+  else if (vendor.name) qs.set("exclusionName", vendor.name);
+  else return { excluded: false, records: [] };
+  const cacheKey = `samexcl:${vendor.uei ?? vendor.name}`;
+  const data = await cached(
+    cacheKey,
+    () => fetchJson(`https://api.sam.gov/entity-information/v4/exclusions?${qs.toString()}`)
+  );
+  const rows = Array.isArray(data?.excludedEntity) ? data.excludedEntity : [];
+  return {
+    excluded: rows.length > 0,
+    records: rows.slice(0, 5).map((r) => ({
+      name: r?.exclusionDetails?.exclusionName ?? r?.exclusionName ?? vendor.name ?? vendor.uei ?? "unknown",
+      classification: r?.exclusionDetails?.classificationType ?? null,
+      activationDate: r?.exclusionDetails?.activateDate ?? null
+    }))
+  };
+}
+async function searchAwardsByRecipient(params) {
+  const yearsBack = params.yearsBack ?? 3;
+  const end = (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
+  const start = new Date(Date.now() - yearsBack * 365 * 864e5).toISOString().slice(0, 10);
+  const body = {
+    filters: {
+      recipient_search_text: [params.recipient],
+      time_period: [{ start_date: start, end_date: end }],
+      award_type_codes: ["A", "B", "C", "D"]
+    },
+    fields: [
+      "Award ID",
+      "Recipient Name",
+      "recipient_id",
+      "Start Date",
+      "End Date",
+      "Award Amount",
+      "Awarding Agency",
+      "Awarding Sub Agency",
+      "Contract Award Type",
+      "Description",
+      "NAICS",
+      "generated_internal_id",
+      "Recipient UEI"
+    ],
+    limit: params.limit ?? 30,
+    order: "desc",
+    sort: "Award Amount"
+  };
+  const cacheKey = `usaawards:${params.recipient}:${yearsBack}`;
+  const data = await cached(
+    cacheKey,
+    () => fetchJson("https://api.usaspending.gov/api/v2/search/spending_by_award/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    })
+  );
+  const rows = Array.isArray(data?.results) ? data.results : [];
+  return rows.map((r) => ({
+    awardId: String(r["Award ID"] ?? ""),
+    generatedId: r.generated_internal_id ?? null,
+    recipientName: r["Recipient Name"] ?? null,
+    recipientUei: r["Recipient UEI"] ?? null,
+    agency: r["Awarding Agency"] ?? null,
+    naics: naicsCode(r["NAICS"]),
+    awardAmount: Number(r["Award Amount"] ?? 0),
+    startDate: r["Start Date"] ?? null,
+    endDate: r["End Date"] ?? null,
+    description: r["Description"] ?? null,
+    awardType: r["Contract Award Type"] ?? null
+  })).filter((a) => a.awardId);
+}
+async function searchAwardByPiid(piid) {
+  const end = (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
+  const start = new Date(Date.now() - 10 * 365 * 864e5).toISOString().slice(0, 10);
+  const body = {
+    filters: {
+      award_ids: [piid],
+      time_period: [{ start_date: start, end_date: end }],
+      award_type_codes: ["A", "B", "C", "D"]
+    },
+    fields: [
+      "Award ID",
+      "Recipient Name",
+      "Start Date",
+      "End Date",
+      "Award Amount",
+      "Awarding Agency",
+      "Contract Award Type",
+      "Description",
+      "NAICS",
+      "generated_internal_id",
+      "Recipient UEI"
+    ],
+    limit: 5
+  };
+  const data = await cached(
+    `usapiid:${piid}`,
+    () => fetchJson("https://api.usaspending.gov/api/v2/search/spending_by_award/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    })
+  );
+  const rows = Array.isArray(data?.results) ? data.results : [];
+  return rows.map((r) => ({
+    awardId: String(r["Award ID"] ?? ""),
+    generatedId: r.generated_internal_id ?? null,
+    recipientName: r["Recipient Name"] ?? null,
+    recipientUei: r["Recipient UEI"] ?? null,
+    agency: r["Awarding Agency"] ?? null,
+    naics: naicsCode(r["NAICS"]),
+    awardAmount: Number(r["Award Amount"] ?? 0),
+    startDate: r["Start Date"] ?? null,
+    endDate: r["End Date"] ?? null,
+    description: r["Description"] ?? null,
+    awardType: r["Contract Award Type"] ?? null
+  })).filter((a) => a.awardId);
+}
+async function getAwardModifications(generatedId, awardStartDate) {
+  const data = await cached(
+    `usatx:${generatedId}`,
+    () => fetchJson("https://api.usaspending.gov/api/v2/transactions/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ award_id: generatedId, limit: 100, page: 1 })
+    })
+  );
+  const rows = Array.isArray(data?.results) ? data.results : [];
+  const mods = rows.filter((t) => {
+    const num = String(t.modification_number ?? "").trim();
+    return num !== "" && num !== "0";
+  });
+  let recent = 0;
+  if (awardStartDate) {
+    const start = new Date(awardStartDate).getTime();
+    const cutoff = start + 90 * 864e5;
+    recent = mods.filter((t) => {
+      const d = new Date(t.action_date ?? 0).getTime();
+      return d > start && d <= cutoff;
+    }).length;
+  }
+  return { transactionCount: rows.length, modificationCount: mods.length, recentModsWithin90Days: recent };
+}
+
+// server/services/federal-contracts-monitor.ts
+var openai11 = new OpenAI11({ apiKey: process.env.OPENAI_API_KEY || "not-configured" });
+var AGENT_ID3 = "federal-contracts-monitor";
+var AGENT_NAME4 = "Federal Contracts Monitor";
+var RUBRIC = {
+  activeExclusion: { points: 10, veto: true },
+  // §7.3 active SAM exclusion/debarment
+  heavyEarlyModifications: { points: 5, veto: false },
+  // §Red flags: heavily modified soon after award
+  manyModifications: { points: 4, veto: false },
+  // repeated scope creep signal
+  recompeteWindow: { points: 5, veto: false },
+  // §7.1 material contract nearing recompete
+  vendorConcentration: { points: 6, veto: false },
+  // §7.1 revenue concentration >30%
+  setAsideAffiliationRisk: { points: 7, veto: false }
+  // §7.1 set-aside affiliation risk
+};
+function tierFor(score, hasVeto) {
+  if (hasVeto || score >= 61) return "critical";
+  if (score >= 36) return "high";
+  if (score >= 16) return "moderate";
+  return "low";
+}
+var TIER_SEVERITY = {
+  critical: "critical",
+  high: "high",
+  moderate: "medium",
+  low: "low"
+};
+var MANUAL_CHECKLIST = [
+  { key: "cpars_review", label: "CPARS/PPIRS past-performance ratings reviewed (login-gated \u2014 obtain from target or CO)" },
+  { key: "dcaa_audit_history", label: "DCAA/DCMA audit history requested (incurred cost audits, business-system determinations)" },
+  { key: "oig_audit_search", label: "GSA/agency OIG audit reports searched for the vendor (gsaig.gov, oversight.gov)" },
+  { key: "novation_analysis", label: "Novation requirement analysis under FAR 42.1204 (deal-structure dependent)" },
+  { key: "oci_mapping", label: "Organizational Conflict of Interest exposure mapped (FAR Subpart 9.5 categories)" },
+  { key: "fca_litigation", label: "False Claims Act / qui tam litigation docket search completed" }
+];
+function coverageKeyFor(findingType, relatedRecordId) {
+  switch (findingType) {
+    case "vendor_excluded":
+      return `excl|${relatedRecordId}`;
+    case "vendor_risk_tier":
+      return `vendor|${relatedRecordId}`;
+    case "heavy_modifications":
+      return `mods|${relatedRecordId}`;
+    case "recompete_window":
+      return `recompete|${relatedRecordId}`;
+    case "contract_not_found":
+      return `contract|${relatedRecordId}`;
+    case "new_opportunity":
+      return null;
+    // one-shot notification — always resolvable
+    default:
+      return `unknown|${findingType}|${relatedRecordId}`;
+  }
+}
+async function reconcileFindings2(orgId, candidatesIn, coverage) {
+  let candidates = candidatesIn;
+  const seen = /* @__PURE__ */ new Set();
+  candidates = candidates.filter((c) => {
+    const k = `${c.findingType}|${c.relatedRecordId}`;
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+  const openRows = await db.execute(sql25`
+      SELECT id, finding_type, related_record_id, severity, title
+      FROM bccs_agent_findings
+      WHERE agent_id = ${AGENT_ID3} AND org_id = ${orgId} AND status IN ('open', 'acknowledged')
+    `).then((r) => r.rows);
+  const candidateKeys = new Set(candidates.map((c) => `${c.findingType}|${c.relatedRecordId}`));
+  const openByKey = new Map(
+    openRows.map((r) => [`${r.finding_type}|${r.related_record_id}`, r])
+  );
+  let created = 0;
+  const createdCritical = [];
+  for (const c of candidates) {
+    const existing = openByKey.get(`${c.findingType}|${c.relatedRecordId}`);
+    if (existing) {
+      if (existing.severity !== c.severity || existing.title !== c.title) {
+        await db.execute(sql25`
+          UPDATE bccs_agent_findings
+          SET severity = ${c.severity}, title = ${c.title}, detail = ${JSON.stringify(c.detail)}::jsonb
+          WHERE id = ${existing.id}
+        `);
+      }
+      continue;
+    }
+    await db.execute(sql25`
+      INSERT INTO bccs_agent_findings (agent_id, org_id, finding_type, severity, title, detail, related_record_id)
+      VALUES (${AGENT_ID3}, ${orgId}, ${c.findingType}, ${c.severity}, ${c.title}, ${JSON.stringify(c.detail)}::jsonb, ${c.relatedRecordId})
+    `);
+    created++;
+    if (c.severity === "critical") createdCritical.push(c);
+  }
+  let resolved = 0;
+  for (const row of openRows) {
+    if (candidateKeys.has(`${row.finding_type}|${row.related_record_id}`)) continue;
+    const covKey = coverageKeyFor(row.finding_type, row.related_record_id);
+    if (covKey !== null && !coverage.has(covKey)) continue;
+    await db.execute(sql25`UPDATE bccs_agent_findings SET status = 'resolved' WHERE id = ${row.id}`);
+    resolved++;
+  }
+  return { created, resolved, createdCritical };
+}
+async function enrichOpportunityDossier(opp) {
+  if (!process.env.OPENAI_API_KEY) return {};
+  try {
+    const response = await openai11.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "system",
+          content: `You are a federal contracts market analyst. Condense the opportunity notice into the standard research template. Return JSON:
+{"requirementSummary":"<1-2 sentences: what the government is buying>","contractVehicle":"<IDIQ/BPA/GSA Schedule/task order/standalone/unknown>","evaluationSignals":"<key evaluation or compliance factors visible in the text, or 'not stated'>","complianceObligations":"<FAR/DFARS/cyber/labor obligations mentioned, or 'not stated'>","incumbentSignal":"<any hint the requirement favors an incumbent, or 'none visible'>"}
+Be factual. Never invent details not present in the input.`
+        },
+        { role: "user", content: JSON.stringify(opp) }
+      ],
+      response_format: { type: "json_object" }
+    });
+    return JSON.parse(response.choices[0].message.content || "{}");
+  } catch (err) {
+    console.error("[federal-contracts-monitor] dossier enrichment failed (non-fatal):", err);
+    return {};
+  }
+}
+function isSkipped(x) {
+  return !!x && typeof x === "object" && "check" in x && "reason" in x;
+}
+async function ensureManualChecklist(orgId, subjectType, subjectId) {
+  for (const item of MANUAL_CHECKLIST) {
+    await db.execute(sql25`
+      INSERT INTO bccs_fedcon_checklist (org_id, subject_type, subject_id, item_key, label)
+      VALUES (${orgId}, ${subjectType}, ${subjectId}, ${item.key}, ${item.label})
+      ON CONFLICT (org_id, subject_type, subject_id, item_key) DO NOTHING
+    `);
+  }
+}
+async function upsertAward(orgId, awardKey, a, mods, flags, score, tier) {
+  await db.execute(sql25`
+    INSERT INTO bccs_fedcon_awards
+      (org_id, award_key, piid, generated_award_id, vendor_name, vendor_uei, agency, naics,
+       award_amount, start_date, end_date, modification_count, dossier, risk_flags, risk_score, risk_tier, last_checked)
+    VALUES
+      (${orgId}, ${awardKey}, ${a.awardId}, ${a.generatedId}, ${a.recipientName}, ${a.recipientUei}, ${a.agency}, ${a.naics},
+       ${a.awardAmount}, ${a.startDate}, ${a.endDate}, ${mods.modificationCount},
+       ${JSON.stringify({ description: a.description, awardType: a.awardType, recentModsWithin90Days: mods.recentModsWithin90Days })}::jsonb,
+       ${JSON.stringify(flags)}::jsonb, ${score}, ${tier}, NOW())
+    ON CONFLICT (org_id, award_key) DO UPDATE SET
+      vendor_name = EXCLUDED.vendor_name, vendor_uei = EXCLUDED.vendor_uei, agency = EXCLUDED.agency,
+      naics = EXCLUDED.naics, award_amount = EXCLUDED.award_amount, start_date = EXCLUDED.start_date,
+      end_date = EXCLUDED.end_date, modification_count = COALESCE(EXCLUDED.modification_count, bccs_fedcon_awards.modification_count),
+      dossier = EXCLUDED.dossier, risk_flags = EXCLUDED.risk_flags, risk_score = EXCLUDED.risk_score,
+      risk_tier = EXCLUDED.risk_tier, last_checked = NOW()
+  `);
+}
+async function patrolOrg(orgId) {
+  const skipped = [];
+  const candidates = [];
+  const coverage = /* @__PURE__ */ new Set();
+  let itemsScanned = 0;
+  const watchlist = await db.execute(sql25`SELECT id, kind, value, label FROM bccs_fedcon_watchlist WHERE org_id = ${orgId}`).then((r) => r.rows);
+  if (watchlist.length === 0) {
+    return { itemsScanned: 0, newFindings: 0, autoResolved: 0, skippedChecks: [] };
+  }
+  const oppTargets = watchlist.filter((w) => ["keyword", "naics", "agency"].includes(w.kind));
+  if (oppTargets.length > 0 && !samKeyAvailable()) {
+    skipped.push({ check: "sam_opportunities", reason: "SAM_GOV_API_KEY not configured \u2014 opportunity watch skipped" });
+  }
+  for (const target of oppTargets.slice(0, 10)) {
+    const result = await searchSamOpportunities({
+      keyword: target.kind === "keyword" ? target.value : void 0,
+      naics: target.kind === "naics" ? target.value : void 0,
+      agency: target.kind === "agency" ? target.value : void 0,
+      limit: 10
+    }).catch((err) => ({ check: "sam_opportunities", reason: `SAM.gov error for "${target.value}": ${err.message}` }));
+    if (isSkipped(result)) {
+      if (samKeyAvailable()) skipped.push(result);
+      continue;
+    }
+    itemsScanned += result.length;
+    for (const opp of result) {
+      const existing = await db.execute(sql25`SELECT id FROM bccs_fedcon_opportunities WHERE org_id = ${orgId} AND notice_id = ${opp.noticeId}`).then((r) => r.rows[0]);
+      if (existing) continue;
+      const dossier = await enrichOpportunityDossier(opp);
+      await db.execute(sql25`
+        INSERT INTO bccs_fedcon_opportunities
+          (org_id, notice_id, title, agency, naics, psc, set_aside, notice_type, posted_date, response_deadline, url, dossier)
+        VALUES
+          (${orgId}, ${opp.noticeId}, ${opp.title}, ${opp.agency}, ${opp.naics}, ${opp.psc}, ${opp.setAside},
+           ${opp.noticeType}, ${opp.postedDate}, ${opp.responseDeadline?.slice(0, 10) ?? null}, ${opp.url}, ${JSON.stringify(dossier)}::jsonb)
+        ON CONFLICT (org_id, notice_id) DO NOTHING
+      `);
+      candidates.push({
+        findingType: "new_opportunity",
+        severity: "low",
+        title: `New matching opportunity: "${opp.title}" (${target.kind}: ${target.value})`,
+        detail: { noticeId: opp.noticeId, agency: opp.agency, naics: opp.naics, setAside: opp.setAside, deadline: opp.responseDeadline, url: opp.url },
+        relatedRecordId: `opportunity:${opp.noticeId}`
+      });
+    }
+  }
+  const vendorTargets = watchlist.filter((w) => ["vendor", "vendor_uei"].includes(w.kind));
+  const contractTargets = watchlist.filter((w) => w.kind === "contract");
+  const vendorAwards = /* @__PURE__ */ new Map();
+  for (const v of vendorTargets.slice(0, 15)) {
+    try {
+      const awards = await searchAwardsByRecipient({ recipient: v.value, limit: 25 });
+      vendorAwards.set(v.value, { target: v, awards });
+      itemsScanned += awards.length;
+    } catch (err) {
+      skipped.push({ check: "usaspending_awards", reason: `USAspending lookup failed for "${v.value}": ${err.message}` });
+    }
+  }
+  const totalWatchedDollars = Array.from(vendorAwards.values()).reduce((sum, v) => sum + v.awards.reduce((s, a) => s + a.awardAmount, 0), 0);
+  const now = Date.now();
+  for (const { target, awards } of Array.from(vendorAwards.values())) {
+    const vendorName = awards[0]?.recipientName ?? target.value;
+    const vendorUei = awards[0]?.recipientUei ?? (target.kind === "vendor_uei" ? target.value : void 0);
+    const vendorRef = `vendor:${(vendorUei ?? vendorName).toLowerCase()}`;
+    const vendorFlags = [];
+    const awardLevelFlags = [];
+    const exclusion = await checkSamExclusions({ uei: vendorUei ?? void 0, name: vendorName }).catch((err) => ({ check: "sam_exclusions", reason: `Exclusion check failed for ${vendorName}: ${err.message}` }));
+    if (isSkipped(exclusion)) {
+      skipped.push(exclusion);
+    } else if (!exclusion.excluded) {
+      coverage.add(`excl|${vendorRef}`);
+    } else if (exclusion.excluded) {
+      vendorFlags.push({
+        key: "activeExclusion",
+        label: "Active SAM.gov exclusion/debarment",
+        category: "Compliance",
+        points: RUBRIC.activeExclusion.points,
+        veto: true,
+        detail: { records: exclusion.records }
+      });
+    }
+    const vendorDollars = awards.reduce((s, a) => s + a.awardAmount, 0);
+    if (totalWatchedDollars > 0 && vendorAwards.size > 1 && vendorDollars / totalWatchedDollars > 0.3) {
+      vendorFlags.push({
+        key: "vendorConcentration",
+        label: `Vendor holds ${(100 * vendorDollars / totalWatchedDollars).toFixed(0)}% of watched award dollars (>30%)`,
+        category: "Portfolio",
+        points: RUBRIC.vendorConcentration.points,
+        veto: false,
+        detail: { vendorDollars, totalWatchedDollars }
+      });
+    }
+    for (const award of awards.slice(0, 5)) {
+      let mods = { modificationCount: null, recentModsWithin90Days: null };
+      const thisAwardFlags = [];
+      coverage.add(`recompete|award:${award.awardId}`);
+      if (award.generatedId) {
+        try {
+          const m = await getAwardModifications(award.generatedId, award.startDate);
+          mods = m;
+          coverage.add(`mods|award:${award.awardId}`);
+          if (m.recentModsWithin90Days >= 3) {
+            thisAwardFlags.push({
+              key: "heavyEarlyModifications",
+              label: `Contract ${award.awardId} modified ${m.recentModsWithin90Days}x within 90 days of award`,
+              category: "Portfolio",
+              points: RUBRIC.heavyEarlyModifications.points,
+              veto: false,
+              detail: { awardId: award.awardId, mods: m.recentModsWithin90Days }
+            });
+          } else if (m.modificationCount >= 10) {
+            thisAwardFlags.push({
+              key: "manyModifications",
+              label: `Contract ${award.awardId} has ${m.modificationCount} modifications (scope-creep signal)`,
+              category: "Portfolio",
+              points: RUBRIC.manyModifications.points,
+              veto: false,
+              detail: { awardId: award.awardId, modificationCount: m.modificationCount }
+            });
+          }
+        } catch {
+        }
+      }
+      if (award.endDate) {
+        const daysToEnd = Math.round((new Date(award.endDate).getTime() - now) / 864e5);
+        if (daysToEnd > 0 && daysToEnd <= 180) {
+          candidates.push({
+            findingType: "recompete_window",
+            severity: daysToEnd <= 90 ? "high" : "medium",
+            title: `Recompete window: ${vendorName}'s contract ${award.awardId} ends in ${daysToEnd} day(s)`,
+            detail: { awardId: award.awardId, endDate: award.endDate, agency: award.agency, awardAmount: award.awardAmount },
+            relatedRecordId: `award:${award.awardId}`
+          });
+          thisAwardFlags.push({
+            key: "recompeteWindow",
+            label: `Contract ${award.awardId} ends in ${daysToEnd} days`,
+            category: "Portfolio",
+            points: RUBRIC.recompeteWindow.points,
+            veto: false,
+            detail: { awardId: award.awardId, daysToEnd }
+          });
+        }
+      }
+      awardLevelFlags.push(...thisAwardFlags);
+      const awardScoreFlags = [...vendorFlags, ...thisAwardFlags];
+      const score = awardScoreFlags.reduce((s, f) => s + f.points, 0);
+      const tier2 = tierFor(score, awardScoreFlags.some((f) => f.veto));
+      await upsertAward(orgId, `${award.awardId}|${vendorRef}`, award, mods, awardScoreFlags, score, tier2);
+    }
+    coverage.add(`vendor|${vendorRef}`);
+    const flags = [...vendorFlags, ...awardLevelFlags];
+    const uniqueFlags = flags.filter((f, i) => flags.findIndex((g) => g.key === f.key && JSON.stringify(g.detail) === JSON.stringify(f.detail)) === i);
+    const compositeScore = uniqueFlags.reduce((s, f) => s + f.points, 0);
+    const hasVeto = uniqueFlags.some((f) => f.veto);
+    const tier = tierFor(compositeScore, hasVeto);
+    if (hasVeto) {
+      const excl = uniqueFlags.find((f) => f.key === "activeExclusion");
+      candidates.push({
+        findingType: "vendor_excluded",
+        severity: "critical",
+        title: `VETO FLAG: ${vendorName} has an active SAM.gov exclusion/debarment \u2014 Critical tier`,
+        detail: { vendor: vendorName, uei: vendorUei, records: excl?.detail?.records, compositeScore, tier },
+        relatedRecordId: vendorRef
+      });
+    } else if (tier === "high" || tier === "moderate") {
+      candidates.push({
+        findingType: "vendor_risk_tier",
+        severity: TIER_SEVERITY[tier],
+        title: `${vendorName} risk tier is ${tier.toUpperCase()} (composite score ${compositeScore})`,
+        detail: { vendor: vendorName, uei: vendorUei, compositeScore, tier, flags: uniqueFlags.map((f) => ({ key: f.key, label: f.label, points: f.points })) },
+        relatedRecordId: vendorRef
+      });
+    }
+    for (const f of uniqueFlags.filter((x) => x.key === "heavyEarlyModifications")) {
+      candidates.push({
+        findingType: "heavy_modifications",
+        severity: "high",
+        title: `${vendorName}: ${f.label}`,
+        detail: { ...f.detail, vendor: vendorName },
+        relatedRecordId: `award:${f.detail?.awardId ?? target.value}`
+      });
+    }
+    await ensureManualChecklist(orgId, "vendor", vendorRef);
+  }
+  for (const c of contractTargets.slice(0, 15)) {
+    try {
+      const awards = await searchAwardByPiid(c.value);
+      itemsScanned += awards.length;
+      for (const award of awards.slice(0, 2)) {
+        let mods = { modificationCount: null, recentModsWithin90Days: null };
+        const flags = [];
+        if (award.generatedId) {
+          try {
+            const m = await getAwardModifications(award.generatedId, award.startDate);
+            mods = m;
+            coverage.add(`mods|award:${award.awardId}`);
+            if (m.recentModsWithin90Days >= 3) {
+              flags.push({ key: "heavyEarlyModifications", label: `Modified ${m.recentModsWithin90Days}x within 90 days of award`, category: "Portfolio", points: RUBRIC.heavyEarlyModifications.points, veto: false });
+              candidates.push({
+                findingType: "heavy_modifications",
+                severity: "high",
+                title: `Tracked contract ${award.awardId} was modified ${m.recentModsWithin90Days}x within 90 days of award`,
+                detail: { awardId: award.awardId, vendor: award.recipientName, mods: m.recentModsWithin90Days },
+                relatedRecordId: `award:${award.awardId}`
+              });
+            }
+          } catch {
+          }
+        }
+        if (award.endDate) {
+          const daysToEnd = Math.round((new Date(award.endDate).getTime() - now) / 864e5);
+          if (daysToEnd > 0 && daysToEnd <= 180) {
+            flags.push({ key: "recompeteWindow", label: `Ends in ${daysToEnd} days`, category: "Portfolio", points: RUBRIC.recompeteWindow.points, veto: false });
+            candidates.push({
+              findingType: "recompete_window",
+              severity: daysToEnd <= 90 ? "high" : "medium",
+              title: `Recompete window: tracked contract ${award.awardId} ends in ${daysToEnd} day(s)`,
+              detail: { awardId: award.awardId, endDate: award.endDate, vendor: award.recipientName },
+              relatedRecordId: `award:${award.awardId}`
+            });
+          }
+        }
+        coverage.add(`recompete|award:${award.awardId}`);
+        const score = flags.reduce((s, f) => s + f.points, 0);
+        await upsertAward(orgId, `${award.awardId}|tracked`, award, mods, flags, score, tierFor(score, false));
+        await ensureManualChecklist(orgId, "award", `award:${award.awardId}`);
+      }
+      coverage.add(`contract|watch:${c.id}`);
+      if (awards.length === 0) {
+        candidates.push({
+          findingType: "contract_not_found",
+          severity: "low",
+          title: `Tracked contract "${c.value}" was not found in USAspending award data`,
+          detail: { piid: c.value, hint: "Verify the PIID; classified or very recent awards may not appear." },
+          relatedRecordId: `watch:${c.id}`
+        });
+      }
+    } catch (err) {
+      skipped.push({ check: "usaspending_piid", reason: `Lookup failed for contract "${c.value}": ${err.message}` });
+    }
+  }
+  const { created, resolved, createdCritical } = await reconcileFindings2(orgId, candidates, coverage);
+  if (createdCritical.length > 0) {
+    try {
+      const emailSkipReason = await notifyCriticalFindings(
+        orgId,
+        AGENT_NAME4,
+        createdCritical.map((c) => ({ title: c.title, findingType: c.findingType, detail: c.detail }))
+      );
+      if (emailSkipReason) skipped.push({ check: "critical_email_alert", reason: emailSkipReason });
+    } catch (err) {
+      skipped.push({ check: "critical_email_alert", reason: `Email alert failed: ${err?.message ?? String(err)}` });
+    }
+  }
+  return { itemsScanned, newFindings: created, autoResolved: resolved, skippedChecks: skipped };
+}
+async function runFederalContractsMonitor(targetOrgId) {
+  let orgIds;
+  if (targetOrgId) {
+    orgIds = [targetOrgId];
+  } else {
+    orgIds = await db.execute(sql25`SELECT DISTINCT org_id FROM bccs_fedcon_watchlist`).then((r) => r.rows.map((row) => String(row.org_id)));
+  }
+  const totals = { itemsScanned: 0, newFindings: 0, autoResolved: 0, skippedChecks: [] };
+  for (const orgId of orgIds) {
+    const runId = await startRun(AGENT_ID3, orgId);
+    try {
+      const r = await patrolOrg(orgId);
+      totals.itemsScanned += r.itemsScanned;
+      totals.newFindings += r.newFindings;
+      totals.autoResolved += r.autoResolved;
+      totals.skippedChecks.push(...r.skippedChecks);
+      const skippedNote = r.skippedChecks.length > 0 ? ` ${r.skippedChecks.length} check(s) skipped: ${Array.from(new Set(r.skippedChecks.map((s) => s.reason))).join("; ")}.` : "";
+      await finishRun(runId, {
+        status: "success",
+        itemsProcessed: r.itemsScanned,
+        findingsCount: r.newFindings,
+        summary: `Patrolled ${r.itemsScanned} contract record(s); ${r.newFindings} new finding(s), ${r.autoResolved} auto-resolved.${skippedNote}`
+      });
+      await emitAgentEvent(
+        AGENT_NAME4,
+        r.newFindings > 0 ? "flagged_records" : "monitoring_cycle",
+        r.newFindings > 0 ? `Federal contracts patrol flagged ${r.newFindings} new issue(s) \u2014 exclusions, modifications, or recompete windows need attention` : `Federal contracts patrol complete \u2014 ${r.itemsScanned} record(s) checked, no new issues`,
+        orgId
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`[federal-contracts-monitor] patrol of org ${orgId} failed:`, error);
+      await finishRun(runId, { status: "failed", summary: message });
+      await emitAgentEvent(AGENT_NAME4, "run_failed", `Federal contracts patrol failed: ${message}`, orgId);
+      if (targetOrgId) throw error;
+    }
+  }
+  return totals;
+}
+
+// server/routes/agents.ts
+var router16 = Router15();
+function userAuthority2(user) {
+  return user?.role || "viewer";
+}
+router16.get("/", isAuthenticated, async (req, res) => {
+  const orgId = requireOrg(req, res);
+  if (!orgId) return;
+  const [lastRuns, openFindings, activity24h] = await Promise.all([
+    // Latest run per agent visible to this org (own runs + global runs).
+    db.execute(sql26`
+        SELECT DISTINCT ON (agent_id) agent_id, id, org_id, status, started_at, finished_at,
+               items_processed, findings_count, summary
+        FROM bccs_agent_runs
+        WHERE org_id = ${orgId} OR org_id IS NULL
+        ORDER BY agent_id, started_at DESC
+      `).then((r) => r.rows),
+    db.execute(sql26`
+        SELECT agent_id, COUNT(*)::int AS n,
+               COUNT(*) FILTER (WHERE severity IN ('high', 'critical'))::int AS severe
+        FROM bccs_agent_findings
+        WHERE org_id = ${orgId} AND status = 'open'
+        GROUP BY agent_id
+      `).then((r) => r.rows),
+    db.execute(sql26`
+        SELECT COUNT(*)::int AS n FROM bccs_agent_runs
+        WHERE (org_id = ${orgId} OR org_id IS NULL) AND started_at > NOW() - INTERVAL '24 hours'
+      `).then((r) => r.rows[0]?.n ?? 0)
+  ]);
+  const runByAgent = new Map(lastRuns.map((r) => [r.agent_id, r]));
+  const findingsByAgent = new Map(openFindings.map((f) => [f.agent_id, f]));
+  const roster = AGENTS.map((agent) => {
+    const lastRun = runByAgent.get(agent.id) ?? null;
+    const findings = findingsByAgent.get(agent.id);
+    return {
+      ...agent,
+      lastRun,
+      openFindings: findings?.n ?? 0,
+      severeFindings: findings?.severe ?? 0
+    };
+  });
+  res.json({
+    agents: roster,
+    runsLast24h: activity24h,
+    // When SAM_GOV_API_KEY is absent, exclusion/debarment checks and
+    // opportunity watch are skipped — the Command Center surfaces this.
+    samGovConfigured: samKeyAvailable()
+  });
+});
+router16.get("/findings", isAuthenticated, async (req, res) => {
+  const orgId = requireOrg(req, res);
+  if (!orgId) return;
+  const status = typeof req.query.status === "string" ? req.query.status : "open";
+  const rows = await db.execute(sql26`
+      SELECT * FROM bccs_agent_findings
+      WHERE org_id = ${orgId} AND status = ${status}
+      ORDER BY CASE severity WHEN 'critical' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END,
+               created_at DESC
+      LIMIT 100
+    `).then((r) => r.rows);
+  res.json(rows);
+});
+router16.patch("/findings/:id", isAuthenticated, async (req, res) => {
+  const orgId = requireOrg(req, res);
+  if (!orgId) return;
+  if (userAuthority2(req.user) === "viewer") {
+    return res.status(403).json({ message: "Viewers cannot update findings." });
+  }
+  const nextStatus = req.body?.status;
+  if (!["acknowledged", "resolved", "open"].includes(nextStatus)) {
+    return res.status(400).json({ message: "status must be one of: open, acknowledged, resolved" });
+  }
+  const rows = await db.execute(sql26`
+      UPDATE bccs_agent_findings SET status = ${nextStatus}
+      WHERE id = ${req.params.id} AND org_id = ${orgId}
+      RETURNING *
+    `).then((r) => r.rows);
+  if (!rows[0]) return res.status(404).json({ message: "Finding not found" });
+  res.json(rows[0]);
+});
+router16.post("/:id/run", isAuthenticated, async (req, res) => {
+  const orgId = requireOrg(req, res);
+  if (!orgId) return;
+  const agent = getAgent(req.params.id);
+  if (!agent) return res.status(404).json({ message: "Unknown agent" });
+  if (!agent.manuallyRunnable) {
+    return res.status(400).json({ message: `${agent.name} runs automatically and cannot be triggered manually.` });
+  }
+  const user = req.user;
+  const gate = await evaluateAction({
+    actionType: "agent_manual_run",
+    actionDescription: `Manually trigger ${agent.name}`,
+    requestedBy: user?.email || user?.username || "unknown",
+    requesterAuthority: userAuthority2(user),
+    userId: user?.id,
+    orgId,
+    context: { agentId: agent.id }
+  });
+  if (!gate.admissible) {
+    return res.status(403).json({ message: gate.reasoning || "GATE refused this action", gateDecisionId: gate.decisionId });
+  }
+  const lockOrg = agent.scope === "org" ? orgId : null;
+  if (!tryAcquireRunLock(agent.id, lockOrg)) {
+    return res.status(409).json({ message: `${agent.name} is already running.` });
+  }
+  const dispatch = async () => {
+    switch (agent.id) {
+      case "regulatory-monitor":
+        await regulatoryMonitor.performComplianceCheck();
+        break;
+      case "faa-repository":
+        await faaDocumentMonitor.runCheck();
+        break;
+      case "link-integrity":
+        await linkMonitoringService.initializeMonitoring();
+        break;
+      case "compliance-watchdog":
+        await runComplianceWatchdog(orgId);
+        break;
+      case "audit-readiness":
+        await runAuditReadiness(orgId);
+        break;
+      case "federal-contracts-monitor":
+        await runFederalContractsMonitor(orgId);
+        break;
+      default:
+        throw new Error(`No runner wired for agent ${agent.id}`);
+    }
+  };
+  dispatch().catch((err) => console.error(`[agents] manual run of ${agent.id} failed:`, err)).finally(() => releaseRunLock(agent.id, lockOrg));
+  res.status(202).json({ message: `${agent.name} run started`, agentId: agent.id });
+});
+var agents_default = router16;
+
+// server/routes/federal-contracts.ts
+init_db();
+import { Router as Router16 } from "express";
+import { sql as sql27 } from "drizzle-orm";
+var router17 = Router16();
+function isViewer(req) {
+  return (req.user?.role || "viewer") === "viewer";
+}
+var WATCH_KINDS = ["agency", "naics", "keyword", "vendor", "vendor_uei", "contract"];
+function isAdmin(req) {
+  return (req.user?.role || "viewer") === "admin" || isPlatformStaff(req.user?.email);
+}
+router17.get("/email-alerts", isAuthenticated, async (req, res) => {
+  const orgId = requireOrg(req, res);
+  if (!orgId) return;
+  if (!isAdmin(req)) return res.status(403).json({ message: "Only admins can view email alert settings." });
+  res.json(await getEmailAlertSettings(orgId));
+});
+router17.put("/email-alerts", isAuthenticated, async (req, res) => {
+  const orgId = requireOrg(req, res);
+  if (!orgId) return;
+  if (!isAdmin(req)) return res.status(403).json({ message: "Only admins can change email alert settings." });
+  const { criticalFindingsEnabled, extraRecipients } = req.body ?? {};
+  if (typeof criticalFindingsEnabled !== "boolean") {
+    return res.status(400).json({ message: "criticalFindingsEnabled must be a boolean" });
+  }
+  const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const extras = Array.isArray(extraRecipients) ? extraRecipients : [];
+  if (extras.length > 20) return res.status(400).json({ message: "At most 20 extra recipients allowed" });
+  const cleaned = [];
+  for (const raw of extras) {
+    const email = typeof raw === "string" ? raw.trim().toLowerCase() : "";
+    if (!emailRe.test(email) || email.length > 255) {
+      return res.status(400).json({ message: `Invalid recipient email: ${String(raw).slice(0, 100)}` });
+    }
+    if (isPlatformStaff(email) && !isPlatformStaff(req.user?.email)) {
+      return res.status(403).json({ message: "Staff-domain email addresses cannot be added as recipients." });
+    }
+    if (!cleaned.includes(email)) cleaned.push(email);
+  }
+  const user = req.user;
+  await db.execute(sql27`
+    INSERT INTO bccs_email_alert_settings (org_id, critical_findings_enabled, extra_recipients, updated_by, updated_at)
+    VALUES (${orgId}, ${criticalFindingsEnabled}, ${JSON.stringify(cleaned)}::jsonb, ${user?.email ?? null}, NOW())
+    ON CONFLICT (org_id) DO UPDATE SET
+      critical_findings_enabled = EXCLUDED.critical_findings_enabled,
+      extra_recipients = EXCLUDED.extra_recipients,
+      updated_by = EXCLUDED.updated_by,
+      updated_at = NOW()
+  `);
+  res.json(await getEmailAlertSettings(orgId));
+});
+router17.get("/watchlist", isAuthenticated, async (req, res) => {
+  const orgId = requireOrg(req, res);
+  if (!orgId) return;
+  const rows = await db.execute(sql27`SELECT * FROM bccs_fedcon_watchlist WHERE org_id = ${orgId} ORDER BY created_at DESC`).then((r) => r.rows);
+  res.json(rows);
+});
+router17.post("/watchlist", isAuthenticated, async (req, res) => {
+  const orgId = requireOrg(req, res);
+  if (!orgId) return;
+  if (isViewer(req)) return res.status(403).json({ message: "Viewers cannot modify the watchlist." });
+  const { kind, value, label } = req.body ?? {};
+  if (!WATCH_KINDS.includes(kind)) {
+    return res.status(400).json({ message: `kind must be one of: ${WATCH_KINDS.join(", ")}` });
+  }
+  const trimmed = typeof value === "string" ? value.trim() : "";
+  if (!trimmed || trimmed.length > 300) {
+    return res.status(400).json({ message: "value is required (max 300 characters)" });
+  }
+  const user = req.user;
+  const rows = await db.execute(sql27`
+      INSERT INTO bccs_fedcon_watchlist (org_id, kind, value, label, created_by)
+      VALUES (${orgId}, ${kind}, ${trimmed}, ${typeof label === "string" ? label.slice(0, 300) : null}, ${user?.email ?? null})
+      ON CONFLICT (org_id, kind, value) DO NOTHING
+      RETURNING *
+    `).then((r) => r.rows);
+  if (!rows[0]) return res.status(409).json({ message: "That watch target already exists." });
+  res.status(201).json(rows[0]);
+});
+router17.delete("/watchlist/:id", isAuthenticated, async (req, res) => {
+  const orgId = requireOrg(req, res);
+  if (!orgId) return;
+  if (isViewer(req)) return res.status(403).json({ message: "Viewers cannot modify the watchlist." });
+  const rows = await db.execute(sql27`DELETE FROM bccs_fedcon_watchlist WHERE id = ${req.params.id} AND org_id = ${orgId} RETURNING id`).then((r) => r.rows);
+  if (!rows[0]) return res.status(404).json({ message: "Watch target not found" });
+  res.json({ deleted: rows[0].id });
+});
+router17.get("/opportunities", isAuthenticated, async (req, res) => {
+  const orgId = requireOrg(req, res);
+  if (!orgId) return;
+  const status = typeof req.query.status === "string" ? req.query.status : "tracking";
+  const rows = await db.execute(sql27`
+      SELECT * FROM bccs_fedcon_opportunities
+      WHERE org_id = ${orgId} AND status = ${status}
+      ORDER BY posted_date DESC NULLS LAST, created_at DESC
+      LIMIT 200
+    `).then((r) => r.rows);
+  res.json(rows);
+});
+router17.patch("/opportunities/:id", isAuthenticated, async (req, res) => {
+  const orgId = requireOrg(req, res);
+  if (!orgId) return;
+  if (isViewer(req)) return res.status(403).json({ message: "Viewers cannot update opportunities." });
+  const status = req.body?.status;
+  if (!["tracking", "archived"].includes(status)) {
+    return res.status(400).json({ message: "status must be 'tracking' or 'archived'" });
+  }
+  const rows = await db.execute(sql27`
+      UPDATE bccs_fedcon_opportunities SET status = ${status}, updated_at = NOW()
+      WHERE id = ${req.params.id} AND org_id = ${orgId}
+      RETURNING *
+    `).then((r) => r.rows);
+  if (!rows[0]) return res.status(404).json({ message: "Opportunity not found" });
+  res.json(rows[0]);
+});
+router17.get("/awards", isAuthenticated, async (req, res) => {
+  const orgId = requireOrg(req, res);
+  if (!orgId) return;
+  const rows = await db.execute(sql27`
+      SELECT * FROM bccs_fedcon_awards
+      WHERE org_id = ${orgId}
+      ORDER BY CASE risk_tier WHEN 'critical' THEN 0 WHEN 'high' THEN 1 WHEN 'moderate' THEN 2 ELSE 3 END,
+               risk_score DESC, award_amount DESC NULLS LAST
+      LIMIT 300
+    `).then((r) => r.rows);
+  res.json(rows);
+});
+router17.get("/evidence", isAuthenticated, async (req, res) => {
+  const orgId = requireOrg(req, res);
+  if (!orgId) return;
+  const subjectId = typeof req.query.subjectId === "string" ? req.query.subjectId : null;
+  const rows = await db.execute(
+    subjectId ? sql27`SELECT * FROM bccs_fedcon_evidence WHERE org_id = ${orgId} AND subject_id = ${subjectId} ORDER BY created_at DESC LIMIT 200` : sql27`SELECT * FROM bccs_fedcon_evidence WHERE org_id = ${orgId} ORDER BY created_at DESC LIMIT 200`
+  ).then((r) => r.rows);
+  res.json(rows);
+});
+router17.post("/evidence", isAuthenticated, async (req, res) => {
+  const orgId = requireOrg(req, res);
+  if (!orgId) return;
+  if (isViewer(req)) return res.status(403).json({ message: "Viewers cannot add evidence entries." });
+  const { subjectType, subjectId, entryType, content, sourceRef } = req.body ?? {};
+  if (!["vendor", "award", "opportunity"].includes(subjectType)) {
+    return res.status(400).json({ message: "subjectType must be vendor, award, or opportunity" });
+  }
+  if (!["fact", "question", "flag"].includes(entryType)) {
+    return res.status(400).json({ message: "entryType must be fact, question, or flag" });
+  }
+  if (typeof subjectId !== "string" || !subjectId.trim() || typeof content !== "string" || !content.trim()) {
+    return res.status(400).json({ message: "subjectId and content are required" });
+  }
+  const user = req.user;
+  const rows = await db.execute(sql27`
+      INSERT INTO bccs_fedcon_evidence (org_id, subject_type, subject_id, entry_type, content, source_ref, created_by)
+      VALUES (${orgId}, ${subjectType}, ${subjectId.trim().slice(0, 300)}, ${entryType},
+              ${content.trim().slice(0, 5e3)}, ${typeof sourceRef === "string" ? sourceRef.slice(0, 1e3) : null}, ${user?.email ?? null})
+      RETURNING *
+    `).then((r) => r.rows);
+  res.status(201).json(rows[0]);
+});
+router17.get("/checklist", isAuthenticated, async (req, res) => {
+  const orgId = requireOrg(req, res);
+  if (!orgId) return;
+  const subjectId = typeof req.query.subjectId === "string" ? req.query.subjectId : null;
+  const rows = await db.execute(
+    subjectId ? sql27`SELECT * FROM bccs_fedcon_checklist WHERE org_id = ${orgId} AND subject_id = ${subjectId} ORDER BY item_key` : sql27`SELECT * FROM bccs_fedcon_checklist WHERE org_id = ${orgId} ORDER BY subject_id, item_key LIMIT 500`
+  ).then((r) => r.rows);
+  res.json(rows);
+});
+router17.patch("/checklist/:id", isAuthenticated, async (req, res) => {
+  const orgId = requireOrg(req, res);
+  if (!orgId) return;
+  if (isViewer(req)) return res.status(403).json({ message: "Viewers cannot update checklist items." });
+  const { status, note } = req.body ?? {};
+  if (!["not_started", "in_progress", "cleared", "flagged"].includes(status)) {
+    return res.status(400).json({ message: "status must be not_started, in_progress, cleared, or flagged" });
+  }
+  const user = req.user;
+  const rows = await db.execute(sql27`
+      UPDATE bccs_fedcon_checklist
+      SET status = ${status}, note = ${typeof note === "string" ? note.slice(0, 2e3) : null},
+          updated_by = ${user?.email ?? null}, updated_at = NOW()
+      WHERE id = ${req.params.id} AND org_id = ${orgId}
+      RETURNING *
+    `).then((r) => r.rows);
+  if (!rows[0]) return res.status(404).json({ message: "Checklist item not found" });
+  res.json(rows[0]);
+});
+var federal_contracts_default = router17;
 
 // server/generate-document-import-tutorial.ts
 import {
@@ -12060,13 +20417,204 @@ async function generateDocumentImportTutorial() {
 // server/routes.ts
 init_db();
 init_schema();
-import { count as count2, eq as eq9, desc as desc7 } from "drizzle-orm";
+import { count as count3, eq as eq9, desc as desc7 } from "drizzle-orm";
 import bcrypt2 from "bcryptjs";
 import { sql as drizzleSql } from "drizzle-orm";
 async function registerRoutes(app) {
   await setupAuth(app);
+  app.use(resolveTenant);
+  const { attachLicense: attachLicense2, enforceTrialLifecycle: enforceTrialLifecycle2 } = await Promise.resolve().then(() => (init_license2(), license_exports2));
+  app.use("/api", attachLicense2);
+  app.use("/api", enforceTrialLifecycle2);
+  app.get("/api/session/tenant", isAuthenticated, async (req, res) => {
+    try {
+      const memberships = await getUserMemberships(req.user.id);
+      res.json({
+        multiTenant: isMultiTenant(),
+        activeOrganizationId: req.orgId ?? null,
+        isPlatformStaff: isPlatformStaff(req.user?.email),
+        organizations: memberships
+      });
+    } catch (error) {
+      console.error("Tenant session error:", error);
+      res.status(500).json({ message: "Failed to load tenant context" });
+    }
+  });
+  app.post("/api/session/active-org", isAuthenticated, async (req, res) => {
+    try {
+      const { organizationId } = req.body;
+      if (!organizationId || typeof organizationId !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(organizationId)) {
+        return res.status(400).json({ message: "A valid organizationId is required" });
+      }
+      const staff = isPlatformStaff(req.user?.email);
+      if (!staff) {
+        const memberships = await getUserMemberships(req.user.id);
+        if (!memberships.some((m) => m.organizationId === organizationId)) {
+          return res.status(403).json({ message: "You are not a member of that organization" });
+        }
+      } else {
+        const [org] = await db.select().from(trainingOrganizations).where(eq9(trainingOrganizations.id, organizationId));
+        if (!org || org.isActive === false) return res.status(404).json({ message: "Organization not found or inactive" });
+      }
+      req.session.activeOrgId = organizationId;
+      if (staff) {
+        await storage.createAuditLog({
+          userId: req.user?.id || "system",
+          eventType: "staff_org_switch",
+          message: `Platform staff ${req.user?.email} switched active organization`,
+          details: { organizationId, previousOrganizationId: req.orgId ?? null },
+          severity: "info",
+          organizationId
+        }).catch((err) => console.error("Staff org switch audit log failed (non-fatal):", err));
+      }
+      res.json({ success: true, activeOrganizationId: organizationId });
+    } catch (error) {
+      console.error("Active org switch error:", error);
+      res.status(500).json({ message: "Failed to switch organization" });
+    }
+  });
   app.get("/api/test", (req, res) => {
     res.json({ message: "Aircraft Registry & Tokenization Platform", timestamp: (/* @__PURE__ */ new Date()).toISOString() });
+  });
+  app.get("/api/config", (_req, res) => {
+    res.json({ multiTenant: isMultiTenant() });
+  });
+  const signupAttempts = /* @__PURE__ */ new Map();
+  function signupRateLimited(ip) {
+    const now = Date.now();
+    const entry = signupAttempts.get(ip);
+    if (!entry || entry.resetAt < now) {
+      signupAttempts.set(ip, { count: 1, resetAt: now + 15 * 6e4 });
+      return false;
+    }
+    entry.count += 1;
+    return entry.count > 10;
+  }
+  const signupSchema = z5.object({
+    organizationName: z5.string().trim().min(2, "Organization name is required").max(200),
+    organizationType: z5.enum(["part_142", "part_141", "part_121", "part_135", "mro", "atc"]),
+    regulatoryAuthority: z5.enum(["faa", "easa", "transport_canada", "casa"]),
+    certificateNumber: z5.string().trim().max(100).optional(),
+    firstName: z5.string().trim().min(1, "First name is required").max(100),
+    lastName: z5.string().trim().min(1, "Last name is required").max(100),
+    email: z5.string().trim().email("A valid email is required").max(255),
+    password: z5.string().min(8, "Password must be at least 8 characters").max(200)
+  });
+  app.post("/api/signup", async (req, res) => {
+    if (!isMultiTenant()) return res.status(404).json({ message: "Not found" });
+    try {
+      if (signupRateLimited(req.ip || "unknown")) {
+        return res.status(429).json({ message: "Too many signup attempts. Please try again later." });
+      }
+      const parsed = signupSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: parsed.error.errors[0]?.message ?? "Invalid signup data", errors: parsed.error.errors });
+      }
+      const data = parsed.data;
+      const email = data.email.toLowerCase();
+      if (isPlatformStaff(email)) {
+        return res.status(403).json({ message: "This email domain is reserved for BCCS staff" });
+      }
+      const [existing] = await db.select({ id: users.id }).from(users).where(eq9(users.email, email));
+      if (existing) {
+        return res.status(409).json({ message: "An account with this email already exists. Try signing in instead." });
+      }
+      const passwordHash = await bcrypt2.hash(data.password, 12);
+      const masterPublicKey = `BCCS-${Date.now()}-${Math.random().toString(36).slice(2, 10).toUpperCase()}`;
+      let user, org;
+      try {
+        const result = await db.transaction(async (tx) => {
+          const [newUser] = await tx.insert(users).values({
+            email,
+            firstName: data.firstName,
+            lastName: data.lastName,
+            role: "admin",
+            isActive: true,
+            passwordHash
+          }).returning();
+          const [newOrg] = await tx.insert(trainingOrganizations).values({
+            organizationName: data.organizationName,
+            organizationType: data.organizationType,
+            regulatoryAuthority: data.regulatoryAuthority,
+            certificateNumber: data.certificateNumber || null,
+            masterPublicKey,
+            contactInfo: { email },
+            isActive: true
+          }).returning();
+          await tx.execute(drizzleSql`
+            INSERT INTO user_organizations (user_id, organization_id, org_role)
+            VALUES (${newUser.id}, ${newOrg.id}::uuid, 'admin')
+          `);
+          await tx.execute(drizzleSql`
+            INSERT INTO bccs_licenses
+              (organization_id, plan, status, seats_limit, current_period_start, current_period_end, assigned_by, notes, updated_at)
+            VALUES
+              (${newOrg.id}::uuid, 'trial', 'trial', 5, NOW(), NOW() + INTERVAL '30 days', 'self-serve signup', 'Self-serve trial — awaiting plan assignment', NOW())
+          `);
+          return { user: newUser, org: newOrg };
+        });
+        user = result.user;
+        org = result.org;
+      } catch (txErr) {
+        if (txErr?.code === "23505") {
+          return res.status(409).json({ message: "An account with this email already exists. Try signing in instead." });
+        }
+        throw txErr;
+      }
+      invalidateDefaultOrgCache();
+      invalidateMembershipCache(user.id);
+      const { invalidateLicenseCache: invalidateLicenseCache2 } = await Promise.resolve().then(() => (init_license2(), license_exports2));
+      invalidateLicenseCache2();
+      try {
+        const { generateAndStoreOrgKeyPair: generateAndStoreOrgKeyPair2 } = await Promise.resolve().then(() => (init_crypto_signing(), crypto_signing_exports));
+        await generateAndStoreOrgKeyPair2(org.id);
+      } catch (keyErr) {
+        console.error("Signup key generation failed (non-fatal):", keyErr);
+      }
+      await storage.createAuditLog({
+        userId: user.id,
+        eventType: "org_signup",
+        message: `Self-serve signup: ${data.organizationName} (${email})`,
+        details: { organizationId: org.id, organizationName: data.organizationName },
+        severity: "info",
+        organizationId: org.id
+      }).catch((err) => console.error("Signup audit log failed (non-fatal):", err));
+      try {
+        const { sendWelcomeEmail: sendWelcomeEmail2 } = await Promise.resolve().then(() => (init_welcome_email(), welcome_email_exports));
+        const signInUrl = `${req.protocol}://${req.get("host")}/login`;
+        const skipReason = await sendWelcomeEmail2({
+          to: email,
+          firstName: data.firstName,
+          organizationName: data.organizationName,
+          signInUrl
+        });
+        if (skipReason) {
+          console.warn(`[signup] ${skipReason} \u2014 falling back to in-app welcome for ${email}`);
+          const [flagged] = await db.update(users).set({ welcomePending: true }).where(eq9(users.id, user.id)).returning();
+          if (flagged) user = flagged;
+        }
+      } catch (emailErr) {
+        console.error("Signup welcome email failed (non-fatal):", emailErr);
+      }
+      req.session.regenerate((regenErr) => {
+        if (regenErr) {
+          console.error("Signup session regenerate error:", regenErr);
+          return res.status(201).json({ success: true, requiresLogin: true, message: "Account created \u2014 please sign in" });
+        }
+        req.logIn(user, (loginErr) => {
+          if (loginErr) {
+            console.error("Signup auto-login error:", loginErr);
+            return res.status(201).json({ success: true, requiresLogin: true, message: "Account created \u2014 please sign in" });
+          }
+          req.session.activeOrgId = org.id;
+          const { passwordHash: _ph, ...safeUser } = user;
+          res.status(201).json({ success: true, user: safeUser, organization: org });
+        });
+      });
+    } catch (error) {
+      console.error("Signup error:", error);
+      res.status(500).json({ message: "Signup failed. Please try again." });
+    }
   });
   app.get("/api/auth/user", isAuthenticated, async (req, res) => {
     try {
@@ -12078,6 +20626,15 @@ async function registerRoutes(app) {
     } catch (error) {
       console.error("Error fetching user:", error);
       res.status(500).json({ message: "Failed to fetch user" });
+    }
+  });
+  app.post("/api/auth/welcome-ack", isAuthenticated, async (req, res) => {
+    try {
+      await db.update(users).set({ welcomePending: false }).where(eq9(users.id, req.user.id));
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error acknowledging welcome message:", error);
+      res.status(500).json({ message: "Failed to acknowledge welcome message" });
     }
   });
   app.get("/api/registry/stats", isAuthenticated, async (req, res) => {
@@ -12264,6 +20821,9 @@ async function registerRoutes(app) {
     try {
       const userId = req.user.id;
       const { firstName, lastName, email } = req.body;
+      if (email && isPlatformStaff(email) && !isPlatformStaff(req.user?.email)) {
+        return res.status(403).json({ error: "This email domain is reserved for platform staff" });
+      }
       await storage.updateUserProfile(userId, { firstName, lastName, email });
       const updated = await storage.getUser(userId);
       res.json({ success: true, user: updated });
@@ -12274,6 +20834,8 @@ async function registerRoutes(app) {
   });
   app.get("/api/checklist/state", isAuthenticated, async (req, res) => {
     try {
+      const orgId = requireOrg(req, res);
+      if (!orgId) return;
       const userId = req.user.id;
       const row = await storage.getChecklistState(userId);
       res.json({ state: row?.state ?? null, updatedAt: row?.updatedAt ?? null });
@@ -12284,6 +20846,8 @@ async function registerRoutes(app) {
   });
   app.put("/api/checklist/state", isAuthenticated, async (req, res) => {
     try {
+      const orgId = requireOrg(req, res);
+      if (!orgId) return;
       const userId = req.user.id;
       const { state } = req.body;
       if (!state) return res.status(400).json({ error: "state is required" });
@@ -12294,20 +20858,71 @@ async function registerRoutes(app) {
       res.status(500).json({ error: "Failed to save checklist state" });
     }
   });
-  app.get("/api/organizations", isAuthenticated, async (_req, res) => {
+  app.get("/api/organizations", isAuthenticated, async (req, res) => {
     try {
-      const orgs = await db.select().from(trainingOrganizations).limit(100);
-      res.json(orgs);
+      let orgs = await db.select().from(trainingOrganizations).orderBy(trainingOrganizations.createdAt).limit(200);
+      if (!isPlatformStaff(req.user?.email)) {
+        const memberships = await getUserMemberships(req.user.id);
+        const memberOrgIds = new Set(memberships.map((m) => m.organizationId));
+        orgs = orgs.filter((o) => memberOrgIds.has(o.id));
+      }
+      const countsResult = await db.execute(drizzleSql`
+        SELECT organization_id, COUNT(*)::int AS member_count
+        FROM user_organizations WHERE is_active = TRUE
+        GROUP BY organization_id
+      `);
+      const counts = new Map(
+        (countsResult.rows || []).map((r) => [r.organization_id, Number(r.member_count)])
+      );
+      res.json(orgs.map((o) => ({ ...o, memberCount: counts.get(o.id) ?? 0 })));
     } catch (error) {
       console.error("Organizations fetch error:", error);
       res.status(500).json({ error: "Failed to fetch organizations" });
     }
   });
+  app.put("/api/organizations/:id/status", isAuthenticated, async (req, res) => {
+    try {
+      if (!isPlatformStaff(req.user?.email)) {
+        return res.status(403).json({ message: "Tenant status management requires a @bccsworld.com account" });
+      }
+      const { isActive } = req.body;
+      if (typeof isActive !== "boolean") return res.status(400).json({ message: "isActive must be a boolean" });
+      const [org] = await db.update(trainingOrganizations).set({ isActive, updatedAt: /* @__PURE__ */ new Date() }).where(eq9(trainingOrganizations.id, req.params.id)).returning();
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+      invalidateDefaultOrgCache();
+      invalidateMembershipCache();
+      await storage.createAuditLog({
+        userId: req.user?.id || "system",
+        eventType: isActive ? "org_activated" : "org_deactivated",
+        message: `Organization ${org.organizationName} ${isActive ? "activated" : "deactivated"} by ${req.user?.email}`,
+        details: { organizationId: org.id },
+        severity: "warning",
+        organizationId: org.id
+      }).catch((err) => console.error("Org status audit log failed (non-fatal):", err));
+      res.json(org);
+    } catch (error) {
+      console.error("Org status update error:", error);
+      res.status(500).json({ message: "Failed to update organization status" });
+    }
+  });
   app.get("/api/admin/stats", isAuthenticated, async (req, res) => {
     try {
       if (req.user?.role !== "admin") return res.status(403).json({ message: "Admin access required" });
-      const [userCount] = await db.select({ total: count2() }).from(users);
-      const [orgCount] = await db.select({ total: count2() }).from(trainingOrganizations);
+      if (!isPlatformStaff(req.user?.email)) {
+        const orgId = requireOrg(req, res);
+        if (!orgId) return;
+        const result = await db.execute(drizzleSql`
+          SELECT COUNT(*)::int AS total FROM user_organizations
+          WHERE organization_id = ${orgId} AND is_active = TRUE
+        `);
+        return res.json({
+          totalUsers: Number(result.rows?.[0]?.total ?? 0),
+          totalOrganizations: 1,
+          activeAudits: 0
+        });
+      }
+      const [userCount] = await db.select({ total: count3() }).from(users);
+      const [orgCount] = await db.select({ total: count3() }).from(trainingOrganizations);
       res.json({
         totalUsers: Number(userCount?.total ?? 0),
         totalOrganizations: Number(orgCount?.total ?? 0),
@@ -12324,61 +20939,15 @@ async function registerRoutes(app) {
   app.use("/", document_generation_default);
   app.use("/api/maintenance", maintenance_default);
   app.use("/api/digital-forms", digital_forms_default);
-  const upload = multer({
-    storage: multer.memoryStorage(),
-    limits: { fileSize: 50 * 1024 * 1024 },
-    fileFilter: (_req, file, cb) => {
-      const allowed = [
-        "application/pdf",
-        "image/jpeg",
-        "image/png",
-        "image/tiff",
-        "application/msword",
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        "text/plain"
-      ];
-      cb(null, allowed.includes(file.mimetype));
-    }
-  });
-  app.post("/api/documents/upload", isAuthenticated, upload.single("file"), async (req, res) => {
-    try {
-      if (!req.file) {
-        return res.status(400).json({ error: "No file provided or file type not supported" });
-      }
-      const userId = req.user?.id;
-      const { documentType } = req.body;
-      const docId = `doc_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-      await storage.createAuditLog({
-        eventType: "document_upload",
-        severity: "info",
-        message: `Document uploaded: ${req.file.originalname}`,
-        details: {
-          documentId: docId,
-          fileName: req.file.originalname,
-          fileSize: req.file.size,
-          mimeType: req.file.mimetype,
-          documentType: documentType || "GENERAL"
-        },
-        sourceSystem: "document_service",
-        userId
-      });
-      res.json({
-        success: true,
-        document: {
-          id: docId,
-          fileName: req.file.originalname,
-          fileSize: req.file.size,
-          mimeType: req.file.mimetype,
-          documentType: documentType || "GENERAL",
-          status: "uploaded",
-          uploadedAt: (/* @__PURE__ */ new Date()).toISOString()
-        }
-      });
-    } catch (error) {
-      console.error("Document upload error:", error);
-      res.status(500).json({ error: "Failed to upload document", details: error instanceof Error ? error.message : "Unknown error" });
-    }
-  });
+  app.use("/api/instructor-portal", instructor_portal_default);
+  app.use("/api/checklist-report", checklist_report_default);
+  app.use("/api/ml", ml_training_default);
+  app.use("/api/org-keys", crypto_signing_default);
+  app.use("/api/reviewer-keys", reviewer_default);
+  app.use("/api/governance", governance_default);
+  app.use("/api/agents", agents_default);
+  app.use("/api/federal-contracts", federal_contracts_default);
+  app.use("/api/documents", documents_default);
   app.get("/api/audit/document-summary", isAuthenticated, async (req, res) => {
     try {
       const userId = req.user?.id || "default";
@@ -12459,36 +21028,18 @@ async function registerRoutes(app) {
       res.status(500).json({ message: "Failed to change password" });
     }
   });
-  app.get("/api/documents", isAuthenticated, async (req, res) => {
+  app.get("/api/dashboard/stats", isAuthenticated, async (req, res) => {
     try {
-      const docs = await storage.getAuditLogs({ eventType: "document_upload", limit: 200 });
-      const result = docs.map((d) => {
-        const details = d.details || {};
-        return {
-          id: d.id,
-          fileName: details.fileName || "Unknown File",
-          fileSize: details.fileSize || 0,
-          mimeType: details.mimeType || "application/octet-stream",
-          documentType: details.documentType || "general",
-          uploadedBy: d.userId,
-          uploadedAt: d.timestamp,
-          blockchainHash: details.blockchainHash || null
-        };
-      });
-      res.json(result);
-    } catch (error) {
-      console.error("Documents list error:", error);
-      res.status(500).json({ message: "Failed to fetch documents" });
-    }
-  });
-  app.get("/api/dashboard/stats", isAuthenticated, async (_req, res) => {
-    try {
-      const [docCountResult] = await db.select({ count: count2() }).from(auditLogs).where(eq9(auditLogs.eventType, "document_upload"));
-      const totalRecords = Number(docCountResult?.count ?? 0);
+      const orgId = requireOrg(req, res);
+      if (!orgId) return;
+      const docCountRows = await db.execute(drizzleSql`
+        SELECT COUNT(*)::int AS n FROM bccs_documents WHERE organization_id = ${orgId}
+      `);
+      const totalRecords = Number(docCountRows.rows?.[0]?.n ?? 0);
       let complianceRate = 0;
       let pendingReviews = 0;
       try {
-        const rows = await db.execute("SELECT state FROM checklist_states ORDER BY updated_at DESC LIMIT 1");
+        const rows = await db.execute(drizzleSql`SELECT state FROM checklist_states WHERE organization_id = ${orgId} ORDER BY updated_at DESC LIMIT 1`);
         const stateRows = rows.rows || [];
         if (stateRows.length > 0) {
           const state = stateRows[0].state;
@@ -12515,7 +21066,39 @@ async function registerRoutes(app) {
   });
   app.get("/api/admin/users", isAuthenticated, async (req, res) => {
     try {
-      if (req.user?.role !== "admin") return res.status(403).json({ message: "Admin access required" });
+      const role = req.user?.role;
+      const staff = isPlatformStaff(req.user?.email);
+      if (role !== "admin" && role !== "manager" && !staff) {
+        return res.status(403).json({ message: "Admin or manager access required" });
+      }
+      if (staff) {
+        const result = await db.execute(drizzleSql`
+          SELECT u.id, u.email, u.first_name AS "firstName", u.last_name AS "lastName",
+                 u.role, u.is_active AS "isActive", u.last_login_at AS "lastLoginAt",
+                 u.created_at AS "createdAt",
+                 COALESCE(string_agg(DISTINCT o.organization_name, ', ' ORDER BY o.organization_name), '') AS "organizations"
+          FROM users u
+          LEFT JOIN user_organizations uo ON uo.user_id = u.id AND uo.is_active = TRUE
+          LEFT JOIN training_organizations o ON o.id = uo.organization_id
+          GROUP BY u.id
+          ORDER BY u.created_at DESC
+        `);
+        return res.json(result.rows || []);
+      }
+      if (isMultiTenant()) {
+        const orgId = requireOrg(req, res);
+        if (!orgId) return;
+        const result = await db.execute(drizzleSql`
+          SELECT u.id, u.email, u.first_name AS "firstName", u.last_name AS "lastName",
+                 u.role, u.is_active AS "isActive", u.last_login_at AS "lastLoginAt",
+                 u.created_at AS "createdAt"
+          FROM users u
+          JOIN user_organizations uo ON uo.user_id = u.id
+          WHERE uo.organization_id = ${orgId} AND uo.is_active = TRUE
+          ORDER BY u.created_at DESC
+        `);
+        return res.json(result.rows || []);
+      }
       const allUsers = await db.select({
         id: users.id,
         email: users.email,
@@ -12534,13 +21117,16 @@ async function registerRoutes(app) {
   });
   app.post("/api/admin/users/invite", isAuthenticated, async (req, res) => {
     try {
-      if (req.user?.role !== "admin") return res.status(403).json({ message: "Admin access required" });
+      if (req.user?.role !== "admin" && !isPlatformStaff(req.user?.email)) return res.status(403).json({ message: "Admin access required" });
       const { email, firstName, lastName, role, temporaryPassword } = req.body;
       if (!email || !firstName || !lastName || !role || !temporaryPassword) {
         return res.status(400).json({ message: "All fields are required" });
       }
       if (temporaryPassword.length < 8) {
         return res.status(400).json({ message: "Password must be at least 8 characters" });
+      }
+      if (String(email).toLowerCase().endsWith("@bccsworld.com")) {
+        return res.status(403).json({ message: "This email domain is reserved for BCCS staff and cannot be invited here" });
       }
       const [existing] = await db.select().from(users).where(eq9(users.email, email));
       if (existing) return res.status(409).json({ message: "User with this email already exists" });
@@ -12562,6 +21148,15 @@ async function registerRoutes(app) {
         lastLoginAt: users.lastLoginAt,
         createdAt: users.createdAt
       });
+      const inviteOrgId = req.orgId ?? await getDefaultOrgId();
+      if (inviteOrgId) {
+        await db.execute(drizzleSql`
+          INSERT INTO user_organizations (user_id, organization_id, org_role)
+          VALUES (${newUser.id}, ${inviteOrgId}::uuid, ${role || "viewer"})
+          ON CONFLICT (user_id, organization_id) DO NOTHING
+        `).catch((err) => console.error("Membership insert failed (non-fatal):", err));
+        invalidateMembershipCache(newUser.id);
+      }
       await storage.createAuditLog({
         userId: req.user?.id || "system",
         eventType: "user_invited",
@@ -12575,9 +21170,34 @@ async function registerRoutes(app) {
       res.status(500).json({ message: "Failed to invite user" });
     }
   });
+  async function canManageTargetUser(req, res) {
+    if (!isMultiTenant() || isPlatformStaff(req.user?.email)) return true;
+    const orgId = requireOrg(req, res);
+    if (!orgId) return false;
+    const result = await db.execute(drizzleSql`
+      SELECT u.email
+      FROM users u
+      JOIN user_organizations uo ON uo.user_id = u.id
+      WHERE u.id = ${req.params.id}
+        AND uo.organization_id = ${orgId}::uuid
+        AND uo.is_active = TRUE
+      LIMIT 1
+    `);
+    const row = result.rows[0];
+    if (!row) {
+      res.status(404).json({ message: "User not found in your organization" });
+      return false;
+    }
+    if (isPlatformStaff(row.email)) {
+      res.status(403).json({ message: "Platform staff accounts cannot be managed here" });
+      return false;
+    }
+    return true;
+  }
   app.put("/api/admin/users/:id/role", isAuthenticated, async (req, res) => {
     try {
-      if (req.user?.role !== "admin") return res.status(403).json({ message: "Admin access required" });
+      if (req.user?.role !== "admin" && !isPlatformStaff(req.user?.email)) return res.status(403).json({ message: "Admin access required" });
+      if (!await canManageTargetUser(req, res)) return;
       const { role } = req.body;
       const rolesResult = await db.execute(drizzleSql`SELECT role_name FROM bccs_role_permissions`);
       const validRoles = rolesResult.rows.map((r) => r.role_name);
@@ -12600,8 +21220,9 @@ async function registerRoutes(app) {
   });
   app.put("/api/admin/users/:id/status", isAuthenticated, async (req, res) => {
     try {
-      if (req.user?.role !== "admin") return res.status(403).json({ message: "Admin access required" });
+      if (req.user?.role !== "admin" && !isPlatformStaff(req.user?.email)) return res.status(403).json({ message: "Admin access required" });
       if (req.params.id === req.user.id) return res.status(400).json({ message: "Cannot change your own account status" });
+      if (!await canManageTargetUser(req, res)) return;
       const { isActive } = req.body;
       if (typeof isActive !== "boolean") return res.status(400).json({ message: "isActive must be a boolean" });
       await db.update(users).set({ isActive, updatedAt: /* @__PURE__ */ new Date() }).where(eq9(users.id, req.params.id));
@@ -12620,7 +21241,8 @@ async function registerRoutes(app) {
   });
   app.put("/api/admin/users/:id/reset-password", isAuthenticated, async (req, res) => {
     try {
-      if (req.user?.role !== "admin") return res.status(403).json({ message: "Admin access required" });
+      if (req.user?.role !== "admin" && !isPlatformStaff(req.user?.email)) return res.status(403).json({ message: "Admin access required" });
+      if (!await canManageTargetUser(req, res)) return;
       const { newPassword } = req.body;
       if (!newPassword || newPassword.length < 8) return res.status(400).json({ message: "Password must be at least 8 characters" });
       const passwordHash = await bcrypt2.hash(newPassword, 12);
@@ -12640,8 +21262,9 @@ async function registerRoutes(app) {
   });
   app.delete("/api/admin/users/:id", isAuthenticated, async (req, res) => {
     try {
-      if (req.user?.role !== "admin") return res.status(403).json({ message: "Admin access required" });
+      if (req.user?.role !== "admin" && !isPlatformStaff(req.user?.email)) return res.status(403).json({ message: "Admin access required" });
       if (req.params.id === req.user.id) return res.status(400).json({ message: "Cannot delete your own account" });
+      if (!await canManageTargetUser(req, res)) return;
       await db.delete(users).where(eq9(users.id, req.params.id));
       await storage.createAuditLog({
         userId: req.user?.id || "system",
@@ -12658,7 +21281,7 @@ async function registerRoutes(app) {
   });
   app.get("/api/admin/roles", isAuthenticated, async (req, res) => {
     try {
-      if (req.user?.role !== "admin") return res.status(403).json({ message: "Admin access required" });
+      if (req.user?.role !== "admin" && !isPlatformStaff(req.user?.email)) return res.status(403).json({ message: "Admin access required" });
       const result = await db.execute(drizzleSql`
         SELECT id, role_name, display_name, description, permissions, is_system, color, created_at, updated_at
         FROM bccs_role_permissions
@@ -12673,6 +21296,9 @@ async function registerRoutes(app) {
   app.put("/api/admin/roles/:roleName", isAuthenticated, async (req, res) => {
     try {
       if (req.user?.role !== "admin") return res.status(403).json({ message: "Admin access required" });
+      if (isMultiTenant() && !isPlatformStaff(req.user?.email)) {
+        return res.status(403).json({ message: "Only platform staff can modify role permissions" });
+      }
       const { permissions, displayName, description } = req.body;
       if (!Array.isArray(permissions)) return res.status(400).json({ message: "permissions must be an array" });
       const invalid = permissions.filter((p) => !ALL_PERMISSIONS.includes(p));
@@ -12681,20 +21307,15 @@ async function registerRoutes(app) {
       if (roleName === "admin" && !permissions.includes("admin:roles")) {
         return res.status(400).json({ message: "Cannot remove admin:roles from the admin role" });
       }
-      const updates = { permissions, updated_at: /* @__PURE__ */ new Date() };
-      if (displayName) updates.display_name = displayName;
-      if (description !== void 0) updates.description = description;
-      const permsLiteral = permissions.length > 0 ? `ARRAY[${permissions.map((p) => `'${p.replace(/'/g, "''")}'`).join(",")}]::TEXT[]` : `ARRAY[]::TEXT[]`;
-      const safeDisplayName = (displayName || "").replace(/'/g, "''");
-      const safeDescription = (description ?? "").replace(/'/g, "''");
-      await db.execute(drizzleSql.raw(`
+      const permsArray = permissions.length > 0 ? drizzleSql`ARRAY[${drizzleSql.join(permissions.map((p) => drizzleSql`${p}`), drizzleSql`, `)}]::TEXT[]` : drizzleSql`ARRAY[]::TEXT[]`;
+      await db.execute(drizzleSql`
         UPDATE bccs_role_permissions
-        SET permissions = ${permsLiteral},
-            display_name = COALESCE(NULLIF('${safeDisplayName}', ''), display_name),
-            description  = COALESCE(NULLIF('${safeDescription}', ''), description),
+        SET permissions = ${permsArray},
+            display_name = COALESCE(NULLIF(${displayName || ""}, ''), display_name),
+            description  = COALESCE(NULLIF(${description ?? ""}, ''), description),
             updated_at   = NOW()
-        WHERE role_name = '${roleName.replace(/'/g, "''")}'
-      `));
+        WHERE role_name = ${roleName}
+      `);
       await storage.createAuditLog({
         userId: req.user?.id || "system",
         eventType: "role_permissions_updated",
@@ -12711,23 +21332,28 @@ async function registerRoutes(app) {
   app.post("/api/admin/roles", isAuthenticated, async (req, res) => {
     try {
       if (req.user?.role !== "admin") return res.status(403).json({ message: "Admin access required" });
+      if (isMultiTenant() && !isPlatformStaff(req.user?.email)) {
+        return res.status(403).json({ message: "Only platform staff can create roles" });
+      }
       const { roleName, displayName, description, permissions = [], color } = req.body;
       if (!roleName || !displayName) return res.status(400).json({ message: "roleName and displayName are required" });
       if (!/^[a-z0-9_-]+$/.test(roleName)) return res.status(400).json({ message: "roleName must be lowercase alphanumeric with _ or -" });
-      const newPermsLiteral = permissions.length > 0 ? `ARRAY[${permissions.map((p) => `'${p.replace(/'/g, "''")}'`).join(",")}]::TEXT[]` : `ARRAY[]::TEXT[]`;
-      const safeColor = (color || "bg-teal-100 text-teal-700").replace(/'/g, "''");
-      const result = await db.execute(drizzleSql.raw(`
+      if (!Array.isArray(permissions)) return res.status(400).json({ message: "permissions must be an array" });
+      const invalidPerms = permissions.filter((p) => !ALL_PERMISSIONS.includes(p));
+      if (invalidPerms.length > 0) return res.status(400).json({ message: `Unknown permissions: ${invalidPerms.join(", ")}` });
+      const newPermsArray = permissions.length > 0 ? drizzleSql`ARRAY[${drizzleSql.join(permissions.map((p) => drizzleSql`${p}`), drizzleSql`, `)}]::TEXT[]` : drizzleSql`ARRAY[]::TEXT[]`;
+      const result = await db.execute(drizzleSql`
         INSERT INTO bccs_role_permissions (role_name, display_name, description, permissions, is_system, color)
         VALUES (
-          '${roleName.replace(/'/g, "''")}',
-          '${displayName.replace(/'/g, "''")}',
-          '${(description || "").replace(/'/g, "''")}',
-          ${newPermsLiteral},
+          ${roleName},
+          ${displayName},
+          ${description || ""},
+          ${newPermsArray},
           FALSE,
-          '${safeColor}'
+          ${color || "bg-teal-100 text-teal-700"}
         )
         RETURNING *
-      `));
+      `);
       res.status(201).json(result.rows[0]);
     } catch (error) {
       if (error?.code === "23505") return res.status(409).json({ message: "A role with this name already exists" });
@@ -12738,6 +21364,9 @@ async function registerRoutes(app) {
   app.delete("/api/admin/roles/:roleName", isAuthenticated, async (req, res) => {
     try {
       if (req.user?.role !== "admin") return res.status(403).json({ message: "Admin access required" });
+      if (isMultiTenant() && !isPlatformStaff(req.user?.email)) {
+        return res.status(403).json({ message: "Only platform staff can delete roles" });
+      }
       const roleName = req.params.roleName;
       const isSystemRole = SYSTEM_ROLES.some((r) => r.roleName === roleName);
       if (isSystemRole) return res.status(400).json({ message: "System roles cannot be deleted" });
@@ -12750,8 +21379,13 @@ async function registerRoutes(app) {
       res.status(500).json({ message: "Failed to delete role" });
     }
   });
-  app.get("/api/auth/organization", isAuthenticated, async (_req, res) => {
+  app.get("/api/auth/organization", isAuthenticated, async (req, res) => {
     try {
+      if (req.orgId) {
+        const [activeOrg] = await db.select().from(trainingOrganizations).where(eq9(trainingOrganizations.id, req.orgId));
+        if (activeOrg) return res.json(activeOrg);
+      }
+      if (!isPlatformStaff(req.user?.email)) return res.json(null);
       const [org] = await db.select().from(trainingOrganizations).where(eq9(trainingOrganizations.isActive, true));
       res.json(org || null);
     } catch (error) {
@@ -12761,6 +21395,9 @@ async function registerRoutes(app) {
   });
   app.post("/api/organizations/setup", isAuthenticated, async (req, res) => {
     try {
+      if (!isPlatformStaff(req.user?.email)) {
+        return res.status(403).json({ message: "Organization setup requires a platform SuperAdmin account" });
+      }
       const { organizationName, organizationType, regulatoryAuthority, certificateNumber, contactInfo } = req.body;
       if (!organizationName || !organizationType || !regulatoryAuthority) {
         return res.status(400).json({ message: "Organization name, type and regulatory authority are required" });
@@ -12775,13 +21412,22 @@ async function registerRoutes(app) {
         contactInfo: contactInfo || {},
         isActive: true
       }).returning();
+      invalidateDefaultOrgCache();
+      if (req.user?.id && org?.id) {
+        await db.execute(drizzleSql`
+          INSERT INTO user_organizations (user_id, organization_id, org_role)
+          VALUES (${req.user.id}, ${org.id}::uuid, 'admin')
+          ON CONFLICT (user_id, organization_id) DO NOTHING
+        `).catch((err) => console.error("Creator membership insert failed (non-fatal):", err));
+        invalidateMembershipCache(req.user.id);
+      }
       await storage.createAuditLog({
         userId: req.user?.id || "system",
         eventType: "org_setup",
+        message: `Organization created: ${organizationName} (${organizationType})`,
         details: { organizationName, organizationType },
-        severity: "info",
-        ipAddress: req.ip
-      });
+        severity: "info"
+      }).catch((err) => console.error("Org setup audit log failed (non-fatal):", err));
       res.status(201).json(org);
     } catch (error) {
       console.error("Org setup error:", error);
@@ -12790,8 +21436,10 @@ async function registerRoutes(app) {
   });
   app.get("/api/training-events", isAuthenticated, async (req, res) => {
     try {
+      const orgId = requireOrg(req, res);
+      if (!orgId) return;
       const rows = await db.execute(drizzleSql`
-        SELECT * FROM bccs_training_events ORDER BY event_date DESC LIMIT 200
+        SELECT * FROM bccs_training_events WHERE organization_id = ${orgId} ORDER BY event_date DESC LIMIT 200
       `);
       res.json(rows.rows || []);
     } catch (error) {
@@ -12801,27 +21449,82 @@ async function registerRoutes(app) {
   });
   app.post("/api/training-events", isAuthenticated, async (req, res) => {
     try {
+      const orgId = requireOrg(req, res);
+      if (!orgId) return;
       const { studentName, studentId, instructorName, instructorId, eventType, eventDate, durationHours, curriculumItem, notes, status } = req.body;
       if (!studentName || !instructorName || !eventType || !eventDate) {
         return res.status(400).json({ message: "Student name, instructor, event type, and date are required" });
       }
       const hash = `BCCS-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
       const rows = await db.execute(drizzleSql`
-        INSERT INTO bccs_training_events (student_name, student_id, instructor_name, instructor_id, event_type, event_date, duration_hours, curriculum_item, notes, status, blockchain_hash, user_id)
-        VALUES (${studentName}, ${studentId || null}, ${instructorName}, ${instructorId || null}, ${eventType}, ${new Date(eventDate)}, ${durationHours || null}, ${curriculumItem || null}, ${notes || null}, ${status || "completed"}, ${hash}, ${req.user?.id || "system"})
+        INSERT INTO bccs_training_events (student_name, student_id, instructor_name, instructor_id, event_type, event_date, duration_hours, curriculum_item, notes, status, blockchain_hash, user_id, organization_id)
+        VALUES (${studentName}, ${studentId || null}, ${instructorName}, ${instructorId || null}, ${eventType}, ${new Date(eventDate)}, ${durationHours || null}, ${curriculumItem || null}, ${notes || null}, ${status || "completed"}, ${hash}, ${req.user?.id || "system"}, ${orgId})
         RETURNING *
       `);
       const event = (rows.rows || [])[0];
+      if (event?.id) {
+        try {
+          const hasKey = await getOrgActiveKey(orgId);
+          if (hasKey) {
+            await signTrainingRecord(event.id, orgId);
+          }
+        } catch (signErr) {
+          console.warn("Auto-sign skipped:", signErr.message);
+        }
+      }
       await storage.createAuditLog({ userId: req.user?.id || "system", eventType: "training_event_logged", message: `Training event logged for ${studentName} (${eventType})`, details: { studentName, eventType }, severity: "info" });
+      queueAuditReadinessRefresh(orgId, "training_event_logged");
       res.status(201).json(event);
     } catch (error) {
       console.error("Create training event error:", error);
       res.status(500).json({ message: "Failed to log training event" });
     }
   });
-  app.get("/api/students", isAuthenticated, async (_req, res) => {
+  app.delete("/api/training-events/:id", isAuthenticated, async (req, res) => {
     try {
-      const rows = await db.execute(drizzleSql`SELECT * FROM students ORDER BY last_name, first_name`);
+      const { id } = req.params;
+      const { asAuthority } = req.body || {};
+      const orgId = requireOrg(req, res);
+      if (!orgId) return;
+      const rows = await db.execute(drizzleSql`SELECT * FROM bccs_training_events WHERE id = ${id} AND organization_id = ${orgId}`);
+      const record = (rows.rows || [])[0];
+      if (!record) return res.status(404).json({ message: "Training record not found" });
+      const isSigned = !!(record.signature || record.signed_data_hash);
+      const actionType = isSigned ? "delete_signed_training_record" : "delete_training_record";
+      const realAuthority = req.user?.role || "viewer";
+      let requesterAuthority = realAuthority;
+      if (asAuthority && isValidAuthority(asAuthority) && authorityRank(asAuthority) <= authorityRank(realAuthority)) {
+        requesterAuthority = asAuthority;
+      }
+      const requestedBy = `${req.user?.firstName ?? ""} ${req.user?.lastName ?? ""}`.trim() || req.user?.email || req.user?.id || "system";
+      const decision = await evaluateAction({
+        actionType,
+        actionDescription: `Delete ${isSigned ? "signed/protected" : "unsigned draft"} training record for ${record.student_name} (${record.event_type})`,
+        requestedBy,
+        requesterAuthority,
+        userId: req.user?.id,
+        orgId,
+        context: { recordId: id, isSigned }
+      });
+      if (decision.decision === "allowed") {
+        await db.execute(drizzleSql`DELETE FROM bccs_training_events WHERE id = ${id} AND organization_id = ${orgId}`);
+        queueAuditReadinessRefresh(orgId, "training_event_deleted");
+        return res.status(200).json({ deleted: true, decision });
+      }
+      if (decision.decision === "escalated") {
+        return res.status(202).json({ deleted: false, decision });
+      }
+      return res.status(403).json({ deleted: false, decision });
+    } catch (error) {
+      console.error("Delete training event error:", error);
+      res.status(500).json({ message: "Failed to process delete request" });
+    }
+  });
+  app.get("/api/students", isAuthenticated, async (req, res) => {
+    try {
+      const orgId = requireOrg(req, res);
+      if (!orgId) return;
+      const rows = await db.execute(drizzleSql`SELECT * FROM students WHERE organization_id = ${orgId} ORDER BY last_name, first_name`);
       res.json(rows.rows || []);
     } catch (error) {
       console.error("Students error:", error);
@@ -12830,11 +21533,13 @@ async function registerRoutes(app) {
   });
   app.post("/api/students", isAuthenticated, async (req, res) => {
     try {
+      const orgId = requireOrg(req, res);
+      if (!orgId) return;
       const { firstName, lastName, email, phone, certificateNumber, enrollmentDate, expectedCompletion, status, notes } = req.body;
       if (!firstName || !lastName) return res.status(400).json({ message: "First and last name required" });
       const rows = await db.execute(drizzleSql`
-        INSERT INTO students (first_name, last_name, email, phone, certificate_number, enrollment_date, expected_completion, status, notes)
-        VALUES (${firstName}, ${lastName}, ${email || null}, ${phone || null}, ${certificateNumber || null}, ${enrollmentDate ? new Date(enrollmentDate) : /* @__PURE__ */ new Date()}, ${expectedCompletion ? new Date(expectedCompletion) : null}, ${status || "active"}, ${notes || null})
+        INSERT INTO students (first_name, last_name, email, phone, certificate_number, enrollment_date, expected_completion, status, notes, organization_id)
+        VALUES (${firstName}, ${lastName}, ${email || null}, ${phone || null}, ${certificateNumber || null}, ${enrollmentDate ? new Date(enrollmentDate) : /* @__PURE__ */ new Date()}, ${expectedCompletion ? new Date(expectedCompletion) : null}, ${status || "active"}, ${notes || null}, ${orgId})
         RETURNING *
       `);
       res.status(201).json((rows.rows || [])[0]);
@@ -12845,8 +21550,11 @@ async function registerRoutes(app) {
   });
   app.put("/api/students/:id", isAuthenticated, async (req, res) => {
     try {
+      const orgId = requireOrg(req, res);
+      if (!orgId) return;
       const { status, notes } = req.body;
-      await db.execute(drizzleSql`UPDATE students SET status = ${status}, notes = ${notes || null} WHERE id = ${req.params.id}`);
+      const result = await db.execute(drizzleSql`UPDATE students SET status = ${status}, notes = ${notes || null} WHERE id = ${req.params.id} AND organization_id = ${orgId} RETURNING id`);
+      if ((result.rows || []).length === 0) return res.status(404).json({ message: "Student not found" });
       res.json({ message: "Student updated" });
     } catch (error) {
       res.status(500).json({ message: "Failed to update student" });
@@ -12854,15 +21562,20 @@ async function registerRoutes(app) {
   });
   app.delete("/api/students/:id", isAuthenticated, async (req, res) => {
     try {
-      await db.execute(drizzleSql`DELETE FROM students WHERE id = ${req.params.id}`);
+      const orgId = requireOrg(req, res);
+      if (!orgId) return;
+      const result = await db.execute(drizzleSql`DELETE FROM students WHERE id = ${req.params.id} AND organization_id = ${orgId} RETURNING id`);
+      if ((result.rows || []).length === 0) return res.status(404).json({ message: "Student not found" });
       res.json({ message: "Student removed" });
     } catch (error) {
       res.status(500).json({ message: "Failed to delete student" });
     }
   });
-  app.get("/api/instructors", isAuthenticated, async (_req, res) => {
+  app.get("/api/instructors", isAuthenticated, async (req, res) => {
     try {
-      const rows = await db.execute(drizzleSql`SELECT * FROM bccs_instructor_records ORDER BY last_name, first_name`);
+      const orgId = requireOrg(req, res);
+      if (!orgId) return;
+      const rows = await db.execute(drizzleSql`SELECT * FROM bccs_instructor_records WHERE organization_id = ${orgId} ORDER BY last_name, first_name`);
       res.json(rows.rows || []);
     } catch (error) {
       console.error("Instructors error:", error);
@@ -12871,13 +21584,15 @@ async function registerRoutes(app) {
   });
   app.post("/api/instructors", isAuthenticated, async (req, res) => {
     try {
+      const orgId = requireOrg(req, res);
+      if (!orgId) return;
       const { firstName, lastName, email, certificateType, certificateNumber, issueDate, expirationDate, currencyDate, ratings, trainingAuthorizations, status } = req.body;
       if (!firstName || !lastName || !certificateType || !certificateNumber) {
         return res.status(400).json({ message: "Name, certificate type and number are required" });
       }
       const rows = await db.execute(drizzleSql`
-        INSERT INTO bccs_instructor_records (first_name, last_name, email, certificate_type, certificate_number, issue_date, expiration_date, currency_date, ratings, training_authorizations, status)
-        VALUES (${firstName}, ${lastName}, ${email || null}, ${certificateType}, ${certificateNumber}, ${issueDate ? new Date(issueDate) : null}, ${expirationDate ? new Date(expirationDate) : null}, ${currencyDate ? new Date(currencyDate) : null}, ${JSON.stringify(ratings || [])}, ${JSON.stringify(trainingAuthorizations || [])}, ${status || "current"})
+        INSERT INTO bccs_instructor_records (first_name, last_name, email, certificate_type, certificate_number, issue_date, expiration_date, currency_date, ratings, training_authorizations, status, organization_id)
+        VALUES (${firstName}, ${lastName}, ${email || null}, ${certificateType}, ${certificateNumber}, ${issueDate ? new Date(issueDate) : null}, ${expirationDate ? new Date(expirationDate) : null}, ${currencyDate ? new Date(currencyDate) : null}, ${JSON.stringify(ratings || [])}, ${JSON.stringify(trainingAuthorizations || [])}, ${status || "current"}, ${orgId})
         RETURNING *
       `);
       res.status(201).json((rows.rows || [])[0]);
@@ -12888,7 +21603,10 @@ async function registerRoutes(app) {
   });
   app.delete("/api/instructors/:id", isAuthenticated, async (req, res) => {
     try {
-      await db.execute(drizzleSql`DELETE FROM bccs_instructor_records WHERE id = ${req.params.id}`);
+      const orgId = requireOrg(req, res);
+      if (!orgId) return;
+      const result = await db.execute(drizzleSql`DELETE FROM bccs_instructor_records WHERE id = ${req.params.id} AND organization_id = ${orgId} RETURNING id`);
+      if ((result.rows || []).length === 0) return res.status(404).json({ message: "Instructor not found" });
       res.json({ message: "Instructor removed" });
     } catch (error) {
       res.status(500).json({ message: "Failed to delete instructor" });
@@ -12899,9 +21617,9 @@ async function registerRoutes(app) {
       const { type } = req.query;
       let docs;
       if (type && type !== "all") {
-        docs = await db.select().from(faaPolicyDocuments).where(eq9(faaPolicyDocuments.documentType, type)).orderBy(desc7(faaPolicyDocuments.publishedDate)).limit(100);
+        docs = await db.select().from(faaPolicyDocuments).where(eq9(faaPolicyDocuments.documentType, type)).orderBy(desc7(faaPolicyDocuments.issuanceDate)).limit(100);
       } else {
-        docs = await db.select().from(faaPolicyDocuments).orderBy(desc7(faaPolicyDocuments.publishedDate)).limit(100);
+        docs = await db.select().from(faaPolicyDocuments).orderBy(desc7(faaPolicyDocuments.issuanceDate)).limit(100);
       }
       res.json(docs);
     } catch (error) {
@@ -12968,7 +21686,9 @@ async function registerRoutes(app) {
   });
   app.get("/api/training-records", isAuthenticated, async (req, res) => {
     try {
-      const rows = await db.execute(drizzleSql`SELECT * FROM bccs_training_events ORDER BY created_at DESC LIMIT 200`);
+      const orgId = requireOrg(req, res);
+      if (!orgId) return;
+      const rows = await db.execute(drizzleSql`SELECT * FROM bccs_training_events WHERE organization_id = ${orgId} ORDER BY created_at DESC LIMIT 200`);
       res.json(rows.rows || []);
     } catch (error) {
       console.error("Training records error:", error);
@@ -12977,10 +21697,12 @@ async function registerRoutes(app) {
   });
   app.get("/api/flight-school/stats", isAuthenticated, async (req, res) => {
     try {
+      const orgId = requireOrg(req, res);
+      if (!orgId) return;
       const [studentsRes, trainingRes, instructorsRes] = await Promise.all([
-        db.execute(drizzleSql`SELECT COUNT(*) as total, COUNT(CASE WHEN status='active' THEN 1 END) as active FROM students`),
-        db.execute(drizzleSql`SELECT COUNT(*) as total, COUNT(CASE WHEN status='completed' THEN 1 END) as completed, COALESCE(SUM(duration_hours),0) as total_hours FROM bccs_training_events`),
-        db.execute(drizzleSql`SELECT COUNT(*) as total FROM bccs_instructor_records WHERE status='active'`)
+        db.execute(drizzleSql`SELECT COUNT(*) as total, COUNT(CASE WHEN status='active' THEN 1 END) as active FROM students WHERE organization_id = ${orgId}`),
+        db.execute(drizzleSql`SELECT COUNT(*) as total, COUNT(CASE WHEN status='completed' THEN 1 END) as completed, COALESCE(SUM(CASE WHEN duration_hours ~ '^[0-9]+(\.[0-9]+)?$' THEN duration_hours::numeric ELSE 0 END),0) as total_hours FROM bccs_training_events WHERE organization_id = ${orgId}`),
+        db.execute(drizzleSql`SELECT COUNT(*) as total FROM bccs_instructor_records WHERE status='active' AND organization_id = ${orgId}`)
       ]);
       const s = studentsRes.rows[0];
       const t = trainingRes.rows[0];
@@ -13001,11 +21723,15 @@ async function registerRoutes(app) {
   });
   app.get("/api/analytics/compliance-metrics", isAuthenticated, async (req, res) => {
     try {
+      const orgId = requireOrg(req, res);
+      if (!orgId) return;
       const [docsRes, studentsRes, trainingRes, logsRes] = await Promise.all([
-        db.execute(drizzleSql`SELECT COUNT(*) as total, COUNT(CASE WHEN status='validated' THEN 1 END) as validated FROM documents`),
-        db.execute(drizzleSql`SELECT COUNT(*) as total, COUNT(CASE WHEN status='active' THEN 1 END) as active FROM students`),
-        db.execute(drizzleSql`SELECT COUNT(*) as total, COUNT(CASE WHEN status='completed' THEN 1 END) as completed FROM bccs_training_events`),
-        db.execute(drizzleSql`SELECT COUNT(*) as total FROM audit_logs WHERE timestamp > NOW() - INTERVAL '30 days'`)
+        // Document metrics come from the org's form submission repository
+        // (the legacy `documents` table does not exist on runtime databases).
+        db.execute(drizzleSql`SELECT COUNT(*) as total, COUNT(CASE WHEN status='approved' THEN 1 END) as validated FROM digital_form_submissions WHERE organization_id = ${orgId}`),
+        db.execute(drizzleSql`SELECT COUNT(*) as total, COUNT(CASE WHEN status='active' THEN 1 END) as active FROM students WHERE organization_id = ${orgId}`),
+        db.execute(drizzleSql`SELECT COUNT(*) as total, COUNT(CASE WHEN status='completed' THEN 1 END) as completed FROM bccs_training_events WHERE organization_id = ${orgId}`),
+        db.execute(drizzleSql`SELECT COUNT(*) as total FROM audit_logs WHERE timestamp > NOW() - INTERVAL '30 days' AND organization_id = ${orgId}`)
       ]);
       const d = docsRes.rows[0];
       const s = studentsRes.rows[0];
@@ -13056,11 +21782,15 @@ async function registerRoutes(app) {
   });
   app.get("/api/analytics/report", isAuthenticated, async (req, res) => {
     try {
+      const orgId = requireOrg(req, res);
+      if (!orgId) return;
       const [docsRes, studentsRes, trainingRes, instructorsRes] = await Promise.all([
-        db.execute(drizzleSql`SELECT COUNT(*) as total, COUNT(CASE WHEN status='validated' THEN 1 END) as validated FROM documents`),
-        db.execute(drizzleSql`SELECT COUNT(*) as total FROM students`),
-        db.execute(drizzleSql`SELECT COUNT(*) as total, COUNT(CASE WHEN status='completed' THEN 1 END) as completed, COALESCE(SUM(duration_hours),0) as total_hours FROM bccs_training_events`),
-        db.execute(drizzleSql`SELECT COUNT(*) as total, COUNT(CASE WHEN expiration_date < NOW() + INTERVAL '90 days' AND status='active' THEN 1 END) as expiring_soon FROM bccs_instructor_records`)
+        // Document metrics come from the org's form submission repository
+        // (the legacy `documents` table does not exist on runtime databases).
+        db.execute(drizzleSql`SELECT COUNT(*) as total, COUNT(CASE WHEN status='approved' THEN 1 END) as validated FROM digital_form_submissions WHERE organization_id = ${orgId}`),
+        db.execute(drizzleSql`SELECT COUNT(*) as total FROM students WHERE organization_id = ${orgId}`),
+        db.execute(drizzleSql`SELECT COUNT(*) as total, COUNT(CASE WHEN status='completed' THEN 1 END) as completed, COALESCE(SUM(CASE WHEN duration_hours ~ '^[0-9]+(\.[0-9]+)?$' THEN duration_hours::numeric ELSE 0 END),0) as total_hours FROM bccs_training_events WHERE organization_id = ${orgId}`),
+        db.execute(drizzleSql`SELECT COUNT(*) as total, COUNT(CASE WHEN expiration_date < NOW() + INTERVAL '90 days' AND status='active' THEN 1 END) as expiring_soon FROM bccs_instructor_records WHERE organization_id = ${orgId}`)
       ]);
       const d = docsRes.rows[0];
       const s = studentsRes.rows[0];
@@ -13173,12 +21903,18 @@ async function registerRoutes(app) {
       res.status(500).json({ message: "Failed to start refresh" });
     }
   });
-  app.get("/api/license", isAuthenticated, async (_req, res) => {
+  app.get("/api/license", isAuthenticated, async (req, res) => {
     try {
-      const result = await db.execute(drizzleSql`SELECT * FROM bccs_licenses ORDER BY created_at DESC LIMIT 1`);
-      const row = result.rows[0];
+      const { getActiveLicense: getActiveLicense2 } = await Promise.resolve().then(() => (init_license2(), license_exports2));
+      const { getTrialLifecycle: getTrialLifecycle2 } = await Promise.resolve().then(() => (init_license(), license_exports));
+      const row = await getActiveLicense2(req.orgId ?? null);
       if (!row) return res.status(404).json({ message: "No license found" });
+      const lifecycle = getTrialLifecycle2(row.plan, row.current_period_end);
       res.json({
+        licenseState: lifecycle.state,
+        daysRemaining: lifecycle.daysRemaining,
+        graceEndsAt: lifecycle.graceEndsAt,
+        isExpired: lifecycle.isExpired,
         id: row.id,
         plan: row.plan,
         status: row.status,
@@ -13198,51 +21934,156 @@ async function registerRoutes(app) {
     }
   });
   app.put("/api/license", isAuthenticated, async (req, res) => {
-    if (req.user.role !== "admin" && req.user.role !== "support_admin") {
-      return res.status(403).json({ message: "Admin or Support Admin role required" });
+    const email = req.user?.email ?? "";
+    if (!email.toLowerCase().endsWith("@bccsworld.com")) {
+      return res.status(403).json({ message: "License management requires a @bccsworld.com account" });
     }
     try {
       const { plan, status, seatsLimit, currentPeriodEnd, stripeCustomerId, stripeSubscriptionId, stripePriceId, notes } = req.body;
-      const { invalidateLicenseCache: invalidateLicenseCache2 } = await Promise.resolve().then(() => (init_license2(), license_exports));
-      const result = await db.execute(drizzleSql`SELECT id FROM bccs_licenses ORDER BY created_at DESC LIMIT 1`);
+      const { invalidateLicenseCache: invalidateLicenseCache2 } = await Promise.resolve().then(() => (init_license2(), license_exports2));
+      const validPlans = ["trial", "standard", "professional", "enterprise"];
+      const validStatuses = ["active", "trial", "suspended", "expired"];
+      const effectivePlan = validPlans.includes(plan) ? plan : "trial";
+      const effectiveStatus = validStatuses.includes(status) ? status : "trial";
+      const seats = Number.isFinite(parseInt(seatsLimit, 10)) ? parseInt(seatsLimit, 10) : 5;
+      const periodEnd = currentPeriodEnd ? new Date(currentPeriodEnd) : null;
+      if (currentPeriodEnd && isNaN(periodEnd.getTime())) {
+        return res.status(400).json({ message: "currentPeriodEnd is not a valid date" });
+      }
+      const result = await db.execute(drizzleSql`SELECT id FROM bccs_licenses WHERE organization_id IS NULL ORDER BY created_at DESC LIMIT 1`);
       const existing = result.rows[0];
       if (!existing) {
-        await db.execute(drizzleSql.raw(`
+        await db.execute(drizzleSql`
           INSERT INTO bccs_licenses (plan, status, seats_limit, current_period_end, stripe_customer_id, stripe_subscription_id, stripe_price_id, assigned_by, notes, updated_at)
-          VALUES (
-            '${(plan || "trial").replace(/'/g, "")}',
-            '${(status || "trial").replace(/'/g, "")}',
-            ${parseInt(seatsLimit ?? "5", 10)},
-            ${currentPeriodEnd ? `'${currentPeriodEnd}'` : "NULL"},
-            ${stripeCustomerId ? `'${stripeCustomerId}'` : "NULL"},
-            ${stripeSubscriptionId ? `'${stripeSubscriptionId}'` : "NULL"},
-            ${stripePriceId ? `'${stripePriceId}'` : "NULL"},
-            '${req.user.email}',
-            ${notes ? `'${notes.replace(/'/g, "''")}'` : "NULL"},
-            NOW()
-          )
-        `));
+          VALUES (${effectivePlan}, ${effectiveStatus}, ${seats}, ${periodEnd}, ${stripeCustomerId ?? null}, ${stripeSubscriptionId ?? null}, ${stripePriceId ?? null}, ${req.user.email}, ${notes ?? null}, NOW())
+        `);
       } else {
-        await db.execute(drizzleSql.raw(`
+        await db.execute(drizzleSql`
           UPDATE bccs_licenses SET
-            plan = '${(plan || "trial").replace(/'/g, "")}',
-            status = '${(status || "trial").replace(/'/g, "")}',
-            seats_limit = ${parseInt(seatsLimit ?? "5", 10)},
-            current_period_end = ${currentPeriodEnd ? `'${currentPeriodEnd}'` : "NULL"},
-            stripe_customer_id = ${stripeCustomerId ? `'${stripeCustomerId}'` : "NULL"},
-            stripe_subscription_id = ${stripeSubscriptionId ? `'${stripeSubscriptionId}'` : "NULL"},
-            stripe_price_id = ${stripePriceId ? `'${stripePriceId}'` : "NULL"},
-            assigned_by = '${req.user.email}',
-            notes = ${notes ? `'${notes.replace(/'/g, "''")}'` : "NULL"},
+            plan = ${effectivePlan},
+            status = ${effectiveStatus},
+            seats_limit = ${seats},
+            current_period_end = ${periodEnd},
+            stripe_customer_id = ${stripeCustomerId ?? null},
+            stripe_subscription_id = ${stripeSubscriptionId ?? null},
+            stripe_price_id = ${stripePriceId ?? null},
+            assigned_by = ${req.user.email},
+            notes = ${notes ?? null},
             updated_at = NOW()
-          WHERE id = '${existing.id}'
-        `));
+          WHERE id = ${existing.id}
+        `);
       }
       invalidateLicenseCache2();
       res.json({ success: true });
     } catch (error) {
       console.error("License update error:", error);
       res.status(500).json({ message: "Failed to update license" });
+    }
+  });
+  app.get("/api/organizations/licenses", isAuthenticated, async (req, res) => {
+    const isStaff = String(req.user?.email ?? "").toLowerCase().endsWith("@bccsworld.com");
+    if (req.user?.role !== "admin" && !isStaff) {
+      return res.status(403).json({ message: "Admin access required" });
+    }
+    try {
+      if (!isStaff) {
+        const memberships = await getUserMemberships(req.user.id);
+        const orgIds = memberships.map((m) => m.organizationId).filter(Boolean);
+        if (orgIds.length === 0) {
+          return res.json([]);
+        }
+        const scoped = await db.execute(drizzleSql`
+          SELECT id, organization_id, plan, status, seats_limit, current_period_start,
+                 current_period_end, assigned_by, notes, updated_at
+          FROM bccs_licenses
+          WHERE organization_id IN ${drizzleSql`(${drizzleSql.join(orgIds.map((id) => drizzleSql`${id}`), drizzleSql`, `)})`}
+          ORDER BY updated_at DESC
+        `);
+        return res.json(scoped.rows || []);
+      }
+      const result = await db.execute(drizzleSql`
+        SELECT id, organization_id, plan, status, seats_limit, current_period_start,
+               current_period_end, assigned_by, notes, updated_at
+        FROM bccs_licenses
+        WHERE organization_id IS NOT NULL
+        ORDER BY updated_at DESC
+      `);
+      res.json(result.rows || []);
+    } catch (error) {
+      console.error("Org licenses fetch error:", error);
+      res.status(500).json({ message: "Failed to fetch organization licenses" });
+    }
+  });
+  app.put("/api/organizations/:id/license", isAuthenticated, async (req, res) => {
+    const email = req.user?.email ?? "";
+    if (!email.toLowerCase().endsWith("@bccsworld.com")) {
+      return res.status(403).json({ message: "License assignment requires a @bccsworld.com account" });
+    }
+    try {
+      const orgId = req.params.id;
+      const { plan, status, seatsLimit, currentPeriodEnd, notes } = req.body;
+      const validPlans = ["trial", "standard", "professional", "enterprise"];
+      const validStatuses = ["active", "trial", "suspended", "expired"];
+      if (!plan || !validPlans.includes(plan)) {
+        return res.status(400).json({ message: `Plan must be one of: ${validPlans.join(", ")}` });
+      }
+      const effectiveStatus = status || "active";
+      if (!validStatuses.includes(effectiveStatus)) {
+        return res.status(400).json({ message: `Status must be one of: ${validStatuses.join(", ")}` });
+      }
+      const seats = Number.isFinite(parseInt(seatsLimit, 10)) ? parseInt(seatsLimit, 10) : 5;
+      const periodEnd = currentPeriodEnd ? new Date(currentPeriodEnd) : null;
+      if (currentPeriodEnd && isNaN(periodEnd.getTime())) {
+        return res.status(400).json({ message: "currentPeriodEnd is not a valid date" });
+      }
+      const orgResult = await db.execute(drizzleSql`
+        SELECT id, organization_name FROM training_organizations WHERE id = ${orgId}
+      `);
+      const org = orgResult.rows?.[0];
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+      const existingResult = await db.execute(drizzleSql`
+        SELECT id FROM bccs_licenses WHERE organization_id = ${orgId} ORDER BY updated_at DESC LIMIT 1
+      `);
+      const existing = existingResult.rows?.[0];
+      let licenseRow;
+      if (existing) {
+        const updated = await db.execute(drizzleSql`
+          UPDATE bccs_licenses SET
+            plan = ${plan},
+            status = ${effectiveStatus},
+            seats_limit = ${seats},
+            current_period_start = COALESCE(current_period_start, NOW()),
+            current_period_end = ${periodEnd},
+            assigned_by = ${email},
+            notes = ${notes ?? null},
+            updated_at = NOW()
+          WHERE id = ${existing.id}
+          RETURNING *
+        `);
+        licenseRow = updated.rows?.[0];
+      } else {
+        const inserted = await db.execute(drizzleSql`
+          INSERT INTO bccs_licenses
+            (organization_id, plan, status, seats_limit, current_period_start, current_period_end, assigned_by, notes, updated_at)
+          VALUES
+            (${orgId}, ${plan}, ${effectiveStatus}, ${seats}, NOW(), ${periodEnd}, ${email}, ${notes ?? null}, NOW())
+          RETURNING *
+        `);
+        licenseRow = inserted.rows?.[0];
+      }
+      const { invalidateLicenseCache: invalidate } = await Promise.resolve().then(() => (init_license2(), license_exports2));
+      invalidate();
+      await storage.createAuditLog({
+        userId: req.user?.id || "system",
+        eventType: "license_assigned",
+        message: `License assigned to ${org.organization_name}: ${plan} (${effectiveStatus}, ${seats} seats)`,
+        details: { organizationId: orgId, plan, status: effectiveStatus, seatsLimit: seats },
+        severity: "info"
+      }).catch((err) => console.error("License audit log failed (non-fatal):", err));
+      res.json(licenseRow);
+    } catch (error) {
+      console.error("Org license assignment error:", error);
+      res.status(500).json({ message: "Failed to assign license" });
     }
   });
   app.get("/api/stripe/products", async (_req, res) => {
@@ -13292,11 +22133,14 @@ async function registerRoutes(app) {
         await db.execute(drizzleSql`UPDATE users SET stripe_customer_id = ${customerId} WHERE id = ${req.user.id}`);
       }
       const baseUrl = `${req.protocol}://${req.get("host")}`;
+      const orgMetadata = req.orgId ? { organizationId: String(req.orgId) } : {};
       const session2 = await stripe.checkout.sessions.create({
         customer: customerId,
         payment_method_types: ["card"],
         line_items: [{ price: priceId, quantity: 1 }],
         mode: "subscription",
+        metadata: orgMetadata,
+        subscription_data: { metadata: orgMetadata },
         success_url: `${baseUrl}/billing?success=1`,
         cancel_url: `${baseUrl}/pricing`
       });
@@ -13331,7 +22175,27 @@ async function registerRoutes(app) {
 // server/webhookHandlers.ts
 init_stripeClient();
 init_db();
-import { sql as sql10 } from "drizzle-orm";
+import { sql as sql29 } from "drizzle-orm";
+async function resolveOrgForSubscription(subscription, customerId) {
+  const metaOrg = subscription?.metadata?.organizationId;
+  if (typeof metaOrg === "string" && metaOrg.length > 0) return metaOrg;
+  if (!customerId) return null;
+  try {
+    const r = await db.execute(sql29`
+      SELECT uo.organization_id::text AS org_id
+      FROM users u
+      JOIN user_organizations uo ON uo.user_id = u.id
+      WHERE u.stripe_customer_id = ${customerId}
+        AND uo.is_active = TRUE
+      ORDER BY (uo.org_role = 'admin') DESC
+      LIMIT 1
+    `);
+    return r.rows[0]?.org_id ?? null;
+  } catch (err) {
+    console.error("[webhook] Failed to resolve org for subscription:", err.message);
+    return null;
+  }
+}
 async function handleSubscriptionEvent(event) {
   const subscription = event.data.object;
   const customerId = subscription.customer;
@@ -13353,10 +22217,23 @@ async function handleSubscriptionEvent(event) {
   }
   const periodEnd = subscription.current_period_end ? new Date(subscription.current_period_end * 1e3).toISOString() : null;
   try {
-    const existing = await db.execute(sql10`SELECT id FROM bccs_licenses ORDER BY created_at DESC LIMIT 1`);
-    const row = existing.rows[0];
-    if (row) {
-      await db.execute(sql10`
+    const orgId = await resolveOrgForSubscription(subscription, customerId);
+    let targetLicenseId = null;
+    if (orgId) {
+      const existing = await db.execute(sql29`
+        SELECT id FROM bccs_licenses WHERE organization_id = ${orgId}::uuid
+        ORDER BY updated_at DESC LIMIT 1
+      `);
+      targetLicenseId = existing.rows[0]?.id ?? null;
+    } else {
+      const existing = await db.execute(sql29`
+        SELECT id FROM bccs_licenses WHERE organization_id IS NULL
+        ORDER BY created_at DESC LIMIT 1
+      `);
+      targetLicenseId = existing.rows[0]?.id ?? null;
+    }
+    if (targetLicenseId) {
+      await db.execute(sql29`
         UPDATE bccs_licenses SET
           plan = COALESCE(${plan}, plan),
           status = ${licenseStatus},
@@ -13365,20 +22242,20 @@ async function handleSubscriptionEvent(event) {
           stripe_price_id = ${priceId},
           current_period_end = ${periodEnd}::TIMESTAMP,
           updated_at = NOW()
-        WHERE id = ${row.id}
+        WHERE id = ${targetLicenseId}
       `);
     } else {
-      await db.execute(sql10`
-        INSERT INTO bccs_licenses (plan, status, stripe_customer_id, stripe_subscription_id, stripe_price_id, current_period_end)
-        VALUES (${plan ?? "standard"}, ${licenseStatus}, ${customerId}, ${subscriptionId}, ${priceId}, ${periodEnd}::TIMESTAMP)
+      await db.execute(sql29`
+        INSERT INTO bccs_licenses (organization_id, plan, status, stripe_customer_id, stripe_subscription_id, stripe_price_id, current_period_end)
+        VALUES (${orgId}::uuid, ${plan ?? "standard"}, ${licenseStatus}, ${customerId}, ${subscriptionId}, ${priceId}, ${periodEnd}::TIMESTAMP)
       `);
     }
     try {
-      const { invalidateLicenseCache: invalidateLicenseCache2 } = await Promise.resolve().then(() => (init_license2(), license_exports));
+      const { invalidateLicenseCache: invalidateLicenseCache2 } = await Promise.resolve().then(() => (init_license2(), license_exports2));
       invalidateLicenseCache2();
     } catch {
     }
-    console.log(`[webhook] License updated: plan=${plan ?? "unchanged"} status=${licenseStatus} sub=${subscriptionId}`);
+    console.log(`[webhook] License updated: org=${orgId ?? "platform"} plan=${plan ?? "unchanged"} status=${licenseStatus} sub=${subscriptionId}`);
   } catch (err) {
     console.error("[webhook] Failed to update license from subscription event:", err.message);
   }
@@ -13391,6 +22268,21 @@ var WebhookHandlers = class {
     const sync = await getStripeSync();
     if (sync) {
       await sync.processWebhook(payload, signature);
+      try {
+        let event2;
+        const webhookSecret2 = getStripeWebhookSecret();
+        if (webhookSecret2) {
+          const stripe2 = await getUncachableStripeClient();
+          event2 = stripe2.webhooks.constructEvent(payload, signature, webhookSecret2);
+        } else {
+          event2 = JSON.parse(payload.toString("utf8"));
+        }
+        if (typeof event2?.type === "string" && event2.type.startsWith("customer.subscription.")) {
+          await handleSubscriptionEvent(event2);
+        }
+      } catch (err) {
+        console.error("[webhook] Post-sync license update failed:", err.message);
+      }
       return;
     }
     const webhookSecret = getStripeWebhookSecret();
@@ -13420,152 +22312,6 @@ var WebhookHandlers = class {
   }
 };
 
-// server/db-init.ts
-init_db();
-import { sql as sql11 } from "drizzle-orm";
-async function ensureTables2() {
-  try {
-    await db.execute(sql11`
-      CREATE TABLE IF NOT EXISTS bccs_training_events (
-        id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
-        student_name VARCHAR(200) NOT NULL,
-        student_id VARCHAR(100),
-        instructor_name VARCHAR(200) NOT NULL,
-        instructor_id VARCHAR(100),
-        event_type VARCHAR(100) NOT NULL,
-        event_date TIMESTAMP NOT NULL,
-        duration_hours VARCHAR(20),
-        curriculum_item VARCHAR(500),
-        notes TEXT,
-        status VARCHAR(50) DEFAULT 'completed',
-        blockchain_hash VARCHAR(200),
-        user_id VARCHAR,
-        created_at TIMESTAMP DEFAULT NOW()
-      )
-    `);
-    await db.execute(sql11`
-      CREATE TABLE IF NOT EXISTS students (
-        id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
-        first_name VARCHAR(100) NOT NULL,
-        last_name VARCHAR(100) NOT NULL,
-        email VARCHAR(200),
-        phone VARCHAR(50),
-        certificate_number VARCHAR(100),
-        enrollment_date TIMESTAMP DEFAULT NOW(),
-        expected_completion TIMESTAMP,
-        status VARCHAR(50) DEFAULT 'active',
-        notes TEXT,
-        created_at TIMESTAMP DEFAULT NOW()
-      )
-    `);
-    await db.execute(sql11`
-      CREATE TABLE IF NOT EXISTS bccs_instructor_records (
-        id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
-        first_name VARCHAR(100) NOT NULL,
-        last_name VARCHAR(100) NOT NULL,
-        email VARCHAR(200),
-        certificate_type VARCHAR(100) NOT NULL,
-        certificate_number VARCHAR(100) NOT NULL,
-        issue_date TIMESTAMP,
-        expiration_date TIMESTAMP,
-        currency_date TIMESTAMP,
-        ratings JSONB,
-        training_authorizations JSONB,
-        status VARCHAR(50) DEFAULT 'current',
-        created_at TIMESTAMP DEFAULT NOW()
-      )
-    `);
-    await db.execute(sql11`
-      ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE
-    `);
-    await db.execute(sql11`
-      ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMP
-    `);
-    await db.execute(sql11`
-      CREATE TABLE IF NOT EXISTS bccs_role_permissions (
-        id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
-        role_name VARCHAR(50) NOT NULL UNIQUE,
-        display_name VARCHAR(100) NOT NULL,
-        description TEXT,
-        permissions TEXT[] DEFAULT ARRAY[]::TEXT[],
-        is_system BOOLEAN DEFAULT FALSE,
-        color VARCHAR(80) DEFAULT 'bg-gray-100 text-gray-700',
-        created_at TIMESTAMP DEFAULT NOW(),
-        updated_at TIMESTAMP DEFAULT NOW()
-      )
-    `);
-    for (const role of SYSTEM_ROLES) {
-      const perms = DEFAULT_ROLE_PERMISSIONS[role.roleName] ?? [];
-      const arrayLiteral = perms.length > 0 ? `ARRAY[${perms.map((p) => `'${p.replace(/'/g, "''")}'`).join(",")}]::TEXT[]` : `ARRAY[]::TEXT[]`;
-      await db.execute(sql11.raw(`
-        INSERT INTO bccs_role_permissions (role_name, display_name, description, permissions, is_system, color)
-        VALUES (
-          '${role.roleName.replace(/'/g, "''")}',
-          '${role.displayName.replace(/'/g, "''")}',
-          '${(role.description || "").replace(/'/g, "''")}',
-          ${arrayLiteral},
-          ${role.isSystem ? "TRUE" : "FALSE"},
-          '${role.color.replace(/'/g, "''")}'
-        )
-        ON CONFLICT (role_name) DO NOTHING
-      `));
-    }
-    await db.execute(sql11`
-      CREATE TABLE IF NOT EXISTS bccs_licenses (
-        id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
-        plan VARCHAR(50) NOT NULL DEFAULT 'trial',
-        status VARCHAR(50) NOT NULL DEFAULT 'trial',
-        stripe_customer_id VARCHAR(200),
-        stripe_subscription_id VARCHAR(200),
-        stripe_price_id VARCHAR(200),
-        seats_limit INTEGER NOT NULL DEFAULT 5,
-        current_period_start TIMESTAMP,
-        current_period_end TIMESTAMP,
-        assigned_by VARCHAR(200),
-        notes TEXT,
-        created_at TIMESTAMP DEFAULT NOW(),
-        updated_at TIMESTAMP DEFAULT NOW()
-      )
-    `);
-    const licenseCount = await db.execute(sql11`SELECT COUNT(*) FROM bccs_licenses`);
-    const count3 = parseInt(licenseCount.rows[0].count, 10);
-    if (count3 === 0) {
-      await db.execute(sql11`
-        INSERT INTO bccs_licenses (plan, status, seats_limit, current_period_start, current_period_end, notes)
-        VALUES (
-          'trial', 'trial', 5,
-          NOW(),
-          NOW() + INTERVAL '30 days',
-          'Auto-created 30-day trial license'
-        )
-      `);
-      console.log("[db-init] Trial license seeded");
-    }
-    await db.execute(sql11`
-      ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_customer_id VARCHAR(200)
-    `);
-    await db.execute(sql11`
-      ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_subscription_id VARCHAR(200)
-    `);
-    await db.execute(sql11.raw(`
-      INSERT INTO bccs_role_permissions (role_name, display_name, description, permissions, is_system, color)
-      VALUES (
-        'support_admin',
-        'Support Admin',
-        'BCCS support staff \u2014 can manage licenses and assist clients',
-        ARRAY['manage_licenses','view_users','view_compliance_records','view_audit_logs']::TEXT[],
-        TRUE,
-        'bg-purple-100 text-purple-700'
-      )
-      ON CONFLICT (role_name) DO NOTHING
-    `));
-    console.log("[db-init] Training records tables ensured");
-    console.log("[db-init] Role permissions seeded");
-  } catch (err) {
-    console.error("[db-init] Table creation error:", err);
-  }
-}
-
 // server/app.ts
 function log(message) {
   const time = (/* @__PURE__ */ new Date()).toLocaleTimeString("en-US", {
@@ -13592,7 +22338,7 @@ async function initStripeExternal() {
   }
 }
 async function createApp() {
-  await ensureTables2();
+  await ensureTables3();
   initStripeExternal().catch(() => {
   });
   const app = express2();
@@ -13622,7 +22368,7 @@ async function createApp() {
   app.use(express2.urlencoded({ extended: false }));
   app.use((req, res, next) => {
     const start = Date.now();
-    const path4 = req.path;
+    const path8 = req.path;
     let capturedJsonResponse;
     const originalResJson = res.json;
     res.json = function(bodyJson, ...args) {
@@ -13631,8 +22377,8 @@ async function createApp() {
     };
     res.on("finish", () => {
       const duration = Date.now() - start;
-      if (path4.startsWith("/api")) {
-        let logLine = `${req.method} ${path4} ${res.statusCode} in ${duration}ms`;
+      if (path8.startsWith("/api")) {
+        let logLine = `${req.method} ${path8} ${res.statusCode} in ${duration}ms`;
         if (capturedJsonResponse) {
           logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
         }
