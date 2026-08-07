@@ -88,7 +88,7 @@ export default function Instructors() {
       <AgentWorkspaceHeader agentId="compliance-watchdog" />
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Instructor Records</h1>
+          <h1 className="text-2xl font-bold text-slate-900">Instructor Roster</h1>
           <p className="text-slate-600">Track instructor certificates, ratings, and currency (Part 141.10)</p>
         </div>
         <Button onClick={() => setAddOpen(true)}>

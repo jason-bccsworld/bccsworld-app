@@ -99,6 +99,11 @@ export default function ComplianceRecords() {
     enabled: isAuthenticated,
   });
 
+  const { data: instructors = [] } = useQuery<any[]>({
+    queryKey: ["/api/instructors"],
+    enabled: isAuthenticated,
+  });
+
   const { data: orgKey } = useQuery<any>({
     queryKey: ["/api/org-keys/current"],
     enabled: isAuthenticated,
@@ -110,9 +115,20 @@ export default function ComplianceRecords() {
   });
 
   const logMutation = useMutation({
-    mutationFn: () => apiRequest("POST", "/api/training-events", {
-      studentName, instructorName, eventType, eventDate, durationHours, curriculumItem, notes, status
-    }),
+    mutationFn: () => {
+      // Link to roster records only when the typed name matches exactly ONE
+      // roster record — an ambiguous (duplicate-name) match must not silently
+      // attach an arbitrary person's ID.
+      const uniqueMatch = (list: any[], name: string) => {
+        const target = name.trim().toLowerCase();
+        const matches = list.filter((p: any) => `${p.first_name} ${p.last_name}`.trim().toLowerCase() === target);
+        return matches.length === 1 ? matches[0].id : undefined;
+      };
+      return apiRequest("POST", "/api/training-events", {
+        studentName, studentId: uniqueMatch(students, studentName), instructorName, instructorId: uniqueMatch(instructors, instructorName),
+        eventType, eventDate, durationHours, curriculumItem, notes, status
+      });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/training-events"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
@@ -681,7 +697,17 @@ export default function ComplianceRecords() {
               </div>
               <div>
                 <Label>Instructor Name *</Label>
-                <Input value={instructorName} onChange={e => setInstructorName(e.target.value)} placeholder="Instructor name" />
+                <Input
+                  value={instructorName}
+                  onChange={e => setInstructorName(e.target.value)}
+                  placeholder="Instructor name"
+                  list="instructor-names"
+                />
+                <datalist id="instructor-names">
+                  {instructors.map((i: any) => (
+                    <option key={i.id} value={`${i.first_name} ${i.last_name}`} />
+                  ))}
+                </datalist>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
