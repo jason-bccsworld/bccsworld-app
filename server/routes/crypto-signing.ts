@@ -16,11 +16,22 @@ import { queueAuditReadinessRefresh } from "../services/audit-readiness";
 
 const router = Router();
 
+// Only platform staff or an admin member of the org may manage its key lifecycle.
+async function requireOrgAdmin(req: any, res: any, orgId: string): Promise<boolean> {
+  if (isPlatformStaff(req.user?.email)) return true;
+  const memberships = await getUserMemberships(req.user.id);
+  const membership = memberships.find((m) => m.organizationId === orgId);
+  if (membership && membership.orgRole === "admin") return true;
+  res.status(403).json({ message: "Only an admin of this organization can generate its signing keys" });
+  return false;
+}
+
 // POST /api/org-keys/generate — generate Ed25519 key pair for the organization
 router.post("/generate", isAuthenticated, async (req: any, res) => {
   try {
     const orgId = requireOrg(req, res);
     if (!orgId) return;
+    if (!(await requireOrgAdmin(req, res, orgId))) return;
     const result = await generateAndStoreOrgKeyPair(orgId);
     res.json({
       success: true,
@@ -152,14 +163,7 @@ router.post("/generate-for-org", isAuthenticated, async (req: any, res) => {
   try {
     const { orgId } = req.body;
     if (!orgId) return res.status(400).json({ message: "orgId required" });
-    if (!isPlatformStaff(req.user?.email)) {
-      const memberships = await getUserMemberships(req.user.id);
-      const membership = memberships.find((m) => m.organizationId === orgId);
-      const isOrgAdmin = membership && membership.orgRole === "admin";
-      if (!isOrgAdmin) {
-        return res.status(403).json({ message: "Only an admin of this organization can generate its signing keys" });
-      }
-    }
+    if (!(await requireOrgAdmin(req, res, orgId))) return;
     const result = await generateAndStoreOrgKeyPair(orgId);
     res.json({ success: true, ...result });
   } catch (err: any) {

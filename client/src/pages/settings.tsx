@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { useToast } from "@/hooks/use-toast";
 import { User, Bell, Shield, Database, Globe, Download, Trash2, Key, Loader2, Eye, EyeOff } from 'lucide-react';
 import { apiRequest } from "@/lib/queryClient";
+import SigningKeyCard from "@/components/signing-key-card";
 
 export default function Settings() {
   const { toast } = useToast();
@@ -206,6 +207,9 @@ export default function Settings() {
           </div>
         </Card>
       </div>
+
+      {/* Organization Signing Key — visible only to org admins / platform staff */}
+      <SigningKeyCard />
 
       {/* Regional Settings */}
       <Card>
