@@ -44,6 +44,7 @@ async function ensureTables() {
   await db.execute(sql`ALTER TABLE digital_form_templates ADD COLUMN IF NOT EXISTS regulation_status VARCHAR(20) DEFAULT 'current'`);
   await db.execute(sql`ALTER TABLE digital_form_templates ADD COLUMN IF NOT EXISTS generated_from_section VARCHAR(200)`);
   await db.execute(sql`ALTER TABLE digital_form_templates ADD COLUMN IF NOT EXISTS organization_id UUID`);
+  await db.execute(sql`ALTER TABLE digital_form_templates ADD COLUMN IF NOT EXISTS instructor_enabled BOOLEAN DEFAULT false`);
 
   // Back-fill public tokens for existing templates that don't have one
   const rows = await db.execute(sql`SELECT id FROM digital_form_templates WHERE public_token IS NULL`);
@@ -110,12 +111,12 @@ async function ensureTrainingEventTemplate(orgId: string): Promise<void> {
   `);
 }
 
-function isTrainingEventTemplate(template: any): boolean {
+export function isTrainingEventTemplate(template: any): boolean {
   const marker = template?.generatedFromSection ?? template?.generated_from_section;
   return marker === TRAINING_EVENT_MARKER;
 }
 
-interface ParsedTrainingEventForm {
+export interface ParsedTrainingEventForm {
   studentName: string;
   instructorName: string;
   eventType: string;
@@ -126,7 +127,7 @@ interface ParsedTrainingEventForm {
 }
 
 /** Validate BEFORE anything is persisted — throws on invalid input. */
-function parseTrainingEventForm(formData: Record<string, any>): ParsedTrainingEventForm {
+export function parseTrainingEventForm(formData: Record<string, any>): ParsedTrainingEventForm {
   const studentName = String(formData?.student_name ?? "").trim();
   const instructorName = String(formData?.instructor_name ?? "").trim();
   const eventType = String(formData?.event_type ?? "").trim();
@@ -147,12 +148,15 @@ function parseTrainingEventForm(formData: Record<string, any>): ParsedTrainingEv
  * Inside a transaction: create the official training record from a validated
  * form and link it to the submission. Returns the new training event id.
  */
-async function createTrainingEventFromForm(
+export async function createTrainingEventFromForm(
   tx: any,
   submissionId: string,
   orgId: string,
   parsed: ParsedTrainingEventForm,
   submittedBy: string,
+  /** When set (key-authenticated instructor submissions), the instructor
+   *  identity is forced to this roster record — never taken from form data. */
+  forcedInstructorId: string | null = null,
 ): Promise<string> {
   // Link to roster records only on an unambiguous full-name match
   const uniqueId = async (table: "students" | "bccs_instructor_records", name: string) => {
@@ -164,7 +168,7 @@ async function createTrainingEventFromForm(
     return rows.length === 1 ? rows[0].id : null;
   };
   const studentId = await uniqueId("students", parsed.studentName);
-  const instructorId = await uniqueId("bccs_instructor_records", parsed.instructorName);
+  const instructorId = forcedInstructorId ?? await uniqueId("bccs_instructor_records", parsed.instructorName);
 
   const hash = `BCCS-${Date.now().toString(36).toUpperCase()}-${crypto.randomBytes(4).toString("hex").toUpperCase()}`;
   const inserted = await tx.execute(sql`
@@ -180,7 +184,7 @@ async function createTrainingEventFromForm(
 }
 
 /** Post-commit: auto-sign (non-fatal) and notify the audit agents. */
-async function afterTrainingEventCreated(eventId: string, orgId: string): Promise<void> {
+export async function afterTrainingEventCreated(eventId: string, orgId: string): Promise<void> {
   try {
     const { getOrgActiveKey, signTrainingRecord } = await import("../services/crypto-signing");
     if (await getOrgActiveKey(orgId)) await signTrainingRecord(eventId, orgId);
@@ -325,7 +329,7 @@ router.post("/templates", isAuthenticated, async (req, res) => {
     const orgId = requireOrg(req, res);
     if (!orgId) return;
     const user = req.user as any;
-    const { title, description, organizationName, faaSourceId, faaDocumentTitle, faaDocumentType, fields, isPublic } = req.body;
+    const { title, description, organizationName, faaSourceId, faaDocumentTitle, faaDocumentType, fields, isPublic, instructorEnabled } = req.body;
 
     if (!title?.trim()) return res.status(400).json({ message: "Title is required" });
     if (!fields || !Array.isArray(fields) || fields.length === 0) {
@@ -346,6 +350,7 @@ router.post("/templates", isAuthenticated, async (req, res) => {
         status: "active",
         publicToken: generateToken(),
         isPublic: isPublic !== false,
+        instructorEnabled: instructorEnabled === true,
         createdBy: user?.email || user?.username || "system",
       })
       .returning();
@@ -362,7 +367,7 @@ router.put("/templates/:id", isAuthenticated, async (req, res) => {
   try {
     const orgId = requireOrg(req, res);
     if (!orgId) return;
-    const { title, description, organizationName, faaSourceId, faaDocumentTitle, faaDocumentType, fields, isPublic } = req.body;
+    const { title, description, organizationName, faaSourceId, faaDocumentTitle, faaDocumentType, fields, isPublic, instructorEnabled } = req.body;
 
     // The system Training Event template is locked: its structure feeds official
     // training records, and it must never be exposed publicly.
@@ -386,6 +391,7 @@ router.put("/templates/:id", isAuthenticated, async (req, res) => {
         faaDocumentType: faaDocumentType || null,
         fields: fields || [],
         isPublic: isPublic !== false,
+        ...(typeof instructorEnabled === "boolean" ? { instructorEnabled } : {}),
         updatedAt: new Date(),
       })
       .where(and(eq(digitalFormTemplates.id, req.params.id), eq(digitalFormTemplates.organizationId, orgId)))
@@ -396,6 +402,29 @@ router.put("/templates/:id", isAuthenticated, async (req, res) => {
   } catch (err) {
     console.error("Error updating template:", err);
     res.status(500).json({ message: "Failed to update template" });
+  }
+});
+
+// PATCH instructor-access toggle — the ONLY mutation allowed on the locked
+// system Training Event template. Controls visibility in the instructor portal.
+router.patch("/templates/:id/instructor-access", isAuthenticated, async (req, res) => {
+  try {
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
+    const { enabled } = req.body;
+    if (typeof enabled !== "boolean") {
+      return res.status(400).json({ message: "enabled must be a boolean" });
+    }
+    const [updated] = await db
+      .update(digitalFormTemplates)
+      .set({ instructorEnabled: enabled, updatedAt: new Date() })
+      .where(and(eq(digitalFormTemplates.id, req.params.id), eq(digitalFormTemplates.organizationId, orgId)))
+      .returning();
+    if (!updated) return res.status(404).json({ message: "Template not found" });
+    res.json(updated);
+  } catch (err) {
+    console.error("Error toggling instructor access:", err);
+    res.status(500).json({ message: "Failed to update instructor access" });
   }
 });
 

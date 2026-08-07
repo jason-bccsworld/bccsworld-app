@@ -48,6 +48,7 @@ import FederalContracts from "@/pages/federal-contracts";
 import DigitalForms from "@/pages/digital-forms";
 import PublicForm from "@/pages/public-form";
 import ReviewerPortal from "@/pages/reviewer-portal";
+import InstructorPortal from "@/pages/instructor-portal";
 import Login from "@/pages/login";
 import Signup from "@/pages/signup";
 import NotFound from "@/pages/not-found";
@@ -469,6 +470,7 @@ function Router() {
       {/* Public form route — no auth required */}
       <Route path="/f/:token" component={PublicForm} />
       <Route path="/reviewer" component={ReviewerPortal} />
+      <Route path="/instructor" component={InstructorPortal} />
 
       <Route path="/mobile-field" component={MobileField} />
       <Route component={NotFound} />

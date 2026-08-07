@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { GraduationCap, Plus, Search, Loader2, AlertTriangle, CheckCircle2, Trash2 } from "lucide-react";
+import { GraduationCap, Plus, Search, Loader2, AlertTriangle, CheckCircle2, Trash2, KeyRound, Copy, RefreshCw, X } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
 
 const CERT_TYPES = ["CFI", "CFII", "MEI", "ATP", "DPE", "ATP-CTP", "Gold Seal CFI"];
@@ -45,6 +45,7 @@ export default function Instructors() {
   const [expirationDate, setExpirationDate] = useState("");
   const [currencyDate, setCurrencyDate] = useState("");
   const [status, setStatus] = useState("current");
+  const [revealedKey, setRevealedKey] = useState<{ key: string; instructorName: string } | null>(null);
 
   const { data: instructors = [], isLoading } = useQuery<any[]>({
     queryKey: ["/api/instructors"],
@@ -71,6 +72,31 @@ export default function Instructors() {
       queryClient.invalidateQueries({ queryKey: ["/api/instructors"] });
       toast({ title: "Instructor removed" });
     },
+  });
+
+  // ── Instructor access keys ────────────────────────────────────────────────
+  const { data: keys = [] } = useQuery<any[]>({ queryKey: ["/api/instructor-portal/keys"] });
+  const keyByInstructor = new Map(keys.map((k: any) => [k.instructor_id, k]));
+
+  const assignKeyMutation = useMutation({
+    mutationFn: async (instructor: any) => {
+      const res = await apiRequest("POST", `/api/instructor-portal/keys/${instructor.id}`, {});
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/instructor-portal/keys"] });
+      setRevealedKey({ key: data.key, instructorName: data.instructorName });
+    },
+    onError: (err: any) => toast({ title: "Failed to assign key", description: err.message, variant: "destructive" }),
+  });
+
+  const revokeKeyMutation = useMutation({
+    mutationFn: (instructorId: string) => apiRequest("DELETE", `/api/instructor-portal/keys/${instructorId}`, undefined),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/instructor-portal/keys"] });
+      toast({ title: "Key revoked", description: "The instructor can no longer access the portal with the old key." });
+    },
+    onError: (err: any) => toast({ title: "Failed to revoke key", description: err.message, variant: "destructive" }),
   });
 
   const filtered = instructors.filter(i => {
@@ -158,6 +184,7 @@ export default function Instructors() {
                     <th className="text-left py-3 px-4 font-medium">Expiration</th>
                     <th className="text-left py-3 px-4 font-medium">Currency</th>
                     <th className="text-left py-3 px-4 font-medium">Status</th>
+                    <th className="text-left py-3 px-4 font-medium">Portal Key</th>
                     <th className="py-3 px-4"></th>
                   </tr>
                 </thead>
@@ -181,6 +208,39 @@ export default function Instructors() {
                       </td>
                       <td className="py-3 px-4 text-gray-600">{i.currency_date ? format(new Date(i.currency_date), "MMM d, yyyy") : "—"}</td>
                       <td className="py-3 px-4"><Badge className={STATUS_COLORS[i.status] || ""}>{i.status}</Badge></td>
+                      <td className="py-3 px-4">
+                        {keyByInstructor.has(i.id) ? (
+                          <div className="flex items-center gap-1.5">
+                            <Badge className="bg-green-100 text-green-800">
+                              <KeyRound className="h-3 w-3 mr-1" /> Assigned
+                            </Badge>
+                            <Button
+                              variant="ghost" size="sm" className="h-7 px-1.5 text-slate-400 hover:text-blue-600"
+                              title="Regenerate key (old key stops working)"
+                              disabled={assignKeyMutation.isPending}
+                              onClick={() => { if (confirm(`Regenerate the portal key for ${i.first_name} ${i.last_name}? The old key will stop working.`)) assignKeyMutation.mutate(i); }}
+                            >
+                              <RefreshCw className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              variant="ghost" size="sm" className="h-7 px-1.5 text-slate-400 hover:text-red-600"
+                              title="Revoke key"
+                              disabled={revokeKeyMutation.isPending}
+                              onClick={() => { if (confirm(`Revoke portal access for ${i.first_name} ${i.last_name}?`)) revokeKeyMutation.mutate(i.id); }}
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <Button
+                            variant="outline" size="sm" className="h-7 text-xs"
+                            disabled={assignKeyMutation.isPending}
+                            onClick={() => assignKeyMutation.mutate(i)}
+                          >
+                            <KeyRound className="h-3.5 w-3.5 mr-1" /> Assign Key
+                          </Button>
+                        )}
+                      </td>
                       <td className="py-3 px-4">
                         <Button variant="ghost" size="sm" className="text-red-400 hover:text-red-600" onClick={() => { if (confirm(`Remove ${i.first_name} ${i.last_name}?`)) deleteMutation.mutate(i.id); }}>
                           <Trash2 className="h-4 w-4" />
@@ -241,6 +301,41 @@ export default function Instructors() {
             <Button onClick={() => addMutation.mutate()} disabled={addMutation.isPending || !firstName || !lastName || !certType || !certNum}>
               {addMutation.isPending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Saving…</> : "Add Instructor"}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* One-time key reveal dialog */}
+      <Dialog open={!!revealedKey} onOpenChange={(v) => !v && setRevealedKey(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <KeyRound className="h-5 w-5 text-blue-600" /> Portal Key for {revealedKey?.instructorName}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-sm text-amber-800 flex items-start gap-2">
+              <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+              This key is shown only once. Copy it now and share it securely with the instructor.
+            </div>
+            <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5">
+              <code className="text-sm font-mono flex-1 break-all">{revealedKey?.key}</code>
+              <Button
+                variant="outline" size="sm"
+                onClick={() => {
+                  if (revealedKey) navigator.clipboard.writeText(revealedKey.key);
+                  toast({ title: "Key copied to clipboard" });
+                }}
+              >
+                <Copy className="h-3.5 w-3.5 mr-1" /> Copy
+              </Button>
+            </div>
+            <p className="text-xs text-slate-500">
+              The instructor signs in with this key at <span className="font-mono">{window.location.origin}/instructor</span>
+            </p>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setRevealedKey(null)}>Done</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
