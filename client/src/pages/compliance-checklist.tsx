@@ -326,7 +326,8 @@ export default function ComplianceChecklist() {
     }
   };
 
-  const importMutation = useMutation({
+  // Phase 1: parse-only preview of pasted text (no DB changes)
+  const previewTextMutation = useMutation({
     mutationFn: async (text: string) => {
       const res = await fetch('/api/checklist-report/import', {
         method: 'POST',
@@ -335,10 +336,35 @@ export default function ComplianceChecklist() {
         body: JSON.stringify({ text })
       });
       const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.message || 'Could not read the checklist text');
+      return { text, body };
+    },
+    onSuccess: ({ text, body }) => {
+      setImportPreview({
+        source: { kind: 'text', text },
+        itemCount: body.itemCount,
+        areas: body.areas || [],
+        skippedSheets: [],
+      });
+    },
+    onError: (err: any) => toast({ title: 'Import failed', description: err.message, variant: 'destructive' })
+  });
+
+  // Phase 2: confirmed replace of the checklist from pasted text
+  const importMutation = useMutation({
+    mutationFn: async (text: string) => {
+      const res = await fetch('/api/checklist-report/import', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text, confirm: true })
+      });
+      const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body.message || 'Import failed');
       return body;
     },
     onSuccess: (data) => {
+      setImportPreview(null);
       queryClient.invalidateQueries({ queryKey: ['/api/checklist-report/checklist'] });
       setImportOpen(false);
       setImportText('');
@@ -367,7 +393,7 @@ export default function ComplianceChecklist() {
   const [importFileUploading, setImportFileUploading] = useState(false);
   const [exportingExcel, setExportingExcel] = useState(false);
   const [importPreview, setImportPreview] = useState<{
-    file: File;
+    source: { kind: 'file'; file: File } | { kind: 'text'; text: string };
     itemCount: number;
     areas: { name: string; itemCount: number }[];
     skippedSheets: string[];
@@ -401,7 +427,7 @@ export default function ComplianceChecklist() {
     },
     onSuccess: ({ file, body }) => {
       setImportPreview({
-        file,
+        source: { kind: 'file', file },
         itemCount: body.itemCount,
         areas: body.areas || [],
         skippedSheets: body.skippedSheets || [],
@@ -1014,11 +1040,11 @@ export default function ComplianceChecklist() {
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => setImportOpen(false)}>Cancel</Button>
               <Button
-                onClick={() => importMutation.mutate(importText)}
-                disabled={!importText.trim() || importMutation.isPending}
+                onClick={() => previewTextMutation.mutate(importText)}
+                disabled={!importText.trim() || previewTextMutation.isPending}
                 data-testid="button-confirm-import"
               >
-                {importMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                {previewTextMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                 Import
               </Button>
             </div>
@@ -1032,7 +1058,9 @@ export default function ComplianceChecklist() {
           <DialogHeader>
             <DialogTitle>Confirm Checklist Import</DialogTitle>
             <DialogDescription>
-              Review what was found in <strong>{importPreview?.file.name}</strong> before replacing your current checklist.
+              Review what was found in{' '}
+              <strong>{importPreview?.source.kind === 'file' ? importPreview.source.file.name : 'the pasted text'}</strong>{' '}
+              before replacing your current checklist.
               Nothing has been changed yet.
             </DialogDescription>
           </DialogHeader>
@@ -1067,11 +1095,15 @@ export default function ComplianceChecklist() {
               Cancel
             </Button>
             <Button
-              onClick={() => importPreview && importFileMutation.mutate(importPreview.file)}
-              disabled={importFileMutation.isPending}
+              onClick={() => {
+                if (!importPreview) return;
+                if (importPreview.source.kind === 'file') importFileMutation.mutate(importPreview.source.file);
+                else importMutation.mutate(importPreview.source.text);
+              }}
+              disabled={importFileMutation.isPending || importMutation.isPending}
               data-testid="button-confirm-file-import"
             >
-              {importFileMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              {(importFileMutation.isPending || importMutation.isPending) && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               Replace Checklist
             </Button>
           </DialogFooter>

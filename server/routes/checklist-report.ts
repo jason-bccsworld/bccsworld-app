@@ -417,6 +417,10 @@ async function replaceChecklist(orgId: string, items: ImportedItem[], res: any):
 
 // POST /import — replace the org checklist from pasted/uploaded text.
 // Line format: number | description | reference | area name
+// Two-phase like /import-file: without `confirm: true` in the body the text
+// is parsed only (no DB writes) and a preview summary is returned; the client
+// then re-submits the same text with confirm: true to perform the
+// destructive replace. Bounds are enforced identically in both phases.
 router.post("/import", isAuthenticated, requireAdmin, async (req: any, res) => {
   try {
     const orgId = requireOrg(req, res);
@@ -435,6 +439,23 @@ router.post("/import", isAuthenticated, requireAdmin, async (req: any, res) => {
         areaName: parts[3] || "Imported Checklist",
       };
     }).filter((it) => it.description);
+    if (req.body?.confirm !== true) {
+      // Parse-only preview: same bounds as the real import so text that
+      // would be rejected is rejected up front, before the admin confirms.
+      const boundsError = importBoundsError(items);
+      if (boundsError) return res.status(400).json({ message: boundsError });
+      const areaOrder: string[] = [];
+      const areaCounts = new Map<string, number>();
+      for (const it of items) {
+        if (!areaCounts.has(it.areaName)) areaOrder.push(it.areaName);
+        areaCounts.set(it.areaName, (areaCounts.get(it.areaName) || 0) + 1);
+      }
+      return res.json({
+        preview: true,
+        itemCount: items.length,
+        areas: areaOrder.map((name) => ({ name, itemCount: areaCounts.get(name) })),
+      });
+    }
     const imported = await replaceChecklist(orgId, items, res);
     if (imported === null) return;
     res.json({ success: true, imported });
