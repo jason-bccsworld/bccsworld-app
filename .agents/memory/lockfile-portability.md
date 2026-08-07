@@ -11,3 +11,4 @@ Package installs inside Replit can go through an internal proxy, leaving `resolv
 - When any external CI install fails mysteriously, first run: `grep -c 'package-firewall.replit.local' package-lock.json`.
 - Fix by string-replacing `http://package-firewall.replit.local/npm/` with `https://registry.npmjs.org/` — tarball paths and integrity hashes are identical, so no other change is needed.
 - Installing new packages in Replit afterwards can re-introduce proxy URLs; re-check the lockfile before pushing to GitHub for external deploys.
+- The rewrite is safe for local installs: npm inside Replit has its registry configured to the firewall and routes all fetches through it regardless of `resolved` URLs. You can't fully validate `npm ci` against npmjs from inside Replit (the firewall intercepts); instead verify by curling the npmjs tarball and comparing its sha512 to the lockfile `integrity` field.
