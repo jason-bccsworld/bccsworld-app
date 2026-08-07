@@ -130,27 +130,14 @@ async function readWorkbook(buffer: Buffer, filename: string): Promise<ExcelJS.W
   return workbook;
 }
 
-/**
- * Parse the first worksheet into import items. Throws an Error with a
- * user-facing message (including ACCEPTED_COLUMNS_HELP) when the sheet
- * cannot be interpreted.
- */
-export async function parseChecklistWorkbook(buffer: Buffer, filename: string): Promise<ImportedItem[]> {
-  let workbook: ExcelJS.Workbook;
-  try {
-    workbook = await readWorkbook(buffer, filename);
-  } catch (err: any) {
-    if (/unreasonably large/.test(String(err?.message))) throw err;
-    throw new Error("This file could not be read as a spreadsheet. Please upload a valid .xlsx, .xls, or .csv file.");
-  }
-  const sheet = workbook.worksheets[0];
-  if (!sheet || sheet.rowCount === 0) {
-    throw new Error(`The spreadsheet is empty. ${ACCEPTED_COLUMNS_HELP}`);
-  }
-  if (sheet.rowCount > MAX_PARSE_ROWS || sheet.columnCount > MAX_PARSE_COLS) {
-    throw new Error(`The spreadsheet is too large (${sheet.rowCount} rows × ${sheet.columnCount} columns). The maximum is ${MAX_PARSE_ROWS} rows and ${MAX_PARSE_COLS} columns.`);
-  }
+export interface ParsedChecklist {
+  items: ImportedItem[];
+  /** Names of worksheets that could not be imported (no header row / no data rows). */
+  skippedSheets: string[];
+}
 
+/** Parse a single worksheet. Returns null when no header row / no data rows. */
+function parseSheet(sheet: ExcelJS.Worksheet, defaultAreaName: string, startIndex: number): ImportedItem[] | null {
   // Find the header row: first row (within the top 10) where a description
   // column can be identified.
   let headerRowIdx = 0;
@@ -175,9 +162,7 @@ export async function parseChecklistWorkbook(buffer: Buffer, filename: string): 
       break;
     }
   }
-  if (!headerRowIdx) {
-    throw new Error(`Could not find a header row with a Description column. ${ACCEPTED_COLUMNS_HELP}`);
-  }
+  if (!headerRowIdx) return null;
 
   const items: ImportedItem[] = [];
   for (let r = headerRowIdx + 1; r <= sheet.rowCount; r++) {
@@ -188,16 +173,80 @@ export async function parseChecklistWorkbook(buffer: Buffer, filename: string): 
     const reference = columnMap.reference !== undefined ? cellText(row.getCell(columnMap.reference).value) : "";
     const areaName = columnMap.areaName !== undefined ? cellText(row.getCell(columnMap.areaName).value) : "";
     items.push({
-      number: number || `ITEM-${items.length + 1}`,
+      number: number || `ITEM-${startIndex + items.length + 1}`,
       description,
       reference,
-      areaName: areaName || "Imported Checklist",
+      areaName: areaName || defaultAreaName,
     });
   }
-  if (items.length === 0) {
-    throw new Error(`No checklist rows were found under the header row. ${ACCEPTED_COLUMNS_HELP}`);
+  return items.length ? items : null;
+}
+
+/**
+ * Parse every worksheet into import items. Multi-tab workbooks import each
+ * tab; a tab without a recognizable header/data is reported in
+ * `skippedSheets` rather than silently dropped. Rows on a multi-sheet
+ * workbook default their area to the tab name so each tab becomes an area.
+ * Throws an Error with a user-facing message (including
+ * ACCEPTED_COLUMNS_HELP) when nothing in the file can be interpreted.
+ */
+export async function parseChecklistWorkbook(buffer: Buffer, filename: string): Promise<ParsedChecklist> {
+  let workbook: ExcelJS.Workbook;
+  try {
+    workbook = await readWorkbook(buffer, filename);
+  } catch (err: any) {
+    if (/unreasonably large/.test(String(err?.message))) throw err;
+    throw new Error("This file could not be read as a spreadsheet. Please upload a valid .xlsx, .xls, or .csv file.");
   }
-  return items;
+  const sheets = workbook.worksheets.filter((ws) => ws && ws.rowCount > 0);
+  if (sheets.length === 0) {
+    throw new Error(`The spreadsheet is empty. ${ACCEPTED_COLUMNS_HELP}`);
+  }
+  // Bounds apply across the whole workbook so multiple tabs cannot multiply
+  // the parse workload past the single-sheet limits.
+  const totalRows = sheets.reduce((s, ws) => s + ws.rowCount, 0);
+  const maxCols = Math.max(...sheets.map((ws) => ws.columnCount));
+  if (totalRows > MAX_PARSE_ROWS || maxCols > MAX_PARSE_COLS) {
+    throw new Error(`The spreadsheet is too large (${totalRows} rows × ${maxCols} columns). The maximum is ${MAX_PARSE_ROWS} rows and ${MAX_PARSE_COLS} columns.`);
+  }
+
+  const multiSheet = sheets.length > 1;
+  const items: ImportedItem[] = [];
+  const skippedSheets: string[] = [];
+  for (const sheet of sheets) {
+    // On a multi-tab workbook, rows without an Area column fall back to the
+    // tab name so each tab imports as its own inspection area.
+    const defaultAreaName = multiSheet ? (sheet.name || "Imported Checklist") : "Imported Checklist";
+    const parsed = parseSheet(sheet, defaultAreaName, items.length);
+    if (parsed) items.push(...parsed);
+    else skippedSheets.push(sheet.name || `Sheet ${skippedSheets.length + 1}`);
+  }
+  if (items.length === 0) {
+    if (skippedSheets.length > 0 && sheets.some((s) => {
+      // Distinguish "no header anywhere" from "header but no rows" for the
+      // single-sheet error messages admins already know.
+      const p = parseSheetHeaderOnly(s);
+      return p;
+    })) {
+      throw new Error(`No checklist rows were found under the header row. ${ACCEPTED_COLUMNS_HELP}`);
+    }
+    throw new Error(`Could not find a header row with a Description column. ${ACCEPTED_COLUMNS_HELP}`);
+  }
+  return { items, skippedSheets };
+}
+
+/** True when the sheet has a detectable header row (Description column). */
+function parseSheetHeaderOnly(sheet: ExcelJS.Worksheet): boolean {
+  const maxScan = Math.min(sheet.rowCount, 10);
+  for (let r = 1; r <= maxScan; r++) {
+    let found = false;
+    sheet.getRow(r).eachCell({ includeEmpty: false }, (cell) => {
+      const text = cellText(cell.value);
+      if (text && HEADER_MATCHERS[1].test(text)) found = true;
+    });
+    if (found) return true;
+  }
+  return false;
 }
 
 /* ── Export ─────────────────────────────────────────────────────────────── */

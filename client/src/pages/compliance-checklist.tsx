@@ -398,7 +398,13 @@ export default function ComplianceChecklist() {
       setImportOpen(false);
       setImportText('');
       setSelectedArea('');
-      toast({ title: 'Checklist imported', description: `${data.imported} items imported from the spreadsheet. The previous checklist was replaced.` });
+      const skipped: string[] = data.skippedSheets || [];
+      toast({
+        title: 'Checklist imported',
+        description: `${data.imported} items imported from the spreadsheet. The previous checklist was replaced.` +
+          (skipped.length ? ` Note: ${skipped.length} tab${skipped.length > 1 ? 's' : ''} could not be imported (no recognizable checklist rows): ${skipped.join(', ')}.` : ''),
+        ...(skipped.length ? { duration: 12000 } : {}),
+      });
     },
     onError: (err: any) => toast({ title: 'Import failed', description: err.message, variant: 'destructive' })
   });

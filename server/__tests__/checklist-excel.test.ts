@@ -20,7 +20,8 @@ describe("parseChecklistWorkbook", () => {
       ["1-02", "Certificate displayed?", "142.27(a)", "Management"],
       ["2-01", "Tspecs current?", "142.5(c)", "Training Specs"],
     ]);
-    const items = await parseChecklistWorkbook(buf, "checklist.xlsx");
+    const { items, skippedSheets } = await parseChecklistWorkbook(buf, "checklist.xlsx");
+    expect(skippedSheets).toEqual([]);
     expect(items).toHaveLength(3);
     expect(items[0]).toEqual({ number: "1-01", description: "Has enough instructors?", reference: "142.13(a)", areaName: "Management" });
     expect(items[2].areaName).toBe("Training Specs");
@@ -31,7 +32,7 @@ describe("parseChecklistWorkbook", () => {
       ["Description"],
       ["Only a description"],
     ]);
-    const items = await parseChecklistWorkbook(buf, "min.xlsx");
+    const { items } = await parseChecklistWorkbook(buf, "min.xlsx");
     expect(items).toEqual([{ number: "ITEM-1", description: "Only a description", reference: "", areaName: "Imported Checklist" }]);
   });
 
@@ -44,7 +45,7 @@ describe("parseChecklistWorkbook", () => {
       [],
       ["2", "Second item", ""],
     ]);
-    const items = await parseChecklistWorkbook(buf, "messy.xlsx");
+    const { items } = await parseChecklistWorkbook(buf, "messy.xlsx");
     expect(items.map((i) => i.description)).toEqual(["First item", "Second item"]);
   });
 
@@ -71,7 +72,7 @@ describe("parseChecklistWorkbook", () => {
     XLSX.utils.book_append_sheet(wb, ws, "Checklist");
     const buf = XLSX.write(wb, { type: "buffer", bookType: "xls" }) as Buffer; // real BIFF8 bytes
     expect(buf.slice(0, 4).equals(Buffer.from([0xd0, 0xcf, 0x11, 0xe0]))).toBe(true); // CFB magic, not a zip
-    const items = await parseChecklistWorkbook(buf, "legacy.xls");
+    const { items } = await parseChecklistWorkbook(buf, "legacy.xls");
     expect(items).toHaveLength(2);
     expect(items[0]).toEqual({ number: "1-01", description: "Has enough instructors?", reference: "142.13(a)", areaName: "Management" });
     expect(items[1].areaName).toBe("Training Specs");
@@ -98,7 +99,7 @@ describe("parseChecklistWorkbook", () => {
 
   it("parses CSV files", async () => {
     const csv = Buffer.from("Number,Description,Reference,Area\n1-01,Item one,142.1,Area A\n1-02,Item two,,Area B\n");
-    const items = await parseChecklistWorkbook(csv, "checklist.csv");
+    const { items } = await parseChecklistWorkbook(csv, "checklist.csv");
     expect(items).toHaveLength(2);
     expect(items[1]).toEqual({ number: "1-02", description: "Item two", reference: "", areaName: "Area B" });
   });
@@ -107,7 +108,7 @@ describe("parseChecklistWorkbook", () => {
     const rows: any[][] = [["Number", "Description", "Area"]];
     for (let i = 1; i <= 550; i++) rows.push([`X-${i}`, `Item ${i}`, `Area ${(i % 25) + 1}`]);
     const buf = await makeXlsx(rows);
-    const items = await parseChecklistWorkbook(buf, "big.xlsx");
+    const { items } = await parseChecklistWorkbook(buf, "big.xlsx");
     expect(items).toHaveLength(550); // route-level MAX_IMPORT_ITEMS/AREAS rejects this
   });
 
@@ -116,6 +117,50 @@ describe("parseChecklistWorkbook", () => {
     for (let i = 0; i <= MAX_PARSE_ROWS; i++) rows.push([`row ${i}`]);
     const buf = await makeXlsx(rows);
     await expect(parseChecklistWorkbook(buf, "huge.xlsx")).rejects.toThrow(/too large/i);
+  });
+
+  it("imports every tab of a multi-sheet workbook, defaulting area to the tab name", async () => {
+    const wb = new ExcelJS.Workbook();
+    const a = wb.addWorksheet("Personnel");
+    a.addRow(["Number", "Description"]);
+    a.addRow(["1-01", "Enough instructors"]);
+    const b = wb.addWorksheet("Facilities");
+    b.addRow(["Number", "Description", "Area"]);
+    b.addRow(["2-01", "Building adequate", "Custom Area"]);
+    b.addRow(["2-02", "Simulators approved", ""]);
+    const buf = Buffer.from(await wb.xlsx.writeBuffer());
+    const { items, skippedSheets } = await parseChecklistWorkbook(buf, "multi.xlsx");
+    expect(skippedSheets).toEqual([]);
+    expect(items).toHaveLength(3);
+    expect(items[0].areaName).toBe("Personnel");
+    expect(items[1].areaName).toBe("Custom Area"); // explicit Area column wins
+    expect(items[2].areaName).toBe("Facilities");
+  });
+
+  it("reports tabs that cannot be imported in skippedSheets", async () => {
+    const wb = new ExcelJS.Workbook();
+    const good = wb.addWorksheet("Checklist");
+    good.addRow(["Number", "Description"]);
+    good.addRow(["1-01", "An item"]);
+    const junk = wb.addWorksheet("Notes");
+    junk.addRow(["Just some prose with no header"]);
+    const headerOnly = wb.addWorksheet("Empty Area");
+    headerOnly.addRow(["Number", "Description"]);
+    const buf = Buffer.from(await wb.xlsx.writeBuffer());
+    const { items, skippedSheets } = await parseChecklistWorkbook(buf, "mixed.xlsx");
+    expect(items).toHaveLength(1);
+    expect(skippedSheets).toEqual(["Notes", "Empty Area"]);
+  });
+
+  it("applies the parse row bound across all sheets combined", async () => {
+    const wb = new ExcelJS.Workbook();
+    for (let s = 0; s < 2; s++) {
+      const ws = wb.addWorksheet(`S${s}`);
+      ws.addRow(["Description"]);
+      for (let i = 0; i < MAX_PARSE_ROWS / 2 + 10; i++) ws.addRow([`row ${i}`]);
+    }
+    const buf = Buffer.from(await wb.xlsx.writeBuffer());
+    await expect(parseChecklistWorkbook(buf, "multibig.xlsx")).rejects.toThrow(/too large/i);
   });
 
   it("treats formula cells without a cached result as empty, never '[object Object]'", () => {
@@ -133,7 +178,7 @@ describe("parseChecklistWorkbook", () => {
     ws.addRow(["1-01", { formula: 'CONCAT("a","b")', result: "Computed item" }]);
     ws.addRow(["1-02", { formula: 'CONCAT("a","b")' }]); // no cached result → skipped
     const buf = Buffer.from(await wb.xlsx.writeBuffer());
-    const items = await parseChecklistWorkbook(buf, "formulas.xlsx");
+    const { items } = await parseChecklistWorkbook(buf, "formulas.xlsx");
     expect(items).toHaveLength(1);
     expect(items[0].description).toBe("Computed item");
   });

@@ -452,14 +452,15 @@ router.post("/import-file", isAuthenticated, requireAdmin, upload.single("file")
       return res.status(400).json({ message: "Unsupported file type. Please upload an Excel (.xlsx or .xls) or CSV file." });
     }
     let items: ImportedItem[];
+    let skippedSheets: string[];
     try {
-      items = await parseChecklistWorkbook(req.file.buffer, req.file.originalname);
+      ({ items, skippedSheets } = await parseChecklistWorkbook(req.file.buffer, req.file.originalname));
     } catch (parseErr: any) {
       return res.status(422).json({ message: parseErr.message });
     }
     const imported = await replaceChecklist(orgId, items, res);
     if (imported === null) return;
-    res.json({ success: true, imported });
+    res.json({ success: true, imported, skippedSheets });
   } catch (err) {
     console.error("Checklist Excel import error:", err);
     res.status(500).json({ message: "Failed to import checklist file" });
