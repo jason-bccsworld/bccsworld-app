@@ -6,6 +6,51 @@ import { promisify } from "util";
 
 const execAsync = promisify(exec);
 
+/**
+ * pdfjs (used by pdf-parse) expects a few browser globals that do not exist in
+ * bare Node/serverless runtimes. Text extraction only needs lightweight 2D
+ * matrix math, so a minimal DOMMatrix (plus inert ImageData/Path2D stubs) is
+ * sufficient — without these the import fails with "DOMMatrix is not defined".
+ */
+function ensurePdfJsGlobals() {
+  const g = globalThis as any;
+  if (typeof g.DOMMatrix === "undefined") {
+    g.DOMMatrix = class DOMMatrix {
+      a = 1; b = 0; c = 0; d = 1; e = 0; f = 0;
+      constructor(init?: number[] | string) {
+        if (Array.isArray(init) && init.length >= 6) {
+          [this.a, this.b, this.c, this.d, this.e, this.f] = init;
+        }
+      }
+      multiply(o: any) {
+        const m = new (g.DOMMatrix)();
+        m.a = this.a * o.a + this.c * o.b;
+        m.b = this.b * o.a + this.d * o.b;
+        m.c = this.a * o.c + this.c * o.d;
+        m.d = this.b * o.c + this.d * o.d;
+        m.e = this.a * o.e + this.c * o.f + this.e;
+        m.f = this.b * o.e + this.d * o.f + this.f;
+        return m;
+      }
+      translate(tx = 0, ty = 0) { const o = new (g.DOMMatrix)([1, 0, 0, 1, tx, ty]); return this.multiply(o); }
+      scale(sx = 1, sy = sx) { const o = new (g.DOMMatrix)([sx, 0, 0, sy, 0, 0]); return this.multiply(o); }
+      transformPoint(p: any = { x: 0, y: 0 }) {
+        return { x: this.a * p.x + this.c * p.y + this.e, y: this.b * p.x + this.d * p.y + this.f };
+      }
+      toString() { return `matrix(${this.a}, ${this.b}, ${this.c}, ${this.d}, ${this.e}, ${this.f})`; }
+    };
+  }
+  if (typeof g.ImageData === "undefined") {
+    g.ImageData = class ImageData {
+      width: number; height: number; data: Uint8ClampedArray;
+      constructor(w: number, h: number) { this.width = w; this.height = h; this.data = new Uint8ClampedArray(w * h * 4); }
+    };
+  }
+  if (typeof g.Path2D === "undefined") {
+    g.Path2D = class Path2D { addPath() {} moveTo() {} lineTo() {} bezierCurveTo() {} quadraticCurveTo() {} closePath() {} rect() {} arc() {} };
+  }
+}
+
 async function processPdfText(pdfPath: string): Promise<string> {
   try {
     console.log(`Extracting text from PDF: ${pdfPath}`);
@@ -25,6 +70,7 @@ async function processPdfText(pdfPath: string): Promise<string> {
     // Pure-JS fallback (works on serverless hosts without poppler): pdf-parse
     let pdfParseFailure: string | null = null;
     try {
+      ensurePdfJsGlobals();
       const { PDFParse } = await import("pdf-parse");
       const parser = new PDFParse({ data: new Uint8Array(fs.readFileSync(pdfPath)) });
       try {
