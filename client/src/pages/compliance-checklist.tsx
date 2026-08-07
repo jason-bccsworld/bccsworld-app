@@ -29,7 +29,9 @@ import {
   Sparkles,
   Loader2,
   FileUp,
-  RotateCcw
+  RotateCcw,
+  Paperclip,
+  Trash2
 } from 'lucide-react';
 
 interface AiFinding {
@@ -41,6 +43,15 @@ interface AiFinding {
   stale: boolean;
 }
 
+interface EvidenceFile {
+  id: string;
+  filename: string;
+  contentType: string;
+  sizeBytes: number;
+  uploadedBy: string | null;
+  uploadedAt: string;
+}
+
 interface ChecklistItem {
   id: string;
   number: string;
@@ -50,6 +61,7 @@ interface ChecklistItem {
   comments: string;
   findings: string;
   aiFinding: AiFinding | null;
+  evidence: EvidenceFile[];
 }
 
 interface InspectionArea {
@@ -176,6 +188,7 @@ function buildReportHtml(areas: InspectionArea[], manualInfo: any, organization:
             item.findings ? `<div><strong>Findings:</strong> ${escapeHtml(item.findings)}</div>` : '',
             item.aiFinding?.excerpt ? `<div class="excerpt"><strong>Manual excerpt:</strong> &ldquo;${escapeHtml(item.aiFinding.excerpt)}&rdquo;</div>` : '',
             item.aiFinding?.remediation ? `<div class="remediation"><strong>Suggested remediation:</strong> ${escapeHtml(item.aiFinding.remediation)}</div>` : '',
+            item.evidence?.length ? `<div class="evidence"><strong>Evidence on file (${item.evidence.length}):</strong> ${item.evidence.map(e => escapeHtml(e.filename)).join('; ')}</div>` : '',
           ].filter(Boolean).join('') || '—';
           return `<tr>
             <td>${escapeHtml(item.number)}</td>
@@ -209,6 +222,7 @@ function buildReportHtml(areas: InspectionArea[], manualInfo: any, organization:
   .st-pending { color: #92400e; }
   .excerpt { color: #1e40af; margin-top: 3px; }
   .remediation { color: #9a3412; margin-top: 3px; }
+  .evidence { color: #374151; margin-top: 3px; }
   .area { page-break-inside: avoid; }
   @media print { body { margin: 12mm; } .area { page-break-inside: auto; } tr { page-break-inside: avoid; } }
 </style></head>
@@ -249,6 +263,8 @@ export default function ComplianceChecklist() {
   const [importText, setImportText] = useState('');
   const [uploading, setUploading] = useState(false);
   const [reviewProgress, setReviewProgress] = useState<{ done: number; total: number } | null>(null);
+  const [evidenceUploading, setEvidenceUploading] = useState<string | null>(null);
+  const evidenceInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   const { data: checklistData, isLoading } = useQuery({
     queryKey: ['/api/checklist-report/checklist'],
@@ -369,6 +385,44 @@ export default function ComplianceChecklist() {
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const setItemEvidence = (itemId: string, updater: (prev: EvidenceFile[]) => EvidenceFile[]) => {
+    setInspectionAreas(prev => prev.map(area => ({
+      ...area,
+      items: area.items.map(item => item.id === itemId ? { ...item, evidence: updater(item.evidence || []) } : item),
+    })));
+  };
+
+  const handleEvidenceUpload = async (itemId: string, file: File) => {
+    setEvidenceUploading(itemId);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await fetch(`/api/checklist-report/items/${itemId}/evidence`, { method: 'POST', credentials: 'include', body: fd });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.message || 'Upload failed');
+      setItemEvidence(itemId, prev => [...prev, body]);
+      toast({ title: 'Evidence attached', description: `${file.name} was attached to this checklist item.` });
+    } catch (err: any) {
+      toast({ title: 'Upload failed', description: err.message, variant: 'destructive' });
+    } finally {
+      setEvidenceUploading(null);
+      const input = evidenceInputRefs.current[itemId];
+      if (input) input.value = '';
+    }
+  };
+
+  const handleEvidenceDelete = async (itemId: string, evidenceId: string, filename: string) => {
+    try {
+      const res = await fetch(`/api/checklist-report/evidence/${evidenceId}`, { method: 'DELETE', credentials: 'include' });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.message || 'Delete failed');
+      setItemEvidence(itemId, prev => prev.filter(e => e.id !== evidenceId));
+      toast({ title: 'Evidence removed', description: `${filename} was removed.` });
+    } catch (err: any) {
+      toast({ title: 'Delete failed', description: err.message, variant: 'destructive' });
     }
   };
 
@@ -731,6 +785,63 @@ export default function ComplianceChecklist() {
                               placeholder="Add comments about compliance status..."
                               className="min-h-[80px]"
                             />
+                          </div>
+
+                          <div>
+                            <div className="flex items-center justify-between mb-2">
+                              <h4 className="font-medium flex items-center gap-2">
+                                <Paperclip className="h-4 w-4" />
+                                Evidence ({(item.evidence || []).length})
+                              </h4>
+                              <input
+                                ref={(el) => { evidenceInputRefs.current[item.id] = el; }}
+                                type="file"
+                                accept=".pdf,.png,.jpg,.jpeg,.gif,.webp"
+                                className="hidden"
+                                onChange={(e) => e.target.files?.[0] && handleEvidenceUpload(item.id, e.target.files[0])}
+                              />
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                disabled={evidenceUploading === item.id}
+                                onClick={() => evidenceInputRefs.current[item.id]?.click()}
+                                data-testid={`button-attach-evidence-${item.id}`}
+                              >
+                                {evidenceUploading === item.id ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileUp className="h-4 w-4 mr-2" />}
+                                {evidenceUploading === item.id ? 'Uploading…' : 'Attach Evidence'}
+                              </Button>
+                            </div>
+                            {(item.evidence || []).length === 0 ? (
+                              <p className="text-sm text-gray-500">No evidence files attached. PDF and image files up to 10 MB are accepted.</p>
+                            ) : (
+                              <ul className="space-y-1">
+                                {item.evidence.map((ev) => (
+                                  <li key={ev.id} className="flex items-center gap-2 text-sm border rounded-md px-3 py-2" data-testid={`evidence-file-${ev.id}`}>
+                                    <FileText className="h-4 w-4 text-gray-500 shrink-0" />
+                                    <a
+                                      href={`/api/checklist-report/evidence/${ev.id}/file`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-blue-600 hover:text-blue-800 underline truncate"
+                                    >
+                                      {ev.filename}
+                                    </a>
+                                    <span className="text-xs text-gray-500 shrink-0">
+                                      {(ev.sizeBytes / 1024).toFixed(0)} KB · {new Date(ev.uploadedAt).toLocaleDateString()}
+                                    </span>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="ml-auto h-7 w-7 p-0 text-gray-500 hover:text-red-600 shrink-0"
+                                      onClick={() => handleEvidenceDelete(item.id, ev.id, ev.filename)}
+                                      data-testid={`button-delete-evidence-${ev.id}`}
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
                           </div>
 
                           <div>

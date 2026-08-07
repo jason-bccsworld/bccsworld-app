@@ -42,6 +42,12 @@ vi.mock("../db", () => {
     if (text.includes("UPDATE bccs_checklist_report_items")) {
       return { rows: [{ id: "item-1" }] };
     }
+    if (text.includes("COUNT(*)::int AS count")) {
+      return { rows: [{ count: 0 }] };
+    }
+    if (text.includes("DELETE FROM bccs_checklist_evidence") && text.includes("RETURNING")) {
+      return { rows: [{ id: "ev-1" }] };
+    }
     return { rows: [] };
   };
   const db: any = {
@@ -118,6 +124,8 @@ describe("checklist-report authorization", () => {
       ["POST", "/reset", undefined],
       ["POST", "/review/area1", undefined],
       ["POST", "/manual", undefined],
+      ["POST", "/items/item-1/evidence", undefined],
+      ["DELETE", "/evidence/ev-1", undefined],
     ] as const) {
       const r = await api("member1", method, path, body);
       expect(r.status, `${method} ${path}`).toBe(403);
@@ -137,5 +145,16 @@ describe("checklist-report authorization", () => {
 
   it("allows platform staff through the guard regardless of role", async () => {
     expect((await api("staff1", "POST", "/reset")).status).toBe(200);
+  });
+
+  it("guards evidence routes: admins pass, deletes are org-scoped", async () => {
+    // Admin passes the guard; without a multipart file the route 400s (not 403)
+    const upload = await api("admin1", "POST", "/items/item-1/evidence");
+    expect(upload.status).toBe(400);
+    expect(upload.body?.message).toMatch(/no file/i);
+    // Admin delete succeeds against the org-scoped row
+    expect((await api("admin1", "DELETE", "/evidence/ev-1")).status).toBe(200);
+    // Members can view evidence files (read), but the mocked select returns nothing
+    expect((await api("member1", "GET", "/evidence/ev-1/file")).status).toBe(404);
   });
 });

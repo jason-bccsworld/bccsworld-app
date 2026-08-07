@@ -74,6 +74,23 @@ async function ensureTables() {
     )
   `);
   await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS bccs_checklist_evidence (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      organization_id UUID NOT NULL,
+      item_id UUID NOT NULL,
+      filename VARCHAR(300) NOT NULL,
+      content_type VARCHAR(100) NOT NULL,
+      size_bytes INTEGER NOT NULL,
+      data BYTEA NOT NULL,
+      uploaded_by VARCHAR(200),
+      uploaded_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS bccs_checklist_evidence_org_item
+    ON bccs_checklist_evidence (organization_id, item_id)
+  `);
+  await db.execute(sql`
     CREATE UNIQUE INDEX IF NOT EXISTS bccs_checklist_report_items_org_area_number
     ON bccs_checklist_report_items (organization_id, area_id, item_number)
   `);
@@ -171,6 +188,22 @@ router.get("/checklist", isAuthenticated, async (req: any, res) => {
     for (const f of findings) {
       findingByItem[f.item_id] = { ...f, stale: !currentManual || f.manual_id !== currentManual.id };
     }
+    const evidence = await db.execute(sql`
+      SELECT id, item_id, filename, content_type, size_bytes, uploaded_by, uploaded_at
+      FROM bccs_checklist_evidence WHERE organization_id = ${orgId}
+      ORDER BY uploaded_at
+    `).then((r: any) => r.rows);
+    const evidenceByItem: Record<string, any[]> = {};
+    for (const e of evidence) {
+      (evidenceByItem[e.item_id] ||= []).push({
+        id: e.id,
+        filename: e.filename,
+        contentType: e.content_type,
+        sizeBytes: Number(e.size_bytes),
+        uploadedBy: e.uploaded_by,
+        uploadedAt: e.uploaded_at,
+      });
+    }
 
     const areas: any[] = [];
     for (const row of rows) {
@@ -188,6 +221,7 @@ router.get("/checklist", isAuthenticated, async (req: any, res) => {
         comments: row.comments || "",
         findings: row.findings || "",
         aiFinding: findingByItem[row.id] || null,
+        evidence: evidenceByItem[row.id] || [],
       });
     }
     // Approved organization identity for the auditor report header —
@@ -240,6 +274,104 @@ router.put("/items/:id", isAuthenticated, requireAdmin, async (req: any, res) =>
   }
 });
 
+// ── Evidence attachments ─────────────────────────────────────────────────────
+
+const EVIDENCE_MAX_BYTES = 10 * 1024 * 1024;
+const EVIDENCE_MAX_PER_ITEM = 10;
+const EVIDENCE_TYPES: Record<string, string> = {
+  ".pdf": "application/pdf",
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".gif": "image/gif",
+  ".webp": "image/webp",
+};
+
+const evidenceUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: EVIDENCE_MAX_BYTES },
+});
+
+// POST /items/:id/evidence — attach a PDF or image to a checklist item
+router.post("/items/:id/evidence", isAuthenticated, requireAdmin, evidenceUpload.single("file"), async (req: any, res) => {
+  try {
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
+    if (!req.file) return res.status(400).json({ message: "No file uploaded" });
+    const ext = path.extname(req.file.originalname).toLowerCase();
+    const contentType = EVIDENCE_TYPES[ext];
+    if (!contentType) {
+      return res.status(400).json({ message: "Unsupported file type. Please upload a PDF or image (PNG, JPG, GIF, WebP)." });
+    }
+    // Item must belong to the caller's org
+    const [item] = await db.execute(sql`
+      SELECT id FROM bccs_checklist_report_items
+      WHERE id = ${req.params.id} AND organization_id = ${orgId}
+    `).then((r: any) => r.rows);
+    if (!item) return res.status(404).json({ message: "Checklist item not found" });
+    const [{ count }] = await db.execute(sql`
+      SELECT COUNT(*)::int AS count FROM bccs_checklist_evidence
+      WHERE organization_id = ${orgId} AND item_id = ${item.id}
+    `).then((r: any) => r.rows);
+    if (Number(count) >= EVIDENCE_MAX_PER_ITEM) {
+      return res.status(400).json({ message: `Each checklist item can hold at most ${EVIDENCE_MAX_PER_ITEM} evidence files.` });
+    }
+    const [row] = await db.execute(sql`
+      INSERT INTO bccs_checklist_evidence (organization_id, item_id, filename, content_type, size_bytes, data, uploaded_by)
+      VALUES (${orgId}, ${item.id}, ${req.file.originalname}, ${contentType}, ${req.file.size}, ${req.file.buffer}, ${req.user?.email || req.user?.id || "system"})
+      RETURNING id, item_id, filename, content_type, size_bytes, uploaded_by, uploaded_at
+    `).then((r: any) => r.rows);
+    res.status(201).json({
+      id: row.id,
+      filename: row.filename,
+      contentType: row.content_type,
+      sizeBytes: Number(row.size_bytes),
+      uploadedBy: row.uploaded_by,
+      uploadedAt: row.uploaded_at,
+    });
+  } catch (err) {
+    console.error("Evidence upload error:", err);
+    res.status(500).json({ message: "Failed to upload evidence file" });
+  }
+});
+
+// GET /evidence/:id/file — download/view an evidence file (org-scoped)
+router.get("/evidence/:id/file", isAuthenticated, async (req: any, res) => {
+  try {
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
+    const [row] = await db.execute(sql`
+      SELECT filename, content_type, data FROM bccs_checklist_evidence
+      WHERE id = ${req.params.id} AND organization_id = ${orgId}
+    `).then((r: any) => r.rows);
+    if (!row) return res.status(404).json({ message: "Evidence file not found" });
+    res.setHeader("Content-Type", row.content_type);
+    res.setHeader("Content-Disposition", `inline; filename="${encodeURIComponent(row.filename)}"`);
+    res.send(Buffer.from(row.data));
+  } catch (err) {
+    console.error("Evidence download error:", err);
+    res.status(500).json({ message: "Failed to load evidence file" });
+  }
+});
+
+// DELETE /evidence/:id — remove an evidence file (org-scoped)
+router.delete("/evidence/:id", isAuthenticated, requireAdmin, async (req: any, res) => {
+  try {
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
+    const result = await db.execute(sql`
+      DELETE FROM bccs_checklist_evidence
+      WHERE id = ${req.params.id} AND organization_id = ${orgId}
+      RETURNING id
+    `);
+    if (((result as any).rows || []).length === 0) return res.status(404).json({ message: "Evidence file not found" });
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Evidence delete error:", err);
+    res.status(500).json({ message: "Failed to delete evidence file" });
+  }
+});
+
 // ── Import / reset ───────────────────────────────────────────────────────────
 
 // POST /import — replace the org checklist from pasted/uploaded text.
@@ -273,6 +405,7 @@ router.post("/import", isAuthenticated, requireAdmin, async (req: any, res) => {
 
     await db.transaction(async (tx) => {
       await tx.execute(sql`DELETE FROM bccs_checklist_ai_findings WHERE organization_id = ${orgId}`);
+      await tx.execute(sql`DELETE FROM bccs_checklist_evidence WHERE organization_id = ${orgId}`);
       await tx.execute(sql`DELETE FROM bccs_checklist_report_items WHERE organization_id = ${orgId}`);
       const areaIds = new Map<string, string>();
       let order = 0;
@@ -299,6 +432,7 @@ router.post("/reset", isAuthenticated, requireAdmin, async (req: any, res) => {
     const orgId = requireOrg(req, res);
     if (!orgId) return;
     await db.execute(sql`DELETE FROM bccs_checklist_ai_findings WHERE organization_id = ${orgId}`);
+    await db.execute(sql`DELETE FROM bccs_checklist_evidence WHERE organization_id = ${orgId}`);
     await db.execute(sql`DELETE FROM bccs_checklist_report_items WHERE organization_id = ${orgId}`);
     await seedChecklist(orgId);
     res.json({ success: true });
