@@ -138,6 +138,7 @@ export interface IStorage {
   
   createBlockchainTrainingRecord(record: InsertBlockchainTrainingRecord): Promise<BlockchainTrainingRecord>;
   getTrainingRecordsByCredential(credentialId: string): Promise<BlockchainTrainingRecord[]>;
+  isCredentialLinkedToOrganization(credentialId: string, organizationId: string): Promise<boolean>;
 
   // Training event operations
   createTrainingEvent(event: InsertTrainingEvent): Promise<TrainingEvent>;
@@ -532,6 +533,26 @@ export class DatabaseStorage implements IStorage {
         eq(organizationMembers.isActive, true)
       ))
       .orderBy(organizationMembers.startDate);
+  }
+
+  async isCredentialLinkedToOrganization(credentialId: string, organizationId: string): Promise<boolean> {
+    // A credential belongs to an org's tenant scope if it is an active member
+    // of that org, or has training records recorded under that org.
+    const [member] = await db.select({ id: organizationMembers.id }).from(organizationMembers)
+      .where(and(
+        eq(organizationMembers.credentialId, credentialId),
+        eq(organizationMembers.organizationId, organizationId),
+        eq(organizationMembers.isActive, true)
+      ))
+      .limit(1);
+    if (member) return true;
+    const [record] = await db.select({ id: blockchainTrainingRecords.id }).from(blockchainTrainingRecords)
+      .where(and(
+        eq(blockchainTrainingRecords.studentCredentialId, credentialId),
+        eq(blockchainTrainingRecords.organizationId, organizationId)
+      ))
+      .limit(1);
+    return !!record;
   }
 
   async createBlockchainTrainingRecord(recordData: InsertBlockchainTrainingRecord): Promise<BlockchainTrainingRecord> {

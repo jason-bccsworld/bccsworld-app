@@ -46,6 +46,33 @@ const h = vi.hoisted(() => {
     { id: "key-org2", org_ids: [ORG2], key_preview: "bccs_rev_bbb...", label: "Org2 key" },
   ];
 
+  const CRED1 = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"; // linked to ORG1
+  const CRED2 = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"; // linked to ORG2 only
+
+  const credentials = [
+    { id: CRED1, licenseNumber: "L-111", regulatoryAuthority: "faa", holderFirstName: "Ann", masterPrivateKeyHash: "secret1" },
+    { id: CRED2, licenseNumber: "L-222", regulatoryAuthority: "faa", holderFirstName: "Bob", masterPrivateKeyHash: "secret2" },
+  ];
+  const credentialOrgLinks: Record<string, string[]> = {
+    [CRED1]: [ORG1],
+    [CRED2]: [ORG2],
+    ["cccccccc-cccc-4ccc-8ccc-cccccccccccc"]: [ORG1, ORG2],
+  };
+  const trainingRecords = [
+    { id: "tr1", studentCredentialId: CRED1, organizationId: ORG1 },
+    { id: "tr2", studentCredentialId: CRED1, organizationId: ORG2 },
+    { id: "tr3", studentCredentialId: CRED2, organizationId: ORG2 },
+  ];
+  // CRED3 is legitimately linked to BOTH orgs (e.g. career transfer); each
+  // org has its own verification activity on it.
+  const CRED3 = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+  const verifications = [
+    { id: "v1", credentialId: CRED1, verifyingOrganizationId: ORG1 },
+    { id: "v2", credentialId: CRED2, verifyingOrganizationId: ORG2 },
+    { id: "v3-org1", credentialId: CRED3, verifyingOrganizationId: ORG1 },
+    { id: "v3-org2", credentialId: CRED3, verifyingOrganizationId: ORG2 },
+  ];
+
   return {
     ORG1,
     ORG2,
@@ -53,6 +80,13 @@ const h = vi.hoisted(() => {
     memberships,
     orgs,
     reviewerKeys,
+    CRED1,
+    CRED2,
+    CRED3,
+    credentials,
+    credentialOrgLinks,
+    trainingRecords,
+    verifications,
     executed: [] as { text: string; params: any[] }[],
   };
 });
@@ -164,6 +198,19 @@ vi.mock("../storage", () => ({
     createAuditLog: vi.fn(async (entry: any) => entry),
     getTrainingOrganization: vi.fn(async (id: string) => h.orgs.find((o) => o.id === id)),
     getOrganizationMembers: vi.fn(async (_id: string) => [{ userId: "someone" }]),
+    getProfessionalCredentialByLicense: vi.fn(async (license: string, authority: string) =>
+      h.credentials.find((c) => c.licenseNumber === license && c.regulatoryAuthority === authority),
+    ),
+    isCredentialLinkedToOrganization: vi.fn(
+      async (credentialId: string, orgId: string) =>
+        (h.credentialOrgLinks[credentialId] ?? []).includes(orgId),
+    ),
+    getTrainingRecordsByCredential: vi.fn(async (credentialId: string) =>
+      h.trainingRecords.filter((r) => r.studentCredentialId === credentialId),
+    ),
+    getVerificationHistory: vi.fn(async (credentialId: string) =>
+      h.verifications.filter((v) => v.credentialId === credentialId),
+    ),
   },
 }));
 
@@ -510,6 +557,78 @@ describe("blockchain organization scoping", () => {
   });
 });
 
+/* ── Blockchain credential-scoped reads ──────────────────────────────────── */
+
+describe("blockchain credential read scoping", () => {
+  it("GET credential by license: foreign org's credential is rejected (403)", async () => {
+    const res = await api("admin1", "GET", "/api/blockchain/credentials/L-222/faa");
+    expect(res.status).toBe(403);
+    expect(res.body.error).toMatch(/not permitted/i);
+  });
+
+  it("GET credential by license: own org's credential is served without key hash", async () => {
+    const res = await api("admin1", "GET", "/api/blockchain/credentials/L-111/faa");
+    expect(res.status).toBe(200);
+    expect(res.body.data.id).toBe(h.CRED1);
+    expect(res.body.data.masterPrivateKeyHash).toBeUndefined();
+  });
+
+  it("GET credential by license: platform staff may read any credential", async () => {
+    const res = await api("root1", "GET", "/api/blockchain/credentials/L-222/faa");
+    expect(res.status).toBe(200);
+    expect(res.body.data.id).toBe(h.CRED2);
+  });
+
+  it("GET credential by license: user with no active org is rejected (403)", async () => {
+    const res = await api("orphan1", "GET", "/api/blockchain/credentials/L-111/faa");
+    expect(res.status).toBe(403);
+  });
+
+  it("GET training records: foreign org's credential is rejected (403)", async () => {
+    const res = await api("admin1", "GET", `/api/blockchain/training-records/${h.CRED2}`);
+    expect(res.status).toBe(403);
+  });
+
+  it("GET training records: results are filtered to the caller's org", async () => {
+    const res = await api("admin1", "GET", `/api/blockchain/training-records/${h.CRED1}`);
+    expect(res.status).toBe(200);
+    const ids = res.body.data.map((r: any) => r.id);
+    expect(ids).toContain("tr1");
+    expect(ids).not.toContain("tr2"); // ORG2's record on the same credential
+  });
+
+  it("GET training records: platform staff sees all records", async () => {
+    const res = await api("root1", "GET", `/api/blockchain/training-records/${h.CRED1}`);
+    expect(res.status).toBe(200);
+    expect(res.body.data.map((r: any) => r.id).sort()).toEqual(["tr1", "tr2"]);
+  });
+
+  it("GET verification history: foreign org's credential is rejected (403)", async () => {
+    const res = await api("admin1", "GET", `/api/blockchain/verify/${h.CRED2}/history`);
+    expect(res.status).toBe(403);
+  });
+
+  it("GET verification history: own org's credential is served (200)", async () => {
+    const res = await api("admin1", "GET", `/api/blockchain/verify/${h.CRED1}/history`);
+    expect(res.status).toBe(200);
+    expect(res.body.data.map((v: any) => v.id)).toEqual(["v1"]);
+  });
+
+  it("GET verification history: shared credential only shows the caller's org activity", async () => {
+    const res = await api("admin1", "GET", `/api/blockchain/verify/${h.CRED3}/history`);
+    expect(res.status).toBe(200);
+    const ids = res.body.data.map((v: any) => v.id);
+    expect(ids).toContain("v3-org1");
+    expect(ids).not.toContain("v3-org2"); // ORG2's verification activity stays hidden
+  });
+
+  it("GET verification history: platform staff sees all orgs' activity on a shared credential", async () => {
+    const res = await api("root1", "GET", `/api/blockchain/verify/${h.CRED3}/history`);
+    expect(res.status).toBe(200);
+    expect(res.body.data.map((v: any) => v.id).sort()).toEqual(["v3-org1", "v3-org2"]);
+  });
+});
+
 /* ── Unauthenticated access ──────────────────────────────────────────────── */
 
 describe("unauthenticated access", () => {
@@ -520,6 +639,9 @@ describe("unauthenticated access", () => {
     ["GET", `/api/adaptive-compliance/frameworks/hierarchy/x`],
     ["GET", "/api/reviewer-keys"],
     ["GET", `/api/blockchain/organizations/x`],
+    ["GET", "/api/blockchain/credentials/L-111/faa"],
+    ["GET", "/api/blockchain/training-records/x"],
+    ["GET", "/api/blockchain/verify/x/history"],
   ];
   for (const [method, path] of CASES) {
     it(`${method} ${path} → 401`, async () => {

@@ -66,6 +66,15 @@ const verifyCrossPlatformSchema = z.object({
 });
 
 export function registerBlockchainKeyManagementRoutes(app: Express) {
+
+  // Tenant guard for credential-scoped reads: platform staff may read any
+  // credential; everyone else must have an active org that the credential is
+  // linked to (via membership or training records).
+  async function canAccessCredential(req: any, credentialId: string): Promise<boolean> {
+    if (isPlatformStaff(req.user?.email)) return true;
+    if (!req.orgId) return false;
+    return await storage.isCredentialLinkedToOrganization(credentialId, req.orgId);
+  }
   
   // Register training organization with master keys (platform staff only)
   app.post('/api/blockchain/organizations/register', isAuthenticated, async (req: any, res) => {
@@ -142,9 +151,17 @@ export function registerBlockchainKeyManagementRoutes(app: Express) {
   app.get('/api/blockchain/training-records/:credentialId', isAuthenticated, async (req: any, res) => {
     try {
       const credentialId = req.params.credentialId;
-      
-      const records = await storage.getTrainingRecordsByCredential(credentialId);
-      
+
+      if (!(await canAccessCredential(req, credentialId))) {
+        return res.status(403).json({ success: false, error: 'Access to this credential is not permitted' });
+      }
+
+      let records = await storage.getTrainingRecordsByCredential(credentialId);
+      // Non-staff callers only see records recorded under their own org.
+      if (!isPlatformStaff(req.user?.email)) {
+        records = records.filter((r: any) => r.organizationId === req.orgId);
+      }
+
       res.json({
         success: true,
         data: records
@@ -237,8 +254,16 @@ export function registerBlockchainKeyManagementRoutes(app: Express) {
   app.get('/api/blockchain/verify/:credentialId/history', isAuthenticated, async (req: any, res) => {
     try {
       const credentialId = req.params.credentialId;
-      
-      const history = await storage.getVerificationHistory(credentialId);
+
+      if (!(await canAccessCredential(req, credentialId))) {
+        return res.status(403).json({ success: false, error: 'Access to this credential is not permitted' });
+      }
+
+      let history = await storage.getVerificationHistory(credentialId);
+      // Non-staff callers only see verifications performed by their own org.
+      if (!isPlatformStaff(req.user?.email)) {
+        history = history.filter((v: any) => v.verifyingOrganizationId === req.orgId);
+      }
       
       res.json({
         success: true,
@@ -266,7 +291,11 @@ export function registerBlockchainKeyManagementRoutes(app: Express) {
           error: 'Professional credential not found'
         });
       }
-      
+
+      if (!(await canAccessCredential(req, credential.id))) {
+        return res.status(403).json({ success: false, error: 'Access to this credential is not permitted' });
+      }
+
       // Don't return sensitive key information
       const { masterPrivateKeyHash, ...safeCredential } = credential;
       
