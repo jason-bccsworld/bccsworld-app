@@ -11,27 +11,16 @@ import {
 } from "../services/crypto-signing";
 import { db } from "../db";
 import { sql } from "drizzle-orm";
-import { isPlatformStaff, getUserMemberships } from "../middleware/tenant";
+import { isPlatformStaff, getUserMemberships, requireOrg } from "../middleware/tenant";
+import { queueAuditReadinessRefresh } from "../services/audit-readiness";
 
 const router = Router();
-
-// Helper: resolve the org identifier for the current user's org
-async function resolveOrgId(req: any): Promise<string> {
-  // Try the user's organization from the DB
-  const user = req.user as any;
-  const orgRows = await db.execute(sql`
-    SELECT id, organization_name, certificate_number FROM training_organizations
-    WHERE is_active = TRUE ORDER BY created_at ASC LIMIT 1
-  `).then(r => (r as any).rows);
-  if (orgRows[0]) return orgRows[0].id;
-  // Fall back to user email domain as org identifier
-  return user?.email?.split("@")[1] ?? "default-org";
-}
 
 // POST /api/org-keys/generate — generate Ed25519 key pair for the organization
 router.post("/generate", isAuthenticated, async (req: any, res) => {
   try {
-    const orgId = await resolveOrgId(req);
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
     const result = await generateAndStoreOrgKeyPair(orgId);
     res.json({
       success: true,
@@ -50,7 +39,8 @@ router.post("/generate", isAuthenticated, async (req: any, res) => {
 // GET /api/org-keys/current — get the active org key (public only)
 router.get("/current", isAuthenticated, async (req: any, res) => {
   try {
-    const orgId = await resolveOrgId(req);
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
     const key = await getOrgActiveKey(orgId);
     if (!key) {
       return res.json({ hasKey: false, message: "No key generated yet" });
@@ -70,7 +60,8 @@ router.get("/current", isAuthenticated, async (req: any, res) => {
 // GET /api/org-keys/public-key — download public key as PEM file
 router.get("/public-key", isAuthenticated, async (req: any, res) => {
   try {
-    const orgId = await resolveOrgId(req);
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
     const pem = await exportPublicKeyPem(orgId);
     if (!pem) return res.status(404).json({ message: "No key found" });
     res.setHeader("Content-Type", "application/x-pem-file");
@@ -84,8 +75,10 @@ router.get("/public-key", isAuthenticated, async (req: any, res) => {
 // POST /api/org-keys/sign/:eventId — sign a single training record
 router.post("/sign/:eventId", isAuthenticated, async (req: any, res) => {
   try {
-    const orgId = await resolveOrgId(req);
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
     const result = await signTrainingRecord(req.params.eventId, orgId);
+    queueAuditReadinessRefresh(orgId, 'record_signed');
     res.json({ success: true, ...result });
   } catch (err: any) {
     console.error("Sign record error:", err);
@@ -96,8 +89,10 @@ router.post("/sign/:eventId", isAuthenticated, async (req: any, res) => {
 // POST /api/org-keys/sign-all — sign all unsigned records
 router.post("/sign-all", isAuthenticated, async (req: any, res) => {
   try {
-    const orgId = await resolveOrgId(req);
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
     const result = await signAllUnsignedRecords(orgId);
+    queueAuditReadinessRefresh(orgId, 'records_bulk_signed');
     res.json({ success: true, ...result });
   } catch (err: any) {
     res.status(500).json({ message: err.message || "Bulk signing failed" });
@@ -118,12 +113,14 @@ router.get("/verify/:eventId", async (req, res) => {
 // GET /api/org-keys/chain — get signed records forming the chain
 router.get("/chain", isAuthenticated, async (req: any, res) => {
   try {
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
     const rows = await db.execute(sql`
       SELECT id, student_name, instructor_name, event_type, event_date,
              status, key_fingerprint, signed_data_hash, chain_hash, signed_at,
              signature
       FROM bccs_training_events
-      WHERE signature IS NOT NULL
+      WHERE signature IS NOT NULL AND organization_id = ${orgId}
       ORDER BY signed_at ASC
     `).then(r => (r as any).rows);
 

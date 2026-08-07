@@ -27,3 +27,5 @@ non-demo signed record exists (`signature IS NOT NULL AND blockchain_hash IS DIS
 only append fresh ones when none exist (append never disturbs earlier rows). The unsigned
 draft is not part of the chain and is always safe to reset. This same caution applies to
 any future bulk delete/re-sign feature over `bccs_training_events`.
+
+**Chain is global, not per-org.** `getLatestChainHash` (signing) and the verify-time prev-hash lookup both order signed records platform-wide by `signed_at`, with no org filter. Org-scoping either side alone breaks verification of existing records; scoping both breaks any already-signed record whose predecessor was cross-org. Record lookup/update and bulk-sign ARE org-scoped (tenant safety), but chain derivation must stay global unless all signatures are re-derived in a migration.

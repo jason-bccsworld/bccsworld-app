@@ -162,7 +162,7 @@ export async function signTrainingRecord(
   const rows = await db.execute(sql`
     SELECT id, student_name, instructor_name, event_type, event_date,
            duration_hours, curriculum_item, status, blockchain_hash
-    FROM bccs_training_events WHERE id = ${eventId}
+    FROM bccs_training_events WHERE id = ${eventId} AND organization_id = ${orgIdentifier}
   `).then(r => (r as any).rows);
 
   if (!rows[0]) throw new Error(`Training record ${eventId} not found`);
@@ -207,7 +207,7 @@ export async function signTrainingRecord(
       chain_hash       = ${chainHash},
       key_fingerprint  = ${keyRow.key_fingerprint},
       signed_at        = NOW()
-    WHERE id = ${eventId}
+    WHERE id = ${eventId} AND organization_id = ${orgIdentifier}
   `);
 
   return {
@@ -319,7 +319,7 @@ export async function verifyTrainingRecord(eventId: string): Promise<VerifyResul
 export async function signAllUnsignedRecords(orgIdentifier: string): Promise<{ signed: number; failed: number }> {
   const rows = await db.execute(sql`
     SELECT id FROM bccs_training_events
-    WHERE signature IS NULL
+    WHERE signature IS NULL AND organization_id = ${orgIdentifier}
     ORDER BY event_date ASC
   `).then(r => (r as any).rows);
 

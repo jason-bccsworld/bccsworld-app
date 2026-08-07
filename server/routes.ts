@@ -26,6 +26,7 @@ import mlTrainingRoutes from "./routes/ml-training";
 import documentsRoutes from "./routes/documents";
 import cryptoSigningRoutes from "./routes/crypto-signing";
 import { signTrainingRecord, getOrgActiveKey } from "./services/crypto-signing";
+import { queueAuditReadinessRefresh } from "./services/audit-readiness";
 import { evaluateAction, authorityRank, isValidAuthority } from "./services/gate-engine";
 import reviewerRoutes from "./routes/reviewer";
 import governanceRoutes from "./routes/governance";
@@ -1221,6 +1222,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       await storage.createAuditLog({ userId: req.user?.id || 'system', eventType: 'training_event_logged', message: `Training event logged for ${studentName} (${eventType})`, details: { studentName, eventType }, severity: 'info' });
+      queueAuditReadinessRefresh(orgId, 'training_event_logged');
       res.status(201).json(event);
     } catch (error) {
       console.error('Create training event error:', error);
@@ -1268,6 +1270,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (decision.decision === 'allowed') {
         await db.execute(drizzleSql`DELETE FROM bccs_training_events WHERE id = ${id} AND organization_id = ${orgId}`);
+        queueAuditReadinessRefresh(orgId, 'training_event_deleted');
         return res.status(200).json({ deleted: true, decision });
       }
       if (decision.decision === 'escalated') {

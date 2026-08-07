@@ -28,6 +28,47 @@ async function count(query: any): Promise<number> {
   return db.execute(query).then((r) => Number((r as any).rows[0]?.n ?? 0));
 }
 
+// ── Debounced refresh ────────────────────────────────────────────────────────
+// User actions that change compliance posture (logging a training event,
+// deleting a record, signing) queue a refresh so the readiness score never
+// goes stale. Fixed 60s window per org: the FIRST trigger starts the timer and
+// later triggers within the window are absorbed (never reset), so a burst of
+// user activity produces exactly one recalculation.
+const REFRESH_DEBOUNCE_MS = 60_000;
+const pendingRefreshes = new Map<string, NodeJS.Timeout>();
+const inFlightOrgs = new Set<string>();
+const rerunRequested = new Set<string>();
+
+export function queueAuditReadinessRefresh(orgId: string, reason: string): void {
+  if (!orgId || pendingRefreshes.has(orgId)) return;
+  // A run is already in flight for this org: remember that posture changed
+  // again so exactly one follow-up refresh is queued when it finishes.
+  if (inFlightOrgs.has(orgId)) {
+    rerunRequested.add(orgId);
+    return;
+  }
+  const timer = setTimeout(() => {
+    pendingRefreshes.delete(orgId);
+    void executeRefresh(orgId, reason);
+  }, REFRESH_DEBOUNCE_MS);
+  timer.unref?.();
+  pendingRefreshes.set(orgId, timer);
+}
+
+async function executeRefresh(orgId: string, reason: string): Promise<void> {
+  inFlightOrgs.add(orgId);
+  try {
+    await runAuditReadiness(orgId);
+  } catch (err) {
+    console.error(`Audit readiness refresh failed for org ${orgId} (reason: ${reason}):`, (err as Error).message);
+  } finally {
+    inFlightOrgs.delete(orgId);
+    if (rerunRequested.delete(orgId)) {
+      queueAuditReadinessRefresh(orgId, `${reason} (coalesced during previous run)`);
+    }
+  }
+}
+
 export async function runAuditReadiness(orgId: string): Promise<AuditReadinessReport> {
   const runId = await startRun(AGENT_ID, orgId);
   try {
