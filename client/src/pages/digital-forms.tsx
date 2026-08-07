@@ -1165,7 +1165,8 @@ export default function DigitalForms() {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredTemplates.map((template) => {
-                const publicUrl = template.publicToken
+                const isTrainingEvent = template.generatedFromSection === "system:training-event";
+                const publicUrl = !isTrainingEvent && template.publicToken
                   ? `${window.location.origin}/f/${template.publicToken}`
                   : null;
                 const isStale = staleMap[template.id]?.stale ?? false;
@@ -1232,6 +1233,14 @@ export default function DigitalForms() {
                   </CardHeader>
                   <CardContent className="pt-0 pb-3 px-4 flex flex-col flex-1">
                     {/* Shareable link */}
+                    {isTrainingEvent && (
+                      <div className="mb-3 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 flex items-center gap-2">
+                        <Globe size={12} className="text-slate-400 shrink-0" />
+                        <span className="text-xs text-slate-500 flex-1">
+                          Instructor portal only — no public link
+                        </span>
+                      </div>
+                    )}
                     {publicUrl && (
                       <div className="mb-3 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 flex items-center gap-2">
                         <Globe size={12} className="text-green-600 shrink-0" />
@@ -1302,14 +1311,16 @@ export default function DigitalForms() {
                         </>
                       ) : (
                         <>
-                          <Button
-                            size="sm"
-                            className="flex-1 h-7 text-xs bg-blue-600 hover:bg-blue-700"
-                            onClick={copyLink}
-                            disabled={!publicUrl}
-                          >
-                            <Link2 size={12} className="mr-1" /> Share Link
-                          </Button>
+                          {!isTrainingEvent && (
+                            <Button
+                              size="sm"
+                              className="flex-1 h-7 text-xs bg-blue-600 hover:bg-blue-700"
+                              onClick={copyLink}
+                              disabled={!publicUrl}
+                            >
+                              <Link2 size={12} className="mr-1" /> Share Link
+                            </Button>
+                          )}
                           <Button
                             size="sm"
                             variant="outline"
