@@ -1036,22 +1036,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (roleName === 'admin' && !permissions.includes('admin:roles')) {
         return res.status(400).json({ message: 'Cannot remove admin:roles from the admin role' });
       }
-      const updates: any = { permissions: permissions, updated_at: new Date() };
-      if (displayName) updates.display_name = displayName;
-      if (description !== undefined) updates.description = description;
-      const permsLiteral = permissions.length > 0
-        ? `ARRAY[${permissions.map((p: string) => `'${p.replace(/'/g, "''")}'`).join(',')}]::TEXT[]`
-        : `ARRAY[]::TEXT[]`;
-      const safeDisplayName = (displayName || '').replace(/'/g, "''");
-      const safeDescription = (description ?? '').replace(/'/g, "''");
-      await db.execute(drizzleSql.raw(`
+      const permsArray = permissions.length > 0
+        ? drizzleSql`ARRAY[${drizzleSql.join(permissions.map((p: string) => drizzleSql`${p}`), drizzleSql`, `)}]::TEXT[]`
+        : drizzleSql`ARRAY[]::TEXT[]`;
+      await db.execute(drizzleSql`
         UPDATE bccs_role_permissions
-        SET permissions = ${permsLiteral},
-            display_name = COALESCE(NULLIF('${safeDisplayName}', ''), display_name),
-            description  = COALESCE(NULLIF('${safeDescription}', ''), description),
+        SET permissions = ${permsArray},
+            display_name = COALESCE(NULLIF(${displayName || ''}, ''), display_name),
+            description  = COALESCE(NULLIF(${description ?? ''}, ''), description),
             updated_at   = NOW()
-        WHERE role_name = '${roleName.replace(/'/g, "''")}'
-      `));
+        WHERE role_name = ${roleName}
+      `);
       await storage.createAuditLog({
         userId: req.user?.id || 'system',
         eventType: 'role_permissions_updated',
@@ -1075,22 +1070,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { roleName, displayName, description, permissions = [], color } = req.body;
       if (!roleName || !displayName) return res.status(400).json({ message: 'roleName and displayName are required' });
       if (!/^[a-z0-9_-]+$/.test(roleName)) return res.status(400).json({ message: 'roleName must be lowercase alphanumeric with _ or -' });
-      const newPermsLiteral = permissions.length > 0
-        ? `ARRAY[${permissions.map((p: string) => `'${p.replace(/'/g, "''")}'`).join(',')}]::TEXT[]`
-        : `ARRAY[]::TEXT[]`;
-      const safeColor = (color || 'bg-teal-100 text-teal-700').replace(/'/g, "''");
-      const result = await db.execute(drizzleSql.raw(`
+      const newPermsArray = permissions.length > 0
+        ? drizzleSql`ARRAY[${drizzleSql.join(permissions.map((p: string) => drizzleSql`${p}`), drizzleSql`, `)}]::TEXT[]`
+        : drizzleSql`ARRAY[]::TEXT[]`;
+      const result = await db.execute(drizzleSql`
         INSERT INTO bccs_role_permissions (role_name, display_name, description, permissions, is_system, color)
         VALUES (
-          '${roleName.replace(/'/g, "''")}',
-          '${displayName.replace(/'/g, "''")}',
-          '${(description || '').replace(/'/g, "''")}',
-          ${newPermsLiteral},
+          ${roleName},
+          ${displayName},
+          ${description || ''},
+          ${newPermsArray},
           FALSE,
-          '${safeColor}'
+          ${color || 'bg-teal-100 text-teal-700'}
         )
         RETURNING *
-      `));
+      `);
       res.status(201).json(result.rows[0]);
     } catch (error: any) {
       if (error?.code === '23505') return res.status(409).json({ message: 'A role with this name already exists' });
