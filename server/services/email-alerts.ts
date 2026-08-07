@@ -83,6 +83,42 @@ async function orgAdminEmails(orgId: string): Promise<string[]> {
   return [];
 }
 
+/**
+ * Send an arbitrary email to an org's active admins (plus configured extra
+ * recipients). Returns null on success, or a human-readable skip/failure
+ * reason the caller must surface — never silently dropped. Not gated by the
+ * critical-findings toggle: used for license lifecycle notices that must
+ * always attempt delivery.
+ */
+export async function sendEmailToOrgAdmins(
+  orgId: string,
+  message: { subject: string; text: string; html: string },
+): Promise<string | null> {
+  if (!emailAlertsConfigured()) {
+    return "Email skipped: SMTP is not configured (set SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM).";
+  }
+  const settings = await getEmailAlertSettings(orgId);
+  const admins = await orgAdminEmails(orgId);
+  const recipients = Array.from(new Set([...admins, ...settings.extraRecipients].map((e) => e.toLowerCase())));
+  if (recipients.length === 0) {
+    return "Email skipped: no active org admins or configured recipients found.";
+  }
+  try {
+    await buildTransport().sendMail({
+      from: process.env.ALERT_EMAIL_FROM || process.env.SMTP_FROM || process.env.SMTP_USER,
+      to: recipients.join(", "),
+      subject: message.subject,
+      text: message.text,
+      html: message.html,
+    });
+    return null;
+  } catch (err: any) {
+    const reason = `Email delivery failed: ${err?.message ?? String(err)}`;
+    console.error(`[email-alerts] ${reason} (org ${orgId})`);
+    return reason;
+  }
+}
+
 const escapeHtml = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 

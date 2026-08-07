@@ -1,8 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
-import { PLAN_FEATURES, PLAN_DISPLAY, type PlanKey, type LicenseStatus, type PlanFeatures } from '@shared/license';
+import { PLAN_FEATURES, PLAN_DISPLAY, getTrialLifecycle, type PlanKey, type LicenseStatus, type PlanFeatures, type TrialLifecycleState } from '@shared/license';
 
 export interface LicenseInfo {
   id: string;
+  licenseState?: TrialLifecycleState;
+  daysRemaining?: number | null;
+  graceEndsAt?: string | null;
   plan: PlanKey;
   status: LicenseStatus;
   stripeCustomerId: string | null;
@@ -34,6 +37,12 @@ export function useLicense() {
   const isExpired = license?.currentPeriodEnd
     ? new Date(license.currentPeriodEnd) < new Date()
     : false;
+
+  // Trial lifecycle (server-provided when available, recomputed as fallback)
+  const lifecycle = getTrialLifecycle(plan, license?.currentPeriodEnd ?? null);
+  const licenseState: TrialLifecycleState = license?.licenseState ?? lifecycle.state;
+  const daysRemaining = license?.daysRemaining ?? lifecycle.daysRemaining;
+  const graceEndsAt = license?.graceEndsAt ?? lifecycle.graceEndsAt;
 
   const effectivePlan: PlanKey = isExpired ? 'trial' : plan;
   const features: PlanFeatures = PLAN_FEATURES[effectivePlan] ?? PLAN_FEATURES.trial;
@@ -67,6 +76,9 @@ export function useLicense() {
     plan: effectivePlan,
     status,
     isExpired,
+    licenseState,
+    daysRemaining,
+    graceEndsAt,
     features,
     canUse,
     isAtUserLimit,

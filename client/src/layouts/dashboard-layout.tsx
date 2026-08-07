@@ -37,6 +37,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useLicense } from '@/hooks/useLicense';
 import { useAuth } from '@/hooks/useAuth';
 import OrgSwitcher from '@/components/org-switcher';
+import TrialStatusBanner from '@/components/trial-status-banner';
 import type { PlanFeatures } from '../../../shared/license';
 
 interface DashboardLayoutProps {
@@ -206,6 +207,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
+        <TrialStatusBanner />
         <div className="flex-1 p-6 overflow-y-auto">
           {children}
         </div>

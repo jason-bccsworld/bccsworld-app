@@ -1,10 +1,11 @@
 import { Request, Response, NextFunction } from 'express';
 import { db } from '../db';
 import { sql } from 'drizzle-orm';
-import { PLAN_FEATURES, type PlanKey, type LicenseStatus, type PlanFeatures } from '../../shared/license';
+import { PLAN_FEATURES, getTrialLifecycle, type PlanKey, type LicenseStatus, type PlanFeatures } from '../../shared/license';
 
 export interface LicenseRow {
   id: string;
+  organization_id: string | null;
   plan: PlanKey;
   status: LicenseStatus;
   stripe_customer_id: string | null;
@@ -98,6 +99,69 @@ export async function attachLicense(req: Request, _res: Response, next: NextFunc
     (req as any).license = null;
   }
   next();
+}
+
+// Paths that must stay reachable even when a trial has expired, so the org
+// admin can still sign in, see the upgrade prompt, and pay.
+const TRIAL_LOCK_ALLOWLIST = [
+  '/api/login',
+  '/api/logout',
+  '/api/signup',
+  '/api/callback',
+  '/api/auth',
+  '/api/session',
+  '/api/license',
+  '/api/user',
+  '/api/billing',
+  '/api/stripe',
+  '/api/checkout',
+  '/api/webhook',
+  '/api/support',
+];
+
+function isTrialLockExempt(path: string): boolean {
+  return TRIAL_LOCK_ALLOWLIST.some((p) => path === p || path.startsWith(p + '/'));
+}
+
+/**
+ * Express middleware: enforces the trial lifecycle for org-assigned trial
+ * licenses (self-serve orgs).
+ *  - During the post-expiry grace period: read-only — writes are rejected
+ *    with 402 and an upgrade prompt, reads still work.
+ *  - After the grace period: all API access is rejected with 402 except an
+ *    allowlist (auth, license/billing, support) so the admin can upgrade.
+ * Platform staff and the platform-wide (unassigned) license are never gated.
+ */
+export async function enforceTrialLifecycle(req: Request, res: Response, next: NextFunction) {
+  try {
+    const license: LicenseRow | null = (req as any).license ?? null;
+    if (!license || !license.organization_id || license.plan !== 'trial') return next();
+
+    const email: string = (req as any).user?.email ?? '';
+    if (email.toLowerCase().endsWith('@bccsworld.com')) return next(); // SuperAdmins manage expired orgs
+
+    const lifecycle = getTrialLifecycle(license.plan, license.current_period_end);
+    if (lifecycle.state === 'active' || lifecycle.state === 'expiring_soon') return next();
+    // req.path is relative to the mount point under app.use('/api', ...), so
+    // match the allowlist against the full original URL path.
+    const fullPath = (req.originalUrl ?? req.path).split('?')[0];
+    if (isTrialLockExempt(fullPath)) return next();
+
+    const isRead = req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS';
+    if (lifecycle.state === 'grace' && isRead) return next();
+
+    return res.status(402).json({
+      message:
+        lifecycle.state === 'grace'
+          ? 'Your 30-day trial has expired. Your workspace is read-only during the grace period — upgrade to a paid plan to continue making changes.'
+          : 'Your trial and grace period have ended. Upgrade to a paid plan to regain access to your workspace.',
+      licenseState: lifecycle.state,
+      graceEndsAt: lifecycle.graceEndsAt,
+      upgradeRequired: true,
+    });
+  } catch {
+    return next(); // enforcement must never take the API down
+  }
 }
 
 /**

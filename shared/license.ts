@@ -94,6 +94,58 @@ export const PLAN_DISPLAY: Record<PlanKey, { label: string; annualPrice: number;
   },
 };
 
+// ── Trial lifecycle ─────────────────────────────────────────────────────────
+// Warnings go out 7 days and 1 day before expiry; after expiry the org keeps
+// read-only access for a short grace period before the workspace locks.
+export const TRIAL_GRACE_PERIOD_DAYS = 7;
+
+export type TrialLifecycleState = 'active' | 'expiring_soon' | 'grace' | 'locked';
+
+export interface TrialLifecycle {
+  state: TrialLifecycleState;
+  /** Whole days until expiry (negative once expired). Null when no period end is set. */
+  daysRemaining: number | null;
+  /** End of the read-only grace period (ISO string), when applicable. */
+  graceEndsAt: string | null;
+  isExpired: boolean;
+}
+
+/**
+ * Compute where a license sits in the trial lifecycle. Non-trial plans and
+ * licenses without an end date are always 'active'.
+ */
+export function getTrialLifecycle(
+  plan: PlanKey | string,
+  currentPeriodEnd: string | Date | null | undefined,
+  now: Date = new Date(),
+): TrialLifecycle {
+  if (plan !== 'trial' || !currentPeriodEnd) {
+    return { state: 'active', daysRemaining: null, graceEndsAt: null, isExpired: false };
+  }
+  const end = new Date(currentPeriodEnd);
+  if (isNaN(end.getTime())) {
+    return { state: 'active', daysRemaining: null, graceEndsAt: null, isExpired: false };
+  }
+  const msPerDay = 24 * 60 * 60 * 1000;
+  const daysRemaining = Math.ceil((end.getTime() - now.getTime()) / msPerDay);
+  const graceEnd = new Date(end.getTime() + TRIAL_GRACE_PERIOD_DAYS * msPerDay);
+  const isExpired = end < now;
+  if (!isExpired) {
+    return {
+      state: daysRemaining <= 7 ? 'expiring_soon' : 'active',
+      daysRemaining,
+      graceEndsAt: null,
+      isExpired: false,
+    };
+  }
+  return {
+    state: now < graceEnd ? 'grace' : 'locked',
+    daysRemaining,
+    graceEndsAt: graceEnd.toISOString(),
+    isExpired: true,
+  };
+}
+
 export function getPlanFeatures(plan: PlanKey): PlanFeatures {
   return PLAN_FEATURES[plan] ?? PLAN_FEATURES.trial;
 }

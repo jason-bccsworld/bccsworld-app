@@ -48,6 +48,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Tenant context — resolves the active organization for every request
   app.use(resolveTenant);
 
+  // License context + trial lifecycle enforcement (read-only grace period,
+  // then lock, for expired org-assigned trials; SuperAdmins exempt)
+  const { attachLicense, enforceTrialLifecycle } = await import('./middleware/license');
+  app.use('/api', attachLicense);
+  app.use('/api', enforceTrialLifecycle);
+
   // ── Tenant Session Endpoints ─────────────────────────────────────────────
   // Current tenant context: active org, deployment mode, user's memberships
   app.get('/api/session/tenant', isAuthenticated, async (req: any, res) => {
@@ -1756,9 +1762,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/license', isAuthenticated, async (req: any, res) => {
     try {
       const { getActiveLicense } = await import('./middleware/license');
+      const { getTrialLifecycle } = await import('../shared/license');
       const row = (await getActiveLicense(req.orgId ?? null)) as any;
       if (!row) return res.status(404).json({ message: 'No license found' });
+      const lifecycle = getTrialLifecycle(row.plan, row.current_period_end);
       res.json({
+        licenseState: lifecycle.state,
+        daysRemaining: lifecycle.daysRemaining,
+        graceEndsAt: lifecycle.graceEndsAt,
+        isExpired: lifecycle.isExpired,
         id: row.id,
         plan: row.plan,
         status: row.status,
@@ -2011,11 +2023,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const baseUrl = `${req.protocol}://${req.get('host')}`;
+      // Stamp the buyer's organization on the subscription so the webhook can
+      // upgrade THAT org's license (not an arbitrary row) when payment lands.
+      const orgMetadata: Record<string, string> = req.orgId ? { organizationId: String(req.orgId) } : {};
       const session = await stripe.checkout.sessions.create({
         customer: customerId,
         payment_method_types: ['card'],
         line_items: [{ price: priceId, quantity: 1 }],
         mode: 'subscription',
+        metadata: orgMetadata,
+        subscription_data: { metadata: orgMetadata },
         success_url: `${baseUrl}/billing?success=1`,
         cancel_url: `${baseUrl}/pricing`,
       });

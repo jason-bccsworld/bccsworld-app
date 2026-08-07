@@ -129,6 +129,22 @@ export async function ensureTables(): Promise<void> {
       ALTER TABLE bccs_licenses ADD COLUMN IF NOT EXISTS organization_id UUID
     `);
 
+    // Dedupe ledger for trial-expiry emails (7-day / 1-day warnings, expired notice)
+    try {
+      await db.execute(sql`
+        CREATE TABLE IF NOT EXISTS bccs_license_notifications (
+          id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+          license_id VARCHAR NOT NULL,
+          organization_id UUID,
+          kind VARCHAR(50) NOT NULL,
+          sent_at TIMESTAMP DEFAULT NOW(),
+          UNIQUE (license_id, kind)
+        )
+      `);
+    } catch (e) {
+      console.error('[db-init] bccs_license_notifications DDL failed:', e);
+    }
+
     // Seed a trial license if none exists
     const licenseCount = await db.execute(sql`SELECT COUNT(*) FROM bccs_licenses`);
     const count = parseInt((licenseCount.rows[0] as any).count, 10);

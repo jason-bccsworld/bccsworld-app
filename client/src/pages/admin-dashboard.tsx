@@ -1344,6 +1344,9 @@ export default function AdminDashboard() {
                             {org.isActive === false && (
                               <Badge className="bg-red-100 text-red-700 border-0 text-[11px]">Inactive</Badge>
                             )}
+                            {orgLic?.plan === 'trial' && orgLic.current_period_end && new Date(orgLic.current_period_end) < new Date() && (
+                              <Badge className="bg-red-100 text-red-700 border-0 text-[11px]" data-testid={`badge-trial-expired-${org.id}`}>Trial expired</Badge>
+                            )}
                           </div>
                           <p className="text-sm text-slate-500">
                             {org.organizationType?.replace(/_/g, " ").toUpperCase()} ·{" "}
