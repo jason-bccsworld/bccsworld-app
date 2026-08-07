@@ -1,8 +1,6 @@
 import OpenAI from "openai";
 import * as fs from "fs";
 import * as path from "path";
-import { storage } from "../storage";
-import { processDocumentOCR } from "./ocr";
 import { documentGenerator } from "./document-generator";
 
 // Load environment variables
@@ -78,43 +76,15 @@ export class AuditComplianceAI {
   }
   
   async analyzeUploadedDocuments(userId: string): Promise<DocumentContent[]> {
-    try {
-      // Get all processed documents for the user
-      const documents = await storage.getDocumentsByUser(userId);
-      const documentContents: DocumentContent[] = [];
-      
-      for (const doc of documents) {
-        if (doc.status === 'processed' && doc.filename) {
-          try {
-            // Extract text from document
-            const filePath = path.join(process.cwd(), 'uploads', doc.filename);
-            const extractedText = await processDocumentOCR(filePath);
-            
-            // Get extracted data from database
-            const extractedData = await storage.getExtractedDataByDocument(doc.id);
-            const metadata = extractedData.reduce((acc: any, item) => {
-              acc[item.fieldName] = item.extractedValue;
-              return acc;
-            }, {});
-            
-            documentContents.push({
-              filename: doc.originalName,
-              extractedText,
-              documentType: doc.fileType,
-              metadata
-            });
-          } catch (error) {
-            console.error(`Error processing document ${doc.originalName}:`, error);
-          }
-        }
-      }
-      
-      this.documentContents = documentContents;
-      return documentContents;
-    } catch (error) {
-      console.error('Error analyzing uploaded documents:', error);
-      return [];
-    }
+    // The documents/extractedData storage domain has been removed from the
+    // schema, so uploaded-document analysis is no longer available. Return an
+    // empty result (matching the prior error-path behavior) with a warning so
+    // callers such as performComprehensiveAudit continue to operate.
+    console.warn(
+      `[audit-compliance-ai] documents storage removed: analyzeUploadedDocuments returning no documents for user ${userId}.`
+    );
+    this.documentContents = [];
+    return [];
   }
   
   async analyzeChecklistCompliance(checklistItems: AuditChecklistItem[]): Promise<ComplianceAnalysis[]> {

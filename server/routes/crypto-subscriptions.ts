@@ -42,7 +42,7 @@ export function registerCryptoSubscriptionRoutes(app: Express) {
       console.error("Crypto subscription setup error:", error);
       res.status(400).json({
         success: false,
-        error: error.message
+        error: error instanceof Error ? error.message : String(error)
       });
     }
   });
@@ -64,7 +64,7 @@ export function registerCryptoSubscriptionRoutes(app: Express) {
       console.error("Subscription renewal error:", error);
       res.status(400).json({
         success: false,
-        error: error.message
+        error: error instanceof Error ? error.message : String(error)
       });
     }
   });
@@ -84,7 +84,7 @@ export function registerCryptoSubscriptionRoutes(app: Express) {
       console.error("Get subscription details error:", error);
       res.status(404).json({
         success: false,
-        error: error.message
+        error: error instanceof Error ? error.message : String(error)
       });
     }
   });
@@ -104,7 +104,7 @@ export function registerCryptoSubscriptionRoutes(app: Express) {
       console.error("Get user subscriptions error:", error);
       res.status(500).json({
         success: false,
-        error: error.message
+        error: error instanceof Error ? error.message : String(error)
       });
     }
   });
@@ -140,7 +140,7 @@ export function registerCryptoSubscriptionRoutes(app: Express) {
       console.error("Get crypto config error:", error);
       res.status(500).json({
         success: false,
-        error: error.message
+        error: error instanceof Error ? error.message : String(error)
       });
     }
   });
@@ -170,7 +170,7 @@ export function registerCryptoSubscriptionRoutes(app: Express) {
       console.error("Webhook processing error:", error);
       res.status(500).json({
         success: false,
-        error: error.message
+        error: error instanceof Error ? error.message : String(error)
       });
     }
   });
@@ -191,7 +191,7 @@ export function registerCryptoSubscriptionRoutes(app: Express) {
       console.error("Payment monitoring error:", error);
       res.status(500).json({
         success: false,
-        error: error.message
+        error: error instanceof Error ? error.message : String(error)
       });
     }
   });

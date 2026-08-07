@@ -146,9 +146,7 @@ export function AdvancedKeyRecovery() {
   // Mutations
   const initiateRecoveryMutation = useMutation({
     mutationFn: async (data: KeyRecoveryFormData) => {
-      const response = await apiRequest('/api/advanced-key-recovery/initiate', {
-        method: 'POST',
-        body: JSON.stringify({
+      const res = await apiRequest('POST', '/api/advanced-key-recovery/initiate', {
           ...data,
           identityDocuments: [],
           knowledgeBasedQuestions: [],
@@ -181,9 +179,8 @@ export function AdvancedKeyRecovery() {
           },
           regulatoryAuthoritiesNotified: ['FAA'],
           complianceChecksPassed: true
-        })
-      });
-      return response;
+        });
+      return await res.json();
     },
     onSuccess: (data: any) => {
       toast({
@@ -207,16 +204,13 @@ export function AdvancedKeyRecovery() {
     mutationFn: async (data: BiometricFormData) => {
       if (!currentRequestId) throw new Error('No active recovery request');
       
-      const response = await apiRequest(`/api/advanced-key-recovery/${currentRequestId}/biometric-verification`, {
-        method: 'POST',
-        body: JSON.stringify({
+      const res = await apiRequest('POST', `/api/advanced-key-recovery/${currentRequestId}/biometric-verification`, {
           fingerprintHash: btoa(data.fingerprintData),
           faceRecognitionHash: btoa(data.faceRecognitionData),
           voicePrintHash: btoa(data.voicePrintData),
           retinaScanHash: btoa(data.retinaScanData)
-        })
-      });
-      return response;
+        });
+      return await res.json();
     },
     onSuccess: (data: any) => {
       toast({
@@ -239,9 +233,7 @@ export function AdvancedKeyRecovery() {
     mutationFn: async (data: IdentityDocumentFormData) => {
       if (!currentRequestId) throw new Error('No active recovery request');
       
-      const response = await apiRequest(`/api/advanced-key-recovery/${currentRequestId}/identity-verification`, {
-        method: 'POST',
-        body: JSON.stringify({
+      const res = await apiRequest('POST', `/api/advanced-key-recovery/${currentRequestId}/identity-verification`, {
           documents: [{
             documentType: data.documentType,
             documentNumber: data.documentNumber,
@@ -250,9 +242,8 @@ export function AdvancedKeyRecovery() {
             documentImageHash: btoa(data.documentImage),
             ocrExtractedData: {}
           }]
-        })
-      });
-      return response;
+        });
+      return await res.json();
     },
     onSuccess: (data: any) => {
       toast({
@@ -271,7 +262,7 @@ export function AdvancedKeyRecovery() {
   });
 
   // Get recovery status
-  const { data: statusData } = useQuery({
+  const { data: statusData } = useQuery<{ data?: RecoveryRequestStatus }>({
     queryKey: ['/api/advanced-key-recovery', currentRequestId, 'status'],
     enabled: !!currentRequestId,
     refetchInterval: 5000, // Poll every 5 seconds

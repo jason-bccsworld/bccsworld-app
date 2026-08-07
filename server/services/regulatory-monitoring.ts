@@ -1,5 +1,4 @@
 import { storage } from "../storage";
-import { InsertRegulatoryChange } from "../../shared/schema";
 
 export interface ChecklistChange {
   type: 'addition' | 'modification' | 'deletion';
@@ -81,12 +80,15 @@ export class RegulatoryMonitoringService {
         await storage.createAuditLog({
           id: `monitor-${Date.now()}`,
           userId: 'system',
-          action: 'regulatory_check',
-          resourceType: 'regulation',
-          resourceId: source.regulation,
-          details: `Checked ${source.name} for updates`,
-          timestamp: new Date(),
-          ipAddress: '127.0.0.1'
+          eventType: 'regulatory_check',
+          severity: 'info',
+          message: `Checked ${source.name} for updates`,
+          details: {
+            resourceType: 'regulation',
+            resourceId: source.regulation,
+            ipAddress: '127.0.0.1'
+          },
+          timestamp: new Date()
         });
         
         console.log(`Checked ${source.regulation} for updates from ${source.name}`);
@@ -201,7 +203,8 @@ export class RegulatoryMonitoringService {
   }
 
   private async recordRegulatoryChange(update: RegulatoryUpdate): Promise<void> {
-    const changeRecord: InsertRegulatoryChange = {
+    // regulatoryChanges is not part of the current schema; keep as a plain object.
+    const changeRecord = {
       id: update.id,
       source: update.source,
       regulation: update.regulation,
@@ -268,12 +271,15 @@ export class RegulatoryMonitoringService {
     await storage.createAuditLog({
       id: `ack-${Date.now()}`,
       userId: userId,
-      action: 'alert_acknowledged',
-      resourceType: 'regulatory_alert',
-      resourceId: alertId,
-      details: `Acknowledged regulatory alert: ${alertId}`,
-      timestamp: new Date(),
-      ipAddress: '127.0.0.1'
+      eventType: 'alert_acknowledged',
+      severity: 'info',
+      message: `Acknowledged regulatory alert: ${alertId}`,
+      details: {
+        resourceType: 'regulatory_alert',
+        resourceId: alertId,
+        ipAddress: '127.0.0.1'
+      },
+      timestamp: new Date()
     });
   }
 

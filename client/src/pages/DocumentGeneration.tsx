@@ -39,6 +39,7 @@ interface AuditResult {
     highRiskIssues: number;
     documentsGenerated: number;
     documentsNeeded: number;
+    aiPowered?: boolean;
   };
 }
 

@@ -1,5 +1,11 @@
 import React from 'react';
 
+declare global {
+  interface Window {
+    CACHE_BUST_TIME?: number;
+  }
+}
+
 export function CacheBuster() {
   React.useEffect(() => {
     // Nuclear cache clearing

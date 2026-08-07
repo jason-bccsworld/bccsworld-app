@@ -8,7 +8,12 @@ export default function StatsCards() {
     complianceRate: 0,
     pendingReviews: 0,
     aiAccuracy: 0,
-  } } = useQuery({
+  } } = useQuery<{
+    totalRecords: number;
+    complianceRate: number;
+    pendingReviews: number;
+    aiAccuracy: number;
+  }>({
     queryKey: ["/api/dashboard/stats"],
   });
 

@@ -30,11 +30,13 @@ export class MLTrainingService {
   async recordUserFeedback(feedback: FeedbackData): Promise<void> {
     // Store feedback in database for training
     await storage.createAuditLog({
-      action: "ml_feedback",
-      entityType: "document",
-      entityId: feedback.documentId,
+      eventType: "ml_feedback",
+      severity: "info",
+      message: "ML feedback recorded",
       userId: feedback.userId,
       details: {
+        entityType: "document",
+        entityId: feedback.documentId,
         fieldName: feedback.fieldName,
         originalValue: feedback.originalValue,
         correctedValue: feedback.correctedValue,

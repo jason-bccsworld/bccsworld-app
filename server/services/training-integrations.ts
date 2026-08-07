@@ -1,5 +1,5 @@
 import { db } from "../db";
-import { documents, extractedData, trainingEvents } from "@shared/schema";
+import { trainingEvents } from "@shared/schema";
 import { storage } from "../storage";
 import { eq } from "drizzle-orm";
 
@@ -91,31 +91,40 @@ export class FlightScheduleProIntegration {
     // Create training event from external record
     const trainingEvent = await storage.createTrainingEvent({
       studentName: record.studentName,
+      studentId: record.studentId,
       eventType: record.courseName,
       eventDate: new Date(record.completionDate),
       instructorName: record.instructorName,
+      instructorId: record.instructorId,
       organizationId: this.config.organizationId,
-      courseType: record.courseName,
-      completionDate: new Date(record.completionDate),
-      certificateNumber: record.certificateNumber,
-      flightHours: record.flightHours || 0,
-      groundHours: record.groundHours || 0,
-      checkride: record.checkride || false,
-      grade: record.grade || 'Pass',
-      expirationDate: record.expirationDate ? new Date(record.expirationDate) : null,
+      curriculumItem: record.courseName,
+      durationHours: String((record.flightHours || 0) + (record.groundHours || 0)),
+      notes: JSON.stringify({
+        source: 'flightschedulepro',
+        externalId: record.studentId,
+        certificateNumber: record.certificateNumber,
+        completionDate: record.completionDate,
+        expirationDate: record.expirationDate ?? null,
+        flightHours: record.flightHours || 0,
+        groundHours: record.groundHours || 0,
+        checkride: record.checkride || false,
+        grade: record.grade || 'Pass',
+      }),
       blockchainHash: this.generateBlockchainHash(record),
-      source: 'flightschedulepro',
-      externalId: record.studentId,
+      userId: 'system',
       status: 'completed'
     });
 
     // Log the import
     await storage.createAuditLog({
       userId: 'system',
-      action: 'RECORD_IMPORTED',
-      entityType: 'training_event',
-      entityId: trainingEvent.id,
-      details: `Imported from Flight Schedule Pro: ${record.certificateNumber}`,
+      eventType: 'RECORD_IMPORTED',
+      severity: 'info',
+      message: `Imported from Flight Schedule Pro: ${record.certificateNumber}`,
+      details: {
+        entityType: 'training_event',
+        entityId: trainingEvent.id
+      },
       timestamp: new Date()
     });
   }
@@ -194,30 +203,39 @@ export class FlightCircleIntegration {
   private async importTrainingRecord(record: TrainingRecord): Promise<void> {
     const trainingEvent = await storage.createTrainingEvent({
       studentName: record.studentName,
+      studentId: record.studentId,
       eventType: record.courseName,
       eventDate: new Date(record.completionDate),
       instructorName: record.instructorName,
+      instructorId: record.instructorId,
       organizationId: this.config.organizationId,
-      courseType: record.courseName,
-      completionDate: new Date(record.completionDate),
-      certificateNumber: record.certificateNumber,
-      flightHours: record.flightHours || 0,
-      groundHours: record.groundHours || 0,
-      checkride: record.checkride || false,
-      grade: record.grade || 'Pass',
-      expirationDate: record.expirationDate ? new Date(record.expirationDate) : null,
+      curriculumItem: record.courseName,
+      durationHours: String((record.flightHours || 0) + (record.groundHours || 0)),
+      notes: JSON.stringify({
+        source: 'flightcircle',
+        externalId: record.studentId,
+        certificateNumber: record.certificateNumber,
+        completionDate: record.completionDate,
+        expirationDate: record.expirationDate ?? null,
+        flightHours: record.flightHours || 0,
+        groundHours: record.groundHours || 0,
+        checkride: record.checkride || false,
+        grade: record.grade || 'Pass',
+      }),
       blockchainHash: this.generateBlockchainHash(record),
-      source: 'flightcircle',
-      externalId: record.studentId,
+      userId: 'system',
       status: 'completed'
     });
 
     await storage.createAuditLog({
       userId: 'system',
-      action: 'RECORD_IMPORTED',
-      entityType: 'training_event',
-      entityId: trainingEvent.id,
-      details: `Imported from Flight Circle: ${record.certificateNumber}`,
+      eventType: 'RECORD_IMPORTED',
+      severity: 'info',
+      message: `Imported from Flight Circle: ${record.certificateNumber}`,
+      details: {
+        entityType: 'training_event',
+        entityId: trainingEvent.id
+      },
       timestamp: new Date()
     });
   }
@@ -295,30 +313,39 @@ export class TAFSIntegration {
   private async importTrainingRecord(record: TrainingRecord): Promise<void> {
     const trainingEvent = await storage.createTrainingEvent({
       studentName: record.studentName,
+      studentId: record.studentId,
       eventType: record.courseName,
       eventDate: new Date(record.completionDate),
       instructorName: record.instructorName,
+      instructorId: record.instructorId,
       organizationId: this.config.organizationId,
-      courseType: record.courseName,
-      completionDate: new Date(record.completionDate),
-      certificateNumber: record.certificateNumber,
-      flightHours: record.flightHours || 0,
-      groundHours: record.groundHours || 0,
-      checkride: record.checkride || false,
-      grade: record.grade || 'Pass',
-      expirationDate: record.expirationDate ? new Date(record.expirationDate) : null,
+      curriculumItem: record.courseName,
+      durationHours: String((record.flightHours || 0) + (record.groundHours || 0)),
+      notes: JSON.stringify({
+        source: 'tafs',
+        externalId: record.studentId,
+        certificateNumber: record.certificateNumber,
+        completionDate: record.completionDate,
+        expirationDate: record.expirationDate ?? null,
+        flightHours: record.flightHours || 0,
+        groundHours: record.groundHours || 0,
+        checkride: record.checkride || false,
+        grade: record.grade || 'Pass',
+      }),
       blockchainHash: this.generateBlockchainHash(record),
-      source: 'tafs',
-      externalId: record.studentId,
+      userId: 'system',
       status: 'completed'
     });
 
     await storage.createAuditLog({
       userId: 'system',
-      action: 'RECORD_IMPORTED',
-      entityType: 'training_event',
-      entityId: trainingEvent.id,
-      details: `Imported from TAFS: ${record.certificateNumber}`,
+      eventType: 'RECORD_IMPORTED',
+      severity: 'info',
+      message: `Imported from TAFS: ${record.certificateNumber}`,
+      details: {
+        entityType: 'training_event',
+        entityId: trainingEvent.id
+      },
       timestamp: new Date()
     });
   }
@@ -432,29 +459,38 @@ export class TrainingIntegrationManager {
     // Import the record immediately
     const trainingEvent = await storage.createTrainingEvent({
       studentName: record.studentName,
+      studentId: record.studentId,
       eventType: record.courseName,
       eventDate: new Date(record.completionDate),
       instructorName: record.instructorName,
+      instructorId: record.instructorId,
       organizationId: organizationId,
-      courseType: record.courseName,
-      completionDate: new Date(record.completionDate),
-      certificateNumber: record.certificateNumber,
-      flightHours: record.flightHours || 0,
-      groundHours: record.groundHours || 0,
-      checkride: record.checkride || false,
-      grade: record.grade || 'Pass',
+      curriculumItem: record.courseName,
+      durationHours: String((record.flightHours || 0) + (record.groundHours || 0)),
+      notes: JSON.stringify({
+        source: 'webhook',
+        externalId: record.studentId,
+        certificateNumber: record.certificateNumber,
+        completionDate: record.completionDate,
+        flightHours: record.flightHours || 0,
+        groundHours: record.groundHours || 0,
+        checkride: record.checkride || false,
+        grade: record.grade || 'Pass',
+      }),
       blockchainHash: this.generateBlockchainHash(record),
-      source: 'webhook',
-      externalId: record.studentId,
+      userId: 'system',
       status: 'completed'
     });
 
     await storage.createAuditLog({
       userId: 'system',
-      action: 'WEBHOOK_PROCESSED',
-      entityType: 'training_event',
-      entityId: trainingEvent.id,
-      details: `Real-time training completion: ${record.certificateNumber}`,
+      eventType: 'WEBHOOK_PROCESSED',
+      severity: 'info',
+      message: `Real-time training completion: ${record.certificateNumber}`,
+      details: {
+        entityType: 'training_event',
+        entityId: trainingEvent.id
+      },
       timestamp: new Date()
     });
   }
@@ -463,10 +499,13 @@ export class TrainingIntegrationManager {
     // Handle certificate issuance events
     await storage.createAuditLog({
       userId: 'system',
-      action: 'CERTIFICATE_ISSUED',
-      entityType: 'training_event',
-      entityId: payload.training_event_id,
-      details: `Certificate issued: ${payload.certificate_number}`,
+      eventType: 'CERTIFICATE_ISSUED',
+      severity: 'info',
+      message: `Certificate issued: ${payload.certificate_number}`,
+      details: {
+        entityType: 'training_event',
+        entityId: payload.training_event_id
+      },
       timestamp: new Date()
     });
   }

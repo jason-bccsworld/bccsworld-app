@@ -1396,9 +1396,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { type } = req.query;
       let docs: any[];
       if (type && type !== 'all') {
-        docs = await db.select().from(faaPolicyDocuments).where(eq(faaPolicyDocuments.documentType, type as string)).orderBy(desc(faaPolicyDocuments.publishedDate)).limit(100);
+        docs = await db.select().from(faaPolicyDocuments).where(eq(faaPolicyDocuments.documentType, type as string)).orderBy(desc(faaPolicyDocuments.issuanceDate)).limit(100);
       } else {
-        docs = await db.select().from(faaPolicyDocuments).orderBy(desc(faaPolicyDocuments.publishedDate)).limit(100);
+        docs = await db.select().from(faaPolicyDocuments).orderBy(desc(faaPolicyDocuments.issuanceDate)).limit(100);
       }
       res.json(docs);
     } catch (error) {

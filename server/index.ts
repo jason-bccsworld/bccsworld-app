@@ -35,7 +35,9 @@ async function initStripe(): Promise<void> {
       const databaseUrl = process.env.DATABASE_URL;
       if (!databaseUrl) return;
 
-      await runMigrations({ databaseUrl, schema: 'stripe' });
+      // Cast: stripe-replit-sync's runMigrations accepts a `schema` option at
+      // runtime but it's absent from the published MigrationConfig type.
+      await runMigrations({ databaseUrl, schema: 'stripe' } as any);
       log('Stripe schema ready');
 
       const stripeSync = await getStripeSync();

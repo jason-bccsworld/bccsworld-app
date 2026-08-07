@@ -242,7 +242,7 @@ export function RegulatoryComplianceDashboard() {
                         <div className="space-y-2">
                           {regulation.pendingChanges.slice(0, 3).map((change: any, idx: number) => (
                             <div key={idx} className="flex items-center gap-2 text-sm">
-                              <Badge variant={getPriorityColor(change.priority)} size="sm">
+                              <Badge variant={getPriorityColor(change.priority)} className="text-xs">
                                 {change.priority}
                               </Badge>
                               <span>{change.description}</span>

@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 
 export default function RecentActivity() {
-  const { data: auditLogs = [] } = useQuery({
+  const { data: auditLogs = [] } = useQuery<any[]>({
     queryKey: ["/api/audit-logs"],
     select: (data) => data.slice(0, 5), // Only show last 5 activities
   });

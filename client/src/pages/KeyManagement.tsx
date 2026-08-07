@@ -132,14 +132,11 @@ export function KeyManagement() {
 
   // Mutations
   const registerOrgMutation = useMutation({
-    mutationFn: async (data: OrganizationFormData) => {
-      const response = await apiRequest('/api/blockchain/organizations/register', {
-        method: 'POST',
-        body: JSON.stringify(data)
-      });
-      return response;
+    mutationFn: async (data: OrganizationFormData): Promise<{ data: { masterPrivateKey: string } }> => {
+      const res = await apiRequest('POST', '/api/blockchain/organizations/register', data);
+      return await res.json();
     },
-    onSuccess: (data: any) => {
+    onSuccess: (data) => {
       toast({
         title: 'Organization Registered',
         description: 'Training organization successfully registered with blockchain keys.',
@@ -159,14 +156,11 @@ export function KeyManagement() {
   });
 
   const registerCredMutation = useMutation({
-    mutationFn: async (data: CredentialFormData) => {
-      const response = await apiRequest('/api/blockchain/credentials/register', {
-        method: 'POST',
-        body: JSON.stringify(data)
-      });
-      return response;
+    mutationFn: async (data: CredentialFormData): Promise<{ data: { masterPrivateKey: string } }> => {
+      const res = await apiRequest('POST', '/api/blockchain/credentials/register', data);
+      return await res.json();
     },
-    onSuccess: (data: any) => {
+    onSuccess: (data) => {
       toast({
         title: 'Credential Registered',
         description: 'Professional credential successfully registered with blockchain keys.',
@@ -186,12 +180,9 @@ export function KeyManagement() {
   });
 
   const createTrainingRecordMutation = useMutation({
-    mutationFn: async (data: TrainingRecordFormData) => {
-      const response = await apiRequest('/api/blockchain/training-records', {
-        method: 'POST',
-        body: JSON.stringify(data)
-      });
-      return response;
+    mutationFn: async (data: TrainingRecordFormData): Promise<{ data: unknown }> => {
+      const res = await apiRequest('POST', '/api/blockchain/training-records', data);
+      return await res.json();
     },
     onSuccess: (data) => {
       toast({

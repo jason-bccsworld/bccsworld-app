@@ -24,19 +24,67 @@ import {
 } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell } from "recharts";
 
+interface ComplianceMetrics {
+  overallScore?: number;
+  trendDirection?: string;
+  riskLevel?: string;
+  recommendations?: string[];
+}
+
+interface RiskFactor {
+  factor: string;
+  impact: number;
+  mitigation: string;
+}
+
+interface ComplianceForecast {
+  nextMonth?: number;
+  nextQuarter?: number;
+  yearEnd?: number;
+  confidence?: number;
+  riskFactors?: RiskFactor[];
+}
+
+interface OrganizationPerformance {
+  name: string;
+  trend: string;
+  riskLevel: string;
+  score: number;
+}
+
+interface UpcomingDeadline {
+  description: string;
+  deadline: string;
+  organizationsAtRisk: number;
+}
+
+interface AnalyticsReport {
+  documentProcessingTrends?: Array<{ date: string; value: number }>;
+  accuracyTrends?: Array<{ date: string; value: number }>;
+  organizationPerformance?: OrganizationPerformance[];
+  predictiveInsights?: {
+    upcomingDeadlines?: UpcomingDeadline[];
+    resourceAllocation?: {
+      predictedWorkload?: number;
+      recommendedStaffing?: number;
+      peakPeriods?: string[];
+    };
+  };
+}
+
 export default function AnalyticsDashboard() {
   const [selectedPeriod, setSelectedPeriod] = useState<"week" | "month" | "quarter">("month");
   const [selectedOrganization, setSelectedOrganization] = useState<string>("all");
 
-  const { data: complianceMetrics, isLoading: metricsLoading } = useQuery({
+  const { data: complianceMetrics, isLoading: metricsLoading } = useQuery<ComplianceMetrics>({
     queryKey: ["/api/analytics/compliance-metrics", selectedOrganization],
   });
 
-  const { data: forecast, isLoading: forecastLoading } = useQuery({
+  const { data: forecast, isLoading: forecastLoading } = useQuery<ComplianceForecast>({
     queryKey: ["/api/analytics/forecast", selectedOrganization],
   });
 
-  const { data: analyticsReport, isLoading: reportLoading } = useQuery({
+  const { data: analyticsReport, isLoading: reportLoading } = useQuery<AnalyticsReport>({
     queryKey: ["/api/analytics/report", selectedPeriod],
   });
 

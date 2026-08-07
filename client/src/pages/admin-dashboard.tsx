@@ -628,7 +628,7 @@ export default function AdminDashboard() {
   const [permsDirty, setPermsDirty]           = useState(false);
 
   // ── queries
-  const { data: stats } = useQuery({ queryKey: ["/api/admin/stats"], enabled: isAuthenticated });
+  const { data: stats } = useQuery<{ totalUsers?: number; totalOrganizations?: number }>({ queryKey: ["/api/admin/stats"], enabled: isAuthenticated });
   const { data: organizations } = useQuery({ queryKey: ["/api/organizations"], enabled: isAuthenticated });
   const { data: orgLicenses = [] } = useQuery<any[]>({ queryKey: ["/api/organizations/licenses"], enabled: isAuthenticated });
 

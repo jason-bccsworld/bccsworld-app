@@ -1209,3 +1209,21 @@ export type DigitalFormTemplate = typeof digitalFormTemplates.$inferSelect;
 export type InsertDigitalFormTemplate = z.infer<typeof insertDigitalFormTemplateSchema>;
 export type DigitalFormSubmission = typeof digitalFormSubmissions.$inferSelect;
 export type InsertDigitalFormSubmission = z.infer<typeof insertDigitalFormSubmissionSchema>;
+
+export const generatedDocuments = pgTable("generated_documents", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  filename: text("filename").notNull(),
+  documentType: text("document_type").notNull(),
+  fileSize: integer("file_size").notNull(),
+  filePath: text("file_path").notNull(),
+  metadata: jsonb("metadata"),
+  generatedBy: varchar("generated_by").notNull(),
+  organizationId: text("organization_id"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertGeneratedDocumentSchema = createInsertSchema(generatedDocuments).omit({ id: true, createdAt: true });
+
+export type InsertGeneratedDocument = typeof generatedDocuments.$inferInsert;
+
+export type GeneratedDocument = typeof generatedDocuments.$inferSelect;

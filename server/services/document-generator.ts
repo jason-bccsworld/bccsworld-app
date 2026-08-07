@@ -1,6 +1,7 @@
 import OpenAI from "openai";
 import * as fs from "fs";
 import * as path from "path";
+import { randomUUID } from "crypto";
 import { storage } from "../storage";
 
 // Load environment variables
@@ -686,45 +687,24 @@ export class DocumentGenerator {
       fs.mkdirSync(uploadsDir, { recursive: true });
     }
     
-    const filePath = path.join(uploadsDir, generatedDoc.filename);
+    // Generated filenames are deterministic per document type, so prefix the
+    // persisted file with a UUID to keep every generation's content distinct —
+    // otherwise a re-run would overwrite the file older DB rows point at.
+    const storedFilename = `${randomUUID()}-${generatedDoc.filename}`;
+    const filePath = path.join(uploadsDir, storedFilename);
     fs.writeFileSync(filePath, generatedDoc.content, 'utf8');
-    
-    // Create database record
-    const document = await storage.createDocument({
+
+    // Durably persist a record of the generated document. Let errors propagate
+    // so persistence failures surface to the caller rather than silently
+    // leaving the on-disk file unindexed.
+    await storage.createGeneratedDocument({
       filename: generatedDoc.filename,
-      originalName: generatedDoc.filename,
-      fileType: 'text/plain',
+      documentType: generatedDoc.documentType,
       fileSize: Buffer.byteLength(generatedDoc.content, 'utf8'),
-      status: 'processed',
-      uploadedBy: userId,
-      organizationId: organizationId,
-      processedAt: new Date()
-    });
-    
-    // Add metadata as extracted data
-    for (const [key, value] of Object.entries(generatedDoc.metadata)) {
-      await storage.createExtractedData({
-        documentId: document.id,
-        fieldName: key,
-        extractedValue: String(value),
-        confidenceScore: 1.0,
-        isValidated: true,
-        validatedValue: String(value),
-        validatedBy: userId,
-        validatedAt: new Date()
-      });
-    }
-    
-    // Mark as auto-generated
-    await storage.createExtractedData({
-      documentId: document.id,
-      fieldName: 'auto_generated',
-      extractedValue: 'true',
-      confidenceScore: 1.0,
-      isValidated: true,
-      validatedValue: 'true',
-      validatedBy: userId,
-      validatedAt: new Date()
+      filePath,
+      metadata: generatedDoc.metadata,
+      generatedBy: userId,
+      organizationId: organizationId ?? null,
     });
   }
 }

@@ -5,7 +5,7 @@ export function generateBlockchainHash(event: TrainingEvent): string {
   // Create a deterministic hash based on event data
   const data = {
     studentName: event.studentName,
-    licenseNumber: event.licenseNumber,
+    licenseNumber: (event as any).licenseNumber,
     eventType: event.eventType,
     eventDate: event.eventDate,
     instructorName: event.instructorName,

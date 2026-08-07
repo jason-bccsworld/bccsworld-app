@@ -73,7 +73,7 @@ export default function IntegrationsDashboard() {
   });
 
   // Get sync logs for selected integration
-  const { data: syncLogs } = useQuery({
+  const { data: syncLogs } = useQuery<any[]>({
     queryKey: ["/api/integrations", selectedIntegration, "logs"],
     enabled: isAuthenticated && !!selectedIntegration,
   });
@@ -102,8 +102,9 @@ export default function IntegrationsDashboard() {
 
   // Sync integration mutation
   const syncIntegration = useMutation({
-    mutationFn: async (integrationId: string) => {
-      return apiRequest(`/api/integrations/${integrationId}/sync`, "POST");
+    mutationFn: async (integrationId: string): Promise<{ recordsImported?: number }> => {
+      const res = await apiRequest("POST", `/api/integrations/${integrationId}/sync`);
+      return await res.json();
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/integrations"] });

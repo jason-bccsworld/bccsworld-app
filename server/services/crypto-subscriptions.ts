@@ -110,9 +110,9 @@ export class CryptoSubscriptionService {
       };
 
     } catch (error) {
-      await this.logCryptoEvent('subscription_setup_error', 'error', `Failed to setup crypto subscription: ${error.message}`, {
+      await this.logCryptoEvent('subscription_setup_error', 'error', `Failed to setup crypto subscription: ${(error as Error).message}`, {
         customerId: params.customerId,
-        error: error.message
+        error: (error as Error).message
       });
       throw error;
     }
@@ -163,7 +163,7 @@ export class CryptoSubscriptionService {
       const renewalCost = await contract.calculateRenewalCost(subscriptionHash);
 
       // Check allowance and balance
-      const stablecoinAddress = STABLECOIN_CONTRACTS[subscription.chainId!]?.[subscription.stableCoin!];
+      const stablecoinAddress = (STABLECOIN_CONTRACTS as Record<number, Record<string, string>>)[subscription.chainId!]?.[subscription.stableCoin!];
       if (!stablecoinAddress) {
         throw new Error(`Stablecoin ${subscription.stableCoin} not supported on chain ${subscription.chainId}`);
       }
@@ -232,11 +232,11 @@ export class CryptoSubscriptionService {
       return { success: true, transactionHash: 'auto-renewal-processed' };
 
     } catch (error) {
-      await this.logCryptoEvent('renewal_error', 'error', `Subscription renewal failed: ${error.message}`, {
+      await this.logCryptoEvent('renewal_error', 'error', `Subscription renewal failed: ${(error as Error).message}`, {
         subscriptionId,
-        error: error.message
+        error: (error as Error).message
       });
-      return { success: false, error: error.message };
+      return { success: false, error: (error as Error).message };
     }
   }
 
@@ -270,15 +270,16 @@ export class CryptoSubscriptionService {
 
         // Update last checked block
         const latestBlock = await provider.getBlockNumber();
+        // lastBlockChecked is not part of the smartContracts schema; cast narrowly.
         await storage.updateSmartContract(contractInfo.id, { 
           lastBlockChecked: latestBlock 
-        });
+        } as any);
       }
 
     } catch (error) {
-      await this.logCryptoEvent('monitoring_error', 'error', `Payment monitoring failed: ${error.message}`, {
+      await this.logCryptoEvent('monitoring_error', 'error', `Payment monitoring failed: ${(error as Error).message}`, {
         chainId,
-        error: error.message
+        error: (error as Error).message
       });
     }
   }
@@ -313,7 +314,7 @@ export class CryptoSubscriptionService {
           onChainStatus = await contract.getSubscription(subscriptionHash);
         }
       } catch (error) {
-        console.warn('Failed to fetch on-chain status:', error.message);
+        console.warn('Failed to fetch on-chain status:', (error as Error).message);
       }
     }
 
@@ -339,8 +340,8 @@ export class CryptoSubscriptionService {
       contractType: 'subscription_manager',
       version: '1.0.0',
       supportedStableCoins: ['USDC', 'USDT', 'DAI'],
-      minimumPayment: 1,
-      maximumPayment: 100000,
+      minimumPayment: "1",
+      maximumPayment: "100000",
       gasLimit: 300000,
       abi: SUBSCRIPTION_CONTRACT_ABI
     });

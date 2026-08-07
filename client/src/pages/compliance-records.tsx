@@ -148,8 +148,11 @@ export default function ComplianceRecords() {
   });
 
   const signAllMutation = useMutation({
-    mutationFn: () => apiRequest("POST", "/api/org-keys/sign-all"),
-    onSuccess: (data: any) => {
+    mutationFn: async (): Promise<{ signed: number; failed: number }> => {
+      const res = await apiRequest("POST", "/api/org-keys/sign-all");
+      return await res.json();
+    },
+    onSuccess: (data: { signed: number; failed: number }) => {
       queryClient.invalidateQueries({ queryKey: ["/api/training-events"] });
       toast({ title: "Signing complete", description: `${data.signed} records signed, ${data.failed} failed.` });
     },
@@ -161,7 +164,8 @@ export default function ComplianceRecords() {
   const handleVerify = async (eventId: string) => {
     setVerifyingId(eventId);
     try {
-      const result = await apiRequest("GET", `/api/org-keys/verify/${eventId}`);
+      const res = await apiRequest("GET", `/api/org-keys/verify/${eventId}`);
+      const result: VerifyResult = await res.json();
       setVerifyResult({ result, eventId });
     } catch (err: any) {
       toast({ title: "Verification failed", description: err.message, variant: "destructive" });

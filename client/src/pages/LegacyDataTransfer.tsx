@@ -152,7 +152,7 @@ export default function LegacyDataTransfer() {
   });
 
   // Get processing status
-  const { data: statusData, isLoading: statusLoading } = useQuery({
+  const { data: statusData, isLoading: statusLoading } = useQuery<{ data?: ProcessingStatus }>({
     queryKey: ['/api/legacy-data-transfer/status', currentJobId],
     enabled: !!currentJobId,
     refetchInterval: 5000 // Refresh every 5 seconds

@@ -8,18 +8,25 @@ import { Search, Plus, Plane, DollarSign, Users, TrendingUp, Shield } from "luci
 import { useState } from "react";
 import type { AircraftRegistry, TokenOffering } from "@shared/schema";
 
+interface RegistryStats {
+  totalAircraft?: number;
+  tokenizedAircraft?: number;
+  totalTokenVolume?: number;
+  activeInvestors?: number;
+}
+
 export default function AircraftRegistry() {
   const [searchTerm, setSearchTerm] = useState("");
 
-  const { data: aircraft = [], isLoading: aircraftLoading } = useQuery({
+  const { data: aircraft = [], isLoading: aircraftLoading } = useQuery<AircraftRegistry[]>({
     queryKey: ["/api/aircraft"],
   });
 
-  const { data: tokenOfferings = [], isLoading: offeringsLoading } = useQuery({
+  const { data: tokenOfferings = [], isLoading: offeringsLoading } = useQuery<(TokenOffering & { aircraft?: AircraftRegistry })[]>({
     queryKey: ["/api/token-offerings"],
   });
 
-  const { data: stats, isLoading: statsLoading } = useQuery({
+  const { data: stats, isLoading: statsLoading } = useQuery<RegistryStats>({
     queryKey: ["/api/registry/stats"],
   });
 
@@ -233,7 +240,7 @@ export default function AircraftRegistry() {
           <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
             {tokenOfferings.map((offering: TokenOffering & { aircraft?: AircraftRegistry }) => {
               const relatedAircraft = aircraft.find((a: AircraftRegistry) => a.id === offering.aircraftId);
-              const soldPercentage = (offering.tokensSold / offering.totalTokens) * 100;
+              const soldPercentage = ((offering.tokensSold ?? 0) / offering.totalTokens) * 100;
               
               return (
                 <Card key={offering.id} className="hover:shadow-lg transition-shadow">
@@ -269,7 +276,7 @@ export default function AircraftRegistry() {
                     <div>
                       <div className="flex justify-between text-sm mb-2">
                         <span className="font-medium text-gray-600">Tokens Sold:</span>
-                        <span>{offering.tokensSold.toLocaleString()} / {offering.totalTokens.toLocaleString()}</span>
+                        <span>{(offering.tokensSold ?? 0).toLocaleString()} / {offering.totalTokens.toLocaleString()}</span>
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-2">
                         <div 

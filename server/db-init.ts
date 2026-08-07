@@ -590,6 +590,24 @@ export async function ensureTables(): Promise<void> {
       )
     `);
 
+    // ── Generated compliance documents ───────────────────────────────────────
+    // Durable index of AI-generated compliance documents. File bytes live on
+    // disk (uploads/); this table records metadata so the app can list them.
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS generated_documents (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        filename TEXT NOT NULL,
+        document_type TEXT NOT NULL,
+        file_size INTEGER NOT NULL,
+        file_path TEXT NOT NULL,
+        metadata JSONB,
+        generated_by VARCHAR NOT NULL,
+        organization_id TEXT,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    await db.execute(sql`CREATE INDEX IF NOT EXISTS "IDX_generated_documents_org" ON generated_documents (organization_id)`);
+
     // Seed governance demo data (policies, prior decisions, agent activity)
     await seedGovernanceData();
 

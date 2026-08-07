@@ -14,8 +14,8 @@ export default function MobileCamera({ onCapture, onClose }: MobileCameraProps) 
   const [isCamera, setIsCamera] = useState(false);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
-  const videoRef = useSafeRef<HTMLVideoElement>(null);
-  const canvasRef = useSafeRef<HTMLCanvasElement>(null);
+  const videoRef = useSafeRef<HTMLVideoElement>();
+  const canvasRef = useSafeRef<HTMLCanvasElement>();
   const { toast } = useToast();
 
   const startCamera = useCallback(async () => {

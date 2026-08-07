@@ -1,6 +1,8 @@
-import { db } from "../db";
-import * as schema from "../../shared/schema";
-import { eq } from "drizzle-orm";
+// NOTE: This service targeted an `organizations`/`documents` storage domain
+// (and a `users.organizationId` column) that no longer exists in the schema.
+// All data-access methods below have been explicitly retired: they throw a
+// clear error instead of silently accessing removed tables. The tier catalog
+// (SUBSCRIPTION_TIERS) and its types remain available for callers.
 
 export interface SubscriptionTier {
   id: string;
@@ -68,136 +70,46 @@ export const SUBSCRIPTION_TIERS: Record<string, SubscriptionTier> = {
   }
 };
 
+const RETIRED_MESSAGE =
+  "feature unavailable: organizations storage removed";
+
+export interface UsageStats {
+  tier: SubscriptionTier | undefined;
+  isPilotProgram: boolean;
+  usage: { users: number; documents: number };
+  limits: { users: number; documents: number };
+}
+
 export class SubscriptionService {
-  
-  // Check if organization can perform action based on limits
+
+  // Check if organization can perform action based on limits.
+  // Retired: the organizations/documents storage domain no longer exists.
   async checkUsageLimit(organizationId: string, type: 'users' | 'documents'): Promise<boolean> {
-    const org = await db.select().from(schema.organizations).where(
-      eq(schema.organizations.id, organizationId)
-    ).limit(1);
-    
-    if (!org.length) return false;
-    
-    const organization = org[0];
-    
-    // Pilot programs have unlimited access
-    if (organization.isPilotProgram) return true;
-    
-    const tier = SUBSCRIPTION_TIERS[organization.subscriptionTier];
-    if (!tier) return false;
-    
-    if (type === 'users') {
-      if (tier.userLimit === -1) return true; // unlimited
-      const currentUsers = await db.select().from(schema.users).where(
-        eq(schema.users.organizationId, organizationId)
-      );
-      return currentUsers.length < tier.userLimit;
-    }
-    
-    if (type === 'documents') {
-      if (tier.documentLimit === -1) return true; // unlimited
-      const currentDocuments = await db.select().from(schema.documents).where(
-        eq(schema.documents.organizationId, organizationId)
-      );
-      return currentDocuments.length < tier.documentLimit;
-    }
-    
-    return false;
+    throw new Error(RETIRED_MESSAGE);
   }
-  
-  // Get organization's current usage
-  async getUsageStats(organizationId: string) {
-    const org = await storage.db.select().from(storage.schema.organizations).where(
-      storage.schema.organizations.id.eq(organizationId)
-    ).limit(1);
-    
-    if (!org.length) return null;
-    
-    const organization = org[0];
-    const tier = SUBSCRIPTION_TIERS[organization.subscriptionTier];
-    
-    const [users, documents] = await Promise.all([
-      storage.db.select().from(storage.schema.users).where(
-        storage.schema.users.organizationId.eq(organizationId)
-      ),
-      storage.db.select().from(storage.schema.documents).where(
-        storage.schema.documents.organizationId.eq(organizationId)
-      )
-    ]);
-    
-    return {
-      tier: tier,
-      isPilotProgram: organization.isPilotProgram,
-      usage: {
-        users: users.length,
-        documents: documents.length
-      },
-      limits: {
-        users: tier.userLimit,
-        documents: tier.documentLimit
-      }
-    };
+
+  // Get organization's current usage.
+  // Retired: the organizations/documents storage domain no longer exists.
+  async getUsageStats(organizationId: string): Promise<UsageStats | null> {
+    throw new Error(RETIRED_MESSAGE);
   }
-  
-  // Start pilot program
-  async startPilotProgram(organizationId: string, durationDays: number = 90, notes?: string) {
-    const pilotEndDate = new Date();
-    pilotEndDate.setDate(pilotEndDate.getDate() + durationDays);
-    
-    await storage.db.update(storage.schema.organizations)
-      .set({
-        isPilotProgram: true,
-        pilotStartDate: new Date(),
-        pilotEndDate: pilotEndDate,
-        pilotNotes: notes,
-        subscriptionStatus: 'pilot'
-      })
-      .where(storage.schema.organizations.id.eq(organizationId));
-    
-    return true;
+
+  // Start pilot program.
+  // Retired: the organizations storage domain no longer exists.
+  async startPilotProgram(organizationId: string, durationDays: number = 90, notes?: string): Promise<boolean> {
+    throw new Error(RETIRED_MESSAGE);
   }
-  
-  // Convert pilot to paid subscription
-  async convertPilotToSubscription(organizationId: string, tier: string) {
-    const subscriptionTier = SUBSCRIPTION_TIERS[tier];
-    if (!subscriptionTier) throw new Error('Invalid subscription tier');
-    
-    const nextBillingDate = new Date();
-    nextBillingDate.setMonth(nextBillingDate.getMonth() + 1);
-    
-    await storage.db.update(storage.schema.organizations)
-      .set({
-        subscriptionTier: tier,
-        subscriptionStatus: 'active',
-        isPilotProgram: false,
-        monthlyPrice: subscriptionTier.price.toString(),
-        lastBillingDate: new Date(),
-        nextBillingDate: nextBillingDate,
-        userLimit: subscriptionTier.userLimit,
-        documentLimit: subscriptionTier.documentLimit
-      })
-      .where(storage.schema.organizations.id.eq(organizationId));
-    
-    return true;
+
+  // Convert pilot to paid subscription.
+  // Retired: the organizations storage domain no longer exists.
+  async convertPilotToSubscription(organizationId: string, tier: string): Promise<boolean> {
+    throw new Error(RETIRED_MESSAGE);
   }
-  
-  // Check if feature is available for organization
+
+  // Check if feature is available for organization.
+  // Retired: the organizations storage domain no longer exists.
   async hasFeatureAccess(organizationId: string, feature: string): Promise<boolean> {
-    const org = await storage.db.select().from(storage.schema.organizations).where(
-      storage.schema.organizations.id.eq(organizationId)
-    ).limit(1);
-    
-    if (!org.length) return false;
-    
-    const organization = org[0];
-    
-    // Pilot programs have access to all features
-    if (organization.isPilotProgram) return true;
-    
-    const tier = SUBSCRIPTION_TIERS[organization.subscriptionTier];
-    if (!tier) return false;
-    
-    return tier.features.includes(feature);
+    throw new Error(RETIRED_MESSAGE);
   }
 }
 

@@ -15,9 +15,13 @@ import {
   professionalCredentials,
   organizationMembers,
   blockchainTrainingRecords,
+  trainingEvents,
   keyRecoveryRequests,
   crossPlatformVerifications,
   checklistStates,
+  generatedDocuments,
+  type GeneratedDocument as GeneratedDocumentRow,
+  type InsertGeneratedDocument,
   type ChecklistState,
   type User,
   type UpsertUser,
@@ -46,6 +50,8 @@ import {
   type InsertOrganizationMember,
   type BlockchainTrainingRecord,
   type InsertBlockchainTrainingRecord,
+  type TrainingEvent,
+  type InsertTrainingEvent,
   type KeyRecoveryRequest,
   type InsertKeyRecoveryRequest,
   type CrossPlatformVerification,
@@ -132,6 +138,11 @@ export interface IStorage {
   
   createBlockchainTrainingRecord(record: InsertBlockchainTrainingRecord): Promise<BlockchainTrainingRecord>;
   getTrainingRecordsByCredential(credentialId: string): Promise<BlockchainTrainingRecord[]>;
+
+  // Training event operations
+  createTrainingEvent(event: InsertTrainingEvent): Promise<TrainingEvent>;
+  getTrainingEvent(id: string): Promise<TrainingEvent | undefined>;
+  getTrainingEventsByOrganization(organizationId: string): Promise<TrainingEvent[]>;
   
   createKeyRecoveryRequest(request: InsertKeyRecoveryRequest): Promise<KeyRecoveryRequest>;
   getKeyRecoveryRequest(id: string): Promise<KeyRecoveryRequest | undefined>;
@@ -144,6 +155,10 @@ export interface IStorage {
   getChecklistState(userId: string): Promise<ChecklistState | null>;
   saveChecklistState(userId: string, state: any): Promise<void>;
   updateUserProfile(userId: string, profile: { firstName?: string; lastName?: string; email?: string }): Promise<void>;
+
+  // Generated compliance documents
+  createGeneratedDocument(insert: InsertGeneratedDocument): Promise<GeneratedDocumentRow>;
+  getGeneratedDocuments(organizationId: string): Promise<GeneratedDocumentRow[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -530,6 +545,22 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(blockchainTrainingRecords.completionDate));
   }
 
+  async createTrainingEvent(event: InsertTrainingEvent): Promise<TrainingEvent> {
+    const [trainingEvent] = await db.insert(trainingEvents).values(event).returning();
+    return trainingEvent;
+  }
+
+  async getTrainingEvent(id: string): Promise<TrainingEvent | undefined> {
+    const [trainingEvent] = await db.select().from(trainingEvents).where(eq(trainingEvents.id, id));
+    return trainingEvent;
+  }
+
+  async getTrainingEventsByOrganization(organizationId: string): Promise<TrainingEvent[]> {
+    return await db.select().from(trainingEvents)
+      .where(eq(trainingEvents.organizationId, organizationId))
+      .orderBy(desc(trainingEvents.eventDate));
+  }
+
   async createKeyRecoveryRequest(requestData: InsertKeyRecoveryRequest): Promise<KeyRecoveryRequest> {
     const [request] = await db.insert(keyRecoveryRequests).values(requestData).returning();
     return request;
@@ -580,6 +611,20 @@ export class DatabaseStorage implements IStorage {
 
   async updateUserProfile(userId: string, profile: { firstName?: string; lastName?: string; email?: string }): Promise<void> {
     await db.update(users).set(profile).where(eq(users.id, userId));
+  }
+
+  async createGeneratedDocument(insert: InsertGeneratedDocument): Promise<GeneratedDocumentRow> {
+    const [row] = await db.insert(generatedDocuments).values(insert).returning();
+    return row;
+  }
+
+  async getGeneratedDocuments(organizationId: string): Promise<GeneratedDocumentRow[]> {
+    // Always org-scoped — never returns cross-tenant rows.
+    return await db
+      .select()
+      .from(generatedDocuments)
+      .where(eq(generatedDocuments.organizationId, organizationId))
+      .orderBy(desc(generatedDocuments.createdAt));
   }
 }
 

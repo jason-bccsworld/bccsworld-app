@@ -26,7 +26,8 @@ import {
 
 export default function MobileField() {
   const { toast } = useToast();
-  const { user, isAuthenticated, isLoading } = useAuth();
+  const { user: rawUser, isAuthenticated, isLoading } = useAuth();
+  const user = rawUser as { email?: string } | null;
   const queryClient = useQueryClient();
   
   const [showCamera, setShowCamera] = useState(false);
@@ -78,7 +79,7 @@ export default function MobileField() {
     }
   }, [isAuthenticated, isLoading, toast]);
 
-  const { data: recentDocuments } = useQuery({
+  const { data: recentDocuments } = useQuery<any[]>({
     queryKey: ["/api/documents"],
     enabled: isAuthenticated,
   });
