@@ -19,7 +19,24 @@ async function processPdfText(pdfPath: string): Promise<string> {
         return stdout.trim();
       }
     } catch (pdfTextError) {
-      console.log('pdftotext failed, PDF might be scanned or corrupted');
+      console.log('pdftotext failed or unavailable, trying pure-JS extraction');
+    }
+
+    // Pure-JS fallback (works on serverless hosts without poppler): pdf-parse
+    try {
+      const { PDFParse } = await import('pdf-parse');
+      const parser = new PDFParse({ data: new Uint8Array(fs.readFileSync(pdfPath)) });
+      try {
+        const data = await parser.getText();
+        if (data.text && data.text.trim().length > 0) {
+          console.log('Successfully extracted text from PDF via pdf-parse');
+          return data.text.trim();
+        }
+      } finally {
+        await parser.destroy();
+      }
+    } catch (pdfParseError) {
+      console.log('pdf-parse extraction failed, PDF might be scanned:', pdfParseError instanceof Error ? pdfParseError.message : pdfParseError);
     }
     
     // If pdftotext fails or returns no text, convert PDF to images and OCR them
