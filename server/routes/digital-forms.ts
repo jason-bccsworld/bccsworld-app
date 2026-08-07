@@ -116,6 +116,18 @@ export function isTrainingEventTemplate(template: any): boolean {
   return marker === TRAINING_EVENT_MARKER;
 }
 
+// ── DECISION (product/security): anonymous public links must NOT create
+// official training records. Training Event submissions ingest straight into
+// bccs_training_events, get auto-signed, and are counted by the audit agents —
+// so they may only arrive through authenticated paths where identity is
+// enforced (the key-authenticated instructor portal forces the instructor
+// identity from the key). The public no-auth route therefore refuses the
+// system Training Event template entirely: GET hides it (404, link is dead)
+// and POST rejects it (403). Regression test:
+// server/__tests__/public-form-training-event.test.ts
+const PUBLIC_TRAINING_EVENT_BLOCKED_MESSAGE =
+  "Training Event submissions cannot be made through a public link. Instructors must use the instructor portal with their access key.";
+
 export interface ParsedTrainingEventForm {
   studentName: string;
   instructorName: string;
@@ -210,6 +222,11 @@ router.get("/public/:token", async (req, res) => {
       return res.status(404).json({ message: "Form not found or no longer available" });
     }
 
+    // The system Training Event template is never available via public link
+    if (isTrainingEventTemplate(template)) {
+      return res.status(404).json({ message: "Form not found or no longer available" });
+    }
+
     // Only return safe fields (no internal IDs leaking unnecessary info)
     res.json({
       id: template.id,
@@ -240,6 +257,11 @@ router.post("/public/:token/submit", async (req, res) => {
       return res.status(404).json({ message: "Form not found or no longer available" });
     }
 
+    // Anonymous submissions must never create official training records
+    if (isTrainingEventTemplate(template)) {
+      return res.status(403).json({ message: PUBLIC_TRAINING_EVENT_BLOCKED_MESSAGE });
+    }
+
     const { formData, submitterName, submitterEmail, notes } = req.body;
 
     if (!formData || typeof formData !== "object") {
@@ -248,17 +270,6 @@ router.post("/public/:token/submit", async (req, res) => {
 
     const pubOrgId = (template as any).organizationId as string | null;
 
-    // Training Event forms: validate BEFORE anything is persisted
-    let parsed: ParsedTrainingEventForm | null = null;
-    if (pubOrgId && isTrainingEventTemplate(template)) {
-      try {
-        parsed = parseTrainingEventForm(formData);
-      } catch (validationErr) {
-        return res.status(400).json({ message: (validationErr as Error).message });
-      }
-    }
-
-    let eventId: string | null = null;
     const submission = await db.transaction(async (tx) => {
       const [sub] = await tx
         .insert(digitalFormSubmissions)
@@ -273,12 +284,10 @@ router.post("/public/:token/submit", async (req, res) => {
           status: "submitted",
         } as any)
         .returning();
-      if (parsed && pubOrgId) eventId = await createTrainingEventFromForm(tx, sub.id, pubOrgId, parsed, submitterEmail || submitterName || "public-form");
       return sub;
     });
 
-    if (eventId && pubOrgId) await afterTrainingEventCreated(eventId, pubOrgId);
-    else if (pubOrgId) queueAuditReadinessRefresh(pubOrgId, "public_form_submitted");
+    if (pubOrgId) queueAuditReadinessRefresh(pubOrgId, "public_form_submitted");
 
     res.status(201).json({ success: true, submissionId: submission.id });
   } catch (err) {
