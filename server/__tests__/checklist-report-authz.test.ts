@@ -157,6 +157,44 @@ describe("checklist-report authorization", () => {
     expect(buf.subarray(0, 2).toString()).toBe("PK"); // valid zip/xlsx magic
   });
 
+  it("import-file previews without writing, and only replaces on confirm", async () => {
+    const csv = "Number,Description,Reference,Area\n1-01,Check instructors,142.13,Management\n1-02,Check facility,142.15,Facilities\n";
+    const upload = async (confirm: boolean) => {
+      const fd = new FormData();
+      fd.append("file", new Blob([csv], { type: "text/csv" }), "checklist.csv");
+      if (confirm) fd.append("confirm", "true");
+      const res = await fetch(`${base}/api/checklist-report/import-file`, {
+        method: "POST",
+        headers: { "x-test-user": "admin1" },
+        body: fd,
+      });
+      return { status: res.status, body: await res.json() };
+    };
+
+    // Preview phase: summary returned, no deletes/inserts executed
+    h.executed.length = 0;
+    const preview = await upload(false);
+    expect(preview.status).toBe(200);
+    expect(preview.body.preview).toBe(true);
+    expect(preview.body.itemCount).toBe(2);
+    expect(preview.body.areas).toEqual([
+      { name: "Management", itemCount: 1 },
+      { name: "Facilities", itemCount: 1 },
+    ]);
+    expect(preview.body.skippedSheets).toEqual([]);
+    const writes = h.executed.filter((t) => /DELETE FROM|INSERT INTO/i.test(t));
+    expect(writes).toEqual([]);
+
+    // Confirm phase: destructive replace executes
+    h.executed.length = 0;
+    const confirmed = await upload(true);
+    expect(confirmed.status).toBe(200);
+    expect(confirmed.body.success).toBe(true);
+    expect(confirmed.body.imported).toBe(2);
+    expect(h.executed.some((t) => t.includes("DELETE FROM bccs_checklist_report_items"))).toBe(true);
+    expect(h.executed.some((t) => t.includes("INSERT INTO bccs_checklist_report_items"))).toBe(true);
+  });
+
   it("guards evidence routes: admins pass, deletes are org-scoped", async () => {
     // Admin passes the guard; without a multipart file the route 400s (not 403)
     const upload = await api("admin1", "POST", "/items/item-1/evidence");

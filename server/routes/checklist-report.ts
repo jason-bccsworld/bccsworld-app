@@ -375,20 +375,25 @@ router.delete("/evidence/:id", isAuthenticated, requireAdmin, async (req: any, r
 
 // ── Import / reset ───────────────────────────────────────────────────────────
 
-/** Validate bounds and transactionally replace the org checklist. Sends the
- * error response and returns null on failure; returns the item count on success. */
-async function replaceChecklist(orgId: string, items: ImportedItem[], res: any): Promise<number | null> {
-  if (items.length === 0) {
-    res.status(400).json({ message: "No checklist items could be parsed" });
-    return null;
-  }
+/** Validate import bounds. Returns a user-facing error message, or null when OK. */
+function importBoundsError(items: ImportedItem[]): string | null {
+  if (items.length === 0) return "No checklist items could be parsed";
   if (items.length > MAX_IMPORT_ITEMS) {
-    res.status(400).json({ message: `Too many items (${items.length}). The maximum is ${MAX_IMPORT_ITEMS}.` });
-    return null;
+    return `Too many items (${items.length}). The maximum is ${MAX_IMPORT_ITEMS}.`;
   }
   const distinctAreas = new Set(items.map((it) => it.areaName));
   if (distinctAreas.size > MAX_IMPORT_AREAS) {
-    res.status(400).json({ message: `Too many areas (${distinctAreas.size}). The maximum is ${MAX_IMPORT_AREAS}.` });
+    return `Too many areas (${distinctAreas.size}). The maximum is ${MAX_IMPORT_AREAS}.`;
+  }
+  return null;
+}
+
+/** Validate bounds and transactionally replace the org checklist. Sends the
+ * error response and returns null on failure; returns the item count on success. */
+async function replaceChecklist(orgId: string, items: ImportedItem[], res: any): Promise<number | null> {
+  const boundsError = importBoundsError(items);
+  if (boundsError) {
+    res.status(400).json({ message: boundsError });
     return null;
   }
   await db.transaction(async (tx) => {
@@ -439,7 +444,11 @@ router.post("/import", isAuthenticated, requireAdmin, async (req: any, res) => {
   }
 });
 
-// POST /import-file — replace the org checklist from an Excel/CSV upload
+// POST /import-file — replace the org checklist from an Excel/CSV upload.
+// Two-phase: without a `confirm=true` form field the file is parsed only
+// (no DB writes) and a preview summary is returned; the client then
+// re-uploads the same file with confirm=true to perform the destructive
+// replace. Bounds are enforced identically in both phases.
 router.post("/import-file", isAuthenticated, requireAdmin, upload.single("file"), async (req: any, res) => {
   try {
     const orgId = requireOrg(req, res);
@@ -457,6 +466,24 @@ router.post("/import-file", isAuthenticated, requireAdmin, upload.single("file")
       ({ items, skippedSheets } = await parseChecklistWorkbook(req.file.buffer, req.file.originalname));
     } catch (parseErr: any) {
       return res.status(422).json({ message: parseErr.message });
+    }
+    if (req.body?.confirm !== "true") {
+      // Parse-only preview: same bounds as the real import so a file that
+      // would be rejected is rejected up front, before the admin confirms.
+      const boundsError = importBoundsError(items);
+      if (boundsError) return res.status(400).json({ message: boundsError });
+      const areaOrder: string[] = [];
+      const areaCounts = new Map<string, number>();
+      for (const it of items) {
+        if (!areaCounts.has(it.areaName)) areaOrder.push(it.areaName);
+        areaCounts.set(it.areaName, (areaCounts.get(it.areaName) || 0) + 1);
+      }
+      return res.json({
+        preview: true,
+        itemCount: items.length,
+        areas: areaOrder.map((name) => ({ name, itemCount: areaCounts.get(name) })),
+        skippedSheets,
+      });
     }
     const imported = await replaceChecklist(orgId, items, res);
     if (imported === null) return;
