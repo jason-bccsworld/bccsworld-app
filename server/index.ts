@@ -6,6 +6,7 @@ import { faaDocumentMonitor } from "./services/faa-document-monitor";
 import { startComplianceWatchdog } from "./services/compliance-watchdog";
 import { startFederalContractsMonitor } from "./services/federal-contracts-monitor";
 import { startTrialExpiryMonitor } from "./services/trial-expiry-monitor";
+import { startInstructorKeyExpiryMonitor } from "./services/instructor-key-expiry-monitor";
 import { ensureTables } from "./db-init";
 import { createServer } from "http";
 import * as fs from "fs";
@@ -109,5 +110,6 @@ async function initStripe(): Promise<void> {
     startComplianceWatchdog(12);
     startFederalContractsMonitor(12);
     startTrialExpiryMonitor(6);
+    startInstructorKeyExpiryMonitor(6);
   });
 })();
