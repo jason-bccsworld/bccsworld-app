@@ -190,7 +190,15 @@ function parseSheet(sheet: ExcelJS.Worksheet, defaultAreaName: string, startInde
  * Throws an Error with a user-facing message (including
  * ACCEPTED_COLUMNS_HELP) when nothing in the file can be interpreted.
  */
-export async function parseChecklistWorkbook(buffer: Buffer, filename: string): Promise<ParsedChecklist> {
+export interface ParseOptions {
+  /** Area name for rows without an Area column on a single-sheet file
+   * (multi-sheet workbooks still default to the tab name). */
+  defaultAreaName?: string;
+  /** Starting offset for auto-generated ITEM-N numbers (multi-file imports). */
+  itemNumberOffset?: number;
+}
+
+export async function parseChecklistWorkbook(buffer: Buffer, filename: string, opts: ParseOptions = {}): Promise<ParsedChecklist> {
   let workbook: ExcelJS.Workbook;
   try {
     workbook = await readWorkbook(buffer, filename);
@@ -213,11 +221,14 @@ export async function parseChecklistWorkbook(buffer: Buffer, filename: string): 
   const multiSheet = sheets.length > 1;
   const items: ImportedItem[] = [];
   const skippedSheets: string[] = [];
+  const offset = opts.itemNumberOffset || 0;
   for (const sheet of sheets) {
     // On a multi-tab workbook, rows without an Area column fall back to the
     // tab name so each tab imports as its own inspection area.
-    const defaultAreaName = multiSheet ? (sheet.name || "Imported Checklist") : "Imported Checklist";
-    const parsed = parseSheet(sheet, defaultAreaName, items.length);
+    const defaultAreaName = multiSheet
+      ? (sheet.name || "Imported Checklist")
+      : (opts.defaultAreaName || "Imported Checklist");
+    const parsed = parseSheet(sheet, defaultAreaName, offset + items.length);
     if (parsed) items.push(...parsed);
     else skippedSheets.push(sheet.name || `Sheet ${skippedSheets.length + 1}`);
   }
@@ -299,13 +310,13 @@ export function sheetName(raw: string, used: Set<string>): string {
 export async function buildChecklistWorkbook(opts: {
   areas: ExportArea[];
   organization: ExportOrganization | null;
-  manual: { filename: string; uploadedAt: string | Date | null } | null;
+  manuals: { filename: string; uploadedAt: string | Date | null }[];
   generatedAt?: Date;
 }): Promise<Buffer> {
-  const { areas, organization, manual } = opts;
+  const { areas, organization, manuals } = opts;
   const generatedAt = opts.generatedAt ?? new Date();
   const workbook = new ExcelJS.Workbook();
-  workbook.creator = "BCCS Part 142 Checklist Report";
+  workbook.creator = "BCCS Part Checklist Report";
   workbook.created = generatedAt;
 
   const allItems = areas.flatMap((a) => a.items);
@@ -316,7 +327,7 @@ export async function buildChecklistWorkbook(opts: {
   // Summary sheet
   const summary = workbook.addWorksheet("Summary");
   summary.columns = [{ width: 34 }, { width: 60 }];
-  const title = summary.addRow(["Part 142 Checklist Report"]);
+  const title = summary.addRow(["Part Checklist Report"]);
   title.font = { bold: true, size: 16 };
   summary.addRow(["FAA Training Center Inspection Checklist & Job Aid — Auditor Report"]);
   summary.addRow([]);
@@ -326,10 +337,16 @@ export async function buildChecklistWorkbook(opts: {
     if (organization.regulatoryAuthority) summary.addRow(["Regulatory authority", organization.regulatoryAuthority]);
   }
   summary.addRow(["Generated", generatedAt.toISOString()]);
-  summary.addRow([
-    "Operations manual",
-    manual ? `${manual.filename}${manual.uploadedAt ? ` (uploaded ${new Date(manual.uploadedAt).toDateString()})` : ""}` : "None on file — AI review not performed",
-  ]);
+  if (manuals.length === 0) {
+    summary.addRow(["Operations manuals", "None on file — AI review not performed"]);
+  } else {
+    manuals.forEach((m, i) => {
+      summary.addRow([
+        i === 0 ? `Operations manual${manuals.length > 1 ? "s" : ""}` : "",
+        `${m.filename}${m.uploadedAt ? ` (uploaded ${new Date(m.uploadedAt).toDateString()})` : ""}`,
+      ]);
+    });
+  }
   summary.addRow([]);
   const statsHeader = summary.addRow(["Completion statistics"]);
   statsHeader.font = { bold: true };

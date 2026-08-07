@@ -199,7 +199,7 @@ describe("buildChecklistWorkbook", () => {
         { name: "Invalid/Name: With[Bad]Chars that is way too long for excel sheets", description: "", items: [] },
       ],
       organization: { name: "Demo Flight School", certificateNumber: "TC-123", regulatoryAuthority: "faa" },
-      manual: { filename: "ops.pdf", uploadedAt: new Date().toISOString() },
+      manuals: [{ filename: "ops.pdf", uploadedAt: new Date().toISOString() }],
     });
 
     const wb = new ExcelJS.Workbook();

@@ -43,6 +43,14 @@ interface AiFinding {
   stale: boolean;
 }
 
+interface ManualDoc {
+  id: string;
+  filename: string;
+  text_chars: number;
+  uploaded_by: string | null;
+  uploaded_at: string;
+}
+
 interface EvidenceFile {
   id: string;
   filename: string;
@@ -203,7 +211,7 @@ function buildReportHtml(areas: InspectionArea[], manualInfo: any, organization:
     </section>`).join('');
 
   return `<!DOCTYPE html>
-<html><head><meta charset="utf-8"><title>Part 142 Checklist Report</title>
+<html><head><meta charset="utf-8"><title>Part Checklist Report</title>
 <style>
   body { font-family: Georgia, 'Times New Roman', serif; color: #1a1a1a; margin: 40px; }
   h1 { font-size: 22px; margin-bottom: 2px; }
@@ -228,11 +236,11 @@ function buildReportHtml(areas: InspectionArea[], manualInfo: any, organization:
 </style></head>
 <body>
   <div class="header">
-    <h1>Part 142 Checklist Report</h1>
+    <h1>Part Checklist Report</h1>
     <div class="muted">FAA Training Center Inspection Checklist &amp; Job Aid — Auditor Report</div>
     ${organization ? `<div style="margin-top:6px;font-size:14px;"><strong>${escapeHtml(organization.name || '')}</strong>${organization.certificateNumber ? ` &middot; Certificate No. ${escapeHtml(organization.certificateNumber)}` : ''}${organization.regulatoryAuthority ? ` &middot; ${escapeHtml(organization.regulatoryAuthority)}` : ''}</div>` : ''}
     <div class="muted">Generated: ${now.toLocaleString()}</div>
-    ${manualInfo?.manual ? `<div class="muted">Operations manual reviewed: ${escapeHtml(manualInfo.manual.filename)} (uploaded ${new Date(manualInfo.manual.uploaded_at).toLocaleDateString()})${manualInfo.lastReviewAt ? `; last AI review ${new Date(manualInfo.lastReviewAt).toLocaleString()}` : ''}</div>` : '<div class="muted">No operations manual on file — AI review not performed.</div>'}
+    ${manualInfo?.manuals?.length ? `<div class="muted">Operations manual${manualInfo.manuals.length > 1 ? 's' : ''} reviewed: ${manualInfo.manuals.map((m: any) => `${escapeHtml(m.filename)} (uploaded ${new Date(m.uploaded_at).toLocaleDateString()})`).join('; ')}${manualInfo.lastReviewAt ? `; last AI review ${new Date(manualInfo.lastReviewAt).toLocaleString()}` : ''}</div>` : '<div class="muted">No operations manual on file — AI review not performed.</div>'}
   </div>
   <div class="summary">
     <div class="stat"><b>${totalItems}</b>Total items</div>
@@ -393,55 +401,66 @@ export default function ComplianceChecklist() {
   const [importFileUploading, setImportFileUploading] = useState(false);
   const [exportingExcel, setExportingExcel] = useState(false);
   const [importPreview, setImportPreview] = useState<{
-    source: { kind: 'file'; file: File } | { kind: 'text'; text: string };
+    source: { kind: 'files'; files: File[] } | { kind: 'text'; text: string };
     itemCount: number;
     areas: { name: string; itemCount: number }[];
     skippedSheets: string[];
+    files?: { name: string; itemCount: number }[];
   } | null>(null);
 
-  const handleImportFile = (file: File) => {
-    const ext = file.name.toLowerCase().split('.').pop() || '';
-    if (['xlsx', 'xls', 'csv'].includes(ext)) {
+  const handleImportFiles = (files: File[]) => {
+    if (files.length === 0) return;
+    const spreadsheets = files.filter((f) => ['xlsx', 'xls', 'csv'].includes(f.name.toLowerCase().split('.').pop() || ''));
+    if (spreadsheets.length > 0) {
+      if (spreadsheets.length !== files.length) {
+        toast({ title: 'Mixed file types', description: 'Select only spreadsheet files (.xlsx, .xls, .csv) — or a single text file to paste its contents.', variant: 'destructive' });
+        return;
+      }
       // Spreadsheets are parsed server-side; preview first (no DB changes)
-      previewFileMutation.mutate(file);
+      previewFileMutation.mutate(spreadsheets);
+      return;
+    }
+    if (files.length > 1) {
+      toast({ title: 'One text file at a time', description: 'Multiple files are supported for spreadsheets (.xlsx, .xls, .csv) only.', variant: 'destructive' });
       return;
     }
     const reader = new FileReader();
     reader.onload = () => setImportText(String(reader.result || ''));
-    reader.readAsText(file);
+    reader.readAsText(files[0]);
   };
 
   const previewFileMutation = useMutation({
-    mutationFn: async (file: File) => {
+    mutationFn: async (files: File[]) => {
       setImportFileUploading(true);
       try {
         const fd = new FormData();
-        fd.append('file', file);
+        for (const f of files) fd.append('files', f);
         const res = await fetch('/api/checklist-report/import-file', { method: 'POST', credentials: 'include', body: fd });
         const body = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(body.message || 'Could not read the file');
-        return { file, body };
+        return { files, body };
       } finally {
         setImportFileUploading(false);
       }
     },
-    onSuccess: ({ file, body }) => {
+    onSuccess: ({ files, body }) => {
       setImportPreview({
-        source: { kind: 'file', file },
+        source: { kind: 'files', files },
         itemCount: body.itemCount,
         areas: body.areas || [],
         skippedSheets: body.skippedSheets || [],
+        files: body.files || [],
       });
     },
     onError: (err: any) => toast({ title: 'Import failed', description: err.message, variant: 'destructive' })
   });
 
   const importFileMutation = useMutation({
-    mutationFn: async (file: File) => {
+    mutationFn: async (files: File[]) => {
       setImportFileUploading(true);
       try {
         const fd = new FormData();
-        fd.append('file', file);
+        for (const f of files) fd.append('files', f);
         fd.append('confirm', 'true');
         const res = await fetch('/api/checklist-report/import-file', { method: 'POST', credentials: 'include', body: fd });
         const body = await res.json().catch(() => ({}));
@@ -460,7 +479,7 @@ export default function ComplianceChecklist() {
       const skipped: string[] = data.skippedSheets || [];
       toast({
         title: 'Checklist imported',
-        description: `${data.imported} items imported from the spreadsheet. The previous checklist was replaced.` +
+        description: `${data.imported} items imported from ${(data.files || []).length > 1 ? `${data.files.length} spreadsheets` : 'the spreadsheet'}. The previous checklist was replaced.` +
           (skipped.length ? ` Note: ${skipped.length} tab${skipped.length > 1 ? 's' : ''} could not be imported (no recognizable checklist rows): ${skipped.join(', ')}.` : ''),
         ...(skipped.length ? { duration: 12000 } : {}),
       });
@@ -480,7 +499,7 @@ export default function ComplianceChecklist() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `part142-checklist-report-${new Date().toISOString().slice(0, 10)}.xlsx`;
+      a.download = `part-checklist-report-${new Date().toISOString().slice(0, 10)}.xlsx`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -492,21 +511,43 @@ export default function ComplianceChecklist() {
     }
   };
 
-  const handleManualUpload = async (file: File) => {
+  const handleManualUpload = async (files: File[]) => {
+    if (files.length === 0) return;
     setUploading(true);
     try {
       const fd = new FormData();
-      fd.append('file', file);
+      for (const f of files) fd.append('files', f);
       const res = await fetch('/api/checklist-report/manual', { method: 'POST', credentials: 'include', body: fd });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body.message || 'Upload failed');
       queryClient.invalidateQueries({ queryKey: ['/api/checklist-report/manual'] });
-      toast({ title: 'Manual uploaded', description: `${file.name} processed — ${Number(body.text_chars).toLocaleString()} characters of text extracted. Run AI Review to compare it against the checklist.` });
+      // Adding a document changes the manual set — per-item finding stale
+      // flags come from the checklist query, so refresh it too.
+      queryClient.invalidateQueries({ queryKey: ['/api/checklist-report/checklist'] });
+      const added: any[] = body.manuals || [];
+      const chars = added.reduce((s, m) => s + Number(m.text_chars || 0), 0);
+      toast({
+        title: added.length > 1 ? `${added.length} documents uploaded` : 'Manual uploaded',
+        description: `${added.map((m) => m.filename).join(', ')} processed — ${chars.toLocaleString()} characters of text extracted. Run AI Review to compare against the checklist.`,
+      });
     } catch (err: any) {
       toast({ title: 'Upload failed', description: err.message, variant: 'destructive' });
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleManualDelete = async (doc: ManualDoc) => {
+    try {
+      const res = await fetch(`/api/checklist-report/manual/${doc.id}`, { method: 'DELETE', credentials: 'include' });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.message || 'Delete failed');
+      queryClient.invalidateQueries({ queryKey: ['/api/checklist-report/manual'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/checklist-report/checklist'] });
+      toast({ title: 'Document removed', description: `${doc.filename} was removed from the manual set. Re-run the AI review to refresh findings.` });
+    } catch (err: any) {
+      toast({ title: 'Delete failed', description: err.message, variant: 'destructive' });
     }
   };
 
@@ -549,7 +590,7 @@ export default function ComplianceChecklist() {
   };
 
   const runAiReview = async () => {
-    if (!manualInfo?.manual) {
+    if (!manualInfo?.manuals?.length) {
       toast({ title: 'No manual uploaded', description: 'Upload your operations manual first, then run the AI review.', variant: 'destructive' });
       return;
     }
@@ -650,7 +691,7 @@ export default function ComplianceChecklist() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Part 142 Checklist Report</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Part Checklist Report</h1>
           <p className="text-gray-600 mt-2">FAA Training Center Inspection Checklist & Job Aid</p>
         </div>
         <div className="flex gap-2 items-center shrink-0 flex-wrap">
@@ -686,24 +727,37 @@ export default function ComplianceChecklist() {
         <CardContent>
           <div className="flex flex-col md:flex-row md:items-center gap-4">
             <div className="flex-1 text-sm">
-              {manualInfo?.manual ? (
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <FileText className="h-4 w-4 text-gray-500" />
-                    <span className="font-medium" data-testid="text-manual-filename">{manualInfo.manual.filename}</span>
-                  </div>
-                  <div className="text-gray-500">
-                    Uploaded {new Date(manualInfo.manual.uploaded_at).toLocaleString()} · {Number(manualInfo.manual.text_chars).toLocaleString()} characters extracted
-                  </div>
+              {manualInfo?.manuals?.length ? (
+                <div className="space-y-2">
+                  <ul className="space-y-1" data-testid="list-manual-documents">
+                    {manualInfo.manuals.map((doc: ManualDoc) => (
+                      <li key={doc.id} className="flex items-center gap-2">
+                        <FileText className="h-4 w-4 text-gray-500 shrink-0" />
+                        <span className="font-medium truncate" data-testid={`text-manual-filename-${doc.id}`}>{doc.filename}</span>
+                        <span className="text-gray-500 shrink-0 text-xs">
+                          {new Date(doc.uploaded_at).toLocaleDateString()} · {Number(doc.text_chars).toLocaleString()} chars
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 px-1 text-gray-400 hover:text-red-600 shrink-0"
+                          onClick={() => handleManualDelete(doc)}
+                          data-testid={`button-delete-manual-${doc.id}`}
+                        >
+                          <XCircle className="h-4 w-4" />
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
                   {manualInfo.lastReviewAt && (
                     <div className="text-gray-500">Last AI review: {new Date(manualInfo.lastReviewAt).toLocaleString()}</div>
                   )}
                   {manualInfo.reviewStale && (
-                    <Badge className="bg-amber-100 text-amber-800">Findings are from a previous manual — re-run the AI review</Badge>
+                    <Badge className="bg-amber-100 text-amber-800">Findings pre-date a change to your manual documents — re-run the AI review</Badge>
                   )}
                 </div>
               ) : (
-                <span className="text-gray-500">No operations manual uploaded yet. Accepted formats: PDF, Word (.docx), or plain text.</span>
+                <span className="text-gray-500">No operations manual uploaded yet. Accepted formats: PDF, Word (.docx), or plain text. You can upload several documents.</span>
               )}
             </div>
             <div className="flex gap-2 shrink-0">
@@ -711,14 +765,15 @@ export default function ComplianceChecklist() {
                 ref={fileInputRef}
                 type="file"
                 accept=".pdf,.docx,.txt"
+                multiple
                 className="hidden"
-                onChange={(e) => e.target.files?.[0] && handleManualUpload(e.target.files[0])}
+                onChange={(e) => e.target.files && handleManualUpload(Array.from(e.target.files))}
               />
               <Button variant="outline" disabled={uploading} onClick={() => fileInputRef.current?.click()} data-testid="button-upload-manual">
                 {uploading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileUp className="h-4 w-4 mr-2" />}
-                {uploading ? 'Processing…' : manualInfo?.manual ? 'Replace Manual' : 'Upload Manual'}
+                {uploading ? 'Processing…' : manualInfo?.manuals?.length ? 'Add Documents' : 'Upload Manual'}
               </Button>
-              <Button disabled={!manualInfo?.manual || !!reviewProgress} onClick={runAiReview} data-testid="button-ai-review">
+              <Button disabled={!manualInfo?.manuals?.length || !!reviewProgress} onClick={runAiReview} data-testid="button-ai-review">
                 {reviewProgress ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Sparkles className="h-4 w-4 mr-2" />}
                 {reviewProgress ? `Reviewing ${reviewProgress.done}/${reviewProgress.total} areas…` : 'Run AI Review'}
               </Button>
@@ -999,7 +1054,7 @@ export default function ComplianceChecklist() {
           <DialogHeader>
             <DialogTitle>Import Checklist</DialogTitle>
             <DialogDescription>
-              Upload an Excel (.xlsx or .xls) or CSV file with columns for item number, description, reference, and area — or paste
+              Upload one or more Excel (.xlsx or .xls) or CSV files with columns for item number, description, reference, and area — or paste
               checklist items below, one per line:{' '}
               <code className="text-xs bg-gray-100 px-1 rounded">number | description | reference | area name</code>.
               Importing <strong>replaces</strong> your organization's current checklist (including statuses and AI findings).
@@ -1010,9 +1065,9 @@ export default function ComplianceChecklist() {
               <input
                 type="file"
                 accept=".txt,.csv,.xlsx,.xls"
+                multiple
                 onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  if (f) handleImportFile(f);
+                  if (e.target.files) handleImportFiles(Array.from(e.target.files));
                   e.target.value = '';
                 }}
                 className="text-sm"
@@ -1059,7 +1114,7 @@ export default function ComplianceChecklist() {
             <DialogTitle>Confirm Checklist Import</DialogTitle>
             <DialogDescription>
               Review what was found in{' '}
-              <strong>{importPreview?.source.kind === 'file' ? importPreview.source.file.name : 'the pasted text'}</strong>{' '}
+              <strong>{importPreview?.source.kind === 'files' ? importPreview.source.files.map((f) => f.name).join(', ') : 'the pasted text'}</strong>{' '}
               before replacing your current checklist.
               Nothing has been changed yet.
             </DialogDescription>
@@ -1067,7 +1122,7 @@ export default function ComplianceChecklist() {
           {importPreview && (
             <div className="space-y-3 text-sm">
               <div data-testid="text-import-preview-summary">
-                This file contains <strong>{importPreview.itemCount}</strong> item{importPreview.itemCount === 1 ? '' : 's'} across{' '}
+                {importPreview.source.kind === 'files' && importPreview.source.files.length > 1 ? 'These files contain' : 'This file contains'} <strong>{importPreview.itemCount}</strong> item{importPreview.itemCount === 1 ? '' : 's'} across{' '}
                 <strong>{importPreview.areas.length}</strong> area{importPreview.areas.length === 1 ? '' : 's'}:
               </div>
               <ul className="max-h-48 overflow-y-auto space-y-1 border rounded-md p-3">
@@ -1097,7 +1152,7 @@ export default function ComplianceChecklist() {
             <Button
               onClick={() => {
                 if (!importPreview) return;
-                if (importPreview.source.kind === 'file') importFileMutation.mutate(importPreview.source.file);
+                if (importPreview.source.kind === 'files') importFileMutation.mutate(importPreview.source.files);
                 else importMutation.mutate(importPreview.source.text);
               }}
               disabled={importFileMutation.isPending || importMutation.isPending}

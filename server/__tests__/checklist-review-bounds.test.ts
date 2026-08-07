@@ -1,6 +1,29 @@
 import { describe, it, expect } from "vitest";
 import { chunkText, selectChunks, batchItems } from "../services/checklist-review-utils";
 
+describe("selectChunks per-document representation", () => {
+  it("guarantees every document at least one chunk even when one document dominates relevance", () => {
+    // Dominant document: 20 highly relevant chunks (more than maxChunks=12).
+    const dominant = Array.from({ length: 20 }, (_, i) =>
+      `[dominant.pdf] Section ${i}: instructor curriculum regulation requirements records qualification evaluation ${i}`
+    );
+    // Second document: chunks with little keyword overlap.
+    const other = ["[vol2.pdf] Miscellaneous appendix housekeeping notes."];
+    const chunks = [...dominant, ...other];
+    const groups = [...dominant.map(() => "dominant.pdf"), ...other.map(() => "vol2.pdf")];
+    const selected = selectChunks(chunks, ["instructor curriculum regulation requirements records"], 12, groups);
+    expect(selected.length).toBeLessThanOrEqual(12);
+    expect(selected.some((c) => c.includes("[dominant.pdf]"))).toBe(true);
+    expect(selected.some((c) => c.includes("[vol2.pdf]"))).toBe(true);
+  });
+
+  it("behaves as before when no groups are provided", () => {
+    const chunks = ["alpha instructor curriculum", "unrelated beta"];
+    const selected = selectChunks(chunks, ["instructor curriculum"], 1);
+    expect(selected).toEqual(["alpha instructor curriculum"]);
+  });
+});
+
 describe("checklist AI review bounds", () => {
   it("hard-splits a long single-paragraph manual (no blank lines)", () => {
     // Simulates 25MB-style OCR output with no paragraph breaks (scaled down)

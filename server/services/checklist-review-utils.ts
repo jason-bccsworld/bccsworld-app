@@ -44,17 +44,35 @@ export function batchItems<T>(items: T[], batchSize = 25): T[][] {
 /** Total prompt-content ceiling for selected manual excerpts (chars). */
 const MAX_EXCERPT_CHARS = 18000;
 
-/** Pick the manual chunks most relevant to a set of checklist items. */
-export function selectChunks(chunks: string[], itemTexts: string[], maxChunks = 12): string[] {
+/** Pick the manual chunks most relevant to a set of checklist items.
+ *
+ * When `groups` is provided (one label per chunk, e.g. the source document's
+ * filename), every distinct group is guaranteed at least one selected chunk —
+ * its best-scoring one — so no document is silently excluded from the prompt.
+ * Remaining slots are filled by global relevance score. */
+export function selectChunks(chunks: string[], itemTexts: string[], maxChunks = 12, groups?: string[]): string[] {
   const itemKw = keywords(itemTexts.join(" "));
   const scored = chunks.map((chunk, i) => {
     const ck = keywords(chunk);
     let score = 0;
     for (const w of ck) if (itemKw.has(w)) score++;
-    return { i, chunk, score };
+    return { i, chunk, score, group: groups?.[i] };
   });
   scored.sort((a, b) => b.score - a.score);
-  const picked = scored.slice(0, maxChunks).sort((a, b) => a.i - b.i).map((s) => s.chunk);
+  const pickedIdx = new Set<number>();
+  if (groups && groups.length === chunks.length) {
+    // Reserve one slot per document (best-scoring chunk of each).
+    for (const g of new Set(groups)) {
+      if (pickedIdx.size >= maxChunks) break;
+      const best = scored.find((s) => s.group === g);
+      if (best) pickedIdx.add(best.i);
+    }
+  }
+  for (const s of scored) {
+    if (pickedIdx.size >= maxChunks) break;
+    pickedIdx.add(s.i);
+  }
+  const picked = scored.filter((s) => pickedIdx.has(s.i)).sort((a, b) => a.i - b.i).map((s) => s.chunk);
   // Enforce a hard ceiling on total prompt content regardless of chunk sizes.
   const bounded: string[] = [];
   let total = 0;

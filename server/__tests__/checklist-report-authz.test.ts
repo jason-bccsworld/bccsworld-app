@@ -16,6 +16,10 @@ const h = vi.hoisted(() => ({
     staff1: { id: "staff1", email: "root@bccsworld.com", role: "user" },
   } as Record<string, any>,
   executed: [] as string[],
+  manualRows: [
+    { id: "manual-1", extracted_text: "Some manual text.\n\nMore text.", filename: "m.txt", text_chars: 30, uploaded_at: new Date().toISOString() },
+  ] as any[],
+  aiPrompts: [] as string[],
 }));
 
 function sqlText(q: any): string {
@@ -33,8 +37,8 @@ vi.mock("../db", () => {
   const exec = async (q: any) => {
     const text = sqlText(q);
     h.executed.push(text);
-    if (text.includes("FROM bccs_ops_manuals")) {
-      return { rows: [{ id: "manual-1", extracted_text: "Some manual text.\n\nMore text.", filename: "m.txt", text_chars: 30, uploaded_at: new Date().toISOString() }] };
+    if (text.includes("FROM bccs_ops_manuals") && !text.includes("DELETE")) {
+      return { rows: h.manualRows };
     }
     if (text.includes("FROM bccs_checklist_report_items")) {
       return { rows: [{ id: "item-1", area_id: "area1", area_name: "A", area_description: "", item_number: "1-01", description: "d", reference: "", status: "pending", comments: "", findings: "", item_order: 1 }] };
@@ -47,6 +51,9 @@ vi.mock("../db", () => {
     }
     if (text.includes("DELETE FROM bccs_checklist_evidence") && text.includes("RETURNING")) {
       return { rows: [{ id: "ev-1" }] };
+    }
+    if (text.includes("DELETE FROM bccs_ops_manuals") && text.includes("RETURNING")) {
+      return { rows: [{ id: "manual-1" }] };
     }
     return { rows: [] };
   };
@@ -69,7 +76,14 @@ vi.mock("../middleware/tenant", () => ({
 
 vi.mock("openai", () => ({
   default: class {
-    chat = { completions: { create: vi.fn(async () => { throw Object.assign(new Error("quota"), { status: 429 }); }) } };
+    chat = {
+      completions: {
+        create: vi.fn(async (args: any) => {
+          for (const m of args?.messages || []) h.aiPrompts.push(String(m.content || ""));
+          throw Object.assign(new Error("quota"), { status: 429 });
+        }),
+      },
+    };
   },
 }));
 
@@ -124,6 +138,7 @@ describe("checklist-report authorization", () => {
       ["POST", "/reset", undefined],
       ["POST", "/review/area1", undefined],
       ["POST", "/manual", undefined],
+      ["DELETE", "/manual/manual-1", undefined],
       ["POST", "/items/item-1/evidence", undefined],
       ["POST", "/import-file", undefined],
       ["DELETE", "/evidence/ev-1", undefined],
@@ -193,6 +208,119 @@ describe("checklist-report authorization", () => {
     expect(confirmed.body.imported).toBe(2);
     expect(h.executed.some((t) => t.includes("DELETE FROM bccs_checklist_report_items"))).toBe(true);
     expect(h.executed.some((t) => t.includes("INSERT INTO bccs_checklist_report_items"))).toBe(true);
+  });
+
+  it("imports multiple spreadsheet files in one request, merged in file order", async () => {
+    const csvA = "Number,Description,Reference,Area\n1-01,Check instructors,142.13,Management\n";
+    const csvB = "Number,Description,Reference,Area\n2-01,Check facility,142.15,Facilities\n";
+    const fd = new FormData();
+    fd.append("files", new Blob([csvA], { type: "text/csv" }), "a.csv");
+    fd.append("files", new Blob([csvB], { type: "text/csv" }), "b.csv");
+    h.executed.length = 0;
+    const res = await fetch(`${base}/api/checklist-report/import-file`, {
+      method: "POST",
+      headers: { "x-test-user": "admin1" },
+      body: fd,
+    });
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body.preview).toBe(true);
+    expect(body.itemCount).toBe(2);
+    expect(body.areas).toEqual([
+      { name: "Management", itemCount: 1 },
+      { name: "Facilities", itemCount: 1 },
+    ]);
+    expect(body.files).toEqual([
+      { name: "a.csv", itemCount: 1 },
+      { name: "b.csv", itemCount: 1 },
+    ]);
+    expect(h.executed.filter((t) => /DELETE FROM|INSERT INTO/i.test(t))).toEqual([]);
+  });
+
+  it("names the failing file when one of several import files is bad", async () => {
+    const good = "Number,Description,Reference,Area\n1-01,Check instructors,142.13,Management\n";
+    const fd = new FormData();
+    fd.append("files", new Blob([good], { type: "text/csv" }), "good.csv");
+    fd.append("files", new Blob(["junk"], { type: "text/csv" }), "bad.csv");
+    const res = await fetch(`${base}/api/checklist-report/import-file`, {
+      method: "POST",
+      headers: { "x-test-user": "admin1" },
+      body: fd,
+    });
+    const body = await res.json();
+    expect(res.status).toBe(422);
+    expect(body.message).toContain("bad.csv");
+  });
+
+  it("rejects duplicate item numbers within an area across combined files", async () => {
+    const csv = "Number,Description,Reference,Area\n1-01,Check instructors,142.13,Management\n";
+    const fd = new FormData();
+    fd.append("files", new Blob([csv], { type: "text/csv" }), "a.csv");
+    fd.append("files", new Blob([csv], { type: "text/csv" }), "b.csv");
+    const res = await fetch(`${base}/api/checklist-report/import-file`, {
+      method: "POST",
+      headers: { "x-test-user": "admin1" },
+      body: fd,
+    });
+    const body = await res.json();
+    expect(res.status).toBe(400);
+    expect(body.message).toMatch(/duplicate item number/i);
+  });
+
+  it("AI review draws its manual content from every uploaded document", async () => {
+    const prev = h.manualRows;
+    h.manualRows = [
+      { id: "manual-2", extracted_text: "Volume two content about facilities.", filename: "vol2.txt", text_chars: 36, uploaded_at: new Date().toISOString() },
+      { id: "manual-1", extracted_text: "Volume one content about instructors.", filename: "vol1.txt", text_chars: 37, uploaded_at: new Date().toISOString() },
+    ];
+    h.aiPrompts.length = 0;
+    try {
+      const res = await api("admin1", "POST", "/review/area1");
+      expect(res.status).toBe(502); // mocked quota failure — after the prompt was built
+      const combined = h.aiPrompts.join("\n");
+      expect(combined).toContain("[vol1.txt]");
+      expect(combined).toContain("[vol2.txt]");
+      expect(combined).toContain("Volume one content");
+      expect(combined).toContain("Volume two content");
+    } finally {
+      h.manualRows = prev;
+    }
+  });
+
+  it("uploads multiple manual documents and supports per-document delete", async () => {
+    const text = "Operations manual content. ".repeat(20);
+    const fd = new FormData();
+    fd.append("files", new Blob([text], { type: "text/plain" }), "vol1.txt");
+    fd.append("files", new Blob([text], { type: "text/plain" }), "vol2.txt");
+    h.executed.length = 0;
+    const res = await fetch(`${base}/api/checklist-report/manual`, {
+      method: "POST",
+      headers: { "x-test-user": "admin1" },
+      body: fd,
+    });
+    expect(res.status).toBe(201);
+    const inserts = h.executed.filter((t) => t.includes("INSERT INTO bccs_ops_manuals"));
+    expect(inserts.length).toBe(2);
+    // No blanket delete of prior manuals anymore
+    expect(h.executed.some((t) => t.includes("DELETE FROM bccs_ops_manuals") && !t.includes("id ="))).toBe(false);
+
+    // Per-document delete is org-scoped; mocked DB returns a row so it succeeds
+    const del = await api("admin1", "DELETE", "/manual/manual-1");
+    expect(del.status).toBe(200);
+  });
+
+  it("returns a clear JSON error when too many files are uploaded", async () => {
+    const csv = "Number,Description,Reference,Area\n1-01,x,142.13,Management\n";
+    const fd = new FormData();
+    for (let i = 0; i < 11; i++) fd.append("files", new Blob([csv], { type: "text/csv" }), `f${i}.csv`);
+    const res = await fetch(`${base}/api/checklist-report/import-file`, {
+      method: "POST",
+      headers: { "x-test-user": "admin1" },
+      body: fd,
+    });
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.message).toMatch(/too many files|unexpected/i);
   });
 
   it("pasted-text import previews without writing, and only replaces on confirm", async () => {

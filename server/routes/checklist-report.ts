@@ -99,6 +99,11 @@ async function ensureTables() {
     CREATE UNIQUE INDEX IF NOT EXISTS bccs_checklist_ai_findings_org_item
     ON bccs_checklist_ai_findings (organization_id, item_id)
   `);
+  // Additive: findings are now tied to the whole manual *set* (multi-document
+  // support). Legacy rows have NULL here and fall back to manual_id staleness.
+  await db.execute(sql`
+    ALTER TABLE bccs_checklist_ai_findings ADD COLUMN IF NOT EXISTS manual_set_hash VARCHAR(64)
+  `);
 }
 
 // All routes must wait for schema initialization — a request that races the
@@ -126,6 +131,36 @@ function requireAdmin(req: any, res: any, next: any) {
     return res.status(403).json({ message: "Admin access required" });
   }
   next();
+}
+
+// Max operations-manual documents per org (each = one upload, text extracted).
+const MAX_MANUALS = 5;
+// Max spreadsheet files per import request.
+const MAX_IMPORT_FILES = 10;
+
+/** Stable fingerprint of the org's current manual set (order-independent). */
+function manualSetHash(manualIds: string[]): string {
+  return crypto.createHash("md5").update([...manualIds].sort().join(",")).digest("hex");
+}
+
+/** A finding is stale when the manual set changed since it was produced.
+ * Legacy findings (no set hash) fall back to the old single-manual check. */
+function isFindingStale(finding: { manual_set_hash?: string | null; manual_id: string }, manualIds: string[], currentHash: string): boolean {
+  if (manualIds.length === 0) return true;
+  if (finding.manual_set_hash) return finding.manual_set_hash !== currentHash;
+  // Legacy finding reviewed against a single manual: stale unless the current
+  // set is exactly that one manual.
+  return manualIds.length !== 1 || manualIds[0] !== finding.manual_id;
+}
+
+/** All manual documents for an org, newest first. */
+async function getOrgManuals(orgId: string, withText = false): Promise<any[]> {
+  return db.execute(withText
+    ? sql`SELECT id, filename, extracted_text, text_chars, uploaded_by, uploaded_at FROM bccs_ops_manuals
+          WHERE organization_id = ${orgId} ORDER BY uploaded_at DESC, id`
+    : sql`SELECT id, filename, text_chars, uploaded_by, uploaded_at FROM bccs_ops_manuals
+          WHERE organization_id = ${orgId} ORDER BY uploaded_at DESC, id`
+  ).then((r: any) => r.rows);
 }
 
 async function seedChecklist(orgId: string) {
@@ -176,18 +211,16 @@ router.get("/checklist", isAuthenticated, async (req: any, res) => {
         ORDER BY area_id, item_order
       `).then((r: any) => r.rows);
     }
-    const [currentManual] = await db.execute(sql`
-      SELECT id FROM bccs_ops_manuals WHERE organization_id = ${orgId}
-      ORDER BY uploaded_at DESC LIMIT 1
-    `).then((r: any) => r.rows);
+    const manualIds = (await getOrgManuals(orgId)).map((m: any) => m.id);
+    const currentHash = manualSetHash(manualIds);
     const findings = await db.execute(sql`
-      SELECT DISTINCT ON (item_id) item_id, manual_id, verdict, excerpt, remediation, reviewed_at
+      SELECT DISTINCT ON (item_id) item_id, manual_id, manual_set_hash, verdict, excerpt, remediation, reviewed_at
       FROM bccs_checklist_ai_findings WHERE organization_id = ${orgId}
       ORDER BY item_id, reviewed_at DESC
     `).then((r: any) => r.rows);
     const findingByItem: Record<string, any> = {};
     for (const f of findings) {
-      findingByItem[f.item_id] = { ...f, stale: !currentManual || f.manual_id !== currentManual.id };
+      findingByItem[f.item_id] = { ...f, stale: isFindingStale(f, manualIds, currentHash) };
     }
     const evidence = await db.execute(sql`
       SELECT id, item_id, filename, content_type, size_bytes, uploaded_by, uploaded_at
@@ -385,6 +418,16 @@ function importBoundsError(items: ImportedItem[]): string | null {
   if (distinctAreas.size > MAX_IMPORT_AREAS) {
     return `Too many areas (${distinctAreas.size}). The maximum is ${MAX_IMPORT_AREAS}.`;
   }
+  // Item numbers must be unique within an area (DB unique index) — reject up
+  // front with a clear message instead of failing the insert transaction.
+  const seen = new Set<string>();
+  for (const it of items) {
+    const key = `${it.areaName}\u0000${it.number}`;
+    if (seen.has(key)) {
+      return `Duplicate item number "${it.number}" in area "${it.areaName}". Item numbers must be unique within an area (this can happen when combining files — give items distinct numbers or areas).`;
+    }
+    seen.add(key);
+  }
   return null;
 }
 
@@ -465,28 +508,63 @@ router.post("/import", isAuthenticated, requireAdmin, async (req: any, res) => {
   }
 });
 
-// POST /import-file — replace the org checklist from an Excel/CSV upload.
-// Two-phase: without a `confirm=true` form field the file is parsed only
+// POST /import-file — replace the org checklist from one or more Excel/CSV
+// uploads. Files can be sent as a single `file` field or a multi-file `files`
+// field; parsed items are combined in file order.
+// Two-phase: without a `confirm=true` form field the files are parsed only
 // (no DB writes) and a preview summary is returned; the client then
-// re-uploads the same file with confirm=true to perform the destructive
+// re-uploads the same files with confirm=true to perform the destructive
 // replace. Bounds are enforced identically in both phases.
-router.post("/import-file", isAuthenticated, requireAdmin, upload.single("file"), async (req: any, res) => {
+router.post(
+  "/import-file",
+  isAuthenticated,
+  requireAdmin,
+  upload.fields([{ name: "file", maxCount: 1 }, { name: "files", maxCount: MAX_IMPORT_FILES }]),
+  async (req: any, res) => {
   try {
     const orgId = requireOrg(req, res);
     if (!orgId) return;
-    if (!req.file) return res.status(400).json({ message: "No file uploaded" });
-    const ext = path.extname(req.file.originalname).toLowerCase();
-    // Legacy binary .xls is parsed via SheetJS (converted to .xlsx in-memory)
-    // inside parseChecklistWorkbook.
-    if (![".xlsx", ".xls", ".csv"].includes(ext)) {
-      return res.status(400).json({ message: "Unsupported file type. Please upload an Excel (.xlsx or .xls) or CSV file." });
+    const uploads: Express.Multer.File[] = [
+      ...((req.files?.file as any[]) || []),
+      ...((req.files?.files as any[]) || []),
+    ];
+    if (uploads.length === 0) return res.status(400).json({ message: "No file uploaded" });
+    if (uploads.length > MAX_IMPORT_FILES) {
+      return res.status(400).json({ message: `Too many files (${uploads.length}). The maximum is ${MAX_IMPORT_FILES} per import.` });
     }
-    let items: ImportedItem[];
-    let skippedSheets: string[];
-    try {
-      ({ items, skippedSheets } = await parseChecklistWorkbook(req.file.buffer, req.file.originalname));
-    } catch (parseErr: any) {
-      return res.status(422).json({ message: parseErr.message });
+    for (const f of uploads) {
+      const ext = path.extname(f.originalname).toLowerCase();
+      // Legacy binary .xls is parsed via SheetJS (converted to .xlsx in-memory)
+      // inside parseChecklistWorkbook.
+      if (![".xlsx", ".xls", ".csv"].includes(ext)) {
+        return res.status(400).json({ message: `${f.originalname}: unsupported file type. Please upload Excel (.xlsx or .xls) or CSV files.` });
+      }
+    }
+
+    // Parse every file; collect per-file errors so the admin sees exactly
+    // which file failed. Nothing is imported unless every file parses.
+    const multiFile = uploads.length > 1;
+    const items: ImportedItem[] = [];
+    const skippedSheets: string[] = [];
+    const fileSummaries: { name: string; itemCount: number }[] = [];
+    const parseErrors: string[] = [];
+    for (const f of uploads) {
+      try {
+        const parsed = await parseChecklistWorkbook(f.buffer, f.originalname, {
+          // With several files, a sheet without an Area column becomes an
+          // area named after its file so files don't silently merge.
+          defaultAreaName: multiFile ? path.basename(f.originalname, path.extname(f.originalname)) : undefined,
+          itemNumberOffset: items.length,
+        });
+        items.push(...parsed.items);
+        fileSummaries.push({ name: f.originalname, itemCount: parsed.items.length });
+        skippedSheets.push(...parsed.skippedSheets.map((s) => (multiFile ? `${f.originalname}: ${s}` : s)));
+      } catch (parseErr: any) {
+        parseErrors.push(multiFile ? `${f.originalname}: ${parseErr.message}` : parseErr.message);
+      }
+    }
+    if (parseErrors.length > 0) {
+      return res.status(422).json({ message: parseErrors.join(" ") });
     }
     if (req.body?.confirm !== "true") {
       // Parse-only preview: same bounds as the real import so a file that
@@ -504,11 +582,12 @@ router.post("/import-file", isAuthenticated, requireAdmin, upload.single("file")
         itemCount: items.length,
         areas: areaOrder.map((name) => ({ name, itemCount: areaCounts.get(name) })),
         skippedSheets,
+        files: fileSummaries,
       });
     }
     const imported = await replaceChecklist(orgId, items, res);
     if (imported === null) return;
-    res.json({ success: true, imported, skippedSheets });
+    res.json({ success: true, imported, skippedSheets, files: fileSummaries });
   } catch (err) {
     console.error("Checklist Excel import error:", err);
     res.status(500).json({ message: "Failed to import checklist file" });
@@ -525,12 +604,11 @@ router.get("/export.xlsx", isAuthenticated, async (req: any, res) => {
       ORDER BY area_id, item_order
     `).then((r: any) => r.rows);
     if (rows.length === 0) return res.status(404).json({ message: "No checklist items to export" });
-    const [currentManual] = await db.execute(sql`
-      SELECT id, filename, uploaded_at FROM bccs_ops_manuals WHERE organization_id = ${orgId}
-      ORDER BY uploaded_at DESC LIMIT 1
-    `).then((r: any) => r.rows);
+    const manuals = await getOrgManuals(orgId);
+    const manualIds = manuals.map((m: any) => m.id);
+    const currentHash = manualSetHash(manualIds);
     const findings = await db.execute(sql`
-      SELECT DISTINCT ON (item_id) item_id, manual_id, verdict, excerpt, remediation
+      SELECT DISTINCT ON (item_id) item_id, manual_id, manual_set_hash, verdict, excerpt, remediation
       FROM bccs_checklist_ai_findings WHERE organization_id = ${orgId}
       ORDER BY item_id, reviewed_at DESC
     `).then((r: any) => r.rows);
@@ -565,7 +643,7 @@ router.get("/export.xlsx", isAuthenticated, async (req: any, res) => {
         aiVerdict: f?.verdict || null,
         aiExcerpt: f?.excerpt || null,
         aiRemediation: f?.remediation || null,
-        aiStale: f ? !currentManual || f.manual_id !== currentManual.id : false,
+        aiStale: f ? isFindingStale(f, manualIds, currentHash) : false,
         evidenceCount: evidenceByItem[row.id] || 0,
       });
     }
@@ -575,11 +653,11 @@ router.get("/export.xlsx", isAuthenticated, async (req: any, res) => {
       organization: org
         ? { name: org.organization_name, certificateNumber: org.certificate_number, regulatoryAuthority: org.regulatory_authority }
         : null,
-      manual: currentManual ? { filename: currentManual.filename, uploadedAt: currentManual.uploaded_at } : null,
+      manuals: manuals.map((m: any) => ({ filename: m.filename, uploadedAt: m.uploaded_at })),
     });
     const date = new Date().toISOString().slice(0, 10);
     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-    res.setHeader("Content-Disposition", `attachment; filename="part142-checklist-report-${date}.xlsx"`);
+    res.setHeader("Content-Disposition", `attachment; filename="part-checklist-report-${date}.xlsx"`);
     res.send(buffer);
   } catch (err) {
     console.error("Checklist Excel export error:", err);
@@ -631,59 +709,114 @@ async function extractText(filename: string, buffer: Buffer): Promise<string> {
   }
 }
 
-// POST /manual — upload (replaces any previous manual for the org)
-router.post("/manual", isAuthenticated, requireAdmin, upload.single("file"), async (req: any, res) => {
+// POST /manual — upload one or more documents. Documents are ADDED to the
+// org's manual set (up to MAX_MANUALS); remove individual documents with
+// DELETE /manual/:id. Accepts a single `file` field (legacy) or a
+// multi-file `files` field. Nothing is stored unless every file extracts.
+router.post(
+  "/manual",
+  isAuthenticated,
+  requireAdmin,
+  upload.fields([{ name: "file", maxCount: 1 }, { name: "files", maxCount: MAX_MANUALS }]),
+  async (req: any, res) => {
   try {
     const orgId = requireOrg(req, res);
     if (!orgId) return;
-    if (!req.file) return res.status(400).json({ message: "No file uploaded" });
-    const ext = path.extname(req.file.originalname).toLowerCase();
-    if (![".pdf", ".docx", ".txt"].includes(ext)) {
-      return res.status(400).json({ message: "Unsupported file type. Please upload a PDF, Word (.docx), or plain-text file." });
+    const uploads: Express.Multer.File[] = [
+      ...((req.files?.file as any[]) || []),
+      ...((req.files?.files as any[]) || []),
+    ];
+    if (uploads.length === 0) return res.status(400).json({ message: "No file uploaded" });
+    const [{ count: existing }] = await db.execute(sql`
+      SELECT COUNT(*)::int AS count FROM bccs_ops_manuals WHERE organization_id = ${orgId}
+    `).then((r: any) => r.rows);
+    if (Number(existing) + uploads.length > MAX_MANUALS) {
+      return res.status(400).json({
+        message: `An organization can keep at most ${MAX_MANUALS} operations-manual documents (${existing} already on file). Remove a document before adding more.`,
+      });
+    }
+    const multiFile = uploads.length > 1;
+    for (const f of uploads) {
+      const ext = path.extname(f.originalname).toLowerCase();
+      if (![".pdf", ".docx", ".txt"].includes(ext)) {
+        return res.status(400).json({ message: `${f.originalname}: unsupported file type. Please upload PDF, Word (.docx), or plain-text files.` });
+      }
     }
 
-    let text: string;
-    try {
-      text = await extractText(req.file.originalname, req.file.buffer);
-    } catch (extractErr: any) {
-      return res.status(422).json({ message: `Could not read the document: ${extractErr.message}` });
+    // Extract every file first — per-file errors, nothing stored on failure.
+    const extracted: { file: Express.Multer.File; text: string }[] = [];
+    const errors: string[] = [];
+    for (const f of uploads) {
+      try {
+        const text = await extractText(f.originalname, f.buffer);
+        if (!text || text.trim().length < 200) {
+          throw new Error("Very little text could be extracted from this document. Please upload a text-based PDF or Word document.");
+        }
+        extracted.push({ file: f, text });
+      } catch (extractErr: any) {
+        errors.push(`${multiFile ? `${f.originalname}: ` : ""}Could not read the document: ${extractErr.message}`);
+      }
     }
-    if (!text || text.trim().length < 200) {
-      return res.status(422).json({ message: "Very little text could be extracted from this document. Please upload a text-based PDF or Word document." });
-    }
+    if (errors.length > 0) return res.status(422).json({ message: errors.join(" ") });
 
-    const [manual] = await db.transaction(async (tx) => {
-      await tx.execute(sql`DELETE FROM bccs_ops_manuals WHERE organization_id = ${orgId}`);
-      return await tx.execute(sql`
-        INSERT INTO bccs_ops_manuals (organization_id, filename, extracted_text, text_chars, uploaded_by)
-        VALUES (${orgId}, ${req.file.originalname}, ${text}, ${text.length}, ${req.user?.email || req.user?.id || "system"})
-        RETURNING id, filename, text_chars, uploaded_by, uploaded_at
-      `).then((r: any) => r.rows);
+    const inserted = await db.transaction(async (tx) => {
+      const rows: any[] = [];
+      for (const { file, text } of extracted) {
+        const [row] = await tx.execute(sql`
+          INSERT INTO bccs_ops_manuals (organization_id, filename, extracted_text, text_chars, uploaded_by)
+          VALUES (${orgId}, ${file.originalname}, ${text}, ${text.length}, ${req.user?.email || req.user?.id || "system"})
+          RETURNING id, filename, text_chars, uploaded_by, uploaded_at
+        `).then((r: any) => r.rows);
+        rows.push(row);
+      }
+      return rows;
     });
-    res.status(201).json(manual);
+    res.status(201).json({ manuals: inserted });
   } catch (err) {
     console.error("Manual upload error:", err);
     res.status(500).json({ message: "Failed to upload the operations manual" });
   }
 });
 
-// GET /manual — current manual metadata + review status
+// DELETE /manual/:id — remove one manual document (org-scoped)
+router.delete("/manual/:id", isAuthenticated, requireAdmin, async (req: any, res) => {
+  try {
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
+    const result = await db.execute(sql`
+      DELETE FROM bccs_ops_manuals
+      WHERE id = ${req.params.id} AND organization_id = ${orgId}
+      RETURNING id
+    `);
+    if (((result as any).rows || []).length === 0) return res.status(404).json({ message: "Manual document not found" });
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Manual delete error:", err);
+    res.status(500).json({ message: "Failed to remove the manual document" });
+  }
+});
+
+// GET /manual — all manual documents + review status
 router.get("/manual", isAuthenticated, async (req: any, res) => {
   try {
     const orgId = requireOrg(req, res);
     if (!orgId) return;
-    const [manual] = await db.execute(sql`
-      SELECT id, filename, text_chars, uploaded_by, uploaded_at FROM bccs_ops_manuals
-      WHERE organization_id = ${orgId} ORDER BY uploaded_at DESC LIMIT 1
-    `).then((r: any) => r.rows);
-    if (!manual) return res.json({ manual: null, lastReviewAt: null, reviewStale: false });
-    const [lastReview] = await db.execute(sql`
-      SELECT MAX(reviewed_at) AS last,
-             COUNT(*) FILTER (WHERE manual_id <> ${manual.id}) AS stale_count
+    const manuals = await getOrgManuals(orgId);
+    // `manual` kept as the newest document for backward compatibility.
+    if (manuals.length === 0) return res.json({ manuals: [], manual: null, lastReviewAt: null, reviewStale: false });
+    const manualIds = manuals.map((m: any) => m.id);
+    const currentHash = manualSetHash(manualIds);
+    const findings = await db.execute(sql`
+      SELECT manual_id, manual_set_hash, reviewed_at
       FROM bccs_checklist_ai_findings WHERE organization_id = ${orgId}
     `).then((r: any) => r.rows);
-    const reviewStale = Number(lastReview?.stale_count || 0) > 0;
-    res.json({ manual, lastReviewAt: lastReview?.last || null, reviewStale });
+    let lastReviewAt: any = null;
+    let reviewStale = false;
+    for (const f of findings) {
+      if (!lastReviewAt || new Date(f.reviewed_at) > new Date(lastReviewAt)) lastReviewAt = f.reviewed_at;
+      if (isFindingStale(f, manualIds, currentHash)) reviewStale = true;
+    }
+    res.json({ manuals, manual: manuals[0], lastReviewAt, reviewStale });
   } catch (err) {
     console.error("Manual status error:", err);
     res.status(500).json({ message: "Failed to load manual status" });
@@ -697,11 +830,9 @@ router.post("/review/:areaId", isAuthenticated, requireAdmin, async (req: any, r
   try {
     const orgId = requireOrg(req, res);
     if (!orgId) return;
-    const [manual] = await db.execute(sql`
-      SELECT id, extracted_text FROM bccs_ops_manuals WHERE organization_id = ${orgId}
-      ORDER BY uploaded_at DESC LIMIT 1
-    `).then((r: any) => r.rows);
-    if (!manual) return res.status(400).json({ message: "Upload an operations manual first" });
+    const manuals = await getOrgManuals(orgId, true);
+    if (manuals.length === 0) return res.status(400).json({ message: "Upload an operations manual first" });
+    const currentHash = manualSetHash(manuals.map((m: any) => m.id));
 
     const items = await db.execute(sql`
       SELECT id, item_number, description, reference FROM bccs_checklist_report_items
@@ -710,7 +841,14 @@ router.post("/review/:areaId", isAuthenticated, requireAdmin, async (req: any, r
     `).then((r: any) => r.rows);
     if (items.length === 0) return res.status(404).json({ message: "Checklist area not found" });
 
-    const chunks = chunkText(manual.extracted_text);
+    // Combined content of every manual document — each chunk stays within a
+    // single document, and selectChunks caps total prompt content regardless
+    // of how many documents are on file.
+    const chunkEntries = manuals.flatMap((m: any) =>
+      chunkText(m.extracted_text).map((c: string) => ({ group: m.filename as string, text: `[${m.filename}] ${c}` }))
+    );
+    const chunks = chunkEntries.map((e) => e.text);
+    const chunkGroups = chunkEntries.map((e) => e.group);
 
     // Review the area in bounded batches — one OpenAI call per batch of items,
     // each with a capped excerpt budget, so prompt and completion sizes stay
@@ -718,7 +856,7 @@ router.post("/review/:areaId", isAuthenticated, requireAdmin, async (req: any, r
     const validVerdicts = new Set(["covered", "partial", "not_addressed"]);
     const byItem = new Map<string, any>();
     for (const batch of batchItems(items)) {
-      const relevant = selectChunks(chunks, batch.map((i: any) => i.description));
+      const relevant = selectChunks(chunks, batch.map((i: any) => i.description), 12, chunkGroups);
 
       const prompt = `You are an FAA Part 142 compliance auditor. Review the following excerpts from a training center's operations manual and evaluate whether each checklist item is addressed by the manual.
 
@@ -775,10 +913,11 @@ Respond with JSON: { "findings": [ ... one object per checklist item ... ] }`;
       for (const item of items) {
         const f = byItem.get(item.id);
         await tx.execute(sql`
-          INSERT INTO bccs_checklist_ai_findings (organization_id, item_id, manual_id, verdict, excerpt, remediation)
-          VALUES (${orgId}, ${item.id}, ${manual.id}, ${f.verdict}, ${String(f.excerpt || "").slice(0, 1000)}, ${String(f.remediation || "").slice(0, 1000)})
+          INSERT INTO bccs_checklist_ai_findings (organization_id, item_id, manual_id, manual_set_hash, verdict, excerpt, remediation)
+          VALUES (${orgId}, ${item.id}, ${manuals[0].id}, ${currentHash}, ${f.verdict}, ${String(f.excerpt || "").slice(0, 1000)}, ${String(f.remediation || "").slice(0, 1000)})
           ON CONFLICT (organization_id, item_id) DO UPDATE SET
             manual_id = EXCLUDED.manual_id,
+            manual_set_hash = EXCLUDED.manual_set_hash,
             verdict = EXCLUDED.verdict,
             excerpt = EXCLUDED.excerpt,
             remediation = EXCLUDED.remediation,
@@ -791,6 +930,20 @@ Respond with JSON: { "findings": [ ... one object per checklist item ... ] }`;
     console.error("AI review error:", err);
     res.status(500).json({ message: "Failed to run AI review" });
   }
+});
+
+// Multer errors (too many files, file too large, unexpected field) become
+// clear JSON responses instead of falling through to a generic 500.
+router.use((err: any, _req: any, res: any, next: any) => {
+  if (err instanceof multer.MulterError) {
+    const messages: Record<string, string> = {
+      LIMIT_FILE_SIZE: "A file exceeds the maximum upload size.",
+      LIMIT_FILE_COUNT: "Too many files in one upload.",
+      LIMIT_UNEXPECTED_FILE: "Too many files, or an unexpected upload field was used.",
+    };
+    return res.status(400).json({ message: messages[err.code] || `Upload rejected: ${err.message}` });
+  }
+  next(err);
 });
 
 export default router;
