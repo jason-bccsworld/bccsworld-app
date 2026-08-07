@@ -326,7 +326,8 @@ export default function ComplianceChecklist() {
     }
   };
 
-  const importMutation = useMutation({
+  // Phase 1: parse-only preview of pasted text (no DB changes)
+  const previewTextMutation = useMutation({
     mutationFn: async (text: string) => {
       const res = await fetch('/api/checklist-report/import', {
         method: 'POST',
@@ -335,10 +336,35 @@ export default function ComplianceChecklist() {
         body: JSON.stringify({ text })
       });
       const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.message || 'Could not read the checklist text');
+      return { text, body };
+    },
+    onSuccess: ({ text, body }) => {
+      setImportPreview({
+        source: { kind: 'text', text },
+        itemCount: body.itemCount,
+        areas: body.areas || [],
+        skippedSheets: [],
+      });
+    },
+    onError: (err: any) => toast({ title: 'Import failed', description: err.message, variant: 'destructive' })
+  });
+
+  // Phase 2: confirmed replace of the checklist from pasted text
+  const importMutation = useMutation({
+    mutationFn: async (text: string) => {
+      const res = await fetch('/api/checklist-report/import', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text, confirm: true })
+      });
+      const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body.message || 'Import failed');
       return body;
     },
     onSuccess: (data) => {
+      setImportPreview(null);
       queryClient.invalidateQueries({ queryKey: ['/api/checklist-report/checklist'] });
       setImportOpen(false);
       setImportText('');
@@ -364,10 +390,106 @@ export default function ComplianceChecklist() {
     onError: (err: any) => toast({ title: 'Restore failed', description: err.message, variant: 'destructive' })
   });
 
+  const [importFileUploading, setImportFileUploading] = useState(false);
+  const [exportingExcel, setExportingExcel] = useState(false);
+  const [importPreview, setImportPreview] = useState<{
+    source: { kind: 'file'; file: File } | { kind: 'text'; text: string };
+    itemCount: number;
+    areas: { name: string; itemCount: number }[];
+    skippedSheets: string[];
+  } | null>(null);
+
   const handleImportFile = (file: File) => {
+    const ext = file.name.toLowerCase().split('.').pop() || '';
+    if (['xlsx', 'xls', 'csv'].includes(ext)) {
+      // Spreadsheets are parsed server-side; preview first (no DB changes)
+      previewFileMutation.mutate(file);
+      return;
+    }
     const reader = new FileReader();
     reader.onload = () => setImportText(String(reader.result || ''));
     reader.readAsText(file);
+  };
+
+  const previewFileMutation = useMutation({
+    mutationFn: async (file: File) => {
+      setImportFileUploading(true);
+      try {
+        const fd = new FormData();
+        fd.append('file', file);
+        const res = await fetch('/api/checklist-report/import-file', { method: 'POST', credentials: 'include', body: fd });
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(body.message || 'Could not read the file');
+        return { file, body };
+      } finally {
+        setImportFileUploading(false);
+      }
+    },
+    onSuccess: ({ file, body }) => {
+      setImportPreview({
+        source: { kind: 'file', file },
+        itemCount: body.itemCount,
+        areas: body.areas || [],
+        skippedSheets: body.skippedSheets || [],
+      });
+    },
+    onError: (err: any) => toast({ title: 'Import failed', description: err.message, variant: 'destructive' })
+  });
+
+  const importFileMutation = useMutation({
+    mutationFn: async (file: File) => {
+      setImportFileUploading(true);
+      try {
+        const fd = new FormData();
+        fd.append('file', file);
+        fd.append('confirm', 'true');
+        const res = await fetch('/api/checklist-report/import-file', { method: 'POST', credentials: 'include', body: fd });
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(body.message || 'Import failed');
+        return body;
+      } finally {
+        setImportFileUploading(false);
+      }
+    },
+    onSuccess: (data) => {
+      setImportPreview(null);
+      queryClient.invalidateQueries({ queryKey: ['/api/checklist-report/checklist'] });
+      setImportOpen(false);
+      setImportText('');
+      setSelectedArea('');
+      const skipped: string[] = data.skippedSheets || [];
+      toast({
+        title: 'Checklist imported',
+        description: `${data.imported} items imported from the spreadsheet. The previous checklist was replaced.` +
+          (skipped.length ? ` Note: ${skipped.length} tab${skipped.length > 1 ? 's' : ''} could not be imported (no recognizable checklist rows): ${skipped.join(', ')}.` : ''),
+        ...(skipped.length ? { duration: 12000 } : {}),
+      });
+    },
+    onError: (err: any) => toast({ title: 'Import failed', description: err.message, variant: 'destructive' })
+  });
+
+  const exportExcel = async () => {
+    setExportingExcel(true);
+    try {
+      const res = await fetch('/api/checklist-report/export.xlsx', { credentials: 'include' });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.message || 'Export failed');
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `part142-checklist-report-${new Date().toISOString().slice(0, 10)}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      toast({ title: 'Excel export failed', description: err.message, variant: 'destructive' });
+    } finally {
+      setExportingExcel(false);
+    }
   };
 
   const handleManualUpload = async (file: File) => {
@@ -538,6 +660,10 @@ export default function ComplianceChecklist() {
           <Button variant="outline" onClick={() => setImportOpen(true)} data-testid="button-import-checklist">
             <Upload className="h-4 w-4 mr-2" />
             Import Checklist
+          </Button>
+          <Button variant="outline" onClick={exportExcel} disabled={exportingExcel} data-testid="button-export-excel">
+            {exportingExcel ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
+            Export to Excel
           </Button>
           <Button onClick={exportReport} data-testid="button-export-report">
             <Download className="h-4 w-4 mr-2" />
@@ -873,18 +999,27 @@ export default function ComplianceChecklist() {
           <DialogHeader>
             <DialogTitle>Import Checklist</DialogTitle>
             <DialogDescription>
-              Paste checklist items or choose a text file. One item per line, in the format:{' '}
+              Upload an Excel (.xlsx or .xls) or CSV file with columns for item number, description, reference, and area — or paste
+              checklist items below, one per line:{' '}
               <code className="text-xs bg-gray-100 px-1 rounded">number | description | reference | area name</code>.
               Importing <strong>replaces</strong> your organization's current checklist (including statuses and AI findings).
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
-            <input
-              type="file"
-              accept=".txt,.csv"
-              onChange={(e) => e.target.files?.[0] && handleImportFile(e.target.files[0])}
-              className="text-sm"
-            />
+            <div className="flex items-center gap-2">
+              <input
+                type="file"
+                accept=".txt,.csv,.xlsx,.xls"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) handleImportFile(f);
+                  e.target.value = '';
+                }}
+                className="text-sm"
+                data-testid="input-import-file"
+              />
+              {importFileUploading && <Loader2 className="h-4 w-4 animate-spin text-gray-500" />}
+            </div>
             <Textarea
               value={importText}
               onChange={(e) => setImportText(e.target.value)}
@@ -905,14 +1040,72 @@ export default function ComplianceChecklist() {
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => setImportOpen(false)}>Cancel</Button>
               <Button
-                onClick={() => importMutation.mutate(importText)}
-                disabled={!importText.trim() || importMutation.isPending}
+                onClick={() => previewTextMutation.mutate(importText)}
+                disabled={!importText.trim() || previewTextMutation.isPending}
                 data-testid="button-confirm-import"
               >
-                {importMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                {previewTextMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                 Import
               </Button>
             </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Import preview / confirm dialog */}
+      <Dialog open={!!importPreview} onOpenChange={(open) => { if (!open) setImportPreview(null); }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Confirm Checklist Import</DialogTitle>
+            <DialogDescription>
+              Review what was found in{' '}
+              <strong>{importPreview?.source.kind === 'file' ? importPreview.source.file.name : 'the pasted text'}</strong>{' '}
+              before replacing your current checklist.
+              Nothing has been changed yet.
+            </DialogDescription>
+          </DialogHeader>
+          {importPreview && (
+            <div className="space-y-3 text-sm">
+              <div data-testid="text-import-preview-summary">
+                This file contains <strong>{importPreview.itemCount}</strong> item{importPreview.itemCount === 1 ? '' : 's'} across{' '}
+                <strong>{importPreview.areas.length}</strong> area{importPreview.areas.length === 1 ? '' : 's'}:
+              </div>
+              <ul className="max-h-48 overflow-y-auto space-y-1 border rounded-md p-3">
+                {importPreview.areas.map((a) => (
+                  <li key={a.name} className="flex justify-between gap-4">
+                    <span className="truncate">{a.name}</span>
+                    <span className="text-gray-500 shrink-0">{a.itemCount} item{a.itemCount === 1 ? '' : 's'}</span>
+                  </li>
+                ))}
+              </ul>
+              {importPreview.skippedSheets.length > 0 && (
+                <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-amber-800" data-testid="text-import-preview-skipped">
+                  {importPreview.skippedSheets.length} tab{importPreview.skippedSheets.length > 1 ? 's' : ''} will be skipped
+                  (no recognizable checklist rows): {importPreview.skippedSheets.join(', ')}.
+                </div>
+              )}
+              <div className="rounded-md border border-red-200 bg-red-50 p-3 text-red-800">
+                Importing will <strong>permanently replace</strong> your organization's current checklist, including
+                statuses, comments, AI findings, and attached evidence.
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setImportPreview(null)} data-testid="button-cancel-file-import">
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                if (!importPreview) return;
+                if (importPreview.source.kind === 'file') importFileMutation.mutate(importPreview.source.file);
+                else importMutation.mutate(importPreview.source.text);
+              }}
+              disabled={importFileMutation.isPending || importMutation.isPending}
+              data-testid="button-confirm-file-import"
+            >
+              {(importFileMutation.isPending || importMutation.isPending) && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Replace Checklist
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -125,6 +125,7 @@ describe("checklist-report authorization", () => {
       ["POST", "/review/area1", undefined],
       ["POST", "/manual", undefined],
       ["POST", "/items/item-1/evidence", undefined],
+      ["POST", "/import-file", undefined],
       ["DELETE", "/evidence/ev-1", undefined],
     ] as const) {
       const r = await api("member1", method, path, body);
@@ -145,6 +146,78 @@ describe("checklist-report authorization", () => {
 
   it("allows platform staff through the guard regardless of role", async () => {
     expect((await api("staff1", "POST", "/reset")).status).toBe(200);
+  });
+
+  it("requires auth for the Excel export and returns a workbook for members", async () => {
+    expect((await api(null, "GET", "/export.xlsx")).status).toBe(401);
+    const res = await fetch(`${base}/api/checklist-report/export.xlsx`, { headers: { "x-test-user": "member1" } });
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toContain("spreadsheetml");
+    const buf = Buffer.from(await res.arrayBuffer());
+    expect(buf.subarray(0, 2).toString()).toBe("PK"); // valid zip/xlsx magic
+  });
+
+  it("import-file previews without writing, and only replaces on confirm", async () => {
+    const csv = "Number,Description,Reference,Area\n1-01,Check instructors,142.13,Management\n1-02,Check facility,142.15,Facilities\n";
+    const upload = async (confirm: boolean) => {
+      const fd = new FormData();
+      fd.append("file", new Blob([csv], { type: "text/csv" }), "checklist.csv");
+      if (confirm) fd.append("confirm", "true");
+      const res = await fetch(`${base}/api/checklist-report/import-file`, {
+        method: "POST",
+        headers: { "x-test-user": "admin1" },
+        body: fd,
+      });
+      return { status: res.status, body: await res.json() };
+    };
+
+    // Preview phase: summary returned, no deletes/inserts executed
+    h.executed.length = 0;
+    const preview = await upload(false);
+    expect(preview.status).toBe(200);
+    expect(preview.body.preview).toBe(true);
+    expect(preview.body.itemCount).toBe(2);
+    expect(preview.body.areas).toEqual([
+      { name: "Management", itemCount: 1 },
+      { name: "Facilities", itemCount: 1 },
+    ]);
+    expect(preview.body.skippedSheets).toEqual([]);
+    const writes = h.executed.filter((t) => /DELETE FROM|INSERT INTO/i.test(t));
+    expect(writes).toEqual([]);
+
+    // Confirm phase: destructive replace executes
+    h.executed.length = 0;
+    const confirmed = await upload(true);
+    expect(confirmed.status).toBe(200);
+    expect(confirmed.body.success).toBe(true);
+    expect(confirmed.body.imported).toBe(2);
+    expect(h.executed.some((t) => t.includes("DELETE FROM bccs_checklist_report_items"))).toBe(true);
+    expect(h.executed.some((t) => t.includes("INSERT INTO bccs_checklist_report_items"))).toBe(true);
+  });
+
+  it("pasted-text import previews without writing, and only replaces on confirm", async () => {
+    const text = "1-01 | Check instructors | 142.13 | Management\n1-02 | Check facility | 142.15 | Facilities";
+
+    // Preview phase: summary returned, no deletes/inserts executed
+    h.executed.length = 0;
+    const preview = await api("admin1", "POST", "/import", { text });
+    expect(preview.status).toBe(200);
+    expect(preview.body.preview).toBe(true);
+    expect(preview.body.itemCount).toBe(2);
+    expect(preview.body.areas).toEqual([
+      { name: "Management", itemCount: 1 },
+      { name: "Facilities", itemCount: 1 },
+    ]);
+    expect(h.executed.filter((t) => /DELETE FROM|INSERT INTO/i.test(t))).toEqual([]);
+
+    // Confirm phase: destructive replace executes
+    h.executed.length = 0;
+    const confirmed = await api("admin1", "POST", "/import", { text, confirm: true });
+    expect(confirmed.status).toBe(200);
+    expect(confirmed.body.success).toBe(true);
+    expect(confirmed.body.imported).toBe(2);
+    expect(h.executed.some((t) => t.includes("DELETE FROM bccs_checklist_report_items"))).toBe(true);
+    expect(h.executed.some((t) => t.includes("INSERT INTO bccs_checklist_report_items"))).toBe(true);
   });
 
   it("guards evidence routes: admins pass, deletes are org-scoped", async () => {

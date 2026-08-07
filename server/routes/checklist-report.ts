@@ -21,6 +21,7 @@ import { isAuthenticated } from "../localAuth";
 import { requireOrg, isPlatformStaff } from "../middleware/tenant";
 import { PART142_CHECKLIST } from "@shared/part142-checklist";
 import { chunkText, selectChunks, batchItems } from "../services/checklist-review-utils";
+import { parseChecklistWorkbook, buildChecklistWorkbook, type ImportedItem } from "../services/checklist-excel";
 
 const execAsync = promisify(exec);
 const router = Router();
@@ -374,8 +375,52 @@ router.delete("/evidence/:id", isAuthenticated, requireAdmin, async (req: any, r
 
 // ── Import / reset ───────────────────────────────────────────────────────────
 
+/** Validate import bounds. Returns a user-facing error message, or null when OK. */
+function importBoundsError(items: ImportedItem[]): string | null {
+  if (items.length === 0) return "No checklist items could be parsed";
+  if (items.length > MAX_IMPORT_ITEMS) {
+    return `Too many items (${items.length}). The maximum is ${MAX_IMPORT_ITEMS}.`;
+  }
+  const distinctAreas = new Set(items.map((it) => it.areaName));
+  if (distinctAreas.size > MAX_IMPORT_AREAS) {
+    return `Too many areas (${distinctAreas.size}). The maximum is ${MAX_IMPORT_AREAS}.`;
+  }
+  return null;
+}
+
+/** Validate bounds and transactionally replace the org checklist. Sends the
+ * error response and returns null on failure; returns the item count on success. */
+async function replaceChecklist(orgId: string, items: ImportedItem[], res: any): Promise<number | null> {
+  const boundsError = importBoundsError(items);
+  if (boundsError) {
+    res.status(400).json({ message: boundsError });
+    return null;
+  }
+  await db.transaction(async (tx) => {
+    await tx.execute(sql`DELETE FROM bccs_checklist_ai_findings WHERE organization_id = ${orgId}`);
+    await tx.execute(sql`DELETE FROM bccs_checklist_evidence WHERE organization_id = ${orgId}`);
+    await tx.execute(sql`DELETE FROM bccs_checklist_report_items WHERE organization_id = ${orgId}`);
+    const areaIds = new Map<string, string>();
+    let order = 0;
+    for (const it of items) {
+      if (!areaIds.has(it.areaName)) areaIds.set(it.areaName, `import-${areaIds.size + 1}`);
+      order++;
+      await tx.execute(sql`
+        INSERT INTO bccs_checklist_report_items
+          (organization_id, area_id, area_name, area_description, item_number, description, reference, item_order)
+        VALUES (${orgId}, ${areaIds.get(it.areaName)}, ${it.areaName}, ${""}, ${it.number}, ${it.description}, ${it.reference}, ${order})
+      `);
+    }
+  });
+  return items.length;
+}
+
 // POST /import — replace the org checklist from pasted/uploaded text.
 // Line format: number | description | reference | area name
+// Two-phase like /import-file: without `confirm: true` in the body the text
+// is parsed only (no DB writes) and a preview summary is returned; the client
+// then re-submits the same text with confirm: true to perform the
+// destructive replace. Bounds are enforced identically in both phases.
 router.post("/import", isAuthenticated, requireAdmin, async (req: any, res) => {
   try {
     const orgId = requireOrg(req, res);
@@ -394,35 +439,151 @@ router.post("/import", isAuthenticated, requireAdmin, async (req: any, res) => {
         areaName: parts[3] || "Imported Checklist",
       };
     }).filter((it) => it.description);
-    if (items.length === 0) return res.status(400).json({ message: "No checklist items could be parsed" });
-    if (items.length > MAX_IMPORT_ITEMS) {
-      return res.status(400).json({ message: `Too many items (${items.length}). The maximum is ${MAX_IMPORT_ITEMS}.` });
-    }
-    const distinctAreas = new Set(items.map((it) => it.areaName));
-    if (distinctAreas.size > MAX_IMPORT_AREAS) {
-      return res.status(400).json({ message: `Too many areas (${distinctAreas.size}). The maximum is ${MAX_IMPORT_AREAS}.` });
-    }
-
-    await db.transaction(async (tx) => {
-      await tx.execute(sql`DELETE FROM bccs_checklist_ai_findings WHERE organization_id = ${orgId}`);
-      await tx.execute(sql`DELETE FROM bccs_checklist_evidence WHERE organization_id = ${orgId}`);
-      await tx.execute(sql`DELETE FROM bccs_checklist_report_items WHERE organization_id = ${orgId}`);
-      const areaIds = new Map<string, string>();
-      let order = 0;
+    if (req.body?.confirm !== true) {
+      // Parse-only preview: same bounds as the real import so text that
+      // would be rejected is rejected up front, before the admin confirms.
+      const boundsError = importBoundsError(items);
+      if (boundsError) return res.status(400).json({ message: boundsError });
+      const areaOrder: string[] = [];
+      const areaCounts = new Map<string, number>();
       for (const it of items) {
-        if (!areaIds.has(it.areaName)) areaIds.set(it.areaName, `import-${areaIds.size + 1}`);
-        order++;
-        await tx.execute(sql`
-          INSERT INTO bccs_checklist_report_items
-            (organization_id, area_id, area_name, area_description, item_number, description, reference, item_order)
-          VALUES (${orgId}, ${areaIds.get(it.areaName)}, ${it.areaName}, ${""}, ${it.number}, ${it.description}, ${it.reference}, ${order})
-        `);
+        if (!areaCounts.has(it.areaName)) areaOrder.push(it.areaName);
+        areaCounts.set(it.areaName, (areaCounts.get(it.areaName) || 0) + 1);
       }
-    });
-    res.json({ success: true, imported: items.length });
+      return res.json({
+        preview: true,
+        itemCount: items.length,
+        areas: areaOrder.map((name) => ({ name, itemCount: areaCounts.get(name) })),
+      });
+    }
+    const imported = await replaceChecklist(orgId, items, res);
+    if (imported === null) return;
+    res.json({ success: true, imported });
   } catch (err) {
     console.error("Checklist import error:", err);
     res.status(500).json({ message: "Failed to import checklist" });
+  }
+});
+
+// POST /import-file — replace the org checklist from an Excel/CSV upload.
+// Two-phase: without a `confirm=true` form field the file is parsed only
+// (no DB writes) and a preview summary is returned; the client then
+// re-uploads the same file with confirm=true to perform the destructive
+// replace. Bounds are enforced identically in both phases.
+router.post("/import-file", isAuthenticated, requireAdmin, upload.single("file"), async (req: any, res) => {
+  try {
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
+    if (!req.file) return res.status(400).json({ message: "No file uploaded" });
+    const ext = path.extname(req.file.originalname).toLowerCase();
+    // Legacy binary .xls is parsed via SheetJS (converted to .xlsx in-memory)
+    // inside parseChecklistWorkbook.
+    if (![".xlsx", ".xls", ".csv"].includes(ext)) {
+      return res.status(400).json({ message: "Unsupported file type. Please upload an Excel (.xlsx or .xls) or CSV file." });
+    }
+    let items: ImportedItem[];
+    let skippedSheets: string[];
+    try {
+      ({ items, skippedSheets } = await parseChecklistWorkbook(req.file.buffer, req.file.originalname));
+    } catch (parseErr: any) {
+      return res.status(422).json({ message: parseErr.message });
+    }
+    if (req.body?.confirm !== "true") {
+      // Parse-only preview: same bounds as the real import so a file that
+      // would be rejected is rejected up front, before the admin confirms.
+      const boundsError = importBoundsError(items);
+      if (boundsError) return res.status(400).json({ message: boundsError });
+      const areaOrder: string[] = [];
+      const areaCounts = new Map<string, number>();
+      for (const it of items) {
+        if (!areaCounts.has(it.areaName)) areaOrder.push(it.areaName);
+        areaCounts.set(it.areaName, (areaCounts.get(it.areaName) || 0) + 1);
+      }
+      return res.json({
+        preview: true,
+        itemCount: items.length,
+        areas: areaOrder.map((name) => ({ name, itemCount: areaCounts.get(name) })),
+        skippedSheets,
+      });
+    }
+    const imported = await replaceChecklist(orgId, items, res);
+    if (imported === null) return;
+    res.json({ success: true, imported, skippedSheets });
+  } catch (err) {
+    console.error("Checklist Excel import error:", err);
+    res.status(500).json({ message: "Failed to import checklist file" });
+  }
+});
+
+// GET /export.xlsx — download the auditor report as an Excel workbook
+router.get("/export.xlsx", isAuthenticated, async (req: any, res) => {
+  try {
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
+    const rows = await db.execute(sql`
+      SELECT * FROM bccs_checklist_report_items WHERE organization_id = ${orgId}
+      ORDER BY area_id, item_order
+    `).then((r: any) => r.rows);
+    if (rows.length === 0) return res.status(404).json({ message: "No checklist items to export" });
+    const [currentManual] = await db.execute(sql`
+      SELECT id, filename, uploaded_at FROM bccs_ops_manuals WHERE organization_id = ${orgId}
+      ORDER BY uploaded_at DESC LIMIT 1
+    `).then((r: any) => r.rows);
+    const findings = await db.execute(sql`
+      SELECT DISTINCT ON (item_id) item_id, manual_id, verdict, excerpt, remediation
+      FROM bccs_checklist_ai_findings WHERE organization_id = ${orgId}
+      ORDER BY item_id, reviewed_at DESC
+    `).then((r: any) => r.rows);
+    const findingByItem: Record<string, any> = {};
+    for (const f of findings) findingByItem[f.item_id] = f;
+    const evidenceCounts = await db.execute(sql`
+      SELECT item_id, COUNT(*)::int AS count FROM bccs_checklist_evidence
+      WHERE organization_id = ${orgId} GROUP BY item_id
+    `).then((r: any) => r.rows);
+    const evidenceByItem: Record<string, number> = {};
+    for (const e of evidenceCounts) evidenceByItem[e.item_id] = Number(e.count);
+    const [org] = await db.execute(sql`
+      SELECT organization_name, certificate_number, regulatory_authority
+      FROM training_organizations WHERE id = ${orgId}
+    `).then((r: any) => r.rows);
+
+    const areas: any[] = [];
+    for (const row of rows) {
+      let area = areas.find((a) => a.id === row.area_id);
+      if (!area) {
+        area = { id: row.area_id, name: row.area_name, description: row.area_description || "", items: [] };
+        areas.push(area);
+      }
+      const f = findingByItem[row.id];
+      area.items.push({
+        number: row.item_number,
+        description: row.description,
+        reference: row.reference || "",
+        status: row.status || "pending",
+        comments: row.comments || "",
+        findings: row.findings || "",
+        aiVerdict: f?.verdict || null,
+        aiExcerpt: f?.excerpt || null,
+        aiRemediation: f?.remediation || null,
+        aiStale: f ? !currentManual || f.manual_id !== currentManual.id : false,
+        evidenceCount: evidenceByItem[row.id] || 0,
+      });
+    }
+
+    const buffer = await buildChecklistWorkbook({
+      areas,
+      organization: org
+        ? { name: org.organization_name, certificateNumber: org.certificate_number, regulatoryAuthority: org.regulatory_authority }
+        : null,
+      manual: currentManual ? { filename: currentManual.filename, uploadedAt: currentManual.uploaded_at } : null,
+    });
+    const date = new Date().toISOString().slice(0, 10);
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", `attachment; filename="part142-checklist-report-${date}.xlsx"`);
+    res.send(buffer);
+  } catch (err) {
+    console.error("Checklist Excel export error:", err);
+    res.status(500).json({ message: "Failed to export the Excel report" });
   }
 });
 
