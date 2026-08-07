@@ -45,7 +45,9 @@ export default function Instructors() {
   const [expirationDate, setExpirationDate] = useState("");
   const [currencyDate, setCurrencyDate] = useState("");
   const [status, setStatus] = useState("current");
-  const [revealedKey, setRevealedKey] = useState<{ key: string; instructorName: string } | null>(null);
+  const [revealedKey, setRevealedKey] = useState<{ key: string; instructorName: string; expiresAt: string | null } | null>(null);
+  const [keyDialogInstructor, setKeyDialogInstructor] = useState<any | null>(null);
+  const [keyExpiryDays, setKeyExpiryDays] = useState("90");
 
   const { data: instructors = [], isLoading } = useQuery<any[]>({
     queryKey: ["/api/instructors"],
@@ -79,15 +81,30 @@ export default function Instructors() {
   const keyByInstructor = new Map(keys.map((k: any) => [k.instructor_id, k]));
 
   const assignKeyMutation = useMutation({
-    mutationFn: async (instructor: any) => {
-      const res = await apiRequest("POST", `/api/instructor-portal/keys/${instructor.id}`, {});
+    mutationFn: async ({ instructor, expiresInDays }: { instructor: any; expiresInDays: string }) => {
+      const res = await apiRequest("POST", `/api/instructor-portal/keys/${instructor.id}`, {
+        expiresInDays: expiresInDays === "never" ? "never" : Number(expiresInDays),
+      });
       return res.json();
     },
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/instructor-portal/keys"] });
-      setRevealedKey({ key: data.key, instructorName: data.instructorName });
+      setKeyDialogInstructor(null);
+      setRevealedKey({ key: data.key, instructorName: data.instructorName, expiresAt: data.expiresAt ?? null });
     },
     onError: (err: any) => toast({ title: "Failed to assign key", description: err.message, variant: "destructive" }),
+  });
+
+  const renewKeyMutation = useMutation({
+    mutationFn: async (instructorId: string) => {
+      const res = await apiRequest("POST", `/api/instructor-portal/keys/${instructorId}/renew`, { expiresInDays: 90 });
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/instructor-portal/keys"] });
+      toast({ title: "Key renewed", description: `New expiry: ${format(new Date(data.expiresAt), "MMM d, yyyy")}` });
+    },
+    onError: (err: any) => toast({ title: "Failed to renew key", description: err.message, variant: "destructive" }),
   });
 
   const revokeKeyMutation = useMutation({
@@ -211,14 +228,57 @@ export default function Instructors() {
                       <td className="py-3 px-4">
                         {keyByInstructor.has(i.id) ? (
                           <div className="flex items-center gap-1.5">
-                            <Badge className="bg-green-100 text-green-800">
-                              <KeyRound className="h-3 w-3 mr-1" /> Assigned
-                            </Badge>
+                            {(() => {
+                              const k = keyByInstructor.get(i.id);
+                              const exp = k?.expires_at ? new Date(k.expires_at) : null;
+                              const days = exp ? differenceInDays(exp, new Date()) : null;
+                              if (exp && days !== null && days < 0) {
+                                return (
+                                  <div className="flex items-center gap-1.5">
+                                    <Badge className="bg-red-100 text-red-800">
+                                      <KeyRound className="h-3 w-3 mr-1" /> Expired
+                                    </Badge>
+                                    <Button
+                                      variant="outline" size="sm" className="h-7 text-xs"
+                                      disabled={renewKeyMutation.isPending}
+                                      onClick={() => renewKeyMutation.mutate(i.id)}
+                                    >
+                                      Renew
+                                    </Button>
+                                  </div>
+                                );
+                              }
+                              return (
+                                <div>
+                                  <Badge className={days !== null && days <= 14 ? "bg-amber-100 text-amber-800" : "bg-green-100 text-green-800"}>
+                                    <KeyRound className="h-3 w-3 mr-1" /> Assigned
+                                  </Badge>
+                                  <p className="text-xs text-gray-500 mt-0.5">
+                                    {exp ? `Expires ${format(exp, "MMM d, yyyy")}` : "Never expires"}
+                                  </p>
+                                </div>
+                              );
+                            })()}
+                            {(() => {
+                              const k = keyByInstructor.get(i.id);
+                              const exp = k?.expires_at ? new Date(k.expires_at) : null;
+                              const days = exp ? differenceInDays(exp, new Date()) : null;
+                              return exp && days !== null && days >= 0 && days <= 14 ? (
+                                <Button
+                                  variant="ghost" size="sm" className="h-7 px-1.5 text-amber-600 hover:text-amber-700 text-xs"
+                                  title="Renew key (extends expiry 90 days)"
+                                  disabled={renewKeyMutation.isPending}
+                                  onClick={() => renewKeyMutation.mutate(i.id)}
+                                >
+                                  Renew
+                                </Button>
+                              ) : null;
+                            })()}
                             <Button
                               variant="ghost" size="sm" className="h-7 px-1.5 text-slate-400 hover:text-blue-600"
                               title="Regenerate key (old key stops working)"
                               disabled={assignKeyMutation.isPending}
-                              onClick={() => { if (confirm(`Regenerate the portal key for ${i.first_name} ${i.last_name}? The old key will stop working.`)) assignKeyMutation.mutate(i); }}
+                              onClick={() => { setKeyExpiryDays("90"); setKeyDialogInstructor(i); }}
                             >
                               <RefreshCw className="h-3.5 w-3.5" />
                             </Button>
@@ -235,7 +295,7 @@ export default function Instructors() {
                           <Button
                             variant="outline" size="sm" className="h-7 text-xs"
                             disabled={assignKeyMutation.isPending}
-                            onClick={() => assignKeyMutation.mutate(i)}
+                            onClick={() => { setKeyExpiryDays("90"); setKeyDialogInstructor(i); }}
                           >
                             <KeyRound className="h-3.5 w-3.5 mr-1" /> Assign Key
                           </Button>
@@ -305,6 +365,49 @@ export default function Instructors() {
         </DialogContent>
       </Dialog>
 
+      {/* Assign / regenerate key dialog (pick expiry) */}
+      <Dialog open={!!keyDialogInstructor} onOpenChange={(v) => !v && setKeyDialogInstructor(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <KeyRound className="h-5 w-5 text-blue-600" />
+              {keyByInstructor.has(keyDialogInstructor?.id) ? "Regenerate" : "Assign"} Portal Key
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-1">
+            {keyByInstructor.has(keyDialogInstructor?.id) && (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-sm text-amber-800 flex items-start gap-2">
+                <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+                The existing key for {keyDialogInstructor?.first_name} {keyDialogInstructor?.last_name} will stop working.
+              </div>
+            )}
+            <div>
+              <Label>Key expires after</Label>
+              <Select value={keyExpiryDays} onValueChange={setKeyExpiryDays}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="30">30 days</SelectItem>
+                  <SelectItem value="60">60 days</SelectItem>
+                  <SelectItem value="90">90 days (default)</SelectItem>
+                  <SelectItem value="180">180 days</SelectItem>
+                  <SelectItem value="365">1 year</SelectItem>
+                  <SelectItem value="never">Never</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setKeyDialogInstructor(null)}>Cancel</Button>
+            <Button
+              disabled={assignKeyMutation.isPending}
+              onClick={() => assignKeyMutation.mutate({ instructor: keyDialogInstructor, expiresInDays: keyExpiryDays })}
+            >
+              {assignKeyMutation.isPending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Generating…</> : "Generate Key"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* One-time key reveal dialog */}
       <Dialog open={!!revealedKey} onOpenChange={(v) => !v && setRevealedKey(null)}>
         <DialogContent>
@@ -332,6 +435,11 @@ export default function Instructors() {
             </div>
             <p className="text-xs text-slate-500">
               The instructor signs in with this key at <span className="font-mono">{window.location.origin}/instructor</span>
+            </p>
+            <p className="text-xs text-slate-500">
+              {revealedKey?.expiresAt
+                ? `This key expires on ${format(new Date(revealedKey.expiresAt), "MMM d, yyyy")}.`
+                : "This key never expires."}
             </p>
           </div>
           <DialogFooter>

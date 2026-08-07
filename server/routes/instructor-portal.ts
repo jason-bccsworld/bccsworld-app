@@ -39,8 +39,13 @@ async function ensureTable() {
       is_active BOOLEAN DEFAULT TRUE,
       created_by VARCHAR(200),
       created_at TIMESTAMP DEFAULT NOW(),
-      last_used_at TIMESTAMP
+      last_used_at TIMESTAMP,
+      expires_at TIMESTAMP
     )
+  `);
+  // Additive migration for pre-existing tables (idempotent)
+  await db.execute(sql`
+    ALTER TABLE bccs_instructor_keys ADD COLUMN IF NOT EXISTS expires_at TIMESTAMP
   `);
 }
 ensureTable().catch(console.error);
@@ -73,7 +78,7 @@ async function requireInstructorKey(req: any, res: Response, next: NextFunction)
     const raw = extractKey(req);
     if (!raw) return res.status(401).json({ message: "Instructor key required" });
     const [keyRow] = await db.execute(sql`
-      SELECT k.id AS key_id, k.instructor_id, k.organization_id, i.first_name, i.last_name,
+      SELECT k.id AS key_id, k.instructor_id, k.organization_id, k.expires_at, i.first_name, i.last_name,
              i.email, i.certificate_type, i.certificate_number, i.issue_date, i.expiration_date,
              i.currency_date, i.ratings, i.training_authorizations, i.status
       FROM bccs_instructor_keys k
@@ -81,6 +86,9 @@ async function requireInstructorKey(req: any, res: Response, next: NextFunction)
       WHERE k.key_hash = ${hashKey(raw)} AND k.is_active = TRUE
     `).then((r: any) => r.rows);
     if (!keyRow) return res.status(401).json({ message: "This key is invalid or has been revoked. Contact your organization for a new key." });
+    if (keyRow.expires_at && new Date(keyRow.expires_at) <= new Date()) {
+      return res.status(401).json({ message: "This key has expired. Ask your organization's admin to renew or reissue it." });
+    }
     db.execute(sql`UPDATE bccs_instructor_keys SET last_used_at = NOW() WHERE id = ${keyRow.key_id}`)
       .catch(() => {});
     req.instructor = keyRow;
@@ -99,7 +107,7 @@ router.get("/keys", isAuthenticated, requireAdmin, async (req: any, res) => {
     const orgId = requireOrg(req, res);
     if (!orgId) return;
     const rows = await db.execute(sql`
-      SELECT instructor_id, key_preview, created_at, last_used_at
+      SELECT instructor_id, key_preview, created_at, last_used_at, expires_at
       FROM bccs_instructor_keys
       WHERE organization_id = ${orgId} AND is_active = TRUE
     `).then((r: any) => r.rows);
@@ -121,6 +129,23 @@ router.post("/keys/:instructorId", isAuthenticated, requireAdmin, async (req: an
     `).then((r: any) => r.rows);
     if (!instructor) return res.status(404).json({ message: "Instructor not found" });
 
+    // Optional expiry: expiresInDays may be a positive number of days or 0/"never" for no expiry.
+    // Default: 90 days.
+    let expiresInDays: number | null = 90;
+    const rawExpiry = req.body?.expiresInDays;
+    if (rawExpiry !== undefined && rawExpiry !== null) {
+      if (rawExpiry === "never" || rawExpiry === 0 || rawExpiry === "0") {
+        expiresInDays = null;
+      } else {
+        const n = Number(rawExpiry);
+        if (!Number.isInteger(n) || n < 1 || n > 3650) {
+          return res.status(400).json({ message: "expiresInDays must be a whole number between 1 and 3650, or \"never\"" });
+        }
+        expiresInDays = n;
+      }
+    }
+    const expiresAt = expiresInDays === null ? null : new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000);
+
     const rawKey = generateKey();
     const preview = rawKey.slice(0, 15) + "...";
     // Regeneration revokes any previous key for this instructor
@@ -129,19 +154,49 @@ router.post("/keys/:instructorId", isAuthenticated, requireAdmin, async (req: an
       WHERE instructor_id = ${instructor.id} AND organization_id = ${orgId}
     `);
     await db.execute(sql`
-      INSERT INTO bccs_instructor_keys (instructor_id, organization_id, key_hash, key_preview, created_by)
-      VALUES (${instructor.id}, ${orgId}, ${hashKey(rawKey)}, ${preview}, ${req.user?.email || req.user?.id || "system"})
+      INSERT INTO bccs_instructor_keys (instructor_id, organization_id, key_hash, key_preview, created_by, expires_at)
+      VALUES (${instructor.id}, ${orgId}, ${hashKey(rawKey)}, ${preview}, ${req.user?.email || req.user?.id || "system"}, ${expiresAt})
     `);
     res.status(201).json({
       key: rawKey,
       keyPreview: preview,
       instructorId: instructor.id,
       instructorName: `${instructor.first_name} ${instructor.last_name}`,
+      expiresAt: expiresAt ? expiresAt.toISOString() : null,
       warning: "Store this key securely — it will not be shown again.",
     });
   } catch (err) {
     console.error("Instructor key assign error:", err);
     res.status(500).json({ message: "Failed to assign key" });
+  }
+});
+
+// POST renew — extend the active key's expiry without changing the key itself
+router.post("/keys/:instructorId/renew", isAuthenticated, requireAdmin, async (req: any, res) => {
+  try {
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
+    let days = 90;
+    const rawExpiry = req.body?.expiresInDays;
+    if (rawExpiry !== undefined && rawExpiry !== null) {
+      const n = Number(rawExpiry);
+      if (!Number.isInteger(n) || n < 1 || n > 3650) {
+        return res.status(400).json({ message: "expiresInDays must be a whole number between 1 and 3650" });
+      }
+      days = n;
+    }
+    const expiresAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+    const result = await db.execute(sql`
+      UPDATE bccs_instructor_keys SET expires_at = ${expiresAt}
+      WHERE instructor_id = ${req.params.instructorId} AND organization_id = ${orgId} AND is_active = TRUE
+      RETURNING id, expires_at
+    `);
+    const rows = (result as any).rows || [];
+    if (rows.length === 0) return res.status(404).json({ message: "No active key for this instructor" });
+    res.json({ message: "Key renewed", expiresAt: expiresAt.toISOString() });
+  } catch (err) {
+    console.error("Instructor key renew error:", err);
+    res.status(500).json({ message: "Failed to renew key" });
   }
 });
 
