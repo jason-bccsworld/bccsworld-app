@@ -1,4 +1,5 @@
 import { createWorker } from "tesseract.js";
+import { PDFParse } from "pdf-parse";
 import fs from "fs";
 import path from "path";
 import { exec } from "child_process";
@@ -23,8 +24,8 @@ async function processPdfText(pdfPath: string): Promise<string> {
     }
 
     // Pure-JS fallback (works on serverless hosts without poppler): pdf-parse
+    let pdfParseFailure: string | null = null;
     try {
-      const { PDFParse } = await import('pdf-parse');
       const parser = new PDFParse({ data: new Uint8Array(fs.readFileSync(pdfPath)) });
       try {
         const data = await parser.getText();
@@ -36,7 +37,8 @@ async function processPdfText(pdfPath: string): Promise<string> {
         await parser.destroy();
       }
     } catch (pdfParseError) {
-      console.log('pdf-parse extraction failed, PDF might be scanned:', pdfParseError instanceof Error ? pdfParseError.message : pdfParseError);
+      pdfParseFailure = pdfParseError instanceof Error ? pdfParseError.message : String(pdfParseError);
+      console.log('pdf-parse extraction failed, PDF might be scanned:', pdfParseFailure);
     }
     
     // If pdftotext fails or returns no text, convert PDF to images and OCR them
@@ -107,7 +109,7 @@ async function processPdfText(pdfPath: string): Promise<string> {
     } catch (conversionError) {
       console.error('PDF to image conversion failed:', conversionError);
       const errorMessage = conversionError instanceof Error ? conversionError.message : 'Unknown error';
-      throw new Error(`Failed to process PDF: ${errorMessage}`);
+      throw new Error(`Failed to process PDF: ${errorMessage}${pdfParseFailure ? ` (text extraction fallback also failed: ${pdfParseFailure})` : ''}`);
     }
     
   } catch (error) {

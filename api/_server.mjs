@@ -1657,6 +1657,7 @@ __export(ocr_exports, {
   processDocumentOCR: () => processDocumentOCR
 });
 import { createWorker } from "tesseract.js";
+import { PDFParse } from "pdf-parse";
 import fs4 from "fs";
 import path4 from "path";
 import { exec as exec2 } from "child_process";
@@ -1673,8 +1674,8 @@ async function processPdfText(pdfPath) {
     } catch (pdfTextError) {
       console.log("pdftotext failed or unavailable, trying pure-JS extraction");
     }
+    let pdfParseFailure = null;
     try {
-      const { PDFParse } = await import("pdf-parse");
       const parser = new PDFParse({ data: new Uint8Array(fs4.readFileSync(pdfPath)) });
       try {
         const data = await parser.getText();
@@ -1686,7 +1687,8 @@ async function processPdfText(pdfPath) {
         await parser.destroy();
       }
     } catch (pdfParseError) {
-      console.log("pdf-parse extraction failed, PDF might be scanned:", pdfParseError instanceof Error ? pdfParseError.message : pdfParseError);
+      pdfParseFailure = pdfParseError instanceof Error ? pdfParseError.message : String(pdfParseError);
+      console.log("pdf-parse extraction failed, PDF might be scanned:", pdfParseFailure);
     }
     console.log("Converting PDF to images for OCR...");
     const tempDir = path4.join(path4.dirname(pdfPath), "temp_pdf_images");
@@ -1732,7 +1734,7 @@ async function processPdfText(pdfPath) {
     } catch (conversionError) {
       console.error("PDF to image conversion failed:", conversionError);
       const errorMessage = conversionError instanceof Error ? conversionError.message : "Unknown error";
-      throw new Error(`Failed to process PDF: ${errorMessage}`);
+      throw new Error(`Failed to process PDF: ${errorMessage}${pdfParseFailure ? ` (text extraction fallback also failed: ${pdfParseFailure})` : ""}`);
     }
   } catch (error) {
     console.error("PDF processing error:", error);
