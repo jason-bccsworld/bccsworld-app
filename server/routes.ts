@@ -1070,6 +1070,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { roleName, displayName, description, permissions = [], color } = req.body;
       if (!roleName || !displayName) return res.status(400).json({ message: 'roleName and displayName are required' });
       if (!/^[a-z0-9_-]+$/.test(roleName)) return res.status(400).json({ message: 'roleName must be lowercase alphanumeric with _ or -' });
+      if (!Array.isArray(permissions)) return res.status(400).json({ message: 'permissions must be an array' });
+      const invalidPerms = permissions.filter((p: string) => !ALL_PERMISSIONS.includes(p));
+      if (invalidPerms.length > 0) return res.status(400).json({ message: `Unknown permissions: ${invalidPerms.join(', ')}` });
       const newPermsArray = permissions.length > 0
         ? drizzleSql`ARRAY[${drizzleSql.join(permissions.map((p: string) => drizzleSql`${p}`), drizzleSql`, `)}]::TEXT[]`
         : drizzleSql`ARRAY[]::TEXT[]`;

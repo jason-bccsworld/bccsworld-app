@@ -310,6 +310,19 @@ describe("platform staff (@bccsworld.com) role-matrix access", () => {
     expect(wroteToRoleTable()).toBe(false);
   });
 
+  it("rejects role creation with unknown permissions (400, no write)", async () => {
+    const res = await api("root1", "POST", "/api/admin/roles", {
+      roleName: "customrole",
+      displayName: "Custom Role",
+      permissions: ["not:a-real-permission", "another:fake"],
+    });
+    expect(res.status).toBe(400);
+    expect(res.body.message).toMatch(/unknown permissions/i);
+    expect(res.body.message).toContain("not:a-real-permission");
+    expect(res.body.message).toContain("another:fake");
+    expect(wroteToRoleTable()).toBe(false);
+  });
+
   it("can create a custom role (201)", async () => {
     const res = await api("root1", "POST", "/api/admin/roles", {
       roleName: "customrole",
