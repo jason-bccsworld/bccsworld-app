@@ -6,4 +6,5 @@
 - [Federal contract data APIs](fedcon-external-apis.md) — USAspending NAICS is an object not a string; SAM.gov checks without a key must surface as "skipped"; risk scoring stays in code, never the LLM.
 - [Email alert delivery](email-alerts.md) — no transactional-email integration exists here; alerts use SMTP env vars and must surface skips (unconfigured/disabled/no recipients), never drop silently.
 - [Typecheck & review standards](typecheck-review-standards.md) — tsc must stay at 0 errors; review rejects suppression fixes (Response casts, storage-as-any, unscoped tenant routes).
+- [PGlite for raw-SQL tests](pglite-sql-tests.md) — never mock-route raw sweep SQL in tests; run it on in-process PGlite so query regressions actually fail.
 - [Lockfile portability](lockfile-portability.md) — Replit lockfiles can contain package-firewall.replit.local URLs that break npm on external CI; rewrite to registry.npmjs.org.
