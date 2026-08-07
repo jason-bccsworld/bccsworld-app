@@ -772,7 +772,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ── User Management (Admin) ──────────────────────────────────────────────
   app.get('/api/admin/users', isAuthenticated, async (req: any, res) => {
     try {
-      if (req.user?.role !== 'admin') return res.status(403).json({ message: 'Admin access required' });
+      // Admins manage users; managers get a read-only view (same org-scoped
+      // list — the UI hides mutation controls and every mutation route below
+      // stays admin-only). Platform staff (SuperAdmin) see all users across
+      // organizations.
+      const role = req.user?.role;
+      const staff = isPlatformStaff(req.user?.email);
+      if (role !== 'admin' && role !== 'manager' && !staff) {
+        return res.status(403).json({ message: 'Admin or manager access required' });
+      }
+      if (staff) {
+        const result = await db.execute(drizzleSql`
+          SELECT u.id, u.email, u.first_name AS "firstName", u.last_name AS "lastName",
+                 u.role, u.is_active AS "isActive", u.last_login_at AS "lastLoginAt",
+                 u.created_at AS "createdAt",
+                 COALESCE(string_agg(DISTINCT o.organization_name, ', ' ORDER BY o.organization_name), '') AS "organizations"
+          FROM users u
+          LEFT JOIN user_organizations uo ON uo.user_id = u.id AND uo.is_active = TRUE
+          LEFT JOIN training_organizations o ON o.id = uo.organization_id
+          GROUP BY u.id
+          ORDER BY u.created_at DESC
+        `);
+        return res.json((result as any).rows || []);
+      }
       // Multi-tenant mode: only members of the active organization are listed.
       // Single-workspace mode keeps the full user list (one shared org).
       if (isMultiTenant()) {
@@ -808,7 +830,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/admin/users/invite', isAuthenticated, async (req: any, res) => {
     try {
-      if (req.user?.role !== 'admin') return res.status(403).json({ message: 'Admin access required' });
+      if (req.user?.role !== 'admin' && !isPlatformStaff(req.user?.email)) return res.status(403).json({ message: 'Admin access required' });
       const { email, firstName, lastName, role, temporaryPassword } = req.body;
       if (!email || !firstName || !lastName || !role || !temporaryPassword) {
         return res.status(400).json({ message: 'All fields are required' });
@@ -892,7 +914,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put('/api/admin/users/:id/role', isAuthenticated, async (req: any, res) => {
     try {
-      if (req.user?.role !== 'admin') return res.status(403).json({ message: 'Admin access required' });
+      if (req.user?.role !== 'admin' && !isPlatformStaff(req.user?.email)) return res.status(403).json({ message: 'Admin access required' });
       if (!(await canManageTargetUser(req, res))) return;
       const { role } = req.body;
       // Get valid roles dynamically from role permissions table
@@ -918,7 +940,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put('/api/admin/users/:id/status', isAuthenticated, async (req: any, res) => {
     try {
-      if (req.user?.role !== 'admin') return res.status(403).json({ message: 'Admin access required' });
+      if (req.user?.role !== 'admin' && !isPlatformStaff(req.user?.email)) return res.status(403).json({ message: 'Admin access required' });
       if (req.params.id === req.user.id) return res.status(400).json({ message: 'Cannot change your own account status' });
       if (!(await canManageTargetUser(req, res))) return;
       const { isActive } = req.body;
@@ -940,7 +962,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put('/api/admin/users/:id/reset-password', isAuthenticated, async (req: any, res) => {
     try {
-      if (req.user?.role !== 'admin') return res.status(403).json({ message: 'Admin access required' });
+      if (req.user?.role !== 'admin' && !isPlatformStaff(req.user?.email)) return res.status(403).json({ message: 'Admin access required' });
       if (!(await canManageTargetUser(req, res))) return;
       const { newPassword } = req.body;
       if (!newPassword || newPassword.length < 8) return res.status(400).json({ message: 'Password must be at least 8 characters' });
@@ -962,7 +984,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete('/api/admin/users/:id', isAuthenticated, async (req: any, res) => {
     try {
-      if (req.user?.role !== 'admin') return res.status(403).json({ message: 'Admin access required' });
+      if (req.user?.role !== 'admin' && !isPlatformStaff(req.user?.email)) return res.status(403).json({ message: 'Admin access required' });
       if (req.params.id === req.user.id) return res.status(400).json({ message: 'Cannot delete your own account' });
       if (!(await canManageTargetUser(req, res))) return;
       await db.delete(users).where(eq(users.id, req.params.id));
@@ -983,7 +1005,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ── Role & Permission Management ─────────────────────────────────────────
   app.get('/api/admin/roles', isAuthenticated, async (req: any, res) => {
     try {
-      if (req.user?.role !== 'admin') return res.status(403).json({ message: 'Admin access required' });
+      if (req.user?.role !== 'admin' && !isPlatformStaff(req.user?.email)) return res.status(403).json({ message: 'Admin access required' });
       const result = await db.execute(drizzleSql`
         SELECT id, role_name, display_name, description, permissions, is_system, color, created_at, updated_at
         FROM bccs_role_permissions

@@ -60,6 +60,8 @@ interface UserRecord {
   isActive: boolean;
   lastLoginAt: string | null;
   createdAt: string;
+  /** Only present for SuperAdmin (cross-org) listings. */
+  organizations?: string;
 }
 
 interface RoleRecord {
@@ -562,8 +564,12 @@ export default function AdminDashboard() {
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
   const isAdmin = (user as any)?.role === "admin";
-  // SuperAdmin = internal BCCS staff identified by @bccsworld.com email — license management only
+  // SuperAdmin = internal BCCS staff identified by @bccsworld.com email
   const isSuperAdmin = !!((user as any)?.email?.toLowerCase().endsWith("@bccsworld.com"));
+  const isManager = (user as any)?.role === "manager";
+  // Managers get a read-only user list; admins and SuperAdmins can manage.
+  const canViewUsers = isAdmin || isManager || isSuperAdmin;
+  const canManageUsers = isAdmin || isSuperAdmin;
   // Customer admins see everything except the license tab; SuperAdmins see only the license tab
 
   // ── license state (for Licenses tab)
@@ -717,7 +723,7 @@ export default function AdminDashboard() {
     isLoading: usersLoading,
   } = useQuery<UserRecord[]>({
     queryKey: ["/api/admin/users"],
-    enabled: isAuthenticated && isAdmin,
+    enabled: isAuthenticated && canViewUsers,
   });
 
   const {
@@ -725,7 +731,7 @@ export default function AdminDashboard() {
     isLoading: rolesLoading,
   } = useQuery<RoleRecord[]>({
     queryKey: ["/api/admin/roles"],
-    enabled: isAuthenticated && isAdmin,
+    enabled: isAuthenticated && canManageUsers,
   });
 
   // ── derived
@@ -940,16 +946,14 @@ export default function AdminDashboard() {
       {/* Main tabs — SuperAdmin sees only License; Customer Admin sees operational tabs */}
       <Tabs defaultValue={isSuperAdmin ? "license" : "users"} className="space-y-4">
         <TabsList className="flex flex-wrap w-full justify-start gap-2 h-auto p-2">
+          <TabsTrigger value="users">
+            <Users className="h-4 w-4 mr-1.5" /> Users
+          </TabsTrigger>
           {!isSuperAdmin && (
-            <>
-              <TabsTrigger value="users">
-                <Users className="h-4 w-4 mr-1.5" /> Users
-              </TabsTrigger>
-              <TabsTrigger value="roles">
-                <Shield className="h-4 w-4 mr-1.5" /> Roles &amp; Permissions
-                {!canUse('customRoles') && <LockedBadge />}
-              </TabsTrigger>
-            </>
+            <TabsTrigger value="roles">
+              <Shield className="h-4 w-4 mr-1.5" /> Roles &amp; Permissions
+              {!canUse('customRoles') && <LockedBadge />}
+            </TabsTrigger>
           )}
           <TabsTrigger value="organizations">
             <Building className="h-4 w-4 mr-1.5" /> Organizations
@@ -988,9 +992,15 @@ export default function AdminDashboard() {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
                   <CardTitle>User Management</CardTitle>
-                  <CardDescription>Invite users, assign roles, manage account status</CardDescription>
+                  <CardDescription>
+                    {isSuperAdmin
+                      ? "All users across every organization"
+                      : canManageUsers
+                        ? "Invite users, assign roles, manage account status"
+                        : "Read-only view of the users in your organization"}
+                  </CardDescription>
                 </div>
-                {isAdmin && (
+                {canManageUsers && (
                   <Button size="sm" onClick={() => setInviteOpen(true)}>
                     <UserPlus className="h-4 w-4 mr-1.5" /> Invite
                   </Button>
@@ -998,10 +1008,10 @@ export default function AdminDashboard() {
               </div>
             </CardHeader>
             <CardContent>
-              {!isAdmin ? (
+              {!canViewUsers ? (
                 <div className="py-10 text-center text-slate-500">
                   <Shield className="h-8 w-8 mx-auto mb-2 text-slate-300" />
-                  Admin access required
+                  Admin or manager access required
                 </div>
               ) : (
                 <>
@@ -1055,10 +1065,11 @@ export default function AdminDashboard() {
                           <tr className="border-b text-xs text-slate-400 uppercase tracking-wide">
                             <th className="text-left py-2 pr-4 font-medium">User</th>
                             <th className="text-left py-2 pr-4 font-medium">Role</th>
+                            {isSuperAdmin && <th className="text-left py-2 pr-4 font-medium hidden md:table-cell">Organizations</th>}
                             <th className="text-left py-2 pr-4 font-medium hidden sm:table-cell">Status</th>
                             <th className="text-left py-2 pr-4 font-medium hidden md:table-cell">Last Login</th>
                             <th className="text-left py-2 pr-4 font-medium hidden lg:table-cell">Joined</th>
-                            <th className="text-right py-2 font-medium">Actions</th>
+                            {canManageUsers && <th className="text-right py-2 font-medium">Actions</th>}
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
@@ -1068,6 +1079,8 @@ export default function AdminDashboard() {
                               user={u}
                               currentUserId={(user as any)?.id}
                               roleList={roleList}
+                              readOnly={!canManageUsers}
+                              showOrganizations={isSuperAdmin}
                               onRoleChange={(role) => roleMutation.mutate({ id: u.id, role })}
                               onToggleActive={() => statusMutation.mutate({ id: u.id, isActive: !u.isActive })}
                               onResetPassword={() => { setResetPwOpen(u); setNewPw(""); }}
@@ -1988,6 +2001,8 @@ function UserRow({
   user: u,
   currentUserId,
   roleList,
+  readOnly = false,
+  showOrganizations = false,
   onRoleChange,
   onToggleActive,
   onResetPassword,
@@ -1996,6 +2011,8 @@ function UserRow({
   user: UserRecord;
   currentUserId: string;
   roleList: RoleRecord[];
+  readOnly?: boolean;
+  showOrganizations?: boolean;
   onRoleChange: (role: string) => void;
   onToggleActive: () => void;
   onResetPassword: () => void;
@@ -2014,21 +2031,30 @@ function UserRow({
         <p className="text-xs text-slate-400">{u.email}</p>
       </td>
       <td className="py-3 pr-4">
-        <Select defaultValue={u.role} onValueChange={onRoleChange} disabled={isSelf}>
-          <SelectTrigger className="h-7 w-32 text-xs border-0 bg-transparent p-0 focus:ring-0 [&>svg]:h-3 [&>svg]:w-3">
-            <SelectValue>
-              <RoleBadge role={u.role} />
-            </SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            {roleList.map(r => (
-              <SelectItem key={r.role_name} value={r.role_name} className="text-xs">
-                {r.display_name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {readOnly ? (
+          <RoleBadge role={u.role} />
+        ) : (
+          <Select defaultValue={u.role} onValueChange={onRoleChange} disabled={isSelf}>
+            <SelectTrigger className="h-7 w-32 text-xs border-0 bg-transparent p-0 focus:ring-0 [&>svg]:h-3 [&>svg]:w-3">
+              <SelectValue>
+                <RoleBadge role={u.role} />
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {roleList.map(r => (
+                <SelectItem key={r.role_name} value={r.role_name} className="text-xs">
+                  {r.display_name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
       </td>
+      {showOrganizations && (
+        <td className="py-3 pr-4 hidden md:table-cell">
+          <span className="text-xs text-slate-500">{u.organizations || <span className="text-slate-300">None</span>}</span>
+        </td>
+      )}
       <td className="py-3 pr-4 hidden sm:table-cell">
         <StatusBadge isActive={u.isActive} />
       </td>
@@ -2044,6 +2070,7 @@ function UserRow({
           {u.createdAt ? format(new Date(u.createdAt), "MMM d, yyyy") : "—"}
         </span>
       </td>
+      {readOnly ? null : (
       <td className="py-3 text-right">
         <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
           <Tooltip>
@@ -2082,6 +2109,7 @@ function UserRow({
           </Tooltip>
         </div>
       </td>
+      )}
     </tr>
   );
 }
