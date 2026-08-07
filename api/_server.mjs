@@ -1657,15 +1657,15 @@ __export(ocr_exports, {
   processDocumentOCR: () => processDocumentOCR
 });
 import { createWorker } from "tesseract.js";
-import fs3 from "fs";
-import path3 from "path";
-import { exec } from "child_process";
-import { promisify } from "util";
+import fs4 from "fs";
+import path4 from "path";
+import { exec as exec2 } from "child_process";
+import { promisify as promisify2 } from "util";
 async function processPdfText(pdfPath) {
   try {
     console.log(`Extracting text from PDF: ${pdfPath}`);
     try {
-      const { stdout } = await execAsync(`pdftotext "${pdfPath}" -`);
+      const { stdout } = await execAsync2(`pdftotext "${pdfPath}" -`);
       if (stdout && stdout.trim().length > 0) {
         console.log("Successfully extracted text from PDF");
         return stdout.trim();
@@ -1675,7 +1675,7 @@ async function processPdfText(pdfPath) {
     }
     try {
       const { PDFParse } = await import("pdf-parse");
-      const parser = new PDFParse({ data: new Uint8Array(fs3.readFileSync(pdfPath)) });
+      const parser = new PDFParse({ data: new Uint8Array(fs4.readFileSync(pdfPath)) });
       try {
         const data = await parser.getText();
         if (data.text && data.text.trim().length > 0) {
@@ -1689,22 +1689,22 @@ async function processPdfText(pdfPath) {
       console.log("pdf-parse extraction failed, PDF might be scanned:", pdfParseError instanceof Error ? pdfParseError.message : pdfParseError);
     }
     console.log("Converting PDF to images for OCR...");
-    const tempDir = path3.join(path3.dirname(pdfPath), "temp_pdf_images");
-    if (!fs3.existsSync(tempDir)) {
-      fs3.mkdirSync(tempDir, { recursive: true });
+    const tempDir = path4.join(path4.dirname(pdfPath), "temp_pdf_images");
+    if (!fs4.existsSync(tempDir)) {
+      fs4.mkdirSync(tempDir, { recursive: true });
     }
     try {
-      const baseFileName = path3.basename(pdfPath, ".pdf");
-      const imagePrefix = path3.join(tempDir, `${baseFileName}_page`);
-      await execAsync(`pdftoppm -png "${pdfPath}" "${imagePrefix}"`);
-      const imageFiles = fs3.readdirSync(tempDir).filter((file) => file.startsWith(`${baseFileName}_page`) && file.endsWith(".png")).sort();
+      const baseFileName = path4.basename(pdfPath, ".pdf");
+      const imagePrefix = path4.join(tempDir, `${baseFileName}_page`);
+      await execAsync2(`pdftoppm -png "${pdfPath}" "${imagePrefix}"`);
+      const imageFiles = fs4.readdirSync(tempDir).filter((file) => file.startsWith(`${baseFileName}_page`) && file.endsWith(".png")).sort();
       if (imageFiles.length === 0) {
         throw new Error("No images were generated from PDF");
       }
       console.log(`Generated ${imageFiles.length} images from PDF`);
       let combinedText = "";
       for (const imageFile of imageFiles) {
-        const imagePath = path3.join(tempDir, imageFile);
+        const imagePath = path4.join(tempDir, imageFile);
         console.log(`Processing image: ${imageFile}`);
         try {
           const imageText = await processImageOCR(imagePath);
@@ -1715,13 +1715,13 @@ async function processPdfText(pdfPath) {
         }
       }
       for (const imageFile of imageFiles) {
-        const imagePath = path3.join(tempDir, imageFile);
-        if (fs3.existsSync(imagePath)) {
-          fs3.unlinkSync(imagePath);
+        const imagePath = path4.join(tempDir, imageFile);
+        if (fs4.existsSync(imagePath)) {
+          fs4.unlinkSync(imagePath);
         }
       }
       try {
-        fs3.rmdirSync(tempDir);
+        fs4.rmdirSync(tempDir);
       } catch (e) {
       }
       if (combinedText.trim().length > 0) {
@@ -1742,10 +1742,10 @@ async function processPdfText(pdfPath) {
 }
 async function processDocumentOCR(filePath) {
   try {
-    if (!fs3.existsSync(filePath)) {
+    if (!fs4.existsSync(filePath)) {
       throw new Error("File not found");
     }
-    const ext = path3.extname(filePath).toLowerCase();
+    const ext = path4.extname(filePath).toLowerCase();
     console.log("Processing file with extension:", ext, "for file:", filePath);
     if ([".jpg", ".jpeg", ".png"].includes(ext)) {
       return await processImageOCR(filePath);
@@ -1771,11 +1771,11 @@ async function processImageOCR(imagePath) {
     await worker.terminate();
   }
 }
-var execAsync;
+var execAsync2;
 var init_ocr = __esm({
   "server/services/ocr.ts"() {
     "use strict";
-    execAsync = promisify(exec);
+    execAsync2 = promisify2(exec2);
   }
 });
 
@@ -1785,7 +1785,7 @@ __export(faa_document_monitor_exports, {
   faaDocumentMonitor: () => faaDocumentMonitor
 });
 import { sql as sql22 } from "drizzle-orm";
-import * as crypto12 from "crypto";
+import * as crypto13 from "crypto";
 var FAA_SEED_DOCUMENTS, FAADocumentMonitorService, faaDocumentMonitor;
 var init_faa_document_monitor = __esm({
   "server/services/faa-document-monitor.ts"() {
@@ -1907,7 +1907,7 @@ var init_faa_document_monitor = __esm({
           const partNum = doc.source_id.replace("14-CFR-", "");
           const latestAmendment = ecfrVersions[partNum];
           if (latestAmendment) {
-            newHash = crypto12.createHash("sha256").update(latestAmendment).digest("hex").substring(0, 16);
+            newHash = crypto13.createHash("sha256").update(latestAmendment).digest("hex").substring(0, 16);
             amendmentDate = latestAmendment;
             if (doc.content_hash && newHash !== doc.content_hash) {
               status = "updated";
@@ -1927,7 +1927,7 @@ var init_faa_document_monitor = __esm({
             const contentLength = res.headers.get("content-length") || "";
             const etag = res.headers.get("etag") || "";
             const hashInput = `${res.status}|${lastMod}|${contentLength}|${etag}`;
-            newHash = crypto12.createHash("sha256").update(hashInput).digest("hex").substring(0, 16);
+            newHash = crypto13.createHash("sha256").update(hashInput).digest("hex").substring(0, 16);
             if (res.ok || res.status === 302 || res.status === 301) {
               if (doc.content_hash && newHash !== doc.content_hash) {
                 status = "updated";
@@ -2258,8 +2258,8 @@ async function attachLicense(req, _res, next) {
   }
   next();
 }
-function isTrialLockExempt(path7) {
-  return TRIAL_LOCK_ALLOWLIST.some((p) => path7 === p || path7.startsWith(p + "/"));
+function isTrialLockExempt(path8) {
+  return TRIAL_LOCK_ALLOWLIST.some((p) => path8 === p || path8.startsWith(p + "/"));
 }
 async function enforceTrialLifecycle(req, res, next) {
   try {
@@ -12847,12 +12847,12 @@ var instructor_portal_default = router9;
 init_db();
 import { Router as Router9 } from "express";
 import multer from "multer";
-import fs4 from "fs";
-import os from "os";
-import path4 from "path";
-import crypto9 from "crypto";
-import { exec as exec2 } from "child_process";
-import { promisify as promisify2 } from "util";
+import fs5 from "fs";
+import os2 from "os";
+import path5 from "path";
+import crypto10 from "crypto";
+import { exec as exec3 } from "child_process";
+import { promisify as promisify3 } from "util";
 import OpenAI7 from "openai";
 import { sql as sql13 } from "drizzle-orm";
 
@@ -14185,8 +14185,278 @@ function selectChunks(chunks, itemTexts, maxChunks = 12) {
   return bounded;
 }
 
+// server/services/checklist-excel.ts
+import ExcelJS from "exceljs";
+import { Readable } from "stream";
+import fs3 from "fs";
+import os from "os";
+import path3 from "path";
+import crypto9 from "crypto";
+import { exec } from "child_process";
+import { promisify } from "util";
+var execAsync = promisify(exec);
+var ACCEPTED_COLUMNS_HELP = 'Expected columns: "Item Number" (or Number/No/#), "Description" (or Requirement/Question), optional "Reference", optional "Area" (or Section/Category).';
+var HEADER_MATCHERS = [
+  { field: "number", test: (h) => /^(item\s*)?(number|no\.?|num|#)$|^item$/i.test(h) },
+  { field: "description", test: (h) => /desc|requirement|question|checklist\s*item|item\s*text/i.test(h) },
+  { field: "reference", test: (h) => /^ref(erence)?s?$|regulation|cfr/i.test(h) },
+  { field: "areaName", test: (h) => /area|section|category|chapter|group/i.test(h) }
+];
+function cellText(value) {
+  if (value === null || value === void 0) return "";
+  if (typeof value === "object") {
+    const v = value;
+    if (v instanceof Date) return v.toISOString();
+    if (typeof v.text === "string") return v.text.trim();
+    if (Array.isArray(v.richText)) return v.richText.map((r) => r.text).join("").trim();
+    if ("formula" in v || "sharedFormula" in v || "result" in v) {
+      const r = v.result;
+      if (r === null || r === void 0) return "";
+      if (typeof r === "object") return r instanceof Date ? r.toISOString() : "";
+      return String(r).trim();
+    }
+    return "";
+  }
+  return String(value).trim();
+}
+var MAX_PARSE_ROWS = 5e3;
+var MAX_PARSE_COLS = 100;
+var MAX_UNCOMPRESSED_BYTES = 50 * 1024 * 1024;
+async function assertZipWithinBounds(buffer) {
+  const tmp = path3.join(os.tmpdir(), `xlsx-${crypto9.randomBytes(6).toString("hex")}.zip`);
+  fs3.writeFileSync(tmp, buffer);
+  try {
+    const { stdout } = await execAsync(`unzip -l "${tmp}"`, { maxBuffer: 10 * 1024 * 1024 });
+    let total = 0;
+    for (const line of stdout.split("\n")) {
+      const m = line.match(/^\s*(\d+)\s+\d{2,4}-\d{2}-\d{2,4}/);
+      if (m) total += Number(m[1]);
+    }
+    if (total > MAX_UNCOMPRESSED_BYTES) {
+      throw new Error("This spreadsheet expands to an unreasonably large size and cannot be processed.");
+    }
+  } catch (err) {
+    if (/unreasonably large/.test(String(err?.message))) throw err;
+  } finally {
+    fs3.unlinkSync(tmp);
+  }
+}
+async function convertXlsToXlsx(buffer) {
+  if (buffer.length < 8 || !buffer.subarray(0, 4).equals(Buffer.from([208, 207, 17, 224]))) {
+    throw new Error("not a legacy .xls (CFB) file");
+  }
+  const XLSX = await import("xlsx");
+  const legacy = XLSX.read(buffer, { type: "buffer", dense: true, sheetRows: MAX_PARSE_ROWS + 1 });
+  if (!legacy.SheetNames.length) throw new Error("empty .xls workbook");
+  const out = XLSX.write(legacy, { type: "buffer", bookType: "xlsx", compression: true });
+  if (out.length > MAX_UNCOMPRESSED_BYTES) {
+    throw new Error("This spreadsheet expands to an unreasonably large size and cannot be processed.");
+  }
+  return out;
+}
+async function readWorkbook(buffer, filename) {
+  const workbook = new ExcelJS.Workbook();
+  if (/\.csv$/i.test(filename)) {
+    await workbook.csv.read(Readable.from(buffer));
+  } else if (/\.xls$/i.test(filename)) {
+    const converted = await convertXlsToXlsx(buffer);
+    await assertZipWithinBounds(converted);
+    await workbook.xlsx.load(converted);
+  } else {
+    await assertZipWithinBounds(buffer);
+    await workbook.xlsx.load(buffer);
+  }
+  return workbook;
+}
+function parseSheet(sheet, defaultAreaName, startIndex) {
+  let headerRowIdx = 0;
+  let columnMap = {};
+  const maxScan = Math.min(sheet.rowCount, 10);
+  for (let r = 1; r <= maxScan; r++) {
+    const row = sheet.getRow(r);
+    const map = {};
+    row.eachCell({ includeEmpty: false }, (cell, col) => {
+      const text2 = cellText(cell.value);
+      if (!text2) return;
+      for (const m of HEADER_MATCHERS) {
+        if (map[m.field] === void 0 && m.test(text2)) {
+          map[m.field] = col;
+          break;
+        }
+      }
+    });
+    if (map.description !== void 0) {
+      headerRowIdx = r;
+      columnMap = map;
+      break;
+    }
+  }
+  if (!headerRowIdx) return null;
+  const items = [];
+  for (let r = headerRowIdx + 1; r <= sheet.rowCount; r++) {
+    const row = sheet.getRow(r);
+    const description = columnMap.description !== void 0 ? cellText(row.getCell(columnMap.description).value) : "";
+    if (!description) continue;
+    const number = columnMap.number !== void 0 ? cellText(row.getCell(columnMap.number).value) : "";
+    const reference = columnMap.reference !== void 0 ? cellText(row.getCell(columnMap.reference).value) : "";
+    const areaName = columnMap.areaName !== void 0 ? cellText(row.getCell(columnMap.areaName).value) : "";
+    items.push({
+      number: number || `ITEM-${startIndex + items.length + 1}`,
+      description,
+      reference,
+      areaName: areaName || defaultAreaName
+    });
+  }
+  return items.length ? items : null;
+}
+async function parseChecklistWorkbook(buffer, filename) {
+  let workbook;
+  try {
+    workbook = await readWorkbook(buffer, filename);
+  } catch (err) {
+    if (/unreasonably large/.test(String(err?.message))) throw err;
+    throw new Error("This file could not be read as a spreadsheet. Please upload a valid .xlsx, .xls, or .csv file.");
+  }
+  const sheets = workbook.worksheets.filter((ws2) => ws2 && ws2.rowCount > 0);
+  if (sheets.length === 0) {
+    throw new Error(`The spreadsheet is empty. ${ACCEPTED_COLUMNS_HELP}`);
+  }
+  const totalRows = sheets.reduce((s, ws2) => s + ws2.rowCount, 0);
+  const maxCols = Math.max(...sheets.map((ws2) => ws2.columnCount));
+  if (totalRows > MAX_PARSE_ROWS || maxCols > MAX_PARSE_COLS) {
+    throw new Error(`The spreadsheet is too large (${totalRows} rows \xD7 ${maxCols} columns). The maximum is ${MAX_PARSE_ROWS} rows and ${MAX_PARSE_COLS} columns.`);
+  }
+  const multiSheet = sheets.length > 1;
+  const items = [];
+  const skippedSheets = [];
+  for (const sheet of sheets) {
+    const defaultAreaName = multiSheet ? sheet.name || "Imported Checklist" : "Imported Checklist";
+    const parsed = parseSheet(sheet, defaultAreaName, items.length);
+    if (parsed) items.push(...parsed);
+    else skippedSheets.push(sheet.name || `Sheet ${skippedSheets.length + 1}`);
+  }
+  if (items.length === 0) {
+    if (skippedSheets.length > 0 && sheets.some((s) => {
+      const p = parseSheetHeaderOnly(s);
+      return p;
+    })) {
+      throw new Error(`No checklist rows were found under the header row. ${ACCEPTED_COLUMNS_HELP}`);
+    }
+    throw new Error(`Could not find a header row with a Description column. ${ACCEPTED_COLUMNS_HELP}`);
+  }
+  return { items, skippedSheets };
+}
+function parseSheetHeaderOnly(sheet) {
+  const maxScan = Math.min(sheet.rowCount, 10);
+  for (let r = 1; r <= maxScan; r++) {
+    let found = false;
+    sheet.getRow(r).eachCell({ includeEmpty: false }, (cell) => {
+      const text2 = cellText(cell.value);
+      if (text2 && HEADER_MATCHERS[1].test(text2)) found = true;
+    });
+    if (found) return true;
+  }
+  return false;
+}
+var VERDICT_LABELS = {
+  covered: "Covered by manual",
+  partial: "Partially covered",
+  not_addressed: "Not addressed"
+};
+function sheetName(raw, used) {
+  let base = raw.replace(/[\\/*?:\[\]]/g, " ").replace(/\s+/g, " ").trim().slice(0, 31) || "Area";
+  let name = base;
+  let n = 2;
+  while (used.has(name.toLowerCase())) {
+    const suffix = ` (${n++})`;
+    name = base.slice(0, 31 - suffix.length) + suffix;
+  }
+  used.add(name.toLowerCase());
+  return name;
+}
+async function buildChecklistWorkbook(opts) {
+  const { areas, organization, manual } = opts;
+  const generatedAt = opts.generatedAt ?? /* @__PURE__ */ new Date();
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = "BCCS Part 142 Checklist Report";
+  workbook.created = generatedAt;
+  const allItems = areas.flatMap((a) => a.items);
+  const count4 = (st) => allItems.filter((i) => i.status === st).length;
+  const aiCount = (v) => allItems.filter((i) => i.aiVerdict === v).length;
+  const assessed = count4("compliant") + count4("non-compliant") + count4("not-applicable");
+  const summary = workbook.addWorksheet("Summary");
+  summary.columns = [{ width: 34 }, { width: 60 }];
+  const title = summary.addRow(["Part 142 Checklist Report"]);
+  title.font = { bold: true, size: 16 };
+  summary.addRow(["FAA Training Center Inspection Checklist & Job Aid \u2014 Auditor Report"]);
+  summary.addRow([]);
+  if (organization) {
+    summary.addRow(["Organization", organization.name || ""]);
+    if (organization.certificateNumber) summary.addRow(["Certificate No.", organization.certificateNumber]);
+    if (organization.regulatoryAuthority) summary.addRow(["Regulatory authority", organization.regulatoryAuthority]);
+  }
+  summary.addRow(["Generated", generatedAt.toISOString()]);
+  summary.addRow([
+    "Operations manual",
+    manual ? `${manual.filename}${manual.uploadedAt ? ` (uploaded ${new Date(manual.uploadedAt).toDateString()})` : ""}` : "None on file \u2014 AI review not performed"
+  ]);
+  summary.addRow([]);
+  const statsHeader = summary.addRow(["Completion statistics"]);
+  statsHeader.font = { bold: true };
+  summary.addRow(["Total items", allItems.length]);
+  summary.addRow(["Compliant", count4("compliant")]);
+  summary.addRow(["Non-compliant", count4("non-compliant")]);
+  summary.addRow(["Not applicable", count4("not-applicable")]);
+  summary.addRow(["Pending", count4("pending")]);
+  summary.addRow(["Assessed", `${allItems.length ? Math.round(assessed / allItems.length * 100) : 0}%`]);
+  if (allItems.some((i) => i.aiVerdict)) {
+    summary.addRow([]);
+    const aiHeader = summary.addRow(["AI manual review"]);
+    aiHeader.font = { bold: true };
+    summary.addRow(["Covered by manual", aiCount("covered")]);
+    summary.addRow(["Partially covered", aiCount("partial")]);
+    summary.addRow(["Not addressed", aiCount("not_addressed")]);
+  }
+  const usedNames = /* @__PURE__ */ new Set(["summary"]);
+  for (const area of areas) {
+    const ws2 = workbook.addWorksheet(sheetName(area.name, usedNames));
+    ws2.columns = [
+      { header: "Item", key: "number", width: 10 },
+      { header: "Requirement", key: "description", width: 70 },
+      { header: "Reference", key: "reference", width: 28 },
+      { header: "Status", key: "status", width: 16 },
+      { header: "Comments", key: "comments", width: 40 },
+      { header: "Findings", key: "findings", width: 40 },
+      { header: "AI Verdict", key: "aiVerdict", width: 22 },
+      { header: "AI Manual Excerpt", key: "aiExcerpt", width: 50 },
+      { header: "AI Suggested Remediation", key: "aiRemediation", width: 50 },
+      { header: "Evidence Files", key: "evidenceCount", width: 14 }
+    ];
+    ws2.getRow(1).font = { bold: true };
+    ws2.views = [{ state: "frozen", ySplit: 1 }];
+    for (const item of area.items) {
+      const verdict = item.aiVerdict ? (VERDICT_LABELS[item.aiVerdict] || item.aiVerdict) + (item.aiStale ? " (stale \u2014 previous manual)" : "") : "";
+      ws2.addRow({
+        number: item.number,
+        description: item.description,
+        reference: item.reference,
+        status: item.status.replace("-", " "),
+        comments: item.comments,
+        findings: item.findings,
+        aiVerdict: verdict,
+        aiExcerpt: item.aiExcerpt || "",
+        aiRemediation: item.aiRemediation || "",
+        evidenceCount: item.evidenceCount
+      });
+    }
+    ws2.getColumn(2).alignment = { wrapText: true, vertical: "top" };
+    for (const col of [5, 6, 8, 9]) ws2.getColumn(col).alignment = { wrapText: true, vertical: "top" };
+  }
+  return Buffer.from(await workbook.xlsx.writeBuffer());
+}
+
 // server/routes/checklist-report.ts
-var execAsync2 = promisify2(exec2);
+var execAsync3 = promisify3(exec3);
 var router10 = Router9();
 var openai7 = new OpenAI7();
 var upload = multer({
@@ -14430,7 +14700,7 @@ router10.post("/items/:id/evidence", isAuthenticated, requireAdmin2, evidenceUpl
     const orgId = requireOrg(req, res);
     if (!orgId) return;
     if (!req.file) return res.status(400).json({ message: "No file uploaded" });
-    const ext = path4.extname(req.file.originalname).toLowerCase();
+    const ext = path5.extname(req.file.originalname).toLowerCase();
     const contentType = EVIDENCE_TYPES[ext];
     if (!contentType) {
       return res.status(400).json({ message: "Unsupported file type. Please upload a PDF or image (PNG, JPG, GIF, WebP)." });
@@ -14498,6 +14768,41 @@ router10.delete("/evidence/:id", isAuthenticated, requireAdmin2, async (req, res
     res.status(500).json({ message: "Failed to delete evidence file" });
   }
 });
+function importBoundsError(items) {
+  if (items.length === 0) return "No checklist items could be parsed";
+  if (items.length > MAX_IMPORT_ITEMS) {
+    return `Too many items (${items.length}). The maximum is ${MAX_IMPORT_ITEMS}.`;
+  }
+  const distinctAreas = new Set(items.map((it) => it.areaName));
+  if (distinctAreas.size > MAX_IMPORT_AREAS) {
+    return `Too many areas (${distinctAreas.size}). The maximum is ${MAX_IMPORT_AREAS}.`;
+  }
+  return null;
+}
+async function replaceChecklist(orgId, items, res) {
+  const boundsError = importBoundsError(items);
+  if (boundsError) {
+    res.status(400).json({ message: boundsError });
+    return null;
+  }
+  await db.transaction(async (tx) => {
+    await tx.execute(sql13`DELETE FROM bccs_checklist_ai_findings WHERE organization_id = ${orgId}`);
+    await tx.execute(sql13`DELETE FROM bccs_checklist_evidence WHERE organization_id = ${orgId}`);
+    await tx.execute(sql13`DELETE FROM bccs_checklist_report_items WHERE organization_id = ${orgId}`);
+    const areaIds = /* @__PURE__ */ new Map();
+    let order = 0;
+    for (const it of items) {
+      if (!areaIds.has(it.areaName)) areaIds.set(it.areaName, `import-${areaIds.size + 1}`);
+      order++;
+      await tx.execute(sql13`
+        INSERT INTO bccs_checklist_report_items
+          (organization_id, area_id, area_name, area_description, item_number, description, reference, item_order)
+        VALUES (${orgId}, ${areaIds.get(it.areaName)}, ${it.areaName}, ${""}, ${it.number}, ${it.description}, ${it.reference}, ${order})
+      `);
+    }
+  });
+  return items.length;
+}
 router10.post("/import", isAuthenticated, requireAdmin2, async (req, res) => {
   try {
     const orgId = requireOrg(req, res);
@@ -14516,34 +14821,133 @@ router10.post("/import", isAuthenticated, requireAdmin2, async (req, res) => {
         areaName: parts[3] || "Imported Checklist"
       };
     }).filter((it) => it.description);
-    if (items.length === 0) return res.status(400).json({ message: "No checklist items could be parsed" });
-    if (items.length > MAX_IMPORT_ITEMS) {
-      return res.status(400).json({ message: `Too many items (${items.length}). The maximum is ${MAX_IMPORT_ITEMS}.` });
-    }
-    const distinctAreas = new Set(items.map((it) => it.areaName));
-    if (distinctAreas.size > MAX_IMPORT_AREAS) {
-      return res.status(400).json({ message: `Too many areas (${distinctAreas.size}). The maximum is ${MAX_IMPORT_AREAS}.` });
-    }
-    await db.transaction(async (tx) => {
-      await tx.execute(sql13`DELETE FROM bccs_checklist_ai_findings WHERE organization_id = ${orgId}`);
-      await tx.execute(sql13`DELETE FROM bccs_checklist_evidence WHERE organization_id = ${orgId}`);
-      await tx.execute(sql13`DELETE FROM bccs_checklist_report_items WHERE organization_id = ${orgId}`);
-      const areaIds = /* @__PURE__ */ new Map();
-      let order = 0;
+    if (req.body?.confirm !== true) {
+      const boundsError = importBoundsError(items);
+      if (boundsError) return res.status(400).json({ message: boundsError });
+      const areaOrder = [];
+      const areaCounts = /* @__PURE__ */ new Map();
       for (const it of items) {
-        if (!areaIds.has(it.areaName)) areaIds.set(it.areaName, `import-${areaIds.size + 1}`);
-        order++;
-        await tx.execute(sql13`
-          INSERT INTO bccs_checklist_report_items
-            (organization_id, area_id, area_name, area_description, item_number, description, reference, item_order)
-          VALUES (${orgId}, ${areaIds.get(it.areaName)}, ${it.areaName}, ${""}, ${it.number}, ${it.description}, ${it.reference}, ${order})
-        `);
+        if (!areaCounts.has(it.areaName)) areaOrder.push(it.areaName);
+        areaCounts.set(it.areaName, (areaCounts.get(it.areaName) || 0) + 1);
       }
-    });
-    res.json({ success: true, imported: items.length });
+      return res.json({
+        preview: true,
+        itemCount: items.length,
+        areas: areaOrder.map((name) => ({ name, itemCount: areaCounts.get(name) }))
+      });
+    }
+    const imported = await replaceChecklist(orgId, items, res);
+    if (imported === null) return;
+    res.json({ success: true, imported });
   } catch (err) {
     console.error("Checklist import error:", err);
     res.status(500).json({ message: "Failed to import checklist" });
+  }
+});
+router10.post("/import-file", isAuthenticated, requireAdmin2, upload.single("file"), async (req, res) => {
+  try {
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
+    if (!req.file) return res.status(400).json({ message: "No file uploaded" });
+    const ext = path5.extname(req.file.originalname).toLowerCase();
+    if (![".xlsx", ".xls", ".csv"].includes(ext)) {
+      return res.status(400).json({ message: "Unsupported file type. Please upload an Excel (.xlsx or .xls) or CSV file." });
+    }
+    let items;
+    let skippedSheets;
+    try {
+      ({ items, skippedSheets } = await parseChecklistWorkbook(req.file.buffer, req.file.originalname));
+    } catch (parseErr) {
+      return res.status(422).json({ message: parseErr.message });
+    }
+    if (req.body?.confirm !== "true") {
+      const boundsError = importBoundsError(items);
+      if (boundsError) return res.status(400).json({ message: boundsError });
+      const areaOrder = [];
+      const areaCounts = /* @__PURE__ */ new Map();
+      for (const it of items) {
+        if (!areaCounts.has(it.areaName)) areaOrder.push(it.areaName);
+        areaCounts.set(it.areaName, (areaCounts.get(it.areaName) || 0) + 1);
+      }
+      return res.json({
+        preview: true,
+        itemCount: items.length,
+        areas: areaOrder.map((name) => ({ name, itemCount: areaCounts.get(name) })),
+        skippedSheets
+      });
+    }
+    const imported = await replaceChecklist(orgId, items, res);
+    if (imported === null) return;
+    res.json({ success: true, imported, skippedSheets });
+  } catch (err) {
+    console.error("Checklist Excel import error:", err);
+    res.status(500).json({ message: "Failed to import checklist file" });
+  }
+});
+router10.get("/export.xlsx", isAuthenticated, async (req, res) => {
+  try {
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
+    const rows = await db.execute(sql13`
+      SELECT * FROM bccs_checklist_report_items WHERE organization_id = ${orgId}
+      ORDER BY area_id, item_order
+    `).then((r) => r.rows);
+    if (rows.length === 0) return res.status(404).json({ message: "No checklist items to export" });
+    const [currentManual] = await db.execute(sql13`
+      SELECT id, filename, uploaded_at FROM bccs_ops_manuals WHERE organization_id = ${orgId}
+      ORDER BY uploaded_at DESC LIMIT 1
+    `).then((r) => r.rows);
+    const findings = await db.execute(sql13`
+      SELECT DISTINCT ON (item_id) item_id, manual_id, verdict, excerpt, remediation
+      FROM bccs_checklist_ai_findings WHERE organization_id = ${orgId}
+      ORDER BY item_id, reviewed_at DESC
+    `).then((r) => r.rows);
+    const findingByItem = {};
+    for (const f of findings) findingByItem[f.item_id] = f;
+    const evidenceCounts = await db.execute(sql13`
+      SELECT item_id, COUNT(*)::int AS count FROM bccs_checklist_evidence
+      WHERE organization_id = ${orgId} GROUP BY item_id
+    `).then((r) => r.rows);
+    const evidenceByItem = {};
+    for (const e of evidenceCounts) evidenceByItem[e.item_id] = Number(e.count);
+    const [org] = await db.execute(sql13`
+      SELECT organization_name, certificate_number, regulatory_authority
+      FROM training_organizations WHERE id = ${orgId}
+    `).then((r) => r.rows);
+    const areas = [];
+    for (const row of rows) {
+      let area = areas.find((a) => a.id === row.area_id);
+      if (!area) {
+        area = { id: row.area_id, name: row.area_name, description: row.area_description || "", items: [] };
+        areas.push(area);
+      }
+      const f = findingByItem[row.id];
+      area.items.push({
+        number: row.item_number,
+        description: row.description,
+        reference: row.reference || "",
+        status: row.status || "pending",
+        comments: row.comments || "",
+        findings: row.findings || "",
+        aiVerdict: f?.verdict || null,
+        aiExcerpt: f?.excerpt || null,
+        aiRemediation: f?.remediation || null,
+        aiStale: f ? !currentManual || f.manual_id !== currentManual.id : false,
+        evidenceCount: evidenceByItem[row.id] || 0
+      });
+    }
+    const buffer = await buildChecklistWorkbook({
+      areas,
+      organization: org ? { name: org.organization_name, certificateNumber: org.certificate_number, regulatoryAuthority: org.regulatory_authority } : null,
+      manual: currentManual ? { filename: currentManual.filename, uploadedAt: currentManual.uploaded_at } : null
+    });
+    const date = (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", `attachment; filename="part142-checklist-report-${date}.xlsx"`);
+    res.send(buffer);
+  } catch (err) {
+    console.error("Checklist Excel export error:", err);
+    res.status(500).json({ message: "Failed to export the Excel report" });
   }
 });
 router10.post("/reset", isAuthenticated, requireAdmin2, async (req, res) => {
@@ -14561,22 +14965,22 @@ router10.post("/reset", isAuthenticated, requireAdmin2, async (req, res) => {
   }
 });
 async function extractText(filename, buffer) {
-  const ext = path4.extname(filename).toLowerCase();
+  const ext = path5.extname(filename).toLowerCase();
   if (ext === ".txt") return buffer.toString("utf8");
-  const tmp = path4.join(os.tmpdir(), `manual-${crypto9.randomBytes(6).toString("hex")}${ext}`);
-  fs4.writeFileSync(tmp, buffer);
+  const tmp = path5.join(os2.tmpdir(), `manual-${crypto10.randomBytes(6).toString("hex")}${ext}`);
+  fs5.writeFileSync(tmp, buffer);
   try {
     if (ext === ".pdf") {
       const { processDocumentOCR: processDocumentOCR2 } = await Promise.resolve().then(() => (init_ocr(), ocr_exports));
       return await processDocumentOCR2(tmp);
     }
     if (ext === ".docx") {
-      const { stdout } = await execAsync2(`unzip -p "${tmp}" word/document.xml`, { maxBuffer: 100 * 1024 * 1024 });
+      const { stdout } = await execAsync3(`unzip -p "${tmp}" word/document.xml`, { maxBuffer: 100 * 1024 * 1024 });
       return stdout.replace(/<w:p[ >]/g, "\n<w:p ").replace(/<[^>]+>/g, "").replace(/[ \t]+/g, " ").replace(/\n{3,}/g, "\n\n").trim();
     }
     throw new Error("Unsupported file type. Please upload a PDF, Word (.docx), or plain-text file.");
   } finally {
-    fs4.unlinkSync(tmp);
+    fs5.unlinkSync(tmp);
   }
 }
 router10.post("/manual", isAuthenticated, requireAdmin2, upload.single("file"), async (req, res) => {
@@ -14584,7 +14988,7 @@ router10.post("/manual", isAuthenticated, requireAdmin2, upload.single("file"), 
     const orgId = requireOrg(req, res);
     if (!orgId) return;
     if (!req.file) return res.status(400).json({ message: "No file uploaded" });
-    const ext = path4.extname(req.file.originalname).toLowerCase();
+    const ext = path5.extname(req.file.originalname).toLowerCase();
     if (![".pdf", ".docx", ".txt"].includes(ext)) {
       return res.status(400).json({ message: "Unsupported file type. Please upload a PDF, Word (.docx), or plain-text file." });
     }
@@ -14915,11 +15319,11 @@ import { sql as sql17 } from "drizzle-orm";
 
 // server/services/nlp.ts
 import OpenAI8 from "openai";
-import * as fs5 from "fs";
-import * as path5 from "path";
-var envPath3 = path5.join(process.cwd(), ".env");
-if (fs5.existsSync(envPath3)) {
-  const envContent = fs5.readFileSync(envPath3, "utf8");
+import * as fs6 from "fs";
+import * as path6 from "path";
+var envPath3 = path6.join(process.cwd(), ".env");
+if (fs6.existsSync(envPath3)) {
+  const envContent = fs6.readFileSync(envPath3, "utf8");
   const envLines = envContent.split("\n").filter((line) => line.trim() && !line.startsWith("#"));
   for (const line of envLines) {
     const [key, ...valueParts] = line.split("=");
@@ -15140,10 +15544,10 @@ function extractFieldsWithPatternMatching(text2) {
 // server/services/document-agent.ts
 init_db();
 init_ocr();
-import * as fs6 from "fs";
-import * as os2 from "os";
-import * as path6 from "path";
-import * as crypto10 from "crypto";
+import * as fs7 from "fs";
+import * as os3 from "os";
+import * as path7 from "path";
+import * as crypto11 from "crypto";
 import OpenAI9 from "openai";
 import { sql as sql16 } from "drizzle-orm";
 
@@ -15293,7 +15697,7 @@ var LEARNING_BATCH_SIZE = 5;
 var AGENT_NAME2 = "Document Extraction Agent";
 var LEARNING_AGENT_NAME = "Extraction Learning Agent";
 function sha256Hash(payload) {
-  return crypto10.createHash("sha256").update(JSON.stringify(payload)).digest("hex");
+  return crypto11.createHash("sha256").update(JSON.stringify(payload)).digest("hex");
 }
 async function loadGuidance(orgId, documentType) {
   if (!orgId) return null;
@@ -15308,19 +15712,19 @@ async function extractText2(fileName, mimeType, buffer) {
   if (mimeType.startsWith("text/") || mimeType === "application/json" || mimeType === "text/csv") {
     return buffer.toString("utf8");
   }
-  const ext = path6.extname(fileName).toLowerCase();
+  const ext = path7.extname(fileName).toLowerCase();
   const ocrExts = [".pdf", ".png", ".jpg", ".jpeg"];
   const extFromMime = mimeType === "application/pdf" ? ".pdf" : mimeType === "image/png" ? ".png" : mimeType === "image/jpeg" ? ".jpg" : null;
   const useExt = ocrExts.includes(ext) ? ext : extFromMime;
   if (!useExt) {
     throw new Error(`Unsupported file type for AI extraction: ${mimeType || ext || "unknown"}. Supported: PDF, PNG, JPG, TXT, CSV.`);
   }
-  const tmpPath = path6.join(os2.tmpdir(), `bccs-doc-${crypto10.randomUUID()}${useExt}`);
-  fs6.writeFileSync(tmpPath, buffer);
+  const tmpPath = path7.join(os3.tmpdir(), `bccs-doc-${crypto11.randomUUID()}${useExt}`);
+  fs7.writeFileSync(tmpPath, buffer);
   try {
     return await processDocumentOCR(tmpPath);
   } finally {
-    fs6.unlink(tmpPath, () => {
+    fs7.unlink(tmpPath, () => {
     });
   }
 }
@@ -15935,14 +16339,14 @@ init_crypto_signing();
 // server/routes/reviewer.ts
 init_db();
 import { Router as Router13 } from "express";
-import crypto11 from "crypto";
+import crypto12 from "crypto";
 import { sql as sql19 } from "drizzle-orm";
 var router14 = Router13();
 function generateKey2() {
-  return "bccs_rev_" + crypto11.randomBytes(20).toString("hex");
+  return "bccs_rev_" + crypto12.randomBytes(20).toString("hex");
 }
 function hashKey2(key) {
-  return crypto11.createHash("sha256").update(key).digest("hex");
+  return crypto12.createHash("sha256").update(key).digest("hex");
 }
 function extractKey2(req) {
   const q = req.query.key || req.query.apiKey;
@@ -21887,7 +22291,7 @@ async function createApp() {
   app.use(express2.urlencoded({ extended: false }));
   app.use((req, res, next) => {
     const start = Date.now();
-    const path7 = req.path;
+    const path8 = req.path;
     let capturedJsonResponse;
     const originalResJson = res.json;
     res.json = function(bodyJson, ...args) {
@@ -21896,8 +22300,8 @@ async function createApp() {
     };
     res.on("finish", () => {
       const duration = Date.now() - start;
-      if (path7.startsWith("/api")) {
-        let logLine = `${req.method} ${path7} ${res.statusCode} in ${duration}ms`;
+      if (path8.startsWith("/api")) {
+        let logLine = `${req.method} ${path8} ${res.statusCode} in ${duration}ms`;
         if (capturedJsonResponse) {
           logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
         }
