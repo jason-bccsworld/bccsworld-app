@@ -65,6 +65,9 @@ export async function ensureTables(): Promise<void> {
     await db.execute(sql`
       ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMP
     `);
+    await db.execute(sql`
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS welcome_pending BOOLEAN DEFAULT FALSE
+    `);
 
     // Role permissions table
     await db.execute(sql`

@@ -38,6 +38,9 @@ export const users = pgTable("users", {
   passwordHash: varchar("password_hash"),
   role: varchar("role").default("viewer"), // admin, instructor, auditor, viewer
   isActive: boolean("is_active").default(true),
+  // Set when the post-signup welcome email couldn't be sent — the client
+  // shows the in-app welcome/onboarding message until acknowledged.
+  welcomePending: boolean("welcome_pending").default(false),
   lastLoginAt: timestamp("last_login_at"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),

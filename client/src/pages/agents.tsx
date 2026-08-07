@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { AgentFeed } from "@/components/governance-widgets";
+import { WelcomeOnboardingDialog } from "@/components/welcome-onboarding";
 import {
   type AgentRoster,
   type AgentInfo,
@@ -269,6 +270,7 @@ export default function AgentsCommandCenter() {
 
   return (
     <div className="space-y-6" data-testid="page-agents">
+      <WelcomeOnboardingDialog />
       <div>
         <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
           <Bot className="h-7 w-7 text-indigo-600" />

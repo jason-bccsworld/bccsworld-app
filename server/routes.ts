@@ -240,6 +240,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         organizationId: org.id,
       } as any).catch((err: any) => console.error('Signup audit log failed (non-fatal):', err));
 
+      // Welcome email with next steps (non-fatal). If it can't be sent —
+      // SMTP unconfigured or delivery failure — flag the user so the client
+      // shows the in-app welcome message on first login instead.
+      try {
+        const { sendWelcomeEmail } = await import('./services/welcome-email');
+        const signInUrl = `${req.protocol}://${req.get('host')}/login`;
+        const skipReason = await sendWelcomeEmail({
+          to: email,
+          firstName: data.firstName,
+          organizationName: data.organizationName,
+          signInUrl,
+        });
+        if (skipReason) {
+          console.warn(`[signup] ${skipReason} — falling back to in-app welcome for ${email}`);
+          const [flagged] = await db
+            .update(users)
+            .set({ welcomePending: true })
+            .where(eq(users.id, user.id))
+            .returning();
+          if (flagged) user = flagged;
+        }
+      } catch (emailErr) {
+        console.error('Signup welcome email failed (non-fatal):', emailErr);
+      }
+
       // Fresh session for the new admin (avoids session fixation), then login.
       req.session.regenerate((regenErr: any) => {
         if (regenErr) {
@@ -273,6 +298,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching user:", error);
       res.status(500).json({ message: "Failed to fetch user" });
+    }
+  });
+
+  // Acknowledge the in-app welcome message (shown when the welcome email
+  // couldn't be sent at signup).
+  app.post('/api/auth/welcome-ack', isAuthenticated, async (req: any, res) => {
+    try {
+      await db.update(users).set({ welcomePending: false }).where(eq(users.id, req.user.id));
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error acknowledging welcome message:', error);
+      res.status(500).json({ message: 'Failed to acknowledge welcome message' });
     }
   });
 
