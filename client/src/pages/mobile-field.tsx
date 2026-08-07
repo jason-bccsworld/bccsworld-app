@@ -11,6 +11,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { apiRequest } from "@/lib/queryClient";
 import MobileCamera from "@/components/mobile-camera";
 import MobileNav from "@/components/mobile-nav";
+import { WelcomeOnboardingDialog } from "@/components/welcome-onboarding";
 import { 
   Camera, 
   MapPin, 
@@ -150,6 +151,8 @@ export default function MobileField() {
 
   return (
     <div className="min-h-screen bg-slate-50">
+      {/* Welcome guide for new admins landing on the mobile experience */}
+      <WelcomeOnboardingDialog />
       {/* Mobile Header */}
       <div className="bg-deep-navy text-white p-4 sticky top-0 z-10">
         <div className="flex items-center justify-between">
