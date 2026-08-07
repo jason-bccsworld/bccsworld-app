@@ -1,0 +1,150 @@
+/**
+ * Excel import/export unit tests for the Part 142 Checklist Report.
+ */
+import { describe, it, expect } from "vitest";
+import ExcelJS from "exceljs";
+import { parseChecklistWorkbook, buildChecklistWorkbook, sheetName, cellText, ACCEPTED_COLUMNS_HELP, MAX_PARSE_ROWS } from "../services/checklist-excel";
+
+async function makeXlsx(rows: any[][]): Promise<Buffer> {
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet("Checklist");
+  for (const r of rows) ws.addRow(r);
+  return Buffer.from(await wb.xlsx.writeBuffer());
+}
+
+describe("parseChecklistWorkbook", () => {
+  it("parses a well-formed sheet with flexible headers", async () => {
+    const buf = await makeXlsx([
+      ["Item Number", "Requirement Description", "Reference", "Area"],
+      ["1-01", "Has enough instructors?", "142.13(a)", "Management"],
+      ["1-02", "Certificate displayed?", "142.27(a)", "Management"],
+      ["2-01", "Tspecs current?", "142.5(c)", "Training Specs"],
+    ]);
+    const items = await parseChecklistWorkbook(buf, "checklist.xlsx");
+    expect(items).toHaveLength(3);
+    expect(items[0]).toEqual({ number: "1-01", description: "Has enough instructors?", reference: "142.13(a)", areaName: "Management" });
+    expect(items[2].areaName).toBe("Training Specs");
+  });
+
+  it("fills defaults when optional columns are absent", async () => {
+    const buf = await makeXlsx([
+      ["Description"],
+      ["Only a description"],
+    ]);
+    const items = await parseChecklistWorkbook(buf, "min.xlsx");
+    expect(items).toEqual([{ number: "ITEM-1", description: "Only a description", reference: "", areaName: "Imported Checklist" }]);
+  });
+
+  it("skips leading junk rows and blank rows", async () => {
+    const buf = await makeXlsx([
+      ["My Company Checklist"],
+      [],
+      ["No", "Description", "Ref"],
+      ["1", "First item", "142.1"],
+      [],
+      ["2", "Second item", ""],
+    ]);
+    const items = await parseChecklistWorkbook(buf, "messy.xlsx");
+    expect(items.map((i) => i.description)).toEqual(["First item", "Second item"]);
+  });
+
+  it("rejects a sheet with no description column, listing accepted columns", async () => {
+    const buf = await makeXlsx([
+      ["Foo", "Bar"],
+      ["a", "b"],
+    ]);
+    await expect(parseChecklistWorkbook(buf, "bad.xlsx")).rejects.toThrow(ACCEPTED_COLUMNS_HELP);
+  });
+
+  it("rejects a file that is not a spreadsheet", async () => {
+    await expect(parseChecklistWorkbook(Buffer.from("not a zip"), "fake.xlsx")).rejects.toThrow(/could not be read/i);
+  });
+
+  it("parses CSV files", async () => {
+    const csv = Buffer.from("Number,Description,Reference,Area\n1-01,Item one,142.1,Area A\n1-02,Item two,,Area B\n");
+    const items = await parseChecklistWorkbook(csv, "checklist.csv");
+    expect(items).toHaveLength(2);
+    expect(items[1]).toEqual({ number: "1-02", description: "Item two", reference: "", areaName: "Area B" });
+  });
+
+  it("parses an oversized sheet fully so route bounds can reject it", async () => {
+    const rows: any[][] = [["Number", "Description", "Area"]];
+    for (let i = 1; i <= 550; i++) rows.push([`X-${i}`, `Item ${i}`, `Area ${(i % 25) + 1}`]);
+    const buf = await makeXlsx(rows);
+    const items = await parseChecklistWorkbook(buf, "big.xlsx");
+    expect(items).toHaveLength(550); // route-level MAX_IMPORT_ITEMS/AREAS rejects this
+  });
+
+  it("rejects sheets exceeding the hard parse row limit before iterating", async () => {
+    const rows: any[][] = [["Description"]];
+    for (let i = 0; i <= MAX_PARSE_ROWS; i++) rows.push([`row ${i}`]);
+    const buf = await makeXlsx(rows);
+    await expect(parseChecklistWorkbook(buf, "huge.xlsx")).rejects.toThrow(/too large/i);
+  });
+
+  it("treats formula cells without a cached result as empty, never '[object Object]'", () => {
+    expect(cellText({ formula: "A1+B1" } as any)).toBe("");
+    expect(cellText({ formula: "A1", result: 42 } as any)).toBe("42");
+    expect(cellText({ formula: "A1", result: { error: "#REF!" } } as any)).toBe("");
+    expect(cellText({ sharedFormula: "A1" } as any)).toBe("");
+    expect(cellText({ richText: [{ text: "a" }, { text: "b" }] } as any)).toBe("ab");
+  });
+
+  it("uses cached formula results as row values during parsing", async () => {
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet("S");
+    ws.addRow(["Number", "Description"]);
+    ws.addRow(["1-01", { formula: 'CONCAT("a","b")', result: "Computed item" }]);
+    ws.addRow(["1-02", { formula: 'CONCAT("a","b")' }]); // no cached result → skipped
+    const buf = Buffer.from(await wb.xlsx.writeBuffer());
+    const items = await parseChecklistWorkbook(buf, "formulas.xlsx");
+    expect(items).toHaveLength(1);
+    expect(items[0].description).toBe("Computed item");
+  });
+});
+
+describe("buildChecklistWorkbook", () => {
+  it("produces a valid workbook with summary + per-area sheets", async () => {
+    const buffer = await buildChecklistWorkbook({
+      areas: [
+        {
+          name: "Management and Administration",
+          description: "desc",
+          items: [
+            { number: "1-01", description: "Item", reference: "142.13", status: "compliant", comments: "ok", findings: "", aiVerdict: "covered", aiExcerpt: "quote", aiRemediation: "", aiStale: false, evidenceCount: 2 },
+            { number: "1-02", description: "Item 2", reference: "", status: "pending", comments: "", findings: "", aiVerdict: null, aiExcerpt: null, aiRemediation: null, aiStale: false, evidenceCount: 0 },
+          ],
+        },
+        { name: "Invalid/Name: With[Bad]Chars that is way too long for excel sheets", description: "", items: [] },
+      ],
+      organization: { name: "Demo Flight School", certificateNumber: "TC-123", regulatoryAuthority: "faa" },
+      manual: { filename: "ops.pdf", uploadedAt: new Date().toISOString() },
+    });
+
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(buffer as any);
+    expect(wb.worksheets.map((w) => w.name)[0]).toBe("Summary");
+    expect(wb.worksheets).toHaveLength(3);
+    // Sheet names sanitized and length-limited
+    for (const ws of wb.worksheets) {
+      expect(ws.name.length).toBeLessThanOrEqual(31);
+      expect(ws.name).not.toMatch(/[\\/*?:\[\]]/);
+    }
+    // Summary contains org identity
+    const summaryText = JSON.stringify(wb.getWorksheet("Summary")!.getSheetValues());
+    expect(summaryText).toContain("Demo Flight School");
+    expect(summaryText).toContain("TC-123");
+    // Area sheet has header + item rows with AI verdict
+    const areaWs = wb.worksheets[1];
+    expect(areaWs.getRow(1).getCell(1).value).toBe("Item");
+    expect(areaWs.getRow(2).getCell(7).value).toBe("Covered by manual");
+    expect(areaWs.getRow(2).getCell(10).value).toBe(2);
+  });
+
+  it("keeps duplicate area names unique as sheet names", () => {
+    const used = new Set<string>();
+    const a = sheetName("Same Area", used);
+    const b = sheetName("Same Area", used);
+    expect(a).not.toBe(b);
+  });
+});

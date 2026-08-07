@@ -125,6 +125,7 @@ describe("checklist-report authorization", () => {
       ["POST", "/review/area1", undefined],
       ["POST", "/manual", undefined],
       ["POST", "/items/item-1/evidence", undefined],
+      ["POST", "/import-file", undefined],
       ["DELETE", "/evidence/ev-1", undefined],
     ] as const) {
       const r = await api("member1", method, path, body);
@@ -145,6 +146,15 @@ describe("checklist-report authorization", () => {
 
   it("allows platform staff through the guard regardless of role", async () => {
     expect((await api("staff1", "POST", "/reset")).status).toBe(200);
+  });
+
+  it("requires auth for the Excel export and returns a workbook for members", async () => {
+    expect((await api(null, "GET", "/export.xlsx")).status).toBe(401);
+    const res = await fetch(`${base}/api/checklist-report/export.xlsx`, { headers: { "x-test-user": "member1" } });
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toContain("spreadsheetml");
+    const buf = Buffer.from(await res.arrayBuffer());
+    expect(buf.subarray(0, 2).toString()).toBe("PK"); // valid zip/xlsx magic
   });
 
   it("guards evidence routes: admins pass, deletes are org-scoped", async () => {

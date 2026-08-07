@@ -364,10 +364,67 @@ export default function ComplianceChecklist() {
     onError: (err: any) => toast({ title: 'Restore failed', description: err.message, variant: 'destructive' })
   });
 
+  const [importFileUploading, setImportFileUploading] = useState(false);
+  const [exportingExcel, setExportingExcel] = useState(false);
+
   const handleImportFile = (file: File) => {
+    const ext = file.name.toLowerCase().split('.').pop() || '';
+    if (['xlsx', 'csv'].includes(ext)) {
+      // Spreadsheets are parsed server-side
+      importFileMutation.mutate(file);
+      return;
+    }
     const reader = new FileReader();
     reader.onload = () => setImportText(String(reader.result || ''));
     reader.readAsText(file);
+  };
+
+  const importFileMutation = useMutation({
+    mutationFn: async (file: File) => {
+      setImportFileUploading(true);
+      try {
+        const fd = new FormData();
+        fd.append('file', file);
+        const res = await fetch('/api/checklist-report/import-file', { method: 'POST', credentials: 'include', body: fd });
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(body.message || 'Import failed');
+        return body;
+      } finally {
+        setImportFileUploading(false);
+      }
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/checklist-report/checklist'] });
+      setImportOpen(false);
+      setImportText('');
+      setSelectedArea('');
+      toast({ title: 'Checklist imported', description: `${data.imported} items imported from the spreadsheet. The previous checklist was replaced.` });
+    },
+    onError: (err: any) => toast({ title: 'Import failed', description: err.message, variant: 'destructive' })
+  });
+
+  const exportExcel = async () => {
+    setExportingExcel(true);
+    try {
+      const res = await fetch('/api/checklist-report/export.xlsx', { credentials: 'include' });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.message || 'Export failed');
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `part142-checklist-report-${new Date().toISOString().slice(0, 10)}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      toast({ title: 'Excel export failed', description: err.message, variant: 'destructive' });
+    } finally {
+      setExportingExcel(false);
+    }
   };
 
   const handleManualUpload = async (file: File) => {
@@ -538,6 +595,10 @@ export default function ComplianceChecklist() {
           <Button variant="outline" onClick={() => setImportOpen(true)} data-testid="button-import-checklist">
             <Upload className="h-4 w-4 mr-2" />
             Import Checklist
+          </Button>
+          <Button variant="outline" onClick={exportExcel} disabled={exportingExcel} data-testid="button-export-excel">
+            {exportingExcel ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
+            Export to Excel
           </Button>
           <Button onClick={exportReport} data-testid="button-export-report">
             <Download className="h-4 w-4 mr-2" />
@@ -873,18 +934,27 @@ export default function ComplianceChecklist() {
           <DialogHeader>
             <DialogTitle>Import Checklist</DialogTitle>
             <DialogDescription>
-              Paste checklist items or choose a text file. One item per line, in the format:{' '}
+              Upload an Excel (.xlsx) or CSV file with columns for item number, description, reference, and area — or paste
+              checklist items below, one per line:{' '}
               <code className="text-xs bg-gray-100 px-1 rounded">number | description | reference | area name</code>.
               Importing <strong>replaces</strong> your organization's current checklist (including statuses and AI findings).
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
-            <input
-              type="file"
-              accept=".txt,.csv"
-              onChange={(e) => e.target.files?.[0] && handleImportFile(e.target.files[0])}
-              className="text-sm"
-            />
+            <div className="flex items-center gap-2">
+              <input
+                type="file"
+                accept=".txt,.csv,.xlsx"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) handleImportFile(f);
+                  e.target.value = '';
+                }}
+                className="text-sm"
+                data-testid="input-import-file"
+              />
+              {importFileUploading && <Loader2 className="h-4 w-4 animate-spin text-gray-500" />}
+            </div>
             <Textarea
               value={importText}
               onChange={(e) => setImportText(e.target.value)}
