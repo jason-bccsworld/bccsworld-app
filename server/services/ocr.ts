@@ -12,6 +12,43 @@ const MAX_OCR_PAGES = 10;
 /** Stop OCR-ing additional pages once this much wall time has elapsed (ms). */
 const OCR_TIME_BUDGET_MS = 20_000;
 
+/**
+ * eng.traineddata.gz is bundled with the deployment (server/assets/tessdata,
+ * shipped to Vercel via includeFiles) so tesseract.js never has to download
+ * ~10MB of language data from a CDN at cold start. Resolve the directory at
+ * runtime: in dev the server runs from the project root; on Vercel the
+ * included files live under process.cwd() (/var/task).
+ */
+function resolveLocalTessdataDir(): string | null {
+  const candidates = [path.resolve(process.cwd(), "server/assets/tessdata")];
+  if (typeof import.meta.dirname === "string") {
+    candidates.push(path.resolve(import.meta.dirname, "../assets/tessdata"));
+  }
+  for (const dir of candidates) {
+    try {
+      if (fs.existsSync(path.join(dir, "eng.traineddata.gz"))) return dir;
+    } catch {
+      // ignore and try next candidate
+    }
+  }
+  return null;
+}
+
+/** Create a tesseract worker that prefers bundled language data over the CDN. */
+async function createOcrWorker() {
+  const langDir = resolveLocalTessdataDir();
+  if (!langDir) {
+    console.warn(
+      "Bundled eng.traineddata.gz not found; tesseract.js will download language data from its CDN",
+    );
+  }
+  // cachePath: the working directory is read-only on serverless hosts
+  return createWorker("eng", undefined, {
+    cachePath: os.tmpdir(),
+    ...(langDir ? { langPath: langDir, gzip: true } : {}),
+  });
+}
+
 const SCANNED_PDF_HELP =
   "This PDF appears to be scanned (image-only) and no readable text could be recovered from it. " +
   "Please upload a text-based PDF (e.g. exported from Word) or a Word (.docx) version of the document.";
@@ -152,9 +189,8 @@ async function ocrScannedPdf(pdfPath: string): Promise<string> {
   }
   console.log(`Rasterized ${pages.length} of ${totalPages} PDF page(s) for OCR`);
 
-  // Reuse one tesseract worker for all pages; cache language data in tmp
-  // (the working directory is read-only on serverless hosts).
-  const worker = await createWorker('eng', undefined, { cachePath: os.tmpdir() });
+  // Reuse one tesseract worker for all pages; language data is bundled.
+  const worker = await createOcrWorker();
   const started = Date.now();
   let combinedText = '';
   let processed = 0;
@@ -208,8 +244,7 @@ export async function processDocumentOCR(filePath: string): Promise<string> {
 }
 
 async function processImageOCR(imagePath: string): Promise<string> {
-  // cachePath: the working directory is read-only on serverless hosts
-  const worker = await createWorker('eng', undefined, { cachePath: os.tmpdir() });
+  const worker = await createOcrWorker();
 
   try {
     const {
