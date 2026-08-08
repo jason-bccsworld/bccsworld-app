@@ -121,6 +121,12 @@ async function ensureTables() {
     CREATE UNIQUE INDEX IF NOT EXISTS bccs_checklist_area_coverage_org_area
     ON bccs_checklist_area_coverage (organization_id, area_id)
   `);
+  // Additive: coverage rows record which manual set they were measured
+  // against, so the note can be flagged stale when the set changes.
+  // Legacy rows have NULL and are treated as stale (unknown provenance).
+  await db.execute(sql`
+    ALTER TABLE bccs_checklist_area_coverage ADD COLUMN IF NOT EXISTS manual_set_hash VARCHAR(64)
+  `);
 }
 
 // All routes must wait for schema initialization — a request that races the
@@ -242,7 +248,7 @@ router.get("/checklist", isAuthenticated, async (req: any, res) => {
     // Persisted per-area coverage from the most recent AI review run — lets
     // the client show the coverage note after a reload.
     const coverageRows = await db.execute(sql`
-      SELECT area_id, total_manual_chars, excerpt_chars, ratio, reviewed_at
+      SELECT area_id, total_manual_chars, excerpt_chars, ratio, manual_set_hash, reviewed_at
       FROM bccs_checklist_area_coverage WHERE organization_id = ${orgId}
     `).then((r: any) => r.rows);
     const coverageByArea: Record<string, any> = {};
@@ -252,6 +258,9 @@ router.get("/checklist", isAuthenticated, async (req: any, res) => {
         excerptChars: Number(c.excerpt_chars),
         ratio: Number(c.ratio),
         reviewedAt: c.reviewed_at,
+        // Stale when the manual set changed since this coverage was measured.
+        // Legacy rows (NULL hash) and empty manual sets are treated as stale.
+        stale: manualIds.length === 0 || !c.manual_set_hash || c.manual_set_hash !== currentHash,
       };
     }
     const evidence = await db.execute(sql`
@@ -970,12 +979,13 @@ Respond with JSON: { "findings": [ ... one object per checklist item ... ] }`;
     // show the coverage note after a reload, not just in the running session.
     const coverageRatio = totalManualChars > 0 ? Math.min(1, minSelectedSourceChars / totalManualChars) : 1;
     await db.execute(sql`
-      INSERT INTO bccs_checklist_area_coverage (organization_id, area_id, total_manual_chars, excerpt_chars, ratio)
-      VALUES (${orgId}, ${req.params.areaId}, ${totalManualChars}, ${minSelectedSourceChars}, ${coverageRatio})
+      INSERT INTO bccs_checklist_area_coverage (organization_id, area_id, total_manual_chars, excerpt_chars, ratio, manual_set_hash)
+      VALUES (${orgId}, ${req.params.areaId}, ${totalManualChars}, ${minSelectedSourceChars}, ${coverageRatio}, ${currentHash})
       ON CONFLICT (organization_id, area_id) DO UPDATE SET
         total_manual_chars = EXCLUDED.total_manual_chars,
         excerpt_chars = EXCLUDED.excerpt_chars,
         ratio = EXCLUDED.ratio,
+        manual_set_hash = EXCLUDED.manual_set_hash,
         reviewed_at = NOW()
     `);
     res.json({

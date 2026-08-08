@@ -14633,6 +14633,24 @@ async function ensureTables2() {
   await db.execute(sql13`
     ALTER TABLE bccs_checklist_ai_findings ADD COLUMN IF NOT EXISTS manual_set_hash VARCHAR(64)
   `);
+  await db.execute(sql13`
+    CREATE TABLE IF NOT EXISTS bccs_checklist_area_coverage (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      organization_id UUID NOT NULL,
+      area_id VARCHAR(100) NOT NULL,
+      total_manual_chars INTEGER NOT NULL,
+      excerpt_chars INTEGER NOT NULL,
+      ratio DOUBLE PRECISION NOT NULL,
+      reviewed_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
+  await db.execute(sql13`
+    CREATE UNIQUE INDEX IF NOT EXISTS bccs_checklist_area_coverage_org_area
+    ON bccs_checklist_area_coverage (organization_id, area_id)
+  `);
+  await db.execute(sql13`
+    ALTER TABLE bccs_checklist_area_coverage ADD COLUMN IF NOT EXISTS manual_set_hash VARCHAR(64)
+  `);
 }
 var schemaReady = ensureTables2();
 schemaReady.catch((err) => console.error("checklist-report schema init failed:", err));
@@ -14722,6 +14740,22 @@ router10.get("/checklist", isAuthenticated, async (req, res) => {
     for (const f of findings) {
       findingByItem[f.item_id] = { ...f, stale: isFindingStale(f, manualIds, currentHash) };
     }
+    const coverageRows = await db.execute(sql13`
+      SELECT area_id, total_manual_chars, excerpt_chars, ratio, manual_set_hash, reviewed_at
+      FROM bccs_checklist_area_coverage WHERE organization_id = ${orgId}
+    `).then((r) => r.rows);
+    const coverageByArea = {};
+    for (const c of coverageRows) {
+      coverageByArea[c.area_id] = {
+        totalManualChars: Number(c.total_manual_chars),
+        excerptChars: Number(c.excerpt_chars),
+        ratio: Number(c.ratio),
+        reviewedAt: c.reviewed_at,
+        // Stale when the manual set changed since this coverage was measured.
+        // Legacy rows (NULL hash) and empty manual sets are treated as stale.
+        stale: manualIds.length === 0 || !c.manual_set_hash || c.manual_set_hash !== currentHash
+      };
+    }
     const evidence = await db.execute(sql13`
       SELECT id, item_id, filename, content_type, size_bytes, uploaded_by, uploaded_at
       FROM bccs_checklist_evidence WHERE organization_id = ${orgId}
@@ -14742,7 +14776,7 @@ router10.get("/checklist", isAuthenticated, async (req, res) => {
     for (const row of rows) {
       let area = areas.find((a) => a.id === row.area_id);
       if (!area) {
-        area = { id: row.area_id, name: row.area_name, description: row.area_description, items: [] };
+        area = { id: row.area_id, name: row.area_name, description: row.area_description, coverage: coverageByArea[row.area_id] || null, items: [] };
         areas.push(area);
       }
       area.items.push({
@@ -14913,6 +14947,7 @@ async function replaceChecklist(orgId, items, res) {
   }
   await db.transaction(async (tx) => {
     await tx.execute(sql13`DELETE FROM bccs_checklist_ai_findings WHERE organization_id = ${orgId}`);
+    await tx.execute(sql13`DELETE FROM bccs_checklist_area_coverage WHERE organization_id = ${orgId}`);
     await tx.execute(sql13`DELETE FROM bccs_checklist_evidence WHERE organization_id = ${orgId}`);
     await tx.execute(sql13`DELETE FROM bccs_checklist_report_items WHERE organization_id = ${orgId}`);
     const areaIds = /* @__PURE__ */ new Map();
@@ -15112,6 +15147,7 @@ router10.post("/reset", isAuthenticated, requireAdmin2, async (req, res) => {
     const orgId = requireOrg(req, res);
     if (!orgId) return;
     await db.execute(sql13`DELETE FROM bccs_checklist_ai_findings WHERE organization_id = ${orgId}`);
+    await db.execute(sql13`DELETE FROM bccs_checklist_area_coverage WHERE organization_id = ${orgId}`);
     await db.execute(sql13`DELETE FROM bccs_checklist_evidence WHERE organization_id = ${orgId}`);
     await db.execute(sql13`DELETE FROM bccs_checklist_report_items WHERE organization_id = ${orgId}`);
     await seedChecklist(orgId);
@@ -15327,6 +15363,17 @@ Respond with JSON: { "findings": [ ... one object per checklist item ... ] }`;
         `);
       }
     });
+    const coverageRatio = totalManualChars > 0 ? Math.min(1, minSelectedSourceChars / totalManualChars) : 1;
+    await db.execute(sql13`
+      INSERT INTO bccs_checklist_area_coverage (organization_id, area_id, total_manual_chars, excerpt_chars, ratio, manual_set_hash)
+      VALUES (${orgId}, ${req.params.areaId}, ${totalManualChars}, ${minSelectedSourceChars}, ${coverageRatio}, ${currentHash})
+      ON CONFLICT (organization_id, area_id) DO UPDATE SET
+        total_manual_chars = EXCLUDED.total_manual_chars,
+        excerpt_chars = EXCLUDED.excerpt_chars,
+        ratio = EXCLUDED.ratio,
+        manual_set_hash = EXCLUDED.manual_set_hash,
+        reviewed_at = NOW()
+    `);
     res.json({
       success: true,
       areaId: req.params.areaId,

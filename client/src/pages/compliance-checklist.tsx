@@ -77,7 +77,7 @@ interface InspectionArea {
   id: string;
   name: string;
   description: string;
-  coverage?: { totalManualChars: number; excerptChars: number; ratio: number; reviewedAt: string } | null;
+  coverage?: { totalManualChars: number; excerptChars: number; ratio: number; reviewedAt: string; stale?: boolean } | null;
   items: ChecklistItem[];
 }
 
@@ -275,7 +275,7 @@ export default function ComplianceChecklist() {
   const [reviewProgress, setReviewProgress] = useState<{ done: number; total: number } | null>(null);
   // Per-area manual coverage from the most recent AI review run — how much of
   // the combined manual text each area's review prompt actually consulted.
-  const [areaCoverage, setAreaCoverage] = useState<Record<string, number>>({});
+  const [areaCoverage, setAreaCoverage] = useState<Record<string, { ratio: number; stale: boolean }>>({});
   const [evidenceUploading, setEvidenceUploading] = useState<string | null>(null);
   const evidenceInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
@@ -303,11 +303,13 @@ export default function ComplianceChecklist() {
       // Seed per-area coverage from persisted review records so the note
       // survives a page reload; in-session values (a just-finished run) win.
       setAreaCoverage(prev => {
-        const stored: Record<string, number> = {};
+        const stored: Record<string, { ratio: number; stale: boolean }> = {};
         for (const a of checklistData.areas as InspectionArea[]) {
-          if (typeof a.coverage?.ratio === 'number') stored[a.id] = a.coverage.ratio;
+          if (typeof a.coverage?.ratio === 'number') stored[a.id] = { ratio: a.coverage.ratio, stale: !!a.coverage.stale };
         }
-        return { ...stored, ...prev };
+        // Server staleness is authoritative after a refetch — a manual upload
+        // or delete must be able to flag an in-session coverage value stale.
+        return { ...prev, ...stored };
       });
       if (!selectedArea && checklistData.areas.length > 0) {
         setSelectedArea(checklistData.areas[0].id);
@@ -621,7 +623,7 @@ export default function ComplianceChecklist() {
           lowestCoverage = Math.min(lowestCoverage, body.coverage.ratio);
           const ratio = body.coverage.ratio;
           const areaId = areas[i].id;
-          setAreaCoverage(prev => ({ ...prev, [areaId]: ratio }));
+          setAreaCoverage(prev => ({ ...prev, [areaId]: { ratio, stale: false } }));
         }
       } catch (err: any) {
         failed = err.message || 'AI review failed';
@@ -909,18 +911,24 @@ export default function ComplianceChecklist() {
                   {area.name}
                 </CardTitle>
                 <CardDescription>{area.description}</CardDescription>
-                {typeof areaCoverage[area.id] === 'number' && (() => {
-                  const pct = Math.max(1, Math.round(areaCoverage[area.id] * 100));
-                  const low = areaCoverage[area.id] < 0.5;
+                {areaCoverage[area.id] && (() => {
+                  const cov = areaCoverage[area.id];
+                  const pct = Math.max(1, Math.round(cov.ratio * 100));
+                  const low = cov.ratio < 0.5;
+                  const boxClass = cov.stale
+                    ? 'border-gray-200 bg-gray-50 text-gray-400'
+                    : low ? 'border-amber-300 bg-amber-50 text-amber-900' : 'border-gray-200 bg-gray-50 text-gray-600';
                   return (
                     <div
-                      className={`inline-flex items-center gap-1.5 mt-2 rounded-md border px-2 py-1 text-xs w-fit ${low ? 'border-amber-300 bg-amber-50 text-amber-900' : 'border-gray-200 bg-gray-50 text-gray-600'}`}
+                      className={`inline-flex items-center gap-1.5 mt-2 rounded-md border px-2 py-1 text-xs w-fit ${boxClass}`}
                       data-testid={`area-coverage-${area.id}`}
                     >
-                      {low && <AlertCircle className="h-3.5 w-3.5 text-amber-600" />}
+                      {low && !cov.stale && <AlertCircle className="h-3.5 w-3.5 text-amber-600" />}
                       <span>
                         AI review consulted ~{pct}% of your manual text for this area
-                        {low ? ' — "not addressed" verdicts here may miss content the review didn\u2019t see' : ''}
+                        {cov.stale
+                          ? ' (stale — measured against a previous manual set; re-run the AI review)'
+                          : low ? ' — "not addressed" verdicts here may miss content the review didn\u2019t see' : ''}
                       </span>
                     </div>
                   );
