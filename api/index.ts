@@ -1,8 +1,8 @@
-// @ts-ignore — _server.mjs is pre-compiled by esbuild during buildCommand
+// @ts-ignore — _server.mjs is generated (gitignored) by esbuild in vercel.json's buildCommand
 import { createApp } from "./_server.mjs";
 import type { Express, Request, Response } from "express";
 
-const VERSION = "v14";
+const VERSION = "v15";
 
 type AppState =
   | { ready: true; app: Express }

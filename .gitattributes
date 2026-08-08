@@ -1,4 +1,0 @@
-# api/_server.mjs is a generated esbuild bundle (Vercel prod).
-# Never hand-merge it: take "ours" on merge conflicts, then the post-merge
-# setup script (scripts/post-merge.sh) rebuilds it from the merged sources.
-api/_server.mjs merge=ours -diff linguist-generated
