@@ -309,6 +309,40 @@ describe("checklist-report authorization", () => {
     expect(del.status).toBe(200);
   });
 
+  it("accepts a spreadsheet as an operations-manual document", async () => {
+    const ExcelJS = (await import("exceljs")).default;
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet("Policies");
+    ws.addRow(["Topic", "Requirement"]);
+    for (let i = 0; i < 30; i++) ws.addRow([`Topic ${i}`, `Requirement detail number ${i} with enough words`]);
+    const buf = Buffer.from(await wb.xlsx.writeBuffer());
+    const fd = new FormData();
+    fd.append("files", new Blob([new Uint8Array(buf)]), "policies.xlsx");
+    h.executed.length = 0;
+    const res = await fetch(`${base}/api/checklist-report/manual`, {
+      method: "POST",
+      headers: { "x-test-user": "admin1" },
+      body: fd,
+    });
+    expect(res.status).toBe(201);
+    const insert = h.executed.find((t) => t.includes("INSERT INTO bccs_ops_manuals"));
+    expect(insert).toBeTruthy();
+  });
+
+  it("rejects an unsupported manual file type with a clear message", async () => {
+    const fd = new FormData();
+    fd.append("files", new Blob(["x".repeat(300)]), "manual.exe");
+    const res = await fetch(`${base}/api/checklist-report/manual`, {
+      method: "POST",
+      headers: { "x-test-user": "admin1" },
+      body: fd,
+    });
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.message).toMatch(/unsupported file type/i);
+    expect(body.message).toMatch(/xlsx/i);
+  });
+
   it("returns a clear JSON error when too many files are uploaded", async () => {
     const csv = "Number,Description,Reference,Area\n1-01,x,142.13,Management\n";
     const fd = new FormData();

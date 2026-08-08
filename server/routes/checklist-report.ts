@@ -736,6 +736,10 @@ async function extractText(filename: string, buffer: Buffer): Promise<string> {
       const { processDocumentOCR } = await import("../services/ocr");
       return await processDocumentOCR(tmp);
     }
+    if (ext === ".xlsx" || ext === ".xls" || ext === ".csv") {
+      const { extractWorkbookText } = await import("../services/checklist-excel");
+      return await extractWorkbookText(buffer, filename);
+    }
     if (ext === ".docx") {
       // .docx is a zip; pull the main document XML and strip tags
       const { stdout } = await execAsync(`unzip -p "${tmp}" word/document.xml`, { maxBuffer: 100 * 1024 * 1024 });
@@ -746,7 +750,7 @@ async function extractText(filename: string, buffer: Buffer): Promise<string> {
         .replace(/\n{3,}/g, "\n\n")
         .trim();
     }
-    throw new Error("Unsupported file type. Please upload a PDF, Word (.docx), or plain-text file.");
+    throw new Error("Unsupported file type. Please upload a PDF, Word (.docx), spreadsheet (.xlsx/.xls/.csv), or plain-text file.");
   } finally {
     fs.unlinkSync(tmp);
   }
@@ -781,8 +785,8 @@ router.post(
     const multiFile = uploads.length > 1;
     for (const f of uploads) {
       const ext = path.extname(f.originalname).toLowerCase();
-      if (![".pdf", ".docx", ".txt"].includes(ext)) {
-        return res.status(400).json({ message: `${f.originalname}: unsupported file type. Please upload PDF, Word (.docx), or plain-text files.` });
+      if (![".pdf", ".docx", ".txt", ".xlsx", ".xls", ".csv"].includes(ext)) {
+        return res.status(400).json({ message: `${f.originalname}: unsupported file type. Please upload PDF, Word (.docx), spreadsheet (.xlsx/.xls/.csv), or plain-text files.` });
       }
     }
 

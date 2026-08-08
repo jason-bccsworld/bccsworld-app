@@ -3,7 +3,7 @@
  */
 import { describe, it, expect } from "vitest";
 import ExcelJS from "exceljs";
-import { parseChecklistWorkbook, buildChecklistWorkbook, sheetName, cellText, ACCEPTED_COLUMNS_HELP, MAX_PARSE_ROWS } from "../services/checklist-excel";
+import { parseChecklistWorkbook, buildChecklistWorkbook, extractWorkbookText, sheetName, cellText, ACCEPTED_COLUMNS_HELP, MAX_PARSE_ROWS } from "../services/checklist-excel";
 
 async function makeXlsx(rows: any[][]): Promise<Buffer> {
   const wb = new ExcelJS.Workbook();
@@ -135,6 +135,53 @@ describe("parseChecklistWorkbook", () => {
     expect(items[0].areaName).toBe("Personnel");
     expect(items[1].areaName).toBe("Custom Area"); // explicit Area column wins
     expect(items[2].areaName).toBe("Facilities");
+  });
+
+  it("extractWorkbookText renders sheets as headed pipe-separated text", async () => {
+    const wb = new ExcelJS.Workbook();
+    const a = wb.addWorksheet("Policies");
+    a.addRow(["Topic", "Requirement"]);
+    a.addRow(["Instructors", "Must hold valid certificates"]);
+    const b = wb.addWorksheet("Facilities");
+    b.addRow(["Building", "Must have fire exits"]);
+    const buf = Buffer.from(await wb.xlsx.writeBuffer());
+    const text = await extractWorkbookText(buf, "manual.xlsx");
+    expect(text).toContain("## Policies");
+    expect(text).toContain("Instructors | Must hold valid certificates");
+    expect(text).toContain("## Facilities");
+    expect(text).toContain("Building | Must have fire exits");
+  });
+
+  it("extractWorkbookText rejects a non-spreadsheet buffer", async () => {
+    await expect(extractWorkbookText(Buffer.from("not a zip"), "fake.xlsx")).rejects.toThrow(/could not be read/i);
+  });
+
+  it("extractWorkbookText enforces the parse row bound", async () => {
+    const rows: any[][] = [["Description"]];
+    for (let i = 0; i <= MAX_PARSE_ROWS; i++) rows.push([`row ${i}`]);
+    const buf = await makeXlsx(rows);
+    await expect(extractWorkbookText(buf, "huge.xlsx")).rejects.toThrow(/too large/i);
+  });
+
+  it("extractWorkbookText bounds aggregate rows across many sheets", async () => {
+    const wb = new ExcelJS.Workbook();
+    // 3 sheets × 2000 rows each = 6000 rows total, each individually under the cap
+    for (let s = 0; s < 3; s++) {
+      const ws = wb.addWorksheet(`S${s}`);
+      for (let i = 0; i < 2000; i++) ws.addRow([`row ${i}`]);
+    }
+    const buf = Buffer.from(await wb.xlsx.writeBuffer());
+    await expect(extractWorkbookText(buf, "many-sheets.xlsx")).rejects.toThrow(/too large/i);
+  });
+
+  it("extractWorkbookText reads legacy .xls and CSV", async () => {
+    const XLSX = await import("xlsx");
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["Rule", "Detail"], ["R1", "Keep records current"]]), "S");
+    const xls = XLSX.write(wb, { type: "buffer", bookType: "xls" }) as Buffer;
+    expect(await extractWorkbookText(xls, "legacy.xls")).toContain("R1 | Keep records current");
+    const csv = Buffer.from("Rule,Detail\nR2,Audit annually\n");
+    expect(await extractWorkbookText(csv, "manual.csv")).toContain("R2 | Audit annually");
   });
 
   it("reports tabs that cannot be imported in skippedSheets", async () => {

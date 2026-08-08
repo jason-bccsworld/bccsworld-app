@@ -65,6 +65,9 @@ export const MAX_PARSE_COLS = 100;
 /** Max total uncompressed size of an uploaded .xlsx archive (zip-bomb guard). */
 export const MAX_UNCOMPRESSED_BYTES = 50 * 1024 * 1024;
 
+/** Max total characters extracted from a spreadsheet used as a reference document. */
+export const MAX_EXTRACT_CHARS = 2_000_000;
+
 /** Reject decompression bombs before ExcelJS fully inflates the archive. */
 async function assertZipWithinBounds(buffer: Buffer): Promise<void> {
   const tmp = path.join(os.tmpdir(), `xlsx-${crypto.randomBytes(6).toString("hex")}.zip`);
@@ -128,6 +131,55 @@ async function readWorkbook(buffer: Buffer, filename: string): Promise<ExcelJS.W
     await workbook.xlsx.load(buffer as any);
   }
   return workbook;
+}
+
+/**
+ * Extract the textual content of a spreadsheet (.xlsx/.xls/.csv) as plain
+ * text for use as an operations-manual reference document. Goes through the
+ * same hardened loader as checklist imports (zip-bomb guard, CFB magic check
+ * and in-memory conversion for legacy .xls, row/column parse bounds).
+ * Each sheet is emitted with a "## <sheet name>" heading; rows become
+ * pipe-separated lines with empty cells collapsed.
+ */
+export async function extractWorkbookText(buffer: Buffer, filename: string): Promise<string> {
+  let workbook: ExcelJS.Workbook;
+  try {
+    workbook = await readWorkbook(buffer, filename);
+  } catch (err: any) {
+    if (/unreasonably large/.test(String(err?.message))) throw err;
+    throw new Error("This file could not be read as a spreadsheet. Please upload a valid .xlsx, .xls, or .csv file.");
+  }
+  const parts: string[] = [];
+  // Aggregate bounds across the whole workbook: per-sheet caps alone would
+  // let a many-sheet upload amplify into an unbounded amount of stored text.
+  let totalRows = 0;
+  let totalChars = 0;
+  const tooLarge = () =>
+    new Error(
+      `This spreadsheet is too large to use as a reference document (max ${MAX_PARSE_ROWS} rows / ${Math.floor(MAX_EXTRACT_CHARS / 1000)}k characters of text across all sheets).`,
+    );
+  for (const sheet of workbook.worksheets) {
+    if (sheet.state && sheet.state !== "visible") continue;
+    if (sheet.rowCount > MAX_PARSE_ROWS || sheet.columnCount > MAX_PARSE_COLS) throw tooLarge();
+    totalRows += sheet.rowCount;
+    if (totalRows > MAX_PARSE_ROWS) throw tooLarge();
+    const lines: string[] = [];
+    sheet.eachRow({ includeEmpty: false }, (row) => {
+      const cells: string[] = [];
+      row.eachCell({ includeEmpty: false }, (cell) => {
+        const text = cellText(cell.value);
+        if (text) cells.push(text);
+      });
+      if (cells.length) {
+        const line = cells.join(" | ");
+        totalChars += line.length;
+        lines.push(line);
+      }
+    });
+    if (totalChars > MAX_EXTRACT_CHARS) throw tooLarge();
+    if (lines.length) parts.push(`## ${sheet.name}\n${lines.join("\n")}`);
+  }
+  return parts.join("\n\n").trim();
 }
 
 export interface ParsedChecklist {

@@ -798,14 +798,14 @@ export default function ComplianceChecklist() {
                   )}
                 </div>
               ) : (
-                <span className="text-gray-500">No operations manual uploaded yet. Accepted formats: PDF, Word (.docx), or plain text. You can upload several documents.</span>
+                <span className="text-gray-500">No operations manual uploaded yet. Accepted formats: PDF, Word (.docx), Excel (.xlsx/.xls), CSV, or plain text. You can upload several documents.</span>
               )}
             </div>
             <div className="flex gap-2 shrink-0">
               <input
                 ref={fileInputRef}
                 type="file"
-                accept=".pdf,.docx,.txt"
+                accept=".pdf,.docx,.txt,.xlsx,.xls,.csv"
                 multiple
                 className="hidden"
                 onChange={(e) => e.target.files && handleManualUpload(Array.from(e.target.files))}
