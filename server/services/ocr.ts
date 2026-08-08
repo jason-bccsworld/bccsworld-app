@@ -1,10 +1,20 @@
 import { createWorker } from "tesseract.js";
 import fs from "fs";
+import os from "os";
 import path from "path";
 import { exec } from "child_process";
 import { promisify } from "util";
 
 const execAsync = promisify(exec);
+
+/** Max pages rasterized+OCR'd for scanned PDFs (serverless functions have a 30s cap). */
+const MAX_OCR_PAGES = 10;
+/** Stop OCR-ing additional pages once this much wall time has elapsed (ms). */
+const OCR_TIME_BUDGET_MS = 20_000;
+
+const SCANNED_PDF_HELP =
+  "This PDF appears to be scanned (image-only) and no readable text could be recovered from it. " +
+  "Please upload a text-based PDF (e.g. exported from Word) or a Word (.docx) version of the document.";
 
 /**
  * pdfjs (used by pdf-parse) expects a few browser globals that do not exist in
@@ -75,7 +85,13 @@ async function processPdfText(pdfPath: string): Promise<string> {
       const parser = new PDFParse({ data: new Uint8Array(fs.readFileSync(pdfPath)) });
       try {
         const data = await parser.getText();
-        if (data.text && data.text.trim().length > 0) {
+        // pdf-parse emits "-- N of M --" page separators even for image-only
+        // pages; strip them before judging whether real text was extracted,
+        // otherwise scanned PDFs look like they have text and never reach OCR.
+        const meaningful = (data.text || '')
+          .replace(/^\s*--\s*\d+\s*of\s*\d+\s*--\s*$/gm, '')
+          .trim();
+        if (meaningful.length > 50) {
           console.log('Successfully extracted text from PDF via pdf-parse');
           return data.text.trim();
         }
@@ -87,82 +103,79 @@ async function processPdfText(pdfPath: string): Promise<string> {
       console.log('pdf-parse extraction failed, PDF might be scanned:', pdfParseFailure);
     }
     
-    // If pdftotext fails or returns no text, convert PDF to images and OCR them
-    console.log('Converting PDF to images for OCR...');
-    
-    // Create temporary directory for images
-    const tempDir = path.join(path.dirname(pdfPath), 'temp_pdf_images');
-    if (!fs.existsSync(tempDir)) {
-      fs.mkdirSync(tempDir, { recursive: true });
-    }
-    
+    // No embedded text found — the PDF is likely scanned (image-only).
+    // Rasterize pages in-process (pure JS + @napi-rs/canvas; no poppler
+    // binaries, which do not exist on serverless hosts) and OCR them.
+    console.log('No embedded text found; rasterizing PDF pages for OCR...');
     try {
-      // Convert PDF to images using pdftoppm
-      const baseFileName = path.basename(pdfPath, '.pdf');
-      const imagePrefix = path.join(tempDir, `${baseFileName}_page`);
-      
-      await execAsync(`pdftoppm -png "${pdfPath}" "${imagePrefix}"`);
-      
-      // Find all generated image files
-      const imageFiles = fs.readdirSync(tempDir)
-        .filter(file => file.startsWith(`${baseFileName}_page`) && file.endsWith('.png'))
-        .sort();
-      
-      if (imageFiles.length === 0) {
-        throw new Error('No images were generated from PDF');
+      const text = await ocrScannedPdf(pdfPath);
+      if (text.trim().length > 0) {
+        console.log('Successfully extracted text from scanned PDF via OCR');
+        return text.trim();
       }
-      
-      console.log(`Generated ${imageFiles.length} images from PDF`);
-      
-      // OCR each image and combine results
-      let combinedText = '';
-      
-      for (const imageFile of imageFiles) {
-        const imagePath = path.join(tempDir, imageFile);
-        console.log(`Processing image: ${imageFile}`);
-        
-        try {
-          const imageText = await processImageOCR(imagePath);
-          combinedText += imageText + '\n\n';
-        } catch (imageError) {
-          const errorMessage = imageError instanceof Error ? imageError.message : 'Unknown error';
-          console.log(`Failed to OCR image ${imageFile}:`, errorMessage);
-        }
-      }
-      
-      // Clean up temporary images
-      for (const imageFile of imageFiles) {
-        const imagePath = path.join(tempDir, imageFile);
-        if (fs.existsSync(imagePath)) {
-          fs.unlinkSync(imagePath);
-        }
-      }
-      
-      // Remove temp directory if empty
-      try {
-        fs.rmdirSync(tempDir);
-      } catch (e) {
-        // Ignore if directory is not empty
-      }
-      
-      if (combinedText.trim().length > 0) {
-        console.log('Successfully extracted text from PDF images');
-        return combinedText.trim();
-      }
-      
-      throw new Error('No text could be extracted from PDF images');
-      
-    } catch (conversionError) {
-      console.error('PDF to image conversion failed:', conversionError);
-      const errorMessage = conversionError instanceof Error ? conversionError.message : 'Unknown error';
-      throw new Error(`Failed to process PDF: ${errorMessage}${pdfParseFailure ? ` (text extraction fallback also failed: ${pdfParseFailure})` : ''}`);
+      throw new Error(SCANNED_PDF_HELP);
+    } catch (ocrError) {
+      const msg = ocrError instanceof Error ? ocrError.message : String(ocrError);
+      console.error('Scanned-PDF OCR failed:', msg, pdfParseFailure ? `(pdf-parse: ${pdfParseFailure})` : '');
+      // Surface a clear, user-facing message rather than internal tool errors.
+      throw new Error(msg === SCANNED_PDF_HELP ? msg : SCANNED_PDF_HELP);
     }
-    
+
   } catch (error) {
     console.error('PDF processing error:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    throw new Error(`Failed to process PDF: ${errorMessage}`);
+    throw new Error(errorMessage === SCANNED_PDF_HELP ? errorMessage : `Failed to process PDF: ${errorMessage}`);
   }
+}
+
+/**
+ * Rasterize up to MAX_OCR_PAGES pages of a PDF entirely in-process
+ * (pdf-parse getScreenshot → pdfjs + @napi-rs/canvas) and OCR each page
+ * with tesseract.js. Works on serverless hosts with no external binaries.
+ */
+async function ocrScannedPdf(pdfPath: string): Promise<string> {
+  ensurePdfJsGlobals();
+  const { PDFParse } = await import("pdf-parse");
+  const parser = new PDFParse({ data: new Uint8Array(fs.readFileSync(pdfPath)) });
+
+  let pages: { pageNumber: number; data: Uint8Array }[] = [];
+  let totalPages = 0;
+  try {
+    const shots = await parser.getScreenshot({ first: MAX_OCR_PAGES, scale: 2 });
+    totalPages = shots.total;
+    pages = shots.pages;
+  } finally {
+    await parser.destroy();
+  }
+  if (pages.length === 0) {
+    throw new Error(SCANNED_PDF_HELP);
+  }
+  console.log(`Rasterized ${pages.length} of ${totalPages} PDF page(s) for OCR`);
+
+  // Reuse one tesseract worker for all pages; cache language data in tmp
+  // (the working directory is read-only on serverless hosts).
+  const worker = await createWorker('eng', undefined, { cachePath: os.tmpdir() });
+  const started = Date.now();
+  let combinedText = '';
+  let processed = 0;
+  try {
+    for (const page of pages) {
+      if (processed > 0 && Date.now() - started > OCR_TIME_BUDGET_MS) {
+        console.log(`OCR time budget reached after ${processed} page(s); stopping`);
+        break;
+      }
+      try {
+        const { data: { text } } = await worker.recognize(Buffer.from(page.data));
+        combinedText += text + '\n\n';
+      } catch (pageError) {
+        console.log(`Failed to OCR page ${page.pageNumber}:`, pageError instanceof Error ? pageError.message : pageError);
+      }
+      processed++;
+    }
+  } finally {
+    await worker.terminate();
+  }
+  return combinedText;
 }
 
 export async function processDocumentOCR(filePath: string): Promise<string> {
@@ -195,7 +208,8 @@ export async function processDocumentOCR(filePath: string): Promise<string> {
 }
 
 async function processImageOCR(imagePath: string): Promise<string> {
-  const worker = await createWorker('eng');
+  // cachePath: the working directory is read-only on serverless hosts
+  const worker = await createWorker('eng', undefined, { cachePath: os.tmpdir() });
 
   try {
     const {
