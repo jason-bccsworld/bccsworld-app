@@ -3,4 +3,7 @@ dist
 .DS_Store
 server/public
 vite.config.ts.*
-*.tar.gzapi/_server.mjs
+*.tar.gz
+
+# Generated Vercel production bundle — rebuilt by vercel.json buildCommand on every deploy
+api/_server.mjs
