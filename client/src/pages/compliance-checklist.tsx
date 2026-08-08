@@ -77,6 +77,7 @@ interface InspectionArea {
   id: string;
   name: string;
   description: string;
+  coverage?: { totalManualChars: number; excerptChars: number; ratio: number; reviewedAt: string } | null;
   items: ChecklistItem[];
 }
 
@@ -299,6 +300,15 @@ export default function ComplianceChecklist() {
   useEffect(() => {
     if (checklistData?.areas) {
       setInspectionAreas(checklistData.areas);
+      // Seed per-area coverage from persisted review records so the note
+      // survives a page reload; in-session values (a just-finished run) win.
+      setAreaCoverage(prev => {
+        const stored: Record<string, number> = {};
+        for (const a of checklistData.areas as InspectionArea[]) {
+          if (typeof a.coverage?.ratio === 'number') stored[a.id] = a.coverage.ratio;
+        }
+        return { ...stored, ...prev };
+      });
       if (!selectedArea && checklistData.areas.length > 0) {
         setSelectedArea(checklistData.areas[0].id);
       }
