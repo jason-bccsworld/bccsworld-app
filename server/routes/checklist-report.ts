@@ -741,9 +741,18 @@ async function extractText(filename: string, buffer: Buffer): Promise<string> {
       return await extractWorkbookText(buffer, filename);
     }
     if (ext === ".docx") {
-      // .docx is a zip; pull the main document XML and strip tags
-      const { stdout } = await execAsync(`unzip -p "${tmp}" word/document.xml`, { maxBuffer: 100 * 1024 * 1024 });
-      return stdout
+      // .docx is a zip; pull the main document XML in-process (no external
+      // `unzip` binary — it is unavailable on serverless hosts) and strip tags.
+      const JSZip = (await import("jszip")).default;
+      let xml: string | undefined;
+      try {
+        const zip = await JSZip.loadAsync(buffer);
+        xml = await zip.file("word/document.xml")?.async("string");
+      } catch {
+        throw new Error("This file could not be read as a Word (.docx) document.");
+      }
+      if (!xml) throw new Error("This file could not be read as a Word (.docx) document.");
+      return xml
         .replace(/<w:p[ >]/g, "\n<w:p ")
         .replace(/<[^>]+>/g, "")
         .replace(/[ \t]+/g, " ")

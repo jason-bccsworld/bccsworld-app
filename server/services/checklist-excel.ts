@@ -10,14 +10,6 @@
  */
 import ExcelJS from "exceljs";
 import { Readable } from "stream";
-import fs from "fs";
-import os from "os";
-import path from "path";
-import crypto from "crypto";
-import { exec } from "child_process";
-import { promisify } from "util";
-
-const execAsync = promisify(exec);
 
 export interface ImportedItem {
   number: string;
@@ -70,15 +62,16 @@ export const MAX_EXTRACT_CHARS = 2_000_000;
 
 /** Reject decompression bombs before ExcelJS fully inflates the archive. */
 async function assertZipWithinBounds(buffer: Buffer): Promise<void> {
-  const tmp = path.join(os.tmpdir(), `xlsx-${crypto.randomBytes(6).toString("hex")}.zip`);
-  fs.writeFileSync(tmp, buffer);
   try {
-    // `unzip -l` lists uncompressed entry sizes without extracting.
-    const { stdout } = await execAsync(`unzip -l "${tmp}"`, { maxBuffer: 10 * 1024 * 1024 });
+    // Read declared uncompressed entry sizes from the zip metadata in-process
+    // (no external `unzip` binary — unavailable on serverless hosts). JSZip's
+    // loadAsync parses the central directory without inflating entry data.
+    const JSZip = (await import("jszip")).default;
+    const zip = await JSZip.loadAsync(buffer);
     let total = 0;
-    for (const line of stdout.split("\n")) {
-      const m = line.match(/^\s*(\d+)\s+\d{2,4}-\d{2}-\d{2,4}/);
-      if (m) total += Number(m[1]);
+    for (const name of Object.keys(zip.files)) {
+      const entry: any = zip.files[name];
+      total += Number(entry?._data?.uncompressedSize) || 0;
     }
     if (total > MAX_UNCOMPRESSED_BYTES) {
       throw new Error("This spreadsheet expands to an unreasonably large size and cannot be processed.");
@@ -86,8 +79,6 @@ async function assertZipWithinBounds(buffer: Buffer): Promise<void> {
   } catch (err: any) {
     if (/unreasonably large/.test(String(err?.message))) throw err;
     // Not a readable zip at all — let ExcelJS produce the standard error path.
-  } finally {
-    fs.unlinkSync(tmp);
   }
 }
 

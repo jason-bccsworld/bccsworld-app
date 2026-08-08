@@ -329,6 +329,37 @@ describe("checklist-report authorization", () => {
     expect(insert).toBeTruthy();
   });
 
+  it("accepts a .docx manual using in-process zip extraction (no unzip binary)", async () => {
+    const JSZip = (await import("jszip")).default;
+    const zip = new JSZip();
+    const paras = Array.from({ length: 20 }, (_, i) => `<w:p><w:r><w:t>Paragraph ${i} of the operations manual with enough words.</w:t></w:r></w:p>`).join("");
+    zip.file("word/document.xml", `<?xml version="1.0"?><w:document><w:body>${paras}</w:body></w:document>`);
+    const buf = await zip.generateAsync({ type: "nodebuffer" });
+    const fd = new FormData();
+    fd.append("files", new Blob([new Uint8Array(buf)]), "manual.docx");
+    h.executed.length = 0;
+    const res = await fetch(`${base}/api/checklist-report/manual`, {
+      method: "POST",
+      headers: { "x-test-user": "admin1" },
+      body: fd,
+    });
+    expect(res.status).toBe(201);
+    expect(h.executed.some((t) => t.includes("INSERT INTO bccs_ops_manuals"))).toBe(true);
+  });
+
+  it("rejects a corrupt .docx with a clear error", async () => {
+    const fd = new FormData();
+    fd.append("files", new Blob(["not a zip at all, just text ".repeat(20)]), "broken.docx");
+    const res = await fetch(`${base}/api/checklist-report/manual`, {
+      method: "POST",
+      headers: { "x-test-user": "admin1" },
+      body: fd,
+    });
+    expect(res.status).toBe(422);
+    const body = await res.json();
+    expect(body.message).toMatch(/could not be read as a Word/i);
+  });
+
   it("rejects an unsupported manual file type with a clear message", async () => {
     const fd = new FormData();
     fd.append("files", new Blob(["x".repeat(300)]), "manual.exe");
