@@ -718,24 +718,39 @@ export default function ComplianceChecklist() {
     );
   };
 
+  // An item counts toward inspection progress when it has been assessed —
+  // either marked manually, or reviewed by the AI against the current manual
+  // set (stale findings don't count until the review is re-run).
+  const isAssessed = (item: ChecklistItem) =>
+    item.status === 'compliant' || item.status === 'non-compliant' || item.status === 'not-applicable' ||
+    (!!item.aiFinding && !item.aiFinding.stale);
+
   const calculateAreaProgress = (area: InspectionArea) => {
     if (area.items.length === 0) return 0;
-    const completedItems = area.items.filter(item =>
-      item.status === 'compliant' || item.status === 'non-compliant' || item.status === 'not-applicable'
-    ).length;
-    return (completedItems / area.items.length) * 100;
+    return (area.items.filter(isAssessed).length / area.items.length) * 100;
   };
 
   const calculateOverallProgress = () => {
     const totalItems = inspectionAreas.reduce((sum, area) => sum + area.items.length, 0);
     if (totalItems === 0) return 0;
-    const completedItems = inspectionAreas.reduce((sum, area) =>
-      sum + area.items.filter(item =>
-        item.status === 'compliant' || item.status === 'non-compliant' || item.status === 'not-applicable'
-      ).length, 0
-    );
+    const completedItems = inspectionAreas.reduce((sum, area) => sum + area.items.filter(isAssessed).length, 0);
     return (completedItems / totalItems) * 100;
   };
+
+  // AI verdict tallies across all areas (current, non-stale findings only).
+  const aiTallies = inspectionAreas.reduce(
+    (acc, area) => {
+      for (const item of area.items) {
+        if (!item.aiFinding) continue;
+        if (item.aiFinding.stale) { acc.stale++; continue; }
+        if (item.aiFinding.verdict === 'covered') acc.covered++;
+        else if (item.aiFinding.verdict === 'partial') acc.partial++;
+        else if (item.aiFinding.verdict === 'not_addressed') acc.notAddressed++;
+      }
+      return acc;
+    },
+    { covered: 0, partial: 0, notAddressed: 0, stale: 0 }
+  );
 
   if (isLoading) {
     return (
@@ -863,7 +878,7 @@ export default function ComplianceChecklist() {
       <Card>
         <CardHeader>
           <CardTitle>Inspection Progress</CardTitle>
-          <CardDescription>Overall compliance assessment status</CardDescription>
+          <CardDescription>Overall compliance assessment status — items count as assessed once marked manually or reviewed by AI against your current manuals</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
@@ -914,6 +929,17 @@ export default function ComplianceChecklist() {
                 <div className="text-gray-600">N/A</div>
               </div>
             </div>
+            {(aiTallies.covered + aiTallies.partial + aiTallies.notAddressed + aiTallies.stale > 0) && (
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm border-t pt-3" data-testid="ai-verdict-summary">
+                <span className="text-gray-600 font-medium">AI manual review:</span>
+                <span className="text-green-700">{aiTallies.covered} covered</span>
+                <span className="text-yellow-700">{aiTallies.partial} partial</span>
+                <span className="text-red-700">{aiTallies.notAddressed} not addressed</span>
+                {aiTallies.stale > 0 && (
+                  <span className="text-amber-700">{aiTallies.stale} stale — re-run the AI review to refresh</span>
+                )}
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
