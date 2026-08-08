@@ -1,5 +1,87 @@
 import { describe, it, expect } from "vitest";
-import { chunkText, selectChunks, batchItems } from "../services/checklist-review-utils";
+import { chunkText, selectChunks, selectExcerpts, batchItems, promptCoverage, MAX_EXCERPT_CHARS, CHUNK_SIZE } from "../services/checklist-review-utils";
+
+describe("promptCoverage", () => {
+  it("reports full coverage when text fits within the source-text capacity", () => {
+    expect(promptCoverage(0)).toEqual({ ratio: 1, limited: false, maxExcerptChars: MAX_EXCERPT_CHARS });
+    expect(promptCoverage(MAX_EXCERPT_CHARS)).toEqual({ ratio: 1, limited: false, maxExcerptChars: MAX_EXCERPT_CHARS });
+  });
+
+  it("flags limited coverage as soon as text exceeds the capacity", () => {
+    const c = promptCoverage(MAX_EXCERPT_CHARS + 1);
+    expect(c.limited).toBe(true);
+    expect(c.ratio).toBeLessThan(1);
+  });
+
+  it("reports the fraction that fits for much larger manual sets", () => {
+    const c = promptCoverage(MAX_EXCERPT_CHARS * 5);
+    expect(c.ratio).toBeCloseTo(0.2);
+    expect(c.limited).toBe(true);
+  });
+});
+
+describe("selectExcerpts measured coverage", () => {
+  const items = ["instructor curriculum regulation requirements records"];
+
+  it("fully consults a manual of many small paragraph chunks when under the capacity", () => {
+    // 16 chunks of ~1,000 chars (paragraph-preserving chunking output):
+    // 16,000 chars < 18,000, so ALL of it must be selected — the old
+    // 12-chunk cap must not silently exclude ~25% of the manual.
+    const entries = Array.from({ length: 16 }, (_, i) => ({
+      text: `regulation instructor curriculum ${i} ` + "x".repeat(960),
+      source: "manual.pdf",
+    }));
+    const totalChars = entries.reduce((s, e) => s + e.text.length, 0);
+    expect(totalChars).toBeLessThan(MAX_EXCERPT_CHARS);
+    const { excerpts, selectedSourceChars } = selectExcerpts(entries, items);
+    expect(excerpts.length).toBe(16);
+    expect(selectedSourceChars).toBe(totalChars);
+    expect(promptCoverage(totalChars).limited).toBe(false); // no warning — correctly
+  });
+
+  it("long filenames never eat into the source-text budget", () => {
+    const longName = "an-extremely-long-operations-manual-filename-".repeat(5) + ".pdf";
+    const entries = Array.from({ length: 12 }, (_, i) => ({
+      text: `regulation instructor curriculum ${i} ` + "x".repeat(CHUNK_SIZE - 60),
+      source: longName,
+    }));
+    const totalChars = entries.reduce((s, e) => s + e.text.length, 0);
+    expect(totalChars).toBeLessThan(MAX_EXCERPT_CHARS);
+    const { selectedSourceChars } = selectExcerpts(entries, items);
+    expect(selectedSourceChars).toBe(totalChars); // labels excluded from budget
+  });
+
+  it("selects ALL of a manual made of many tiny paragraph chunks when under the capacity", () => {
+    // 100 short paragraphs (~100 chars each, ~10k total): no chunk-count cap
+    // may exclude any of them while the total fits the source-char ceiling.
+    const entries = Array.from({ length: 100 }, (_, i) => ({
+      text: `regulation instructor curriculum paragraph ${i} ` + "x".repeat(55),
+      source: "manual.pdf",
+    }));
+    const totalChars = entries.reduce((s, e) => s + e.text.length, 0);
+    expect(totalChars).toBeLessThan(MAX_EXCERPT_CHARS);
+    const { excerpts, selectedSourceChars } = selectExcerpts(entries, items);
+    expect(excerpts.length).toBe(100);
+    expect(selectedSourceChars).toBe(totalChars);
+    expect(promptCoverage(totalChars).limited).toBe(false); // warning agrees: fully consultable
+  });
+
+  it("measures partial coverage on the raw source-text basis when over capacity", () => {
+    const entries = Array.from({ length: 20 }, (_, i) => ({
+      text: `regulation instructor curriculum ${i} ` + "x".repeat(CHUNK_SIZE - 60),
+      source: i < 10 ? "vol1.pdf" : "vol2.pdf",
+    }));
+    const totalChars = entries.reduce((s, e) => s + e.text.length, 0);
+    expect(totalChars).toBeGreaterThan(MAX_EXCERPT_CHARS);
+    const { excerpts, selectedSourceChars } = selectExcerpts(entries, items);
+    expect(selectedSourceChars).toBeLessThanOrEqual(MAX_EXCERPT_CHARS);
+    expect(selectedSourceChars).toBe(excerpts.reduce((s, e) => s + e.text.length, 0));
+    expect(promptCoverage(totalChars).limited).toBe(true); // static warning agrees
+    // Every document still represented.
+    expect(excerpts.some((e) => e.source === "vol1.pdf")).toBe(true);
+    expect(excerpts.some((e) => e.source === "vol2.pdf")).toBe(true);
+  });
+});
 
 describe("selectChunks per-document representation", () => {
   it("guarantees every document at least one chunk even when one document dominates relevance", () => {

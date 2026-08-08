@@ -20,7 +20,7 @@ import { sql } from "drizzle-orm";
 import { isAuthenticated } from "../localAuth";
 import { requireOrg, isPlatformStaff } from "../middleware/tenant";
 import { PART142_CHECKLIST } from "@shared/part142-checklist";
-import { chunkText, selectChunks, batchItems } from "../services/checklist-review-utils";
+import { chunkText, selectExcerpts, batchItems, promptCoverage } from "../services/checklist-review-utils";
 import { parseChecklistWorkbook, buildChecklistWorkbook, type ImportedItem } from "../services/checklist-excel";
 
 const execAsync = promisify(exec);
@@ -816,7 +816,8 @@ router.get("/manual", isAuthenticated, async (req: any, res) => {
       if (!lastReviewAt || new Date(f.reviewed_at) > new Date(lastReviewAt)) lastReviewAt = f.reviewed_at;
       if (isFindingStale(f, manualIds, currentHash)) reviewStale = true;
     }
-    res.json({ manuals, manual: manuals[0], lastReviewAt, reviewStale });
+    const totalChars = manuals.reduce((s: number, m: any) => s + (Number(m.text_chars) || 0), 0);
+    res.json({ manuals, manual: manuals[0], lastReviewAt, reviewStale, totalChars, promptCoverage: promptCoverage(totalChars) });
   } catch (err) {
     console.error("Manual status error:", err);
     res.status(500).json({ message: "Failed to load manual status" });
@@ -842,13 +843,18 @@ router.post("/review/:areaId", isAuthenticated, requireAdmin, async (req: any, r
     if (items.length === 0) return res.status(404).json({ message: "Checklist area not found" });
 
     // Combined content of every manual document — each chunk stays within a
-    // single document, and selectChunks caps total prompt content regardless
+    // single document, and selectExcerpts caps total prompt content regardless
     // of how many documents are on file.
     const chunkEntries = manuals.flatMap((m: any) =>
-      chunkText(m.extracted_text).map((c: string) => ({ group: m.filename as string, text: `[${m.filename}] ${c}` }))
+      chunkText(m.extracted_text).map((c: string) => ({ text: c, source: m.filename as string }))
     );
-    const chunks = chunkEntries.map((e) => e.text);
-    const chunkGroups = chunkEntries.map((e) => e.group);
+    // Raw extracted text of all documents — the same accounting basis as the
+    // stored text_chars totals and the /manual promptCoverage warning.
+    // Filename labels are added outside this budget when the prompt is built.
+    const totalManualChars = chunkEntries.reduce((s, e) => s + e.text.length, 0);
+    // Least measured coverage across this area's batches — what the client
+    // reports as "how much of the manual set was consulted".
+    let minSelectedSourceChars = totalManualChars;
 
     // Review the area in bounded batches — one OpenAI call per batch of items,
     // each with a capped excerpt budget, so prompt and completion sizes stay
@@ -856,12 +862,13 @@ router.post("/review/:areaId", isAuthenticated, requireAdmin, async (req: any, r
     const validVerdicts = new Set(["covered", "partial", "not_addressed"]);
     const byItem = new Map<string, any>();
     for (const batch of batchItems(items)) {
-      const relevant = selectChunks(chunks, batch.map((i: any) => i.description), 12, chunkGroups);
+      const { excerpts, selectedSourceChars } = selectExcerpts(chunkEntries, batch.map((i: any) => i.description));
+      minSelectedSourceChars = Math.min(minSelectedSourceChars, selectedSourceChars);
 
       const prompt = `You are an FAA Part 142 compliance auditor. Review the following excerpts from a training center's operations manual and evaluate whether each checklist item is addressed by the manual.
 
 OPERATIONS MANUAL EXCERPTS (most relevant sections):
-${relevant.map((c, i) => `--- Excerpt ${i + 1} ---\n${c}`).join("\n\n")}
+${excerpts.map((e, i) => `--- Excerpt ${i + 1} (from ${e.source}) ---\n${e.text}`).join("\n\n")}
 
 CHECKLIST ITEMS:
 ${batch.map((it: any) => `[${it.id}] (${it.item_number}, ref ${it.reference || "n/a"}) ${it.description}`).join("\n")}
@@ -925,7 +932,21 @@ Respond with JSON: { "findings": [ ... one object per checklist item ... ] }`;
         `);
       }
     });
-    res.json({ success: true, areaId: req.params.areaId, itemsReviewed: items.length, itemsInArea: items.length });
+    res.json({
+      success: true,
+      areaId: req.params.areaId,
+      itemsReviewed: items.length,
+      itemsInArea: items.length,
+      // How much of the combined manual set a single review prompt consulted
+      // for this area — lets the client explain partial coverage.
+      // Measured, not theoretical: the least raw source text any of this
+      // area's prompts actually included, over the combined raw manual text.
+      coverage: {
+        totalManualChars,
+        excerptChars: minSelectedSourceChars,
+        ratio: totalManualChars > 0 ? Math.min(1, minSelectedSourceChars / totalManualChars) : 1,
+      },
+    });
   } catch (err) {
     console.error("AI review error:", err);
     res.status(500).json({ message: "Failed to run AI review" });

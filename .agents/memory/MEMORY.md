@@ -9,4 +9,5 @@
 - [PGlite for raw-SQL tests](pglite-sql-tests.md) — never mock-route raw sweep SQL in tests; run it on in-process PGlite so query regressions actually fail.
 - [SheetJS for legacy .xls](sheetjs-xls-parsing.md) — npm `xlsx` is abandoned/vulnerable; use the cdn.sheetjs.com tarball and keep conversion containment bounds.
 - [Lockfile portability](lockfile-portability.md) — Replit lockfiles can contain package-firewall.replit.local URLs that break npm on external CI; rewrite to registry.npmjs.org.
+- [Manual AI-review coverage accounting](manual-review-coverage.md) — coverage warnings must be measured on raw source-text chars (labels outside budget), never theoretical chunk-cap math.
 - [Vercel serverless & PDF extraction](vercel-serverless-pdf.md) — prod is Vercel; rebuild+commit api/_server.mjs for server changes; pdf-parse needs DOM polyfills + pdfjs includeFiles; 30s function cap.

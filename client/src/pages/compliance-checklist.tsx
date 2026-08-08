@@ -31,7 +31,8 @@ import {
   FileUp,
   RotateCcw,
   Paperclip,
-  Trash2
+  Trash2,
+  AlertTriangle
 } from 'lucide-react';
 
 interface AiFinding {
@@ -597,11 +598,13 @@ export default function ComplianceChecklist() {
     const areas = inspectionAreas;
     setReviewProgress({ done: 0, total: areas.length });
     let failed: string | null = null;
+    let lowestCoverage = 1;
     for (let i = 0; i < areas.length; i++) {
       try {
         const res = await fetch(`/api/checklist-report/review/${areas[i].id}`, { method: 'POST', credentials: 'include' });
         const body = await res.json().catch(() => ({}));
         if (!res.ok) { failed = body.message || 'AI review failed'; break; }
+        if (typeof body.coverage?.ratio === 'number') lowestCoverage = Math.min(lowestCoverage, body.coverage.ratio);
       } catch (err: any) {
         failed = err.message || 'AI review failed';
         break;
@@ -614,7 +617,10 @@ export default function ComplianceChecklist() {
     if (failed) {
       toast({ title: 'AI review stopped', description: failed, variant: 'destructive' });
     } else {
-      toast({ title: 'AI review complete', description: 'Every checklist item has been reviewed against your operations manual.' });
+      const coverageNote = lowestCoverage < 1
+        ? ` Note: as little as ${Math.max(1, Math.round(lowestCoverage * 100))}% of your combined manual text could be consulted per area, so coverage may be partial.`
+        : '';
+      toast({ title: 'AI review complete', description: `Every checklist item has been reviewed against your operations manual.${coverageNote}` });
     }
   };
 
@@ -754,6 +760,21 @@ export default function ComplianceChecklist() {
                   )}
                   {manualInfo.reviewStale && (
                     <Badge className="bg-amber-100 text-amber-800">Findings pre-date a change to your manual documents — re-run the AI review</Badge>
+                  )}
+                  {manualInfo.promptCoverage?.limited && (
+                    <div
+                      className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800"
+                      data-testid="warning-manual-coverage"
+                    >
+                      <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                      <span>
+                        Your documents contain {Number(manualInfo.totalChars).toLocaleString()} characters of text, but each AI review can
+                        only consult about {Number(manualInfo.promptCoverage.maxExcerptChars).toLocaleString()} characters of the most relevant
+                        excerpts (roughly {Math.max(1, Math.round(manualInfo.promptCoverage.ratio * 100))}% per area). Coverage may be partial —
+                        a &ldquo;not addressed&rdquo; finding could exist in a section the review didn&apos;t see. Consider trimming or splitting
+                        very large documents.
+                      </span>
+                    </div>
                   )}
                 </div>
               ) : (

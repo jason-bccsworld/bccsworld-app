@@ -14208,7 +14208,7 @@ var PART142_CHECKLIST = [
 ];
 
 // server/services/checklist-review-utils.ts
-function chunkText(text2, size = 1400) {
+function chunkText(text2, size = CHUNK_SIZE) {
   const paragraphs = text2.split(/\n\s*\n/).flatMap((p) => {
     if (p.length <= size) return [p];
     const pieces = [];
@@ -14239,27 +14239,43 @@ function batchItems(items, batchSize = 25) {
   for (let i = 0; i < items.length; i += batchSize) batches.push(items.slice(i, i + batchSize));
   return batches;
 }
+var CHUNK_SIZE = 1400;
 var MAX_EXCERPT_CHARS = 18e3;
-function selectChunks(chunks, itemTexts, maxChunks = 12) {
+function promptCoverage(totalChars) {
+  const ratio = totalChars > 0 ? Math.min(1, MAX_EXCERPT_CHARS / totalChars) : 1;
+  return { ratio, limited: totalChars > MAX_EXCERPT_CHARS, maxExcerptChars: MAX_EXCERPT_CHARS };
+}
+function selectExcerpts(entries, itemTexts, maxChunks = Number.POSITIVE_INFINITY, maxSourceChars = MAX_EXCERPT_CHARS) {
   const itemKw = keywords(itemTexts.join(" "));
-  const scored = chunks.map((chunk, i) => {
-    const ck = keywords(chunk);
+  const scored = entries.map((e, i) => {
+    const ck = keywords(e.text);
     let score = 0;
     for (const w of ck) if (itemKw.has(w)) score++;
-    return { i, chunk, score };
+    return { i, entry: e, score };
   });
   scored.sort((a, b) => b.score - a.score);
-  const picked = scored.slice(0, maxChunks).sort((a, b) => a.i - b.i).map((s) => s.chunk);
-  const bounded = [];
-  let total = 0;
-  for (const chunk of picked) {
-    const remaining = MAX_EXCERPT_CHARS - total;
-    if (remaining <= 0) break;
-    const piece = chunk.length > remaining ? chunk.slice(0, remaining) : chunk;
-    bounded.push(piece);
-    total += piece.length;
+  const pickedIdx = /* @__PURE__ */ new Set();
+  for (const src of new Set(entries.map((e) => e.source))) {
+    if (pickedIdx.size >= maxChunks) break;
+    const best = scored.find((s) => s.entry.source === src);
+    if (best) pickedIdx.add(best.i);
   }
-  return bounded;
+  for (const s of scored) {
+    if (pickedIdx.size >= maxChunks) break;
+    pickedIdx.add(s.i);
+  }
+  const picked = scored.filter((s) => pickedIdx.has(s.i)).sort((a, b) => a.i - b.i);
+  const excerpts = [];
+  let selectedSourceChars = 0;
+  for (const { entry } of picked) {
+    const remaining = maxSourceChars - selectedSourceChars;
+    if (remaining <= 0) break;
+    const text2 = entry.text.length > remaining ? entry.text.slice(0, remaining) : entry.text;
+    excerpts.push({ text: text2, source: entry.source });
+    selectedSourceChars += text2.length;
+  }
+  const totalSourceChars = entries.reduce((s, e) => s + e.text.length, 0);
+  return { excerpts, selectedSourceChars, totalSourceChars };
 }
 
 // server/services/checklist-excel.ts
@@ -14386,7 +14402,7 @@ function parseSheet(sheet, defaultAreaName, startIndex) {
   }
   return items.length ? items : null;
 }
-async function parseChecklistWorkbook(buffer, filename) {
+async function parseChecklistWorkbook(buffer, filename, opts = {}) {
   let workbook;
   try {
     workbook = await readWorkbook(buffer, filename);
@@ -14406,9 +14422,10 @@ async function parseChecklistWorkbook(buffer, filename) {
   const multiSheet = sheets.length > 1;
   const items = [];
   const skippedSheets = [];
+  const offset = opts.itemNumberOffset || 0;
   for (const sheet of sheets) {
-    const defaultAreaName = multiSheet ? sheet.name || "Imported Checklist" : "Imported Checklist";
-    const parsed = parseSheet(sheet, defaultAreaName, items.length);
+    const defaultAreaName = multiSheet ? sheet.name || "Imported Checklist" : opts.defaultAreaName || "Imported Checklist";
+    const parsed = parseSheet(sheet, defaultAreaName, offset + items.length);
     if (parsed) items.push(...parsed);
     else skippedSheets.push(sheet.name || `Sheet ${skippedSheets.length + 1}`);
   }
@@ -14452,10 +14469,10 @@ function sheetName(raw, used) {
   return name;
 }
 async function buildChecklistWorkbook(opts) {
-  const { areas, organization, manual } = opts;
+  const { areas, organization, manuals } = opts;
   const generatedAt = opts.generatedAt ?? /* @__PURE__ */ new Date();
   const workbook = new ExcelJS.Workbook();
-  workbook.creator = "BCCS Part 142 Checklist Report";
+  workbook.creator = "BCCS Part Checklist Report";
   workbook.created = generatedAt;
   const allItems = areas.flatMap((a) => a.items);
   const count4 = (st) => allItems.filter((i) => i.status === st).length;
@@ -14463,7 +14480,7 @@ async function buildChecklistWorkbook(opts) {
   const assessed = count4("compliant") + count4("non-compliant") + count4("not-applicable");
   const summary = workbook.addWorksheet("Summary");
   summary.columns = [{ width: 34 }, { width: 60 }];
-  const title = summary.addRow(["Part 142 Checklist Report"]);
+  const title = summary.addRow(["Part Checklist Report"]);
   title.font = { bold: true, size: 16 };
   summary.addRow(["FAA Training Center Inspection Checklist & Job Aid \u2014 Auditor Report"]);
   summary.addRow([]);
@@ -14473,10 +14490,16 @@ async function buildChecklistWorkbook(opts) {
     if (organization.regulatoryAuthority) summary.addRow(["Regulatory authority", organization.regulatoryAuthority]);
   }
   summary.addRow(["Generated", generatedAt.toISOString()]);
-  summary.addRow([
-    "Operations manual",
-    manual ? `${manual.filename}${manual.uploadedAt ? ` (uploaded ${new Date(manual.uploadedAt).toDateString()})` : ""}` : "None on file \u2014 AI review not performed"
-  ]);
+  if (manuals.length === 0) {
+    summary.addRow(["Operations manuals", "None on file \u2014 AI review not performed"]);
+  } else {
+    manuals.forEach((m, i) => {
+      summary.addRow([
+        i === 0 ? `Operations manual${manuals.length > 1 ? "s" : ""}` : "",
+        `${m.filename}${m.uploadedAt ? ` (uploaded ${new Date(m.uploadedAt).toDateString()})` : ""}`
+      ]);
+    });
+  }
   summary.addRow([]);
   const statsHeader = summary.addRow(["Completion statistics"]);
   statsHeader.font = { bold: true };
@@ -14607,6 +14630,9 @@ async function ensureTables2() {
     CREATE UNIQUE INDEX IF NOT EXISTS bccs_checklist_ai_findings_org_item
     ON bccs_checklist_ai_findings (organization_id, item_id)
   `);
+  await db.execute(sql13`
+    ALTER TABLE bccs_checklist_ai_findings ADD COLUMN IF NOT EXISTS manual_set_hash VARCHAR(64)
+  `);
 }
 var schemaReady = ensureTables2();
 schemaReady.catch((err) => console.error("checklist-report schema init failed:", err));
@@ -14626,6 +14652,23 @@ function requireAdmin2(req, res, next) {
     return res.status(403).json({ message: "Admin access required" });
   }
   next();
+}
+var MAX_MANUALS = 5;
+var MAX_IMPORT_FILES = 10;
+function manualSetHash(manualIds) {
+  return crypto10.createHash("md5").update([...manualIds].sort().join(",")).digest("hex");
+}
+function isFindingStale(finding, manualIds, currentHash) {
+  if (manualIds.length === 0) return true;
+  if (finding.manual_set_hash) return finding.manual_set_hash !== currentHash;
+  return manualIds.length !== 1 || manualIds[0] !== finding.manual_id;
+}
+async function getOrgManuals(orgId, withText = false) {
+  return db.execute(
+    withText ? sql13`SELECT id, filename, extracted_text, text_chars, uploaded_by, uploaded_at FROM bccs_ops_manuals
+          WHERE organization_id = ${orgId} ORDER BY uploaded_at DESC, id` : sql13`SELECT id, filename, text_chars, uploaded_by, uploaded_at FROM bccs_ops_manuals
+          WHERE organization_id = ${orgId} ORDER BY uploaded_at DESC, id`
+  ).then((r) => r.rows);
 }
 async function seedChecklist(orgId) {
   await db.transaction(async (tx) => {
@@ -14668,18 +14711,16 @@ router10.get("/checklist", isAuthenticated, async (req, res) => {
         ORDER BY area_id, item_order
       `).then((r) => r.rows);
     }
-    const [currentManual] = await db.execute(sql13`
-      SELECT id FROM bccs_ops_manuals WHERE organization_id = ${orgId}
-      ORDER BY uploaded_at DESC LIMIT 1
-    `).then((r) => r.rows);
+    const manualIds = (await getOrgManuals(orgId)).map((m) => m.id);
+    const currentHash = manualSetHash(manualIds);
     const findings = await db.execute(sql13`
-      SELECT DISTINCT ON (item_id) item_id, manual_id, verdict, excerpt, remediation, reviewed_at
+      SELECT DISTINCT ON (item_id) item_id, manual_id, manual_set_hash, verdict, excerpt, remediation, reviewed_at
       FROM bccs_checklist_ai_findings WHERE organization_id = ${orgId}
       ORDER BY item_id, reviewed_at DESC
     `).then((r) => r.rows);
     const findingByItem = {};
     for (const f of findings) {
-      findingByItem[f.item_id] = { ...f, stale: !currentManual || f.manual_id !== currentManual.id };
+      findingByItem[f.item_id] = { ...f, stale: isFindingStale(f, manualIds, currentHash) };
     }
     const evidence = await db.execute(sql13`
       SELECT id, item_id, filename, content_type, size_bytes, uploaded_by, uploaded_at
@@ -14854,6 +14895,14 @@ function importBoundsError(items) {
   if (distinctAreas.size > MAX_IMPORT_AREAS) {
     return `Too many areas (${distinctAreas.size}). The maximum is ${MAX_IMPORT_AREAS}.`;
   }
+  const seen = /* @__PURE__ */ new Set();
+  for (const it of items) {
+    const key = `${it.areaName}\0${it.number}`;
+    if (seen.has(key)) {
+      return `Duplicate item number "${it.number}" in area "${it.areaName}". Item numbers must be unique within an area (this can happen when combining files \u2014 give items distinct numbers or areas).`;
+    }
+    seen.add(key);
+  }
   return null;
 }
 async function replaceChecklist(orgId, items, res) {
@@ -14921,46 +14970,78 @@ router10.post("/import", isAuthenticated, requireAdmin2, async (req, res) => {
     res.status(500).json({ message: "Failed to import checklist" });
   }
 });
-router10.post("/import-file", isAuthenticated, requireAdmin2, upload.single("file"), async (req, res) => {
-  try {
-    const orgId = requireOrg(req, res);
-    if (!orgId) return;
-    if (!req.file) return res.status(400).json({ message: "No file uploaded" });
-    const ext = path5.extname(req.file.originalname).toLowerCase();
-    if (![".xlsx", ".xls", ".csv"].includes(ext)) {
-      return res.status(400).json({ message: "Unsupported file type. Please upload an Excel (.xlsx or .xls) or CSV file." });
-    }
-    let items;
-    let skippedSheets;
+router10.post(
+  "/import-file",
+  isAuthenticated,
+  requireAdmin2,
+  upload.fields([{ name: "file", maxCount: 1 }, { name: "files", maxCount: MAX_IMPORT_FILES }]),
+  async (req, res) => {
     try {
-      ({ items, skippedSheets } = await parseChecklistWorkbook(req.file.buffer, req.file.originalname));
-    } catch (parseErr) {
-      return res.status(422).json({ message: parseErr.message });
-    }
-    if (req.body?.confirm !== "true") {
-      const boundsError = importBoundsError(items);
-      if (boundsError) return res.status(400).json({ message: boundsError });
-      const areaOrder = [];
-      const areaCounts = /* @__PURE__ */ new Map();
-      for (const it of items) {
-        if (!areaCounts.has(it.areaName)) areaOrder.push(it.areaName);
-        areaCounts.set(it.areaName, (areaCounts.get(it.areaName) || 0) + 1);
+      const orgId = requireOrg(req, res);
+      if (!orgId) return;
+      const uploads = [
+        ...req.files?.file || [],
+        ...req.files?.files || []
+      ];
+      if (uploads.length === 0) return res.status(400).json({ message: "No file uploaded" });
+      if (uploads.length > MAX_IMPORT_FILES) {
+        return res.status(400).json({ message: `Too many files (${uploads.length}). The maximum is ${MAX_IMPORT_FILES} per import.` });
       }
-      return res.json({
-        preview: true,
-        itemCount: items.length,
-        areas: areaOrder.map((name) => ({ name, itemCount: areaCounts.get(name) })),
-        skippedSheets
-      });
+      for (const f of uploads) {
+        const ext = path5.extname(f.originalname).toLowerCase();
+        if (![".xlsx", ".xls", ".csv"].includes(ext)) {
+          return res.status(400).json({ message: `${f.originalname}: unsupported file type. Please upload Excel (.xlsx or .xls) or CSV files.` });
+        }
+      }
+      const multiFile = uploads.length > 1;
+      const items = [];
+      const skippedSheets = [];
+      const fileSummaries = [];
+      const parseErrors = [];
+      for (const f of uploads) {
+        try {
+          const parsed = await parseChecklistWorkbook(f.buffer, f.originalname, {
+            // With several files, a sheet without an Area column becomes an
+            // area named after its file so files don't silently merge.
+            defaultAreaName: multiFile ? path5.basename(f.originalname, path5.extname(f.originalname)) : void 0,
+            itemNumberOffset: items.length
+          });
+          items.push(...parsed.items);
+          fileSummaries.push({ name: f.originalname, itemCount: parsed.items.length });
+          skippedSheets.push(...parsed.skippedSheets.map((s) => multiFile ? `${f.originalname}: ${s}` : s));
+        } catch (parseErr) {
+          parseErrors.push(multiFile ? `${f.originalname}: ${parseErr.message}` : parseErr.message);
+        }
+      }
+      if (parseErrors.length > 0) {
+        return res.status(422).json({ message: parseErrors.join(" ") });
+      }
+      if (req.body?.confirm !== "true") {
+        const boundsError = importBoundsError(items);
+        if (boundsError) return res.status(400).json({ message: boundsError });
+        const areaOrder = [];
+        const areaCounts = /* @__PURE__ */ new Map();
+        for (const it of items) {
+          if (!areaCounts.has(it.areaName)) areaOrder.push(it.areaName);
+          areaCounts.set(it.areaName, (areaCounts.get(it.areaName) || 0) + 1);
+        }
+        return res.json({
+          preview: true,
+          itemCount: items.length,
+          areas: areaOrder.map((name) => ({ name, itemCount: areaCounts.get(name) })),
+          skippedSheets,
+          files: fileSummaries
+        });
+      }
+      const imported = await replaceChecklist(orgId, items, res);
+      if (imported === null) return;
+      res.json({ success: true, imported, skippedSheets, files: fileSummaries });
+    } catch (err) {
+      console.error("Checklist Excel import error:", err);
+      res.status(500).json({ message: "Failed to import checklist file" });
     }
-    const imported = await replaceChecklist(orgId, items, res);
-    if (imported === null) return;
-    res.json({ success: true, imported, skippedSheets });
-  } catch (err) {
-    console.error("Checklist Excel import error:", err);
-    res.status(500).json({ message: "Failed to import checklist file" });
   }
-});
+);
 router10.get("/export.xlsx", isAuthenticated, async (req, res) => {
   try {
     const orgId = requireOrg(req, res);
@@ -14970,12 +15051,11 @@ router10.get("/export.xlsx", isAuthenticated, async (req, res) => {
       ORDER BY area_id, item_order
     `).then((r) => r.rows);
     if (rows.length === 0) return res.status(404).json({ message: "No checklist items to export" });
-    const [currentManual] = await db.execute(sql13`
-      SELECT id, filename, uploaded_at FROM bccs_ops_manuals WHERE organization_id = ${orgId}
-      ORDER BY uploaded_at DESC LIMIT 1
-    `).then((r) => r.rows);
+    const manuals = await getOrgManuals(orgId);
+    const manualIds = manuals.map((m) => m.id);
+    const currentHash = manualSetHash(manualIds);
     const findings = await db.execute(sql13`
-      SELECT DISTINCT ON (item_id) item_id, manual_id, verdict, excerpt, remediation
+      SELECT DISTINCT ON (item_id) item_id, manual_id, manual_set_hash, verdict, excerpt, remediation
       FROM bccs_checklist_ai_findings WHERE organization_id = ${orgId}
       ORDER BY item_id, reviewed_at DESC
     `).then((r) => r.rows);
@@ -15009,18 +15089,18 @@ router10.get("/export.xlsx", isAuthenticated, async (req, res) => {
         aiVerdict: f?.verdict || null,
         aiExcerpt: f?.excerpt || null,
         aiRemediation: f?.remediation || null,
-        aiStale: f ? !currentManual || f.manual_id !== currentManual.id : false,
+        aiStale: f ? isFindingStale(f, manualIds, currentHash) : false,
         evidenceCount: evidenceByItem[row.id] || 0
       });
     }
     const buffer = await buildChecklistWorkbook({
       areas,
       organization: org ? { name: org.organization_name, certificateNumber: org.certificate_number, regulatoryAuthority: org.regulatory_authority } : null,
-      manual: currentManual ? { filename: currentManual.filename, uploadedAt: currentManual.uploaded_at } : null
+      manuals: manuals.map((m) => ({ filename: m.filename, uploadedAt: m.uploaded_at }))
     });
     const date = (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-    res.setHeader("Content-Disposition", `attachment; filename="part142-checklist-report-${date}.xlsx"`);
+    res.setHeader("Content-Disposition", `attachment; filename="part-checklist-report-${date}.xlsx"`);
     res.send(buffer);
   } catch (err) {
     console.error("Checklist Excel export error:", err);
@@ -15060,54 +15140,104 @@ async function extractText(filename, buffer) {
     fs5.unlinkSync(tmp);
   }
 }
-router10.post("/manual", isAuthenticated, requireAdmin2, upload.single("file"), async (req, res) => {
+router10.post(
+  "/manual",
+  isAuthenticated,
+  requireAdmin2,
+  upload.fields([{ name: "file", maxCount: 1 }, { name: "files", maxCount: MAX_MANUALS }]),
+  async (req, res) => {
+    try {
+      const orgId = requireOrg(req, res);
+      if (!orgId) return;
+      const uploads = [
+        ...req.files?.file || [],
+        ...req.files?.files || []
+      ];
+      if (uploads.length === 0) return res.status(400).json({ message: "No file uploaded" });
+      const [{ count: existing }] = await db.execute(sql13`
+      SELECT COUNT(*)::int AS count FROM bccs_ops_manuals WHERE organization_id = ${orgId}
+    `).then((r) => r.rows);
+      if (Number(existing) + uploads.length > MAX_MANUALS) {
+        return res.status(400).json({
+          message: `An organization can keep at most ${MAX_MANUALS} operations-manual documents (${existing} already on file). Remove a document before adding more.`
+        });
+      }
+      const multiFile = uploads.length > 1;
+      for (const f of uploads) {
+        const ext = path5.extname(f.originalname).toLowerCase();
+        if (![".pdf", ".docx", ".txt"].includes(ext)) {
+          return res.status(400).json({ message: `${f.originalname}: unsupported file type. Please upload PDF, Word (.docx), or plain-text files.` });
+        }
+      }
+      const extracted = [];
+      const errors = [];
+      for (const f of uploads) {
+        try {
+          const text2 = await extractText(f.originalname, f.buffer);
+          if (!text2 || text2.trim().length < 200) {
+            throw new Error("Very little text could be extracted from this document. Please upload a text-based PDF or Word document.");
+          }
+          extracted.push({ file: f, text: text2 });
+        } catch (extractErr) {
+          errors.push(`${multiFile ? `${f.originalname}: ` : ""}Could not read the document: ${extractErr.message}`);
+        }
+      }
+      if (errors.length > 0) return res.status(422).json({ message: errors.join(" ") });
+      const inserted = await db.transaction(async (tx) => {
+        const rows = [];
+        for (const { file, text: text2 } of extracted) {
+          const [row] = await tx.execute(sql13`
+          INSERT INTO bccs_ops_manuals (organization_id, filename, extracted_text, text_chars, uploaded_by)
+          VALUES (${orgId}, ${file.originalname}, ${text2}, ${text2.length}, ${req.user?.email || req.user?.id || "system"})
+          RETURNING id, filename, text_chars, uploaded_by, uploaded_at
+        `).then((r) => r.rows);
+          rows.push(row);
+        }
+        return rows;
+      });
+      res.status(201).json({ manuals: inserted });
+    } catch (err) {
+      console.error("Manual upload error:", err);
+      res.status(500).json({ message: "Failed to upload the operations manual" });
+    }
+  }
+);
+router10.delete("/manual/:id", isAuthenticated, requireAdmin2, async (req, res) => {
   try {
     const orgId = requireOrg(req, res);
     if (!orgId) return;
-    if (!req.file) return res.status(400).json({ message: "No file uploaded" });
-    const ext = path5.extname(req.file.originalname).toLowerCase();
-    if (![".pdf", ".docx", ".txt"].includes(ext)) {
-      return res.status(400).json({ message: "Unsupported file type. Please upload a PDF, Word (.docx), or plain-text file." });
-    }
-    let text2;
-    try {
-      text2 = await extractText(req.file.originalname, req.file.buffer);
-    } catch (extractErr) {
-      return res.status(422).json({ message: `Could not read the document: ${extractErr.message}` });
-    }
-    if (!text2 || text2.trim().length < 200) {
-      return res.status(422).json({ message: "Very little text could be extracted from this document. Please upload a text-based PDF or Word document." });
-    }
-    const [manual] = await db.transaction(async (tx) => {
-      await tx.execute(sql13`DELETE FROM bccs_ops_manuals WHERE organization_id = ${orgId}`);
-      return await tx.execute(sql13`
-        INSERT INTO bccs_ops_manuals (organization_id, filename, extracted_text, text_chars, uploaded_by)
-        VALUES (${orgId}, ${req.file.originalname}, ${text2}, ${text2.length}, ${req.user?.email || req.user?.id || "system"})
-        RETURNING id, filename, text_chars, uploaded_by, uploaded_at
-      `).then((r) => r.rows);
-    });
-    res.status(201).json(manual);
+    const result = await db.execute(sql13`
+      DELETE FROM bccs_ops_manuals
+      WHERE id = ${req.params.id} AND organization_id = ${orgId}
+      RETURNING id
+    `);
+    if ((result.rows || []).length === 0) return res.status(404).json({ message: "Manual document not found" });
+    res.json({ success: true });
   } catch (err) {
-    console.error("Manual upload error:", err);
-    res.status(500).json({ message: "Failed to upload the operations manual" });
+    console.error("Manual delete error:", err);
+    res.status(500).json({ message: "Failed to remove the manual document" });
   }
 });
 router10.get("/manual", isAuthenticated, async (req, res) => {
   try {
     const orgId = requireOrg(req, res);
     if (!orgId) return;
-    const [manual] = await db.execute(sql13`
-      SELECT id, filename, text_chars, uploaded_by, uploaded_at FROM bccs_ops_manuals
-      WHERE organization_id = ${orgId} ORDER BY uploaded_at DESC LIMIT 1
-    `).then((r) => r.rows);
-    if (!manual) return res.json({ manual: null, lastReviewAt: null, reviewStale: false });
-    const [lastReview] = await db.execute(sql13`
-      SELECT MAX(reviewed_at) AS last,
-             COUNT(*) FILTER (WHERE manual_id <> ${manual.id}) AS stale_count
+    const manuals = await getOrgManuals(orgId);
+    if (manuals.length === 0) return res.json({ manuals: [], manual: null, lastReviewAt: null, reviewStale: false });
+    const manualIds = manuals.map((m) => m.id);
+    const currentHash = manualSetHash(manualIds);
+    const findings = await db.execute(sql13`
+      SELECT manual_id, manual_set_hash, reviewed_at
       FROM bccs_checklist_ai_findings WHERE organization_id = ${orgId}
     `).then((r) => r.rows);
-    const reviewStale = Number(lastReview?.stale_count || 0) > 0;
-    res.json({ manual, lastReviewAt: lastReview?.last || null, reviewStale });
+    let lastReviewAt = null;
+    let reviewStale = false;
+    for (const f of findings) {
+      if (!lastReviewAt || new Date(f.reviewed_at) > new Date(lastReviewAt)) lastReviewAt = f.reviewed_at;
+      if (isFindingStale(f, manualIds, currentHash)) reviewStale = true;
+    }
+    const totalChars = manuals.reduce((s, m) => s + (Number(m.text_chars) || 0), 0);
+    res.json({ manuals, manual: manuals[0], lastReviewAt, reviewStale, totalChars, promptCoverage: promptCoverage(totalChars) });
   } catch (err) {
     console.error("Manual status error:", err);
     res.status(500).json({ message: "Failed to load manual status" });
@@ -15117,27 +15247,30 @@ router10.post("/review/:areaId", isAuthenticated, requireAdmin2, async (req, res
   try {
     const orgId = requireOrg(req, res);
     if (!orgId) return;
-    const [manual] = await db.execute(sql13`
-      SELECT id, extracted_text FROM bccs_ops_manuals WHERE organization_id = ${orgId}
-      ORDER BY uploaded_at DESC LIMIT 1
-    `).then((r) => r.rows);
-    if (!manual) return res.status(400).json({ message: "Upload an operations manual first" });
+    const manuals = await getOrgManuals(orgId, true);
+    if (manuals.length === 0) return res.status(400).json({ message: "Upload an operations manual first" });
+    const currentHash = manualSetHash(manuals.map((m) => m.id));
     const items = await db.execute(sql13`
       SELECT id, item_number, description, reference FROM bccs_checklist_report_items
       WHERE organization_id = ${orgId} AND area_id = ${req.params.areaId}
       ORDER BY item_order
     `).then((r) => r.rows);
     if (items.length === 0) return res.status(404).json({ message: "Checklist area not found" });
-    const chunks = chunkText(manual.extracted_text);
+    const chunkEntries = manuals.flatMap(
+      (m) => chunkText(m.extracted_text).map((c) => ({ text: c, source: m.filename }))
+    );
+    const totalManualChars = chunkEntries.reduce((s, e) => s + e.text.length, 0);
+    let minSelectedSourceChars = totalManualChars;
     const validVerdicts = /* @__PURE__ */ new Set(["covered", "partial", "not_addressed"]);
     const byItem = /* @__PURE__ */ new Map();
     for (const batch of batchItems(items)) {
-      const relevant = selectChunks(chunks, batch.map((i) => i.description));
+      const { excerpts, selectedSourceChars } = selectExcerpts(chunkEntries, batch.map((i) => i.description));
+      minSelectedSourceChars = Math.min(minSelectedSourceChars, selectedSourceChars);
       const prompt = `You are an FAA Part 142 compliance auditor. Review the following excerpts from a training center's operations manual and evaluate whether each checklist item is addressed by the manual.
 
 OPERATIONS MANUAL EXCERPTS (most relevant sections):
-${relevant.map((c, i) => `--- Excerpt ${i + 1} ---
-${c}`).join("\n\n")}
+${excerpts.map((e, i) => `--- Excerpt ${i + 1} (from ${e.source}) ---
+${e.text}`).join("\n\n")}
 
 CHECKLIST ITEMS:
 ${batch.map((it) => `[${it.id}] (${it.item_number}, ref ${it.reference || "n/a"}) ${it.description}`).join("\n")}
@@ -15182,10 +15315,11 @@ Respond with JSON: { "findings": [ ... one object per checklist item ... ] }`;
       for (const item of items) {
         const f = byItem.get(item.id);
         await tx.execute(sql13`
-          INSERT INTO bccs_checklist_ai_findings (organization_id, item_id, manual_id, verdict, excerpt, remediation)
-          VALUES (${orgId}, ${item.id}, ${manual.id}, ${f.verdict}, ${String(f.excerpt || "").slice(0, 1e3)}, ${String(f.remediation || "").slice(0, 1e3)})
+          INSERT INTO bccs_checklist_ai_findings (organization_id, item_id, manual_id, manual_set_hash, verdict, excerpt, remediation)
+          VALUES (${orgId}, ${item.id}, ${manuals[0].id}, ${currentHash}, ${f.verdict}, ${String(f.excerpt || "").slice(0, 1e3)}, ${String(f.remediation || "").slice(0, 1e3)})
           ON CONFLICT (organization_id, item_id) DO UPDATE SET
             manual_id = EXCLUDED.manual_id,
+            manual_set_hash = EXCLUDED.manual_set_hash,
             verdict = EXCLUDED.verdict,
             excerpt = EXCLUDED.excerpt,
             remediation = EXCLUDED.remediation,
@@ -15193,11 +15327,36 @@ Respond with JSON: { "findings": [ ... one object per checklist item ... ] }`;
         `);
       }
     });
-    res.json({ success: true, areaId: req.params.areaId, itemsReviewed: items.length, itemsInArea: items.length });
+    res.json({
+      success: true,
+      areaId: req.params.areaId,
+      itemsReviewed: items.length,
+      itemsInArea: items.length,
+      // How much of the combined manual set a single review prompt consulted
+      // for this area — lets the client explain partial coverage.
+      // Measured, not theoretical: the least raw source text any of this
+      // area's prompts actually included, over the combined raw manual text.
+      coverage: {
+        totalManualChars,
+        excerptChars: minSelectedSourceChars,
+        ratio: totalManualChars > 0 ? Math.min(1, minSelectedSourceChars / totalManualChars) : 1
+      }
+    });
   } catch (err) {
     console.error("AI review error:", err);
     res.status(500).json({ message: "Failed to run AI review" });
   }
+});
+router10.use((err, _req, res, next) => {
+  if (err instanceof multer.MulterError) {
+    const messages = {
+      LIMIT_FILE_SIZE: "A file exceeds the maximum upload size.",
+      LIMIT_FILE_COUNT: "Too many files in one upload.",
+      LIMIT_UNEXPECTED_FILE: "Too many files, or an unexpected upload field was used."
+    };
+    return res.status(400).json({ message: messages[err.code] || `Upload rejected: ${err.message}` });
+  }
+  next(err);
 });
 var checklist_report_default = router10;
 

@@ -278,8 +278,8 @@ describe("checklist-report authorization", () => {
       const res = await api("admin1", "POST", "/review/area1");
       expect(res.status).toBe(502); // mocked quota failure — after the prompt was built
       const combined = h.aiPrompts.join("\n");
-      expect(combined).toContain("[vol1.txt]");
-      expect(combined).toContain("[vol2.txt]");
+      expect(combined).toContain("(from vol1.txt)");
+      expect(combined).toContain("(from vol2.txt)");
       expect(combined).toContain("Volume one content");
       expect(combined).toContain("Volume two content");
     } finally {
