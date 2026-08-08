@@ -272,6 +272,9 @@ export default function ComplianceChecklist() {
   const [importText, setImportText] = useState('');
   const [uploading, setUploading] = useState(false);
   const [reviewProgress, setReviewProgress] = useState<{ done: number; total: number } | null>(null);
+  // Per-area manual coverage from the most recent AI review run — how much of
+  // the combined manual text each area's review prompt actually consulted.
+  const [areaCoverage, setAreaCoverage] = useState<Record<string, number>>({});
   const [evidenceUploading, setEvidenceUploading] = useState<string | null>(null);
   const evidenceInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
@@ -604,7 +607,12 @@ export default function ComplianceChecklist() {
         const res = await fetch(`/api/checklist-report/review/${areas[i].id}`, { method: 'POST', credentials: 'include' });
         const body = await res.json().catch(() => ({}));
         if (!res.ok) { failed = body.message || 'AI review failed'; break; }
-        if (typeof body.coverage?.ratio === 'number') lowestCoverage = Math.min(lowestCoverage, body.coverage.ratio);
+        if (typeof body.coverage?.ratio === 'number') {
+          lowestCoverage = Math.min(lowestCoverage, body.coverage.ratio);
+          const ratio = body.coverage.ratio;
+          const areaId = areas[i].id;
+          setAreaCoverage(prev => ({ ...prev, [areaId]: ratio }));
+        }
       } catch (err: any) {
         failed = err.message || 'AI review failed';
         break;
@@ -891,6 +899,22 @@ export default function ComplianceChecklist() {
                   {area.name}
                 </CardTitle>
                 <CardDescription>{area.description}</CardDescription>
+                {typeof areaCoverage[area.id] === 'number' && (() => {
+                  const pct = Math.max(1, Math.round(areaCoverage[area.id] * 100));
+                  const low = areaCoverage[area.id] < 0.5;
+                  return (
+                    <div
+                      className={`inline-flex items-center gap-1.5 mt-2 rounded-md border px-2 py-1 text-xs w-fit ${low ? 'border-amber-300 bg-amber-50 text-amber-900' : 'border-gray-200 bg-gray-50 text-gray-600'}`}
+                      data-testid={`area-coverage-${area.id}`}
+                    >
+                      {low && <AlertCircle className="h-3.5 w-3.5 text-amber-600" />}
+                      <span>
+                        AI review consulted ~{pct}% of your manual text for this area
+                        {low ? ' — "not addressed" verdicts here may miss content the review didn\u2019t see' : ''}
+                      </span>
+                    </div>
+                  );
+                })()}
                 <div className="flex items-center gap-4 mt-2">
                   <div className="flex-1">
                     <div className="flex justify-between text-sm mb-1">
