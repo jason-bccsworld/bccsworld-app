@@ -152,15 +152,30 @@ async function ensureTables() {
 
 // All routes must wait for schema initialization — a request that races the
 // CREATE TABLE statements would otherwise hit a missing table and 500.
-const schemaReady = ensureTables();
-schemaReady.catch((err) => console.error("checklist-report schema init failed:", err));
+// A failed attempt must NOT poison the instance forever (serverless cold
+// starts can fail transiently mid-init), so on failure the next request
+// retries initialization from scratch.
+let schemaReadyPromise: Promise<void> | null = null;
+function ensureSchemaReady(): Promise<void> {
+  if (!schemaReadyPromise) {
+    schemaReadyPromise = ensureTables().catch((err) => {
+      schemaReadyPromise = null; // allow the next request to retry
+      throw err;
+    });
+  }
+  return schemaReadyPromise;
+}
+ensureSchemaReady().catch((err) => console.error("checklist-report schema init failed:", err));
 router.use(async (_req, res, next) => {
   try {
-    await schemaReady;
+    await ensureSchemaReady();
     next();
   } catch (err) {
     console.error("checklist-report schema unavailable:", err);
-    res.status(503).json({ message: "Checklist storage is initializing or unavailable. Please try again shortly." });
+    res.status(503).json({
+      message: "Checklist storage is initializing or unavailable. Please try again shortly.",
+      detail: err instanceof Error ? err.message : String(err),
+    });
   }
 });
 
