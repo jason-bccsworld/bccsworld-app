@@ -18,6 +18,7 @@ import OpenAI from "openai";
 import { db } from "../db";
 import { sql } from "drizzle-orm";
 import { isAuthenticated } from "../localAuth";
+import { makeSchemaGate } from "../lib/schema-init";
 import { requireOrg, isPlatformStaff } from "../middleware/tenant";
 import { PART142_CHECKLIST } from "@shared/part142-checklist";
 import { chunkText, selectExcerpts, batchItems, promptCoverage, segmentEntries, normalizeEvidence, MAX_SEGMENTS, MAP_PARALLEL, MAX_QUOTE_CHARS } from "../services/checklist-review-utils";
@@ -150,34 +151,14 @@ async function ensureTables() {
   `);
 }
 
-// All routes must wait for schema initialization — a request that races the
-// CREATE TABLE statements would otherwise hit a missing table and 500.
-// A failed attempt must NOT poison the instance forever (serverless cold
-// starts can fail transiently mid-init), so on failure the next request
-// retries initialization from scratch.
-let schemaReadyPromise: Promise<void> | null = null;
-function ensureSchemaReady(): Promise<void> {
-  if (!schemaReadyPromise) {
-    schemaReadyPromise = ensureTables().catch((err) => {
-      schemaReadyPromise = null; // allow the next request to retry
-      throw err;
-    });
-  }
-  return schemaReadyPromise;
-}
-ensureSchemaReady().catch((err) => console.error("checklist-report schema init failed:", err));
-router.use(async (_req, res, next) => {
-  try {
-    await ensureSchemaReady();
-    next();
-  } catch (err) {
-    console.error("checklist-report schema unavailable:", err);
-    res.status(503).json({
-      message: "Checklist storage is initializing or unavailable. Please try again shortly.",
-      detail: err instanceof Error ? err.message : String(err),
-    });
-  }
-});
+// All routes must wait for schema initialization; the shared gate retries on
+// failure so a transient cold-start error never poisons the instance.
+const schemaGate = makeSchemaGate(
+  ensureTables,
+  "Checklist storage is initializing or unavailable. Please try again shortly.",
+  "checklist-report",
+);
+router.use(schemaGate.middleware);
 
 // Bounds for imports and AI review so a single org cannot create unbounded
 // review workloads (each area = one OpenAI call).

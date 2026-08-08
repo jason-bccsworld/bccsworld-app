@@ -5,6 +5,7 @@ import { eq, and, desc, sql } from "drizzle-orm";
 import { isAuthenticated } from "../localAuth";
 import { requireOrg } from "../middleware/tenant";
 import { queueAuditReadinessRefresh } from "../services/audit-readiness";
+import { makeSchemaGate } from "../lib/schema-init";
 import crypto from "crypto";
 import OpenAI from "openai";
 
@@ -206,34 +207,14 @@ export async function afterTrainingEventCreated(eventId: string, orgId: string):
   queueAuditReadinessRefresh(orgId, "training_event_form_submitted");
 }
 
-// All routes must wait for schema initialization — a request that races the
-// CREATE TABLE statements would otherwise hit a missing table and 500.
-// A failed attempt must NOT poison the instance forever (serverless cold
-// starts can fail transiently mid-init), so on failure the next request
-// retries initialization from scratch.
-let schemaReadyPromise: Promise<void> | null = null;
-function ensureSchemaReady(): Promise<void> {
-  if (!schemaReadyPromise) {
-    schemaReadyPromise = ensureTables().catch((err) => {
-      schemaReadyPromise = null; // allow the next request to retry
-      throw err;
-    });
-  }
-  return schemaReadyPromise;
-}
-ensureSchemaReady().catch((err) => console.error("digital-forms schema init failed:", err));
-router.use(async (_req, res, next) => {
-  try {
-    await ensureSchemaReady();
-    next();
-  } catch (err) {
-    console.error("digital-forms schema unavailable:", err);
-    res.status(503).json({
-      message: "Digital forms storage is initializing or unavailable. Please try again shortly.",
-      detail: err instanceof Error ? err.message : String(err),
-    });
-  }
-});
+// All routes must wait for schema initialization; the shared gate retries on
+// failure so a transient cold-start error never poisons the instance.
+const schemaGate = makeSchemaGate(
+  ensureTables,
+  "Digital forms storage is initializing or unavailable. Please try again shortly.",
+  "digital-forms",
+);
+router.use(schemaGate.middleware);
 
 // ── PUBLIC ROUTES (no auth required) ──────────────────────────────────────
 
