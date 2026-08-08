@@ -272,7 +272,7 @@ export default function ComplianceChecklist() {
   const [importOpen, setImportOpen] = useState(false);
   const [importText, setImportText] = useState('');
   const [uploading, setUploading] = useState(false);
-  const [reviewProgress, setReviewProgress] = useState<{ done: number; total: number } | null>(null);
+  const [reviewProgress, setReviewProgress] = useState<{ done: number; total: number; detail?: string } | null>(null);
   // Per-area manual coverage from the most recent AI review run — how much of
   // the combined manual text each area's review prompt actually consulted.
   const [areaCoverage, setAreaCoverage] = useState<Record<string, { ratio: number; stale: boolean }>>({});
@@ -613,18 +613,53 @@ export default function ComplianceChecklist() {
     const areas = inspectionAreas;
     setReviewProgress({ done: 0, total: areas.length });
     let failed: string | null = null;
-    let lowestCoverage = 1;
     for (let i = 0; i < areas.length; i++) {
+      const areaId = areas[i].id;
       try {
-        const res = await fetch(`/api/checklist-report/review/${areas[i].id}`, { method: 'POST', credentials: 'include' });
-        const body = await res.json().catch(() => ({}));
-        if (!res.ok) { failed = body.message || 'AI review failed'; break; }
-        if (typeof body.coverage?.ratio === 'number') {
-          lowestCoverage = Math.min(lowestCoverage, body.coverage.ratio);
-          const ratio = body.coverage.ratio;
-          const areaId = areas[i].id;
-          setAreaCoverage(prev => ({ ...prev, [areaId]: { ratio, stale: false } }));
+        // Phase 1 (map): scan every section of the combined manual set for
+        // evidence relevant to this area — full coverage, section by section.
+        // Evidence and progress are stored server-side; we only drive the loop.
+        let segment: number | null = 0;
+        while (segment !== null) {
+          const res: Response = await fetch(`/api/checklist-report/review/${areaId}/map`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ segment }),
+          });
+          const body: any = await res.json().catch(() => ({}));
+          if (!res.ok) { failed = body.message || 'AI review failed'; break; }
+          segment = body.nextSegment ?? null;
+          setReviewProgress({
+            done: i,
+            total: areas.length,
+            detail: `Area ${i + 1}/${areas.length}: scanning manual section ${body.segmentsDone}/${body.totalSegments}`,
+          });
         }
+        if (failed) break;
+        // Phase 2 (reduce): compile the gathered evidence into verdicts, one
+        // bounded batch of checklist items per request until done.
+        setReviewProgress({ done: i, total: areas.length, detail: `Area ${i + 1}/${areas.length}: compiling report` });
+        let reduceDone = false;
+        while (!reduceDone) {
+          const res: Response = await fetch(`/api/checklist-report/review/${areaId}/reduce`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+          });
+          const body: any = await res.json().catch(() => ({}));
+          if (!res.ok) { failed = body.message || 'AI review failed'; break; }
+          reduceDone = !!body.done;
+          if (!reduceDone) {
+            setReviewProgress({
+              done: i,
+              total: areas.length,
+              detail: `Area ${i + 1}/${areas.length}: compiling report ${body.batchesDone}/${body.totalBatches}`,
+            });
+          }
+        }
+        if (failed) break;
+        setAreaCoverage(prev => ({ ...prev, [areaId]: { ratio: 1, stale: false } }));
       } catch (err: any) {
         failed = err.message || 'AI review failed';
         break;
@@ -637,10 +672,7 @@ export default function ComplianceChecklist() {
     if (failed) {
       toast({ title: 'AI review stopped', description: failed, variant: 'destructive' });
     } else {
-      const coverageNote = lowestCoverage < 1
-        ? ` Note: as little as ${Math.max(1, Math.round(lowestCoverage * 100))}% of your combined manual text could be consulted per area, so coverage may be partial.`
-        : '';
-      toast({ title: 'AI review complete', description: `Every checklist item has been reviewed against your operations manual.${coverageNote}` });
+      toast({ title: 'AI review complete', description: 'Every checklist item has been reviewed against the full text of your operations-manual documents.' });
     }
   };
 
@@ -783,16 +815,14 @@ export default function ComplianceChecklist() {
                   )}
                   {manualInfo.promptCoverage?.limited && (
                     <div
-                      className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800"
+                      className="flex items-start gap-2 rounded-md border border-blue-200 bg-blue-50 p-2 text-xs text-blue-800"
                       data-testid="warning-manual-coverage"
                     >
                       <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
                       <span>
-                        Your documents contain {Number(manualInfo.totalChars).toLocaleString()} characters of text, but each AI review can
-                        only consult about {Number(manualInfo.promptCoverage.maxExcerptChars).toLocaleString()} characters of the most relevant
-                        excerpts (roughly {Math.max(1, Math.round(manualInfo.promptCoverage.ratio * 100))}% per area). Coverage may be partial —
-                        a &ldquo;not addressed&rdquo; finding could exist in a section the review didn&apos;t see. Consider trimming or splitting
-                        very large documents.
+                        Your documents contain {Number(manualInfo.totalChars).toLocaleString()} characters of text, so each area&apos;s AI review
+                        scans them section by section (about {Number(manualInfo.promptCoverage.maxExcerptChars).toLocaleString()} characters per pass)
+                        and then compiles the findings — the full text of every document is consulted. Large document sets take longer to review.
                       </span>
                     </div>
                   )}
@@ -816,7 +846,7 @@ export default function ComplianceChecklist() {
               </Button>
               <Button disabled={!manualInfo?.manuals?.length || !!reviewProgress} onClick={runAiReview} data-testid="button-ai-review">
                 {reviewProgress ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Sparkles className="h-4 w-4 mr-2" />}
-                {reviewProgress ? `Reviewing ${reviewProgress.done}/${reviewProgress.total} areas…` : 'Run AI Review'}
+                {reviewProgress ? (reviewProgress.detail || `Reviewing ${reviewProgress.done}/${reviewProgress.total} areas…`) : 'Run AI Review'}
               </Button>
             </div>
           </div>

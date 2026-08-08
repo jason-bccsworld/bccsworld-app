@@ -20,7 +20,7 @@ import { sql } from "drizzle-orm";
 import { isAuthenticated } from "../localAuth";
 import { requireOrg, isPlatformStaff } from "../middleware/tenant";
 import { PART142_CHECKLIST } from "@shared/part142-checklist";
-import { chunkText, selectExcerpts, batchItems, promptCoverage } from "../services/checklist-review-utils";
+import { chunkText, selectExcerpts, batchItems, promptCoverage, segmentEntries, normalizeEvidence, MAX_SEGMENTS, MAP_PARALLEL, MAX_QUOTE_CHARS } from "../services/checklist-review-utils";
 import { parseChecklistWorkbook, buildChecklistWorkbook, type ImportedItem } from "../services/checklist-excel";
 
 const execAsync = promisify(exec);
@@ -126,6 +126,27 @@ async function ensureTables() {
   // Legacy rows have NULL and are treated as stale (unknown provenance).
   await db.execute(sql`
     ALTER TABLE bccs_checklist_area_coverage ADD COLUMN IF NOT EXISTS manual_set_hash VARCHAR(64)
+  `);
+  // Server-owned state for full-coverage (map-reduce) AI review runs. The
+  // client only drives the phases; evidence and progress live here so a
+  // caller can neither fabricate evidence nor skip manual sections.
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS bccs_checklist_review_runs (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      organization_id UUID NOT NULL,
+      area_id VARCHAR(100) NOT NULL,
+      manual_set_hash VARCHAR(64) NOT NULL,
+      total_segments INTEGER NOT NULL,
+      segments_done INTEGER NOT NULL DEFAULT 0,
+      evidence JSONB NOT NULL DEFAULT '[]',
+      verdicts JSONB NOT NULL DEFAULT '{}',
+      batches_done INTEGER NOT NULL DEFAULT 0,
+      created_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
+  await db.execute(sql`
+    CREATE UNIQUE INDEX IF NOT EXISTS bccs_checklist_review_runs_org_area
+    ON bccs_checklist_review_runs (organization_id, area_id)
   `);
 }
 
@@ -484,6 +505,7 @@ async function replaceChecklist(orgId: string, items: ImportedItem[], res: any):
     await tx.execute(sql`DELETE FROM bccs_checklist_ai_findings WHERE organization_id = ${orgId}`);
     await tx.execute(sql`DELETE FROM bccs_checklist_area_coverage WHERE organization_id = ${orgId}`);
     await tx.execute(sql`DELETE FROM bccs_checklist_evidence WHERE organization_id = ${orgId}`);
+    await tx.execute(sql`DELETE FROM bccs_checklist_review_runs WHERE organization_id = ${orgId}`);
     await tx.execute(sql`DELETE FROM bccs_checklist_report_items WHERE organization_id = ${orgId}`);
     const areaIds = new Map<string, string>();
     let order = 0;
@@ -715,6 +737,7 @@ router.post("/reset", isAuthenticated, requireAdmin, async (req: any, res) => {
     await db.execute(sql`DELETE FROM bccs_checklist_ai_findings WHERE organization_id = ${orgId}`);
     await db.execute(sql`DELETE FROM bccs_checklist_area_coverage WHERE organization_id = ${orgId}`);
     await db.execute(sql`DELETE FROM bccs_checklist_evidence WHERE organization_id = ${orgId}`);
+    await db.execute(sql`DELETE FROM bccs_checklist_review_runs WHERE organization_id = ${orgId}`);
     await db.execute(sql`DELETE FROM bccs_checklist_report_items WHERE organization_id = ${orgId}`);
     await seedChecklist(orgId);
     res.json({ success: true });
@@ -1019,6 +1042,326 @@ Respond with JSON: { "findings": [ ... one object per checklist item ... ] }`;
   } catch (err) {
     console.error("AI review error:", err);
     res.status(500).json({ message: "Failed to run AI review" });
+  }
+});
+
+// ── Full-coverage (map-reduce) AI review ────────────────────────────────────
+// The client drives the review area by area in two phases so every request
+// stays within serverless time limits while ALL manual text gets consulted:
+//   1. POST /review/:areaId/map { segment } — scans up to MAP_PARALLEL
+//      consecutive segments of the combined manual set (each its own AI call)
+//      and returns the per-item evidence quotes found in those sections.
+//   2. POST /review/:areaId/reduce — compiles the server-stored evidence into
+//      final verdicts, one item-batch per request, and persists findings +
+//      full coverage after the last batch.
+//
+// All run state (evidence, progress, manual-set hash) is server-owned in
+// bccs_checklist_review_runs: the client can neither fabricate evidence nor
+// skip sections, and a manual add/delete mid-run invalidates the run.
+
+/** Read this org+area's review run, normalizing JSONB columns. */
+async function getReviewRun(orgId: string, areaId: string): Promise<any | null> {
+  const rows = await db.execute(sql`
+    SELECT id, manual_set_hash, total_segments, segments_done, evidence, verdicts, batches_done
+    FROM bccs_checklist_review_runs
+    WHERE organization_id = ${orgId} AND area_id = ${areaId}
+  `).then((r: any) => r.rows);
+  if (!rows.length) return null;
+  const run = rows[0];
+  if (typeof run.evidence === "string") run.evidence = JSON.parse(run.evidence);
+  if (typeof run.verdicts === "string") run.verdicts = JSON.parse(run.verdicts);
+  return run;
+}
+
+/** Load the area's items and the segmented manual set — shared by map/reduce. */
+type LoadedAreaReview =
+  | { error: { status: number; message: string }; manuals?: never; items?: never; segments?: never; totalManualChars?: never }
+  | { error?: never; manuals: any[]; items: any[]; segments: { text: string; source: string }[][]; totalManualChars: number };
+async function loadAreaForReview(orgId: string, areaId: string): Promise<LoadedAreaReview> {
+  const manuals = await getOrgManuals(orgId, true);
+  if (manuals.length === 0) return { error: { status: 400, message: "Upload an operations manual first" } } as const;
+  const items = await db.execute(sql`
+    SELECT id, item_number, description, reference FROM bccs_checklist_report_items
+    WHERE organization_id = ${orgId} AND area_id = ${areaId}
+    ORDER BY item_order
+  `).then((r: any) => r.rows);
+  if (items.length === 0) return { error: { status: 404, message: "Checklist area not found" } } as const;
+  const chunkEntries = manuals.flatMap((m: any) =>
+    chunkText(m.extracted_text).map((c: string) => ({ text: c, source: m.filename as string }))
+  );
+  const segments = segmentEntries(chunkEntries);
+  if (segments.length > MAX_SEGMENTS) {
+    return { error: { status: 400, message: `The combined manual set is too large for a full review (${segments.length} sections; the maximum is ${MAX_SEGMENTS}). Remove or trim documents.` } } as const;
+  }
+  const totalManualChars = chunkEntries.reduce((s: number, e: any) => s + e.text.length, 0);
+  return { manuals, items, segments, totalManualChars } as const;
+}
+
+// Phase 1: scan a window of manual segments for evidence relevant to the area.
+router.post("/review/:areaId/map", isAuthenticated, requireAdmin, async (req: any, res) => {
+  try {
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
+    const loaded = await loadAreaForReview(orgId, req.params.areaId);
+    if (loaded.error) return res.status(loaded.error.status).json({ message: loaded.error.message });
+    const { manuals, items, segments } = loaded;
+    // Runs are bound to the manual set AND the checklist item set: an import
+    // or reset mid-run replaces item ids, changes this hash, and voids the run.
+    const runHash = manualSetHash([...manuals.map((m: any) => String(m.id)), ...items.map((i: any) => String(i.id))]);
+    const start = Math.max(0, Math.floor(Number(req.body?.segment) || 0));
+    if (start >= segments.length) return res.status(400).json({ message: "Segment out of range" });
+
+    let priorEvidence: any[] = [];
+    if (start === 0) {
+      // (Re)start the run for this area against the current manual + item set.
+      await db.execute(sql`
+        INSERT INTO bccs_checklist_review_runs (organization_id, area_id, manual_set_hash, total_segments)
+        VALUES (${orgId}, ${req.params.areaId}, ${runHash}, ${segments.length})
+        ON CONFLICT (organization_id, area_id) DO UPDATE SET
+          manual_set_hash = EXCLUDED.manual_set_hash,
+          total_segments = EXCLUDED.total_segments,
+          segments_done = 0,
+          evidence = '[]',
+          verdicts = '{}',
+          batches_done = 0,
+          created_at = NOW()
+      `);
+    } else {
+      const run = await getReviewRun(orgId, req.params.areaId);
+      if (!run || run.manual_set_hash !== runHash) {
+        return res.status(409).json({ message: "The manuals or checklist changed since this review started. Restart the AI review." });
+      }
+      if (start !== Number(run.segments_done)) {
+        return res.status(409).json({ message: "Manual sections must be scanned in order. Restart the AI review." });
+      }
+      priorEvidence = Array.isArray(run.evidence) ? run.evidence : [];
+    }
+    const window = segments.slice(start, start + MAP_PARALLEL);
+
+    const itemList = items.map((it: any) => `[${it.id}] (${it.item_number}, ref ${it.reference || "n/a"}) ${it.description}`).join("\n");
+    const results = await Promise.all(window.map(async (segment, wi) => {
+      const segIndex = start + wi;
+      const prompt = `You are an FAA Part 142 compliance auditor scanning section ${segIndex + 1} of ${segments.length} of a training center's operations-manual document set. Your ONLY job in this pass is to extract evidence: find passages in THIS section that are relevant to any of the checklist items below.
+
+MANUAL SECTION ${segIndex + 1}/${segments.length}:
+${segment.map((e) => `--- (from ${e.source}) ---\n${e.text}`).join("\n\n")}
+
+CHECKLIST ITEMS:
+${itemList}
+
+Return JSON: { "evidence": [ { "itemId": "<exact bracketed id>", "quote": "<short direct quote from THIS section, max ${MAX_QUOTE_CHARS} chars>" } ] }
+Include an entry ONLY when this section genuinely contains material relevant to that item (multiple entries per item allowed). If nothing in this section is relevant to any item, return { "evidence": [] }.`;
+      const completion = await openai.chat.completions.create(
+        {
+          model: "gpt-4o",
+          messages: [{ role: "user", content: prompt }],
+          response_format: { type: "json_object" },
+          temperature: 0,
+          max_tokens: 4096,
+        },
+        // Kept well under the serverless request deadline (30s on Vercel).
+        { timeout: 25_000, maxRetries: 0 },
+      );
+      const parsed = JSON.parse(completion.choices[0].message.content || "{}");
+      const list = Array.isArray(parsed.evidence) ? parsed.evidence : [];
+      const sources = Array.from(new Set(segment.map((e) => e.source))).join(", ");
+      return list.map((e: any) => ({
+        itemId: String(e?.itemId || "").replace(/[\[\]]/g, ""),
+        quote: String(e?.quote || "").slice(0, MAX_QUOTE_CHARS),
+        source: sources,
+      }));
+    })).catch((aiErr: any) => {
+      throw Object.assign(new Error(friendlyOpenAIError(aiErr)), { isAiError: true });
+    });
+
+    const validIds = new Set<string>(items.map((i: any) => String(i.id)));
+    // Merge with prior evidence and re-normalize (dedupe + per-item bounds),
+    // then persist server-side — evidence never round-trips via the client.
+    const mergedByItem = normalizeEvidence([...priorEvidence, ...results.flat()], validIds);
+    const merged = Array.from(mergedByItem.values()).flat();
+    const segmentsDone = start + window.length;
+    // Conditional update: only advances the exact run state this request read,
+    // so a concurrent restart or duplicate request cannot clobber progress.
+    const updated = await db.execute(sql`
+      UPDATE bccs_checklist_review_runs
+      SET segments_done = ${segmentsDone}, evidence = ${JSON.stringify(merged)}::jsonb
+      WHERE organization_id = ${orgId} AND area_id = ${req.params.areaId}
+        AND segments_done = ${start} AND manual_set_hash = ${runHash}
+      RETURNING id
+    `).then((r: any) => r.rows);
+    if (!updated.length) {
+      return res.status(409).json({ message: "This review run was superseded by another request. Restart the AI review." });
+    }
+    const nextSegment = segmentsDone < segments.length ? segmentsDone : null;
+    res.json({ segmentsDone, totalSegments: segments.length, nextSegment });
+  } catch (err: any) {
+    if (err?.isAiError) return res.status(502).json({ message: err.message });
+    console.error("AI review map error:", err);
+    res.status(500).json({ message: "Failed to scan manual sections" });
+  }
+});
+
+// Phase 2: compile the server-stored evidence into final verdicts — ONE item
+// batch per request (client keeps calling until done) so each request stays
+// within the serverless deadline regardless of area size.
+router.post("/review/:areaId/reduce", isAuthenticated, requireAdmin, async (req: any, res) => {
+  try {
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
+    const loaded = await loadAreaForReview(orgId, req.params.areaId);
+    if (loaded.error) return res.status(loaded.error.status).json({ message: loaded.error.message });
+    const { manuals, items, totalManualChars } = loaded;
+    // Findings/coverage record the manual-set hash; run validity uses the
+    // combined manual + checklist-item hash (see the map route).
+    const currentHash = manualSetHash(manuals.map((m: any) => String(m.id)));
+    const runHash = manualSetHash([...manuals.map((m: any) => String(m.id)), ...items.map((i: any) => String(i.id))]);
+    const validIds = new Set<string>(items.map((i: any) => String(i.id)));
+
+    // Evidence and progress come from the server-owned run — never the client.
+    const run = await getReviewRun(orgId, req.params.areaId);
+    if (!run || run.manual_set_hash !== runHash) {
+      return res.status(409).json({ message: "The manuals or checklist changed since this review started. Restart the AI review." });
+    }
+    if (Number(run.segments_done) < Number(run.total_segments)) {
+      return res.status(409).json({
+        message: `The manual scan is incomplete (${run.segments_done} of ${run.total_segments} sections). Restart the AI review.`,
+      });
+    }
+    const evidenceByItem = normalizeEvidence(Array.isArray(run.evidence) ? run.evidence : [], validIds);
+
+    const validVerdicts = new Set(["covered", "partial", "not_addressed"]);
+    const batches = batchItems(items);
+    const batchIndex = Number(run.batches_done) || 0;
+    const byItem = new Map<string, any>(Object.entries(run.verdicts || {}));
+    // One AI batch per request. Finalization (all the DB persistence) happens
+    // in its own follow-up request so no single request combines a long AI
+    // call with the full write set — keeps every request under the 30s cap.
+    if (batchIndex < batches.length) {
+      const batch = batches[batchIndex];
+      const prompt = `You are an FAA Part 142 compliance auditor compiling the final report. Every page of the training center's operations-manual document set has already been scanned section by section; below is ALL of the evidence found for each checklist item. Because the ENTIRE document set was scanned, an item with no evidence listed is genuinely not addressed anywhere in the manuals.
+
+CHECKLIST ITEMS AND THE EVIDENCE FOUND FOR EACH:
+${batch.map((it: any) => {
+  const quotes = evidenceByItem.get(String(it.id)) || [];
+  const ev = quotes.length
+    ? quotes.map((q, qi) => `  ${qi + 1}. "${q.quote}"${q.source ? ` (from ${q.source})` : ""}`).join("\n")
+    : "  (no relevant material found anywhere in the document set)";
+  return `[${it.id}] (${it.item_number}, ref ${it.reference || "n/a"}) ${it.description}\n${ev}`;
+}).join("\n\n")}
+
+For EACH checklist item, respond with:
+- "itemId": the exact bracketed id
+- "verdict": one of "covered" (evidence clearly addresses it), "partial" (evidence is related but incomplete/unclear), "not_addressed" (no relevant evidence)
+- "excerpt": the strongest supporting quote (max 300 chars) from the evidence, or empty string if not_addressed
+- "remediation": for partial/not_addressed, one concise sentence describing what the manual should add; empty string if covered
+
+Respond with JSON: { "findings": [ ... one object per checklist item ... ] }`;
+
+      let findings: any[];
+      try {
+        const completion = await openai.chat.completions.create(
+          {
+            model: "gpt-4o",
+            messages: [{ role: "user", content: prompt }],
+            response_format: { type: "json_object" },
+            temperature: 0.1,
+            max_tokens: 4096,
+          },
+          // Kept well under the serverless request deadline (30s on Vercel).
+          { timeout: 25_000, maxRetries: 0 },
+        );
+        const parsed = JSON.parse(completion.choices[0].message.content || "{}");
+        findings = parsed.findings || (Object.values(parsed).find((v) => Array.isArray(v)) as any[]) || [];
+        if (!Array.isArray(findings) || findings.length === 0) throw new Error("AI returned no findings");
+      } catch (aiErr: any) {
+        return res.status(502).json({ message: friendlyOpenAIError(aiErr) });
+      }
+      for (const f of findings) {
+        const itemId = String(f.itemId || "").replace(/[\[\]]/g, "");
+        if (validVerdicts.has(f.verdict) && validIds.has(itemId)) {
+          byItem.set(itemId, { verdict: f.verdict, excerpt: String(f.excerpt || "").slice(0, 1000), remediation: String(f.remediation || "").slice(0, 1000) });
+        }
+      }
+
+      // Persist this batch's verdicts with a conditional update so a
+      // concurrent/duplicate request cannot clobber or double-advance
+      // progress. Finalization happens in the client's next request.
+      const updated = await db.execute(sql`
+        UPDATE bccs_checklist_review_runs
+        SET batches_done = ${batchIndex + 1}, verdicts = ${JSON.stringify(Object.fromEntries(byItem))}::jsonb
+        WHERE organization_id = ${orgId} AND area_id = ${req.params.areaId}
+          AND batches_done = ${batchIndex} AND manual_set_hash = ${runHash}
+        RETURNING id
+      `).then((r: any) => r.rows);
+      if (!updated.length) {
+        return res.status(409).json({ message: "This review run was superseded by another request. Restart the AI review." });
+      }
+      return res.json({ done: false, batchesDone: batchIndex + 1, totalBatches: batches.length });
+    }
+
+    // Finalize: all batches are compiled — this request only does DB writes.
+    const missing = items.filter((i: any) => !byItem.has(String(i.id)));
+    if (missing.length > 0) {
+      // Unrecoverable within this run (some items never got a verdict) —
+      // clear it so the client's retry starts a fresh scan.
+      await db.execute(sql`
+        DELETE FROM bccs_checklist_review_runs WHERE organization_id = ${orgId} AND area_id = ${req.params.areaId}
+      `);
+      return res.status(502).json({
+        message: `The AI response was incomplete for this area (${missing.length} of ${items.length} items missing a verdict). Please run the review again.`,
+      });
+    }
+
+    // Claim the run atomically before persisting: exactly one finalizer wins.
+    const claimed = await db.execute(sql`
+      DELETE FROM bccs_checklist_review_runs
+      WHERE organization_id = ${orgId} AND area_id = ${req.params.areaId}
+        AND manual_set_hash = ${runHash} AND batches_done = ${batches.length}
+      RETURNING id
+    `).then((r: any) => r.rows);
+    if (!claimed.length) {
+      return res.status(409).json({ message: "This review run was superseded by another request. Restart the AI review." });
+    }
+
+    await db.transaction(async (tx) => {
+      for (const item of items) {
+        const f = byItem.get(String(item.id));
+        await tx.execute(sql`
+          INSERT INTO bccs_checklist_ai_findings (organization_id, item_id, manual_id, manual_set_hash, verdict, excerpt, remediation)
+          VALUES (${orgId}, ${item.id}, ${manuals[0].id}, ${currentHash}, ${f.verdict}, ${String(f.excerpt || "").slice(0, 1000)}, ${String(f.remediation || "").slice(0, 1000)})
+          ON CONFLICT (organization_id, item_id) DO UPDATE SET
+            manual_id = EXCLUDED.manual_id,
+            manual_set_hash = EXCLUDED.manual_set_hash,
+            verdict = EXCLUDED.verdict,
+            excerpt = EXCLUDED.excerpt,
+            remediation = EXCLUDED.remediation,
+            reviewed_at = NOW()
+        `);
+      }
+    });
+    // Full-coverage run: every character of the manual set was scanned during
+    // the map phase, so measured coverage is complete by construction.
+    await db.execute(sql`
+      INSERT INTO bccs_checklist_area_coverage (organization_id, area_id, total_manual_chars, excerpt_chars, ratio, manual_set_hash)
+      VALUES (${orgId}, ${req.params.areaId}, ${totalManualChars}, ${totalManualChars}, 1, ${currentHash})
+      ON CONFLICT (organization_id, area_id) DO UPDATE SET
+        total_manual_chars = EXCLUDED.total_manual_chars,
+        excerpt_chars = EXCLUDED.excerpt_chars,
+        ratio = EXCLUDED.ratio,
+        manual_set_hash = EXCLUDED.manual_set_hash,
+        reviewed_at = NOW()
+    `);
+    res.json({
+      done: true,
+      success: true,
+      areaId: req.params.areaId,
+      itemsReviewed: items.length,
+      itemsInArea: items.length,
+      coverage: { totalManualChars, excerptChars: totalManualChars, ratio: 1 },
+    });
+  } catch (err) {
+    console.error("AI review reduce error:", err);
+    res.status(500).json({ message: "Failed to compile the AI review" });
   }
 });
 

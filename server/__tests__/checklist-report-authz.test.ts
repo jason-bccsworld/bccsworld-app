@@ -20,6 +20,11 @@ const h = vi.hoisted(() => ({
     { id: "manual-1", extracted_text: "Some manual text.\n\nMore text.", filename: "m.txt", text_chars: 30, uploaded_at: new Date().toISOString() },
   ] as any[],
   aiPrompts: [] as string[],
+  // When set, the mocked OpenAI client returns this JSON content instead of
+  // throwing the default quota error. May be a function of the prompt.
+  aiResponse: null as null | ((prompt: string) => string),
+  // In-memory bccs_checklist_review_runs row (map-reduce review run state).
+  reviewRun: null as any,
 }));
 
 function sqlText(q: any): string {
@@ -33,10 +38,59 @@ function sqlText(q: any): string {
     .join("");
 }
 
+function sqlParams(q: any): any[] {
+  const chunks = q?.queryChunks ?? [];
+  const params: any[] = [];
+  for (const c of chunks) {
+    if (c === null || typeof c !== "object") { params.push(c); continue; } // raw param value
+    if (Array.isArray(c.value)) continue; // string chunk
+    if (Array.isArray(c.queryChunks)) { params.push(...sqlParams(c)); continue; }
+    if ("value" in c) params.push(c.value);
+  }
+  return params;
+}
+
 vi.mock("../db", () => {
   const exec = async (q: any) => {
     const text = sqlText(q);
     h.executed.push(text);
+    if (text.includes("bccs_checklist_review_runs")) {
+      const p = sqlParams(q);
+      if (text.includes("INSERT INTO")) {
+        h.reviewRun = {
+          organization_id: p[0], area_id: p[1], manual_set_hash: p[2], total_segments: p[3],
+          segments_done: 0, evidence: [], verdicts: {}, batches_done: 0,
+        };
+        return { rows: [] };
+      }
+      if (text.includes("SET segments_done")) {
+        // Conditional: WHERE segments_done = expected AND manual_set_hash = hash
+        const [segmentsDone, evidence, , , expected, hash] = p;
+        if (!h.reviewRun || h.reviewRun.segments_done !== expected || h.reviewRun.manual_set_hash !== hash) return { rows: [] };
+        h.reviewRun.segments_done = segmentsDone;
+        h.reviewRun.evidence = JSON.parse(evidence);
+        return { rows: [{ id: "run-1" }] };
+      }
+      if (text.includes("SET batches_done")) {
+        const [batchesDone, verdicts, , , expected, hash] = p;
+        if (!h.reviewRun || h.reviewRun.batches_done !== expected || h.reviewRun.manual_set_hash !== hash) return { rows: [] };
+        h.reviewRun.batches_done = batchesDone;
+        h.reviewRun.verdicts = JSON.parse(verdicts);
+        return { rows: [{ id: "run-1" }] };
+      }
+      if (text.includes("DELETE FROM")) {
+        if (text.includes("manual_set_hash")) {
+          // Conditional finalize claim.
+          const [, , hash, batches] = p;
+          if (!h.reviewRun || h.reviewRun.manual_set_hash !== hash || h.reviewRun.batches_done !== batches) return { rows: [] };
+          h.reviewRun = null;
+          return { rows: [{ id: "run-1" }] };
+        }
+        h.reviewRun = null;
+        return { rows: [] };
+      }
+      return { rows: h.reviewRun ? [{ ...h.reviewRun }] : [] };
+    }
     if (text.includes("FROM bccs_ops_manuals") && !text.includes("DELETE")) {
       return { rows: h.manualRows };
     }
@@ -79,7 +133,9 @@ vi.mock("openai", () => ({
     chat = {
       completions: {
         create: vi.fn(async (args: any) => {
-          for (const m of args?.messages || []) h.aiPrompts.push(String(m.content || ""));
+          const prompt = (args?.messages || []).map((m: any) => String(m.content || "")).join("\n");
+          h.aiPrompts.push(prompt);
+          if (h.aiResponse) return { choices: [{ message: { content: h.aiResponse(prompt) } }] };
           throw Object.assign(new Error("quota"), { status: 429 });
         }),
       },
@@ -137,6 +193,8 @@ describe("checklist-report authorization", () => {
       ["POST", "/import", { text: "1 | x" }],
       ["POST", "/reset", undefined],
       ["POST", "/review/area1", undefined],
+      ["POST", "/review/area1/map", { segment: 0 }],
+      ["POST", "/review/area1/reduce", { evidence: [] }],
       ["POST", "/manual", undefined],
       ["DELETE", "/manual/manual-1", undefined],
       ["POST", "/items/item-1/evidence", undefined],
@@ -265,6 +323,116 @@ describe("checklist-report authorization", () => {
     const body = await res.json();
     expect(res.status).toBe(400);
     expect(body.message).toMatch(/duplicate item number/i);
+  });
+
+  it("full-coverage review: map scans sections and reduce persists verdicts with 100% coverage", async () => {
+    const prev = h.manualRows;
+    // Two documents big enough to span multiple segments (segment size 16k).
+    h.manualRows = [
+      { id: "manual-1", extracted_text: "Instructor qualification records policy. ".repeat(500), filename: "vol1.txt", text_chars: 20500, uploaded_at: new Date().toISOString() },
+      { id: "manual-2", extracted_text: "Facility and simulator standards. ".repeat(500), filename: "vol2.txt", text_chars: 17000, uploaded_at: new Date().toISOString() },
+    ];
+    h.aiResponse = (prompt) =>
+      prompt.includes("compiling the final report")
+        ? JSON.stringify({ findings: [{ itemId: "item-1", verdict: "covered", excerpt: "Instructor qualification records policy.", remediation: "" }] })
+        : JSON.stringify({ evidence: [{ itemId: "item-1", quote: "Instructor qualification records policy." }, { itemId: "bogus", quote: "x" }] });
+    try {
+      // Map pass 1 covers all segments (MAP_PARALLEL=3 ≥ segment count here).
+      const map = await api("admin1", "POST", "/review/area1/map", { segment: 0 });
+      expect(map.status).toBe(200);
+      expect(map.body.totalSegments).toBeGreaterThanOrEqual(2);
+      expect(map.body.nextSegment).toBeNull();
+      // Evidence is stored server-side (never round-tripped via the client),
+      // with unknown item ids filtered out.
+      expect(map.body.evidence).toBeUndefined();
+      expect(h.reviewRun.evidence.length).toBeGreaterThan(0);
+      expect(h.reviewRun.evidence.every((e: any) => e.itemId === "item-1")).toBe(true);
+      expect(h.reviewRun.segments_done).toBe(map.body.totalSegments);
+
+      h.executed.length = 0;
+      // First reduce call compiles the single item batch; second finalizes.
+      const partial = await api("admin1", "POST", "/review/area1/reduce");
+      expect(partial.status).toBe(200);
+      expect(partial.body.done).toBe(false);
+      expect(partial.body.batchesDone).toBe(1);
+      const reduce = await api("admin1", "POST", "/review/area1/reduce");
+      expect(reduce.status).toBe(200);
+      expect(reduce.body.done).toBe(true);
+      expect(reduce.body.coverage.ratio).toBe(1);
+      expect(reduce.body.coverage.excerptChars).toBe(reduce.body.coverage.totalManualChars);
+      expect(h.executed.some((t) => t.includes("INSERT INTO bccs_checklist_ai_findings"))).toBe(true);
+      expect(h.executed.some((t) => t.includes("INSERT INTO bccs_checklist_area_coverage"))).toBe(true);
+      // The reduce prompt contains the gathered evidence, not raw excerpts.
+      expect(h.aiPrompts[h.aiPrompts.length - 1]).toContain("Instructor qualification records policy.");
+      // Completed runs are cleaned up.
+      expect(h.reviewRun).toBeNull();
+    } finally {
+      h.manualRows = prev;
+      h.aiResponse = null;
+      h.reviewRun = null;
+    }
+  });
+
+  it("reduce refuses to run when the manual scan is incomplete or the run is missing", async () => {
+    h.reviewRun = null;
+    const noRun = await api("admin1", "POST", "/review/area1/reduce");
+    expect(noRun.status).toBe(409);
+
+    const prev = h.manualRows;
+    h.manualRows = [
+      { id: "manual-1", extracted_text: "Instructor policy. ".repeat(2000), filename: "vol1.txt", text_chars: 38000, uploaded_at: new Date().toISOString() },
+    ];
+    h.aiResponse = () => JSON.stringify({ evidence: [] });
+    try {
+      // Start a run but claim reduce before all segments are scanned.
+      const map = await api("admin1", "POST", "/review/area1/map", { segment: 0 });
+      expect(map.status).toBe(200);
+      h.reviewRun.segments_done = 1; // pretend the scan stopped early
+      h.reviewRun.total_segments = 3;
+      const early = await api("admin1", "POST", "/review/area1/reduce");
+      expect(early.status).toBe(409);
+      expect(early.body?.message).toMatch(/incomplete/i);
+    } finally {
+      h.manualRows = prev;
+      h.aiResponse = null;
+      h.reviewRun = null;
+    }
+  });
+
+  it("map rejects out-of-order segments and manual-set changes mid-run", async () => {
+    const prev = h.manualRows;
+    h.manualRows = [
+      { id: "manual-1", extracted_text: "Policy text. ".repeat(5000), filename: "vol1.txt", text_chars: 65000, uploaded_at: new Date().toISOString() },
+    ];
+    h.aiResponse = () => JSON.stringify({ evidence: [] });
+    try {
+      const first = await api("admin1", "POST", "/review/area1/map", { segment: 0 });
+      expect(first.status).toBe(200);
+      expect(first.body.nextSegment).not.toBeNull();
+      // Skipping ahead is rejected.
+      const skip = await api("admin1", "POST", "/review/area1/map", { segment: first.body.nextSegment + 1 });
+      expect(skip.status).toBe(409);
+      // A manual-set change mid-run invalidates the run.
+      h.reviewRun.manual_set_hash = "different";
+      const stale = await api("admin1", "POST", "/review/area1/map", { segment: first.body.nextSegment });
+      expect(stale.status).toBe(409);
+      expect(stale.body?.message).toMatch(/changed/i);
+    } finally {
+      h.manualRows = prev;
+      h.aiResponse = null;
+      h.reviewRun = null;
+    }
+  });
+
+  it("map surfaces AI failures as 502 with a friendly message", async () => {
+    const map = await api("admin1", "POST", "/review/area1/map", { segment: 0 });
+    expect(map.status).toBe(502);
+    expect(map.body?.message).toMatch(/credits|rate-limited/i);
+  });
+
+  it("map rejects an out-of-range segment", async () => {
+    const map = await api("admin1", "POST", "/review/area1/map", { segment: 99 });
+    expect(map.status).toBe(400);
   });
 
   it("AI review draws its manual content from every uploaded document", async () => {

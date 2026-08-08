@@ -1,5 +1,56 @@
 import { describe, it, expect } from "vitest";
-import { chunkText, selectChunks, selectExcerpts, batchItems, promptCoverage, MAX_EXCERPT_CHARS, CHUNK_SIZE } from "../services/checklist-review-utils";
+import { chunkText, selectChunks, selectExcerpts, batchItems, promptCoverage, segmentEntries, normalizeEvidence, MAX_EXCERPT_CHARS, CHUNK_SIZE, SEGMENT_CHARS, MAX_QUOTES_PER_ITEM, MAX_QUOTE_CHARS } from "../services/checklist-review-utils";
+
+describe("segmentEntries", () => {
+  it("groups chunks into segments bounded by SEGMENT_CHARS without splitting chunks", () => {
+    const entries = Array.from({ length: 40 }, (_, i) => ({ text: "x".repeat(1400), source: `doc${i % 2}` }));
+    const segments = segmentEntries(entries);
+    expect(segments.length).toBeGreaterThan(1);
+    for (const seg of segments) {
+      const chars = seg.reduce((s, e) => s + e.text.length, 0);
+      expect(chars).toBeLessThanOrEqual(SEGMENT_CHARS);
+    }
+    // Every chunk lands in exactly one segment, in order.
+    expect(segments.flat()).toEqual(entries);
+  });
+
+  it("keeps an oversized single chunk in its own segment", () => {
+    const entries = [{ text: "a".repeat(SEGMENT_CHARS + 5000), source: "d" }, { text: "b", source: "d" }];
+    const segments = segmentEntries(entries);
+    expect(segments[0]).toEqual([entries[0]]);
+    expect(segments[1]).toEqual([entries[1]]);
+  });
+
+  it("covers every character of the input across segments", () => {
+    const entries = chunkText("para. ".repeat(20000)).map((text) => ({ text, source: "m" }));
+    const total = entries.reduce((s, e) => s + e.text.length, 0);
+    const segTotal = segmentEntries(entries).flat().reduce((s, e) => s + e.text.length, 0);
+    expect(segTotal).toBe(total);
+  });
+});
+
+describe("normalizeEvidence", () => {
+  const valid = new Set(["i1", "i2"]);
+  it("filters unknown items, empty quotes, and duplicates; caps quote length and count", () => {
+    const raw = [
+      { itemId: "i1", quote: "q1", source: "doc.pdf" },
+      { itemId: "i1", quote: "q1" }, // duplicate
+      { itemId: "bogus", quote: "x" },
+      { itemId: "i2", quote: "" },
+      { itemId: "i2", quote: "y".repeat(MAX_QUOTE_CHARS * 2) },
+      ...Array.from({ length: MAX_QUOTES_PER_ITEM + 5 }, (_, i) => ({ itemId: "i1", quote: `unique ${i}` })),
+    ];
+    const byItem = normalizeEvidence(raw, valid);
+    expect(byItem.get("i1")!.length).toBeLessThanOrEqual(MAX_QUOTES_PER_ITEM);
+    expect(byItem.get("i2")![0].quote.length).toBe(MAX_QUOTE_CHARS);
+    expect(byItem.has("bogus")).toBe(false);
+  });
+
+  it("tolerates non-array input", () => {
+    expect(normalizeEvidence(null as any, valid).size).toBe(0);
+    expect(normalizeEvidence({} as any, valid).size).toBe(0);
+  });
+});
 
 describe("promptCoverage", () => {
   it("reports full coverage when text fits within the source-text capacity", () => {

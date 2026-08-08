@@ -60,6 +60,66 @@ export function promptCoverage(totalChars: number): { ratio: number; limited: bo
   return { ratio, limited: totalChars > MAX_EXCERPT_CHARS, maxExcerptChars: MAX_EXCERPT_CHARS };
 }
 
+// ── Map-reduce (full-coverage) review ───────────────────────────────────────
+// The manual set is split into ordered segments of bounded size; each segment
+// is scanned by its own AI call ("section agent") that extracts per-item
+// evidence, and a final reduce call compiles the evidence into verdicts.
+// Unlike excerpt selection, every character of every document is consulted.
+
+/** Max raw source chars per map segment (one AI call each). */
+export const SEGMENT_CHARS = 16000;
+/** Hard ceiling on segments per review, bounding total AI calls per area. */
+export const MAX_SEGMENTS = 64;
+/** Segments processed in parallel per map request (serverless time budget). */
+export const MAP_PARALLEL = 3;
+/** Max evidence quotes kept per checklist item for the reduce prompt. */
+export const MAX_QUOTES_PER_ITEM = 12;
+/** Max length of a single stored evidence quote. */
+export const MAX_QUOTE_CHARS = 400;
+
+/** Group ordered chunk entries into segments of at most `size` raw source
+ * chars each. Chunks are never split across segments, and document order is
+ * preserved so each segment reads as contiguous manual text. */
+export function segmentEntries(entries: ExcerptEntry[], size = SEGMENT_CHARS): ExcerptEntry[][] {
+  const segments: ExcerptEntry[][] = [];
+  let current: ExcerptEntry[] = [];
+  let currentChars = 0;
+  for (const e of entries) {
+    if (currentChars + e.text.length > size && current.length) {
+      segments.push(current);
+      current = [];
+      currentChars = 0;
+    }
+    current.push(e);
+    currentChars += e.text.length;
+  }
+  if (current.length) segments.push(current);
+  return segments;
+}
+
+export interface EvidenceQuote {
+  itemId: string;
+  quote: string;
+  source: string;
+}
+
+/** Deduplicate and bound client-accumulated evidence for the reduce phase. */
+export function normalizeEvidence(raw: any[], validItemIds: Set<string>): Map<string, EvidenceQuote[]> {
+  const byItem = new Map<string, EvidenceQuote[]>();
+  if (!Array.isArray(raw)) return byItem;
+  for (const e of raw) {
+    const itemId = String(e?.itemId || "").trim();
+    const quote = String(e?.quote || "").trim().slice(0, MAX_QUOTE_CHARS);
+    if (!validItemIds.has(itemId) || !quote) continue;
+    const list = byItem.get(itemId) || [];
+    if (list.length >= MAX_QUOTES_PER_ITEM) continue;
+    if (list.some((q) => q.quote === quote)) continue;
+    list.push({ itemId, quote, source: String(e?.source || "").slice(0, 300) });
+    byItem.set(itemId, list);
+  }
+  return byItem;
+}
+
 export interface ExcerptEntry {
   /** Raw chunk text (no labels — the source-text budget applies to this). */
   text: string;
