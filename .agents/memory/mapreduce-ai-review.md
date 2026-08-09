@@ -13,3 +13,8 @@ The checklist AI review scans 100% of the manual text via a client-driven map-re
 - Segments must be scanned sequentially; all state transitions use conditional UPDATE/DELETE ... RETURNING (compare expected progress + hash) so concurrent/duplicate requests can't clobber each other.
 - OpenAI calls on these endpoints: timeout 25s, maxRetries 0.
 - Run-table SQL is covered by a PGlite test (real jsonb round-trips), not mock-routed.
+
+## Timeout resilience (Aug 2026)
+- Map phase uses gpt-4o-mini (quote extraction only); reduce keeps gpt-4o for verdicts. gpt-4o map calls routinely blew the 25s budget on 35-item areas.
+- Map uses Promise.allSettled: persist only the consecutive successful prefix; all-fail returns 502 {retryable:true}; client retries same segment up to 3x.
+- Segment 0 with an existing incomplete same-hash run RESUMES (returns nextSegment=segments_done) instead of resetting — re-clicks must not rescan finished sections.
