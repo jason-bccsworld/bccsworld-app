@@ -1109,6 +1109,24 @@ router.post("/review/:areaId/map", isAuthenticated, requireAdmin, async (req: an
 
     let priorEvidence: any[] = [];
     if (start === 0) {
+      // Resume instead of restarting: if an incomplete run for the SAME manual
+      // + checklist set already exists, don't rescan finished sections — tell
+      // the client where to pick up. A changed hash still forces a fresh run.
+      const existing = await getReviewRun(orgId, req.params.areaId);
+      if (
+        existing &&
+        existing.manual_set_hash === runHash &&
+        Number(existing.segments_done) > 0 &&
+        Number(existing.segments_done) < Number(existing.total_segments) &&
+        Number(existing.total_segments) === segments.length
+      ) {
+        return res.json({
+          segmentsDone: Number(existing.segments_done),
+          totalSegments: segments.length,
+          nextSegment: Number(existing.segments_done),
+          resumed: true,
+        });
+      }
       // (Re)start the run for this area against the current manual + item set.
       await db.execute(sql`
         INSERT INTO bccs_checklist_review_runs (organization_id, area_id, manual_set_hash, total_segments)
@@ -1149,7 +1167,10 @@ Return JSON: { "evidence": [ { "itemId": "<exact bracketed id>", "quote": "<shor
 Include an entry ONLY when this section genuinely contains material relevant to that item (multiple entries per item allowed). If nothing in this section is relevant to any item, return { "evidence": [] }.`;
       const completion = await openai.chat.completions.create(
         {
-          model: "gpt-4o",
+          // Evidence extraction is a mechanical quote-finding pass — the fast
+          // model keeps each call well under the serverless deadline; the
+          // reduce phase (actual verdicts) stays on the stronger model.
+          model: "gpt-4o-mini",
           messages: [{ role: "user", content: prompt }],
           response_format: { type: "json_object" },
           temperature: 0,
