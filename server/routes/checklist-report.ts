@@ -1135,7 +1135,7 @@ router.post("/review/:areaId/map", isAuthenticated, requireAdmin, async (req: an
     const window = segments.slice(start, start + MAP_PARALLEL);
 
     const itemList = items.map((it: any) => `[${it.id}] (${it.item_number}, ref ${it.reference || "n/a"}) ${it.description}`).join("\n");
-    const results = await Promise.all(window.map(async (segment, wi) => {
+    const settled = await Promise.allSettled(window.map(async (segment, wi) => {
       const segIndex = start + wi;
       const prompt = `You are an FAA Part 142 compliance auditor scanning section ${segIndex + 1} of ${segments.length} of a training center's operations-manual document set. Your ONLY job in this pass is to extract evidence: find passages in THIS section that are relevant to any of the checklist items below.
 
@@ -1166,16 +1166,28 @@ Include an entry ONLY when this section genuinely contains material relevant to 
         quote: String(e?.quote || "").slice(0, MAX_QUOTE_CHARS),
         source: sources,
       }));
-    })).catch((aiErr: any) => {
-      throw Object.assign(new Error(friendlyOpenAIError(aiErr)), { isAiError: true });
-    });
+    }));
+
+    // Keep whatever succeeded as a consecutive prefix from `start` — a slow or
+    // failed call must not discard the other segments' work. The client simply
+    // retries from the first unfinished segment.
+    const okPrefix: { itemId: string; quote: string; source: string }[][] = [];
+    for (const r of settled) {
+      if (r.status !== "fulfilled") break;
+      okPrefix.push(r.value);
+    }
+    if (okPrefix.length === 0) {
+      const firstErr = settled.find((r) => r.status === "rejected") as PromiseRejectedResult | undefined;
+      return res.status(502).json({ message: friendlyOpenAIError(firstErr?.reason), retryable: true });
+    }
+    const results = okPrefix;
 
     const validIds = new Set<string>(items.map((i: any) => String(i.id)));
     // Merge with prior evidence and re-normalize (dedupe + per-item bounds),
     // then persist server-side — evidence never round-trips via the client.
     const mergedByItem = normalizeEvidence([...priorEvidence, ...results.flat()], validIds);
     const merged = Array.from(mergedByItem.values()).flat();
-    const segmentsDone = start + window.length;
+    const segmentsDone = start + results.length;
     // Conditional update: only advances the exact run state this request read,
     // so a concurrent restart or duplicate request cannot clobber progress.
     const updated = await db.execute(sql`

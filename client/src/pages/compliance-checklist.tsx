@@ -620,6 +620,7 @@ export default function ComplianceChecklist() {
         // evidence relevant to this area — full coverage, section by section.
         // Evidence and progress are stored server-side; we only drive the loop.
         let segment: number | null = 0;
+        let retriesLeft = 3; // a slow AI call can time out; retry the same segment a few times
         while (segment !== null) {
           const res: Response = await fetch(`/api/checklist-report/review/${areaId}/map`, {
             method: 'POST',
@@ -628,7 +629,12 @@ export default function ComplianceChecklist() {
             body: JSON.stringify({ segment }),
           });
           const body: any = await res.json().catch(() => ({}));
-          if (!res.ok) { failed = body.message || 'AI review failed'; break; }
+          if (!res.ok) {
+            if (body.retryable && retriesLeft > 0) { retriesLeft--; continue; }
+            failed = body.message || 'AI review failed';
+            break;
+          }
+          retriesLeft = 3;
           segment = body.nextSegment ?? null;
           setReviewProgress({
             done: i,
