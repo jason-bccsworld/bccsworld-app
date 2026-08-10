@@ -271,6 +271,24 @@ function OpportunitiesTab({ onViewWorkPackage }: { onViewWorkPackage: (noticeId:
     onError: (err: Error) => toast({ title: "Could not generate work package", description: err.message, variant: "destructive" }),
     onSettled: () => setGeneratingId(null),
   });
+  const [auditingId, setAuditingId] = useState<string | null>(null);
+  const audit = useMutation({
+    mutationFn: async (id: string) => {
+      setAuditingId(id);
+      const res = await apiRequest("POST", `/api/federal-contracts/opportunities/${id}/workpackage/audit`);
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/federal-contracts/opportunities"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/federal-contracts/checklist"] });
+      toast({
+        title: "AI audit complete",
+        description: `${data.counts?.covered ?? 0} covered · ${data.counts?.partial ?? 0} partial · ${data.counts?.notAddressed ?? 0} not addressed${(data.counts?.unaudited ?? 0) > 0 ? ` · ${data.counts.unaudited} item(s) not audited` : ""}. Advisory check against the most relevant ${data.manualCoveragePct ?? "?"}% of your ops-manual text — see the Checklist tab.`,
+      });
+    },
+    onError: (err: Error) => toast({ title: "AI audit failed", description: err.message, variant: "destructive" }),
+    onSettled: () => setAuditingId(null),
+  });
 
   if (isLoading) return <p className="text-sm text-slate-400 p-4">Loading opportunities…</p>;
   if (opps.length === 0) {
@@ -321,6 +339,22 @@ function OpportunitiesTab({ onViewWorkPackage }: { onViewWorkPackage: (noticeId:
                     <><ClipboardCheck className="h-3 w-3 mr-1" /> {(o.dossier as any)?.workPackage ? "Regenerate" : "Generate work package"}</>
                   )}
                 </Button>
+                {(o.dossier as any)?.workPackage && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-xs"
+                    disabled={auditingId === o.id}
+                    onClick={() => audit.mutate(o.id)}
+                    data-testid={`button-audit-${o.id}`}
+                  >
+                    {auditingId === o.id ? (
+                      <><Loader2 className="h-3 w-3 mr-1 animate-spin" /> Auditing…</>
+                    ) : (
+                      <><Scale className="h-3 w-3 mr-1" /> AI audit vs ops manual</>
+                    )}
+                  </Button>
+                )}
                 {(o.dossier as any)?.workPackage && (
                   <Button
                     size="sm"
@@ -380,20 +414,64 @@ function OpportunitiesTab({ onViewWorkPackage }: { onViewWorkPackage: (noticeId:
 
 /* ── Awards / risk scoreboard tab ────────────────────────────────────────── */
 
+const RISK_TIER_STYLE: Record<string, string> = {
+  critical: "border-red-300 bg-red-50 text-red-700",
+  high: "border-orange-300 bg-orange-50 text-orange-700",
+  moderate: "border-amber-300 bg-amber-50 text-amber-700",
+  low: "border-emerald-300 bg-emerald-50 text-emerald-700",
+};
+
 function AwardsTab() {
   const { data: awards = [], isLoading } = useQuery<AwardRow[]>({ queryKey: ["/api/federal-contracts/awards"] });
+  const { data: opps = [] } = useQuery<Opportunity[]>({ queryKey: ["/api/federal-contracts/opportunities"] });
+  const scoredOpps = opps.filter((o) => (o.dossier as any)?.workPackage?.risk);
 
   if (isLoading) return <p className="text-sm text-slate-400 p-4">Loading award dossiers…</p>;
-  if (awards.length === 0) {
-    return (
-      <p className="text-sm text-slate-500 bg-slate-50 rounded-md p-4">
-        No award dossiers yet. Add vendor names or contract numbers to the watchlist and run the agent —
-        it builds one dossier per award from USAspending data and scores each against the due-diligence rubric.
-      </p>
-    );
-  }
   return (
     <div className="space-y-3">
+      {scoredOpps.length > 0 && (
+        <>
+          <p className="text-sm font-semibold text-slate-700">Opportunity pursuit risk</p>
+          {scoredOpps.map((o) => {
+            const risk = (o.dossier as any).workPackage.risk;
+            return (
+              <Card key={o.id} data-testid={`opp-risk-card-${o.id}`}>
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between gap-3 flex-wrap">
+                    <div className="min-w-0">
+                      <p className="font-medium text-slate-800">{o.title ?? o.notice_id}</p>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        {[o.agency, o.naics && `NAICS ${o.naics}`, o.set_aside].filter(Boolean).join(" · ")}
+                      </p>
+                    </div>
+                    <Badge variant="outline" className={`text-xs uppercase ${RISK_TIER_STYLE[risk.tier] || ""}`}>
+                      {risk.tier} · {risk.score} pts
+                    </Badge>
+                  </div>
+                  {Array.isArray(risk.flags) && risk.flags.length > 0 && (
+                    <div className="mt-2 space-y-1">
+                      {risk.flags.map((f: any) => (
+                        <p key={f.key} className={`text-xs flex items-center gap-1.5 ${f.veto ? "text-red-700 font-medium" : "text-amber-700"}`}>
+                          <AlertTriangle className="h-3 w-3 flex-shrink-0" />
+                          {f.veto && "VETO FLAG: "}{f.label} (+{f.points} pts)
+                        </p>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })}
+        </>
+      )}
+      {awards.length === 0 && scoredOpps.length === 0 && (
+        <p className="text-sm text-slate-500 bg-slate-50 rounded-md p-4">
+          No risk scores yet. Generate a work package on a tracked opportunity for pursuit risk, or add vendor
+          names / contract numbers to the watchlist and run the agent for award dossiers scored against the
+          due-diligence rubric.
+        </p>
+      )}
+      {awards.length > 0 && scoredOpps.length > 0 && <p className="text-sm font-semibold text-slate-700 mt-2">Award dossiers</p>}
       {awards.map((a) => (
         <Card key={a.id} data-testid={`award-${a.id}`}>
           <CardContent className="p-4">
@@ -596,6 +674,17 @@ function ChecklistTab({ filter, onFilterChange }: { filter: string; onFilterChan
                     </SelectContent>
                   </Select>
                   <span className="text-xs text-slate-600 flex-1 min-w-[200px]">{r.label}</span>
+                  {(r as any).ai_audit && (
+                    <div className="w-full pl-2 border-l-2 border-slate-200 ml-1" data-testid={`audit-${r.id}`}>
+                      <Badge variant="outline" className={`text-[10px] ${
+                        { covered: "border-emerald-300 bg-emerald-50 text-emerald-700", partial: "border-amber-300 bg-amber-50 text-amber-700", not_addressed: "border-red-300 bg-red-50 text-red-700" }[(r as any).ai_audit.verdict as string] || ""
+                      }`}>
+                        AI audit: {String((r as any).ai_audit.verdict).replace("_", " ")}
+                      </Badge>
+                      {(r as any).ai_audit.note && <p className="text-[11px] text-slate-500 mt-0.5">{(r as any).ai_audit.note}</p>}
+                      {(r as any).ai_audit.evidence && <p className="text-[11px] text-slate-400 italic mt-0.5">“{(r as any).ai_audit.evidence}”</p>}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

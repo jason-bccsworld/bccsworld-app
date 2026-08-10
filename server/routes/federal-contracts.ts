@@ -16,6 +16,7 @@ import { isAuthenticated } from "../localAuth";
 import { requireOrg, isPlatformStaff } from "../middleware/tenant";
 import { getEmailAlertSettings } from "../services/email-alerts";
 import { tierFor } from "../services/federal-contracts-monitor";
+import { chunkText, selectExcerpts } from "../services/checklist-review-utils";
 
 const router = Router();
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || "not-configured" });
@@ -307,6 +308,12 @@ router.post("/opportunities/:id/workpackage", isAuthenticated, async (req, res) 
     .then((r) => (r as any).rows.length > 0);
 
   // 4. Persist the scoreboard on the opportunity dossier (additive jsonb — no schema change).
+  // Regenerating replaces the package: any prior AI-audit verdicts refer to the
+  // old checklist state, so clear them (workPackage.audit is dropped below too).
+  await db.execute(sql`
+    UPDATE bccs_fedcon_checklist SET ai_audit = NULL
+    WHERE org_id = ${orgId} AND subject_type = 'opportunity' AND subject_id = ${subjectId} AND ai_audit IS NOT NULL
+  `);
   const workPackage = {
     risk: { flags, score, tier },
     generatedAt: new Date().toISOString(),
@@ -328,6 +335,125 @@ router.post("/opportunities/:id/workpackage", isAuthenticated, async (req, res) 
     aiUsed,
     aiSkipReason,
   });
+});
+
+/* ── AI compliance audit: checklist vs the org's operations manuals ──────── */
+//
+// Judges each of the opportunity's checklist items against the most relevant
+// excerpts of the org's uploaded operations manuals: can the organization
+// demonstrate this requirement from its own documentation? Verdicts are
+// advisory annotations (ai_audit jsonb) — item status stays human-owned.
+
+router.post("/opportunities/:id/workpackage/audit", isAuthenticated, async (req, res) => {
+  const orgId = requireOrg(req, res);
+  if (!orgId) return;
+  if (isViewer(req)) return res.status(403).json({ message: "Viewers cannot run audits." });
+  if (!process.env.OPENAI_API_KEY) {
+    return res.status(503).json({ message: "AI audit unavailable: no OpenAI API key configured." });
+  }
+  const opp = await db
+    .execute(sql`SELECT * FROM bccs_fedcon_opportunities WHERE id = ${req.params.id} AND org_id = ${orgId}`)
+    .then((r) => (r as any).rows[0]);
+  if (!opp) return res.status(404).json({ message: "Opportunity not found" });
+  const subjectId = String(opp.notice_id).slice(0, 300);
+
+  const items = await db
+    .execute(sql`SELECT id, item_key, label FROM bccs_fedcon_checklist WHERE org_id = ${orgId} AND subject_type = 'opportunity' AND subject_id = ${subjectId} ORDER BY item_key`)
+    .then((r) => (r as any).rows);
+  if (items.length === 0) return res.status(400).json({ message: "Generate the work package first — there are no checklist items for this opportunity yet." });
+
+  const manuals = await db
+    .execute(sql`SELECT filename, extracted_text FROM bccs_ops_manuals WHERE organization_id = ${orgId}`)
+    .then((r) => (r as any).rows);
+  if (manuals.length === 0) return res.status(400).json({ message: "Upload your operations manual first (Compliance Checklist page) — the audit compares checklist requirements against it." });
+
+  // Keyword-select the most relevant manual excerpts, bounded so a single AI
+  // call plus persistence fits Vercel's 30s budget.
+  const entries = manuals.flatMap((m: any) =>
+    chunkText(String(m.extracted_text || "")).map((text: string) => ({ text, source: String(m.filename || "manual") })),
+  );
+  const itemTexts = items.map((it: any) => `${String(opp.title || "")} ${it.label}`);
+  const { excerpts, selectedSourceChars, totalSourceChars } = selectExcerpts(entries, itemTexts, Number.POSITIVE_INFINITY, 36_000);
+  const coveragePct = totalSourceChars > 0 ? Math.round((selectedSourceChars / totalSourceChars) * 100) : 0;
+
+  const itemList = items.map((it: any) => `[${it.id}] ${it.label}`).join("\n");
+  const prompt = `You are an FAA Part 142 training-center compliance auditor. An organization is pursuing this federal contract opportunity:
+Title: ${opp.title || opp.notice_id} | Agency: ${opp.agency || "unknown"} | NAICS: ${opp.naics || "n/a"} | Set-aside: ${opp.set_aside || "none"}
+Dossier: ${JSON.stringify(opp.dossier?.summary ?? opp.dossier ?? {}).slice(0, 3000)}
+
+For EACH due-diligence checklist item below, judge whether the organization's own operations-manual excerpts demonstrate the capability/compliance the item requires.
+
+OPERATIONS MANUAL EXCERPTS:
+${excerpts.map((e) => `--- (from ${e.source}) ---\n${e.text}`).join("\n\n")}
+
+CHECKLIST ITEMS:
+${itemList}
+
+Return JSON: { "results": [ { "itemId": "<exact bracketed id>", "verdict": "covered" | "partial" | "not_addressed", "evidence": "<short direct quote from the excerpts, or empty string>", "note": "<one sentence: what's demonstrated or what's missing>" } ] } — one entry per item, in order.`;
+
+  let results: any[];
+  try {
+    const completion = await openai.chat.completions.create(
+      {
+        model: "gpt-4o",
+        messages: [{ role: "user", content: prompt }],
+        response_format: { type: "json_object" },
+        temperature: 0,
+        max_tokens: 2000,
+      },
+      { timeout: 18_000, maxRetries: 0 },
+    );
+    const parsed = JSON.parse(completion.choices[0].message.content || "{}");
+    results = Array.isArray(parsed.results) ? parsed.results : [];
+  } catch (err: any) {
+    const msg = err?.status === 429 ? "AI quota exhausted — try again later." : "The AI audit call failed or timed out — try again.";
+    return res.status(502).json({ message: msg, retryable: true });
+  }
+
+  const validIds = new Set(items.map((it: any) => String(it.id)));
+  const auditedAt = new Date().toISOString();
+  const clean = results
+    .map((r: any) => ({
+      itemId: String(r?.itemId || "").replace(/[\[\]]/g, ""),
+      verdict: ["covered", "partial", "not_addressed"].includes(r?.verdict) ? r.verdict : "not_addressed",
+      evidence: String(r?.evidence || "").slice(0, 600),
+      note: String(r?.note || "").slice(0, 500),
+    }))
+    .filter((r) => validIds.has(r.itemId));
+  if (clean.length === 0) return res.status(502).json({ message: "The AI audit returned no usable verdicts — try again.", retryable: true });
+
+  // Clear old verdicts first so items the model skipped are shown as
+  // unaudited rather than carrying a stale verdict, then apply the new ones
+  // in one batched update joined against the org-scoped rows.
+  await db.execute(sql`
+    UPDATE bccs_fedcon_checklist SET ai_audit = NULL
+    WHERE org_id = ${orgId} AND subject_type = 'opportunity' AND subject_id = ${subjectId}
+  `);
+  const auditRows = clean.map(
+    (r) => sql`(${r.itemId}::uuid, ${JSON.stringify({ verdict: r.verdict, evidence: r.evidence, note: r.note, auditedAt, manualCoveragePct: coveragePct })}::jsonb)`,
+  );
+  await db.execute(sql`
+    UPDATE bccs_fedcon_checklist c
+    SET ai_audit = v.audit, updated_at = NOW()
+    FROM (VALUES ${sql.join(auditRows, sql`, `)}) AS v(id, audit)
+    WHERE c.id = v.id AND c.org_id = ${orgId}
+  `);
+
+  const counts = {
+    covered: clean.filter((r) => r.verdict === "covered").length,
+    partial: clean.filter((r) => r.verdict === "partial").length,
+    notAddressed: clean.filter((r) => r.verdict === "not_addressed").length,
+    unaudited: items.length - clean.length,
+  };
+  // Persist the audit summary on the work package (replaces prior audit).
+  const dossier = opp.dossier && typeof opp.dossier === "object" ? opp.dossier : {};
+  const workPackage = { ...(dossier.workPackage || {}), audit: { auditedAt, counts, manualCoveragePct: coveragePct, manuals: manuals.map((m: any) => m.filename) } };
+  await db.execute(sql`
+    UPDATE bccs_fedcon_opportunities SET dossier = ${JSON.stringify({ ...dossier, workPackage })}::jsonb, updated_at = NOW()
+    WHERE id = ${opp.id} AND org_id = ${orgId}
+  `);
+
+  res.json({ counts, manualCoveragePct: coveragePct, audited: clean.length, total: items.length });
 });
 
 /* ── Opportunity work package export (printable HTML document) ──────────── */

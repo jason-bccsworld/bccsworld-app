@@ -194,6 +194,24 @@ function isFindingStale(finding: { manual_set_hash?: string | null; manual_id: s
 }
 
 /** All manual documents for an org, newest first. */
+/** Ops manuals changed: federal-contracts AI-audit verdicts were judged
+ * against the old manual set, so clear them (checklist annotations + the
+ * work-package audit summary) rather than presenting stale results. */
+async function invalidateFedconAudits(orgId: string) {
+  try {
+    await db.execute(sql`
+      UPDATE bccs_fedcon_checklist SET ai_audit = NULL
+      WHERE org_id = ${orgId} AND subject_type = 'opportunity' AND ai_audit IS NOT NULL
+    `);
+    await db.execute(sql`
+      UPDATE bccs_fedcon_opportunities SET dossier = dossier #- '{workPackage,audit}', updated_at = NOW()
+      WHERE org_id = ${orgId} AND dossier -> 'workPackage' -> 'audit' IS NOT NULL
+    `);
+  } catch (e) {
+    console.error("Fedcon audit invalidation failed:", e);
+  }
+}
+
 async function getOrgManuals(orgId: string, withText = false): Promise<any[]> {
   return db.execute(withText
     ? sql`SELECT id, filename, extracted_text, text_chars, uploaded_by, uploaded_at FROM bccs_ops_manuals
@@ -846,6 +864,7 @@ router.post(
       }
       return rows;
     });
+    await invalidateFedconAudits(orgId);
     res.status(201).json({ manuals: inserted });
   } catch (err) {
     console.error("Manual upload error:", err);
@@ -864,6 +883,7 @@ router.delete("/manual/:id", isAuthenticated, requireAdmin, async (req: any, res
       RETURNING id
     `);
     if (((result as any).rows || []).length === 0) return res.status(404).json({ message: "Manual document not found" });
+    await invalidateFedconAudits(orgId);
     res.json({ success: true });
   } catch (err) {
     console.error("Manual delete error:", err);

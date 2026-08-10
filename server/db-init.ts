@@ -628,6 +628,8 @@ export async function ensureTables(): Promise<void> {
         CREATE UNIQUE INDEX IF NOT EXISTS "UQ_fedcon_checklist_label"
         ON bccs_fedcon_checklist (org_id, subject_type, subject_id, LOWER(label))
       `);
+      // Additive: per-item AI audit verdicts (checklist vs ops-manual coverage).
+      await db.execute(sql`ALTER TABLE bccs_fedcon_checklist ADD COLUMN IF NOT EXISTS ai_audit JSONB`);
     } catch (e) {
       console.error('[db-init] fedcon checklist label-dedupe index failed:', e);
     }

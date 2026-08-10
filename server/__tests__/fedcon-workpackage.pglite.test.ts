@@ -121,6 +121,7 @@ beforeAll(async () => {
       note TEXT,
       updated_by VARCHAR(200),
       updated_at TIMESTAMP DEFAULT NOW(),
+      ai_audit JSONB,
       UNIQUE (org_id, subject_type, subject_id, item_key)
     );
     CREATE UNIQUE INDEX "UQ_fedcon_checklist_label"
