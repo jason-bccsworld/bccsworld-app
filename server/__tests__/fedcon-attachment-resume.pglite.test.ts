@@ -23,6 +23,8 @@ const h = vi.hoisted(() => ({
     newOpps: [] as any[],
     // resourceLinks served per notice by the mocked SAM notice lookup.
     resourcesByNotice: {} as Record<string, string[]>,
+    // Notices whose SAM resource lookup itself fails (deleted notice).
+    lookupFailsFor: new Set<string>(),
     // Order in which the patrol asked SAM for a notice's resources — this is
     // the observable "which notices did attachment fetch touch, in what order".
     resourceLookups: [] as string[],
@@ -41,6 +43,7 @@ vi.mock("../services/fedcon-data", () => ({
   searchSamOpportunities: async () => h.state.newOpps,
   getSamNoticeResources: async (noticeId: string) => {
     h.state.resourceLookups.push(noticeId);
+    if (h.state.lookupFailsFor.has(noticeId)) throw new Error("notice deleted");
     return { resourceLinks: h.state.resourcesByNotice[noticeId] ?? [], descriptionUrl: null };
   },
   checkSamExclusions: async () => ({ excluded: false, records: [] }),
@@ -108,6 +111,7 @@ beforeAll(async () => {
       dossier JSONB DEFAULT '{}',
       status VARCHAR(30) NOT NULL DEFAULT 'tracking',
       attachments_pending BOOLEAN,
+      attachment_attempts INTEGER NOT NULL DEFAULT 0,
       created_at TIMESTAMP DEFAULT NOW(),
       updated_at TIMESTAMP DEFAULT NOW(),
       UNIQUE (org_id, notice_id)
@@ -163,6 +167,7 @@ beforeEach(async () => {
   h.state.newOpps = [];
   h.state.resourcesByNotice = {};
   h.state.resourceLookups = [];
+  h.state.lookupFailsFor = new Set();
   h.state.responder = async () => new Response("PDF bytes", { status: 200 });
   await pg.exec(`
     DELETE FROM bccs_fedcon_attachments;
@@ -183,13 +188,14 @@ async function seedOpp(opts: {
   noticeId: string;
   ageDays: number;
   pending?: boolean | null;
+  attempts?: number;
   attachmentRows?: { url: string; status: string }[];
 }): Promise<void> {
   const org = opts.org ?? ORG;
   await pg.query(
-    `INSERT INTO bccs_fedcon_opportunities (org_id, notice_id, title, attachments_pending, created_at)
-     VALUES ($1, $2, 'Seeded', $3, NOW() - ($4 || ' days')::interval)`,
-    [org, opts.noticeId, opts.pending ?? null, String(opts.ageDays)],
+    `INSERT INTO bccs_fedcon_opportunities (org_id, notice_id, title, attachments_pending, attachment_attempts, created_at)
+     VALUES ($1, $2, 'Seeded', $3, $4, NOW() - ($5 || ' days')::interval)`,
+    [org, opts.noticeId, opts.pending ?? null, opts.attempts ?? 0, String(opts.ageDays)],
   );
   for (const row of opts.attachmentRows ?? []) {
     await pg.query(
@@ -199,6 +205,12 @@ async function seedOpp(opts: {
     );
   }
 }
+
+const attempts = async (noticeId: string, org = ORG) =>
+  (await pg.query<any>(
+    `SELECT attachment_attempts FROM bccs_fedcon_opportunities WHERE org_id = $1 AND notice_id = $2`,
+    [org, noticeId],
+  )).rows[0]?.attachment_attempts;
 
 const pendingFlag = async (noticeId: string, org = ORG) =>
   (await pg.query<any>(
@@ -276,6 +288,54 @@ describe("patrol section 1b — resume selection query (real SQL)", () => {
 
     expect(h.state.resourceLookups).toEqual(["N-NEW-1", "N-NEW-2", "N-NEW-3", "N-OLD-A", "N-OLD-B"]);
     expect(await pendingFlag("N-OLD-C")).toBe(true); // deferred to a later run
+  });
+
+  it("skips exhausted notices so newer pending ones get the slot, surfacing the give-up", async () => {
+    const { MAX_ATTACHMENT_ATTEMPTS, patrolOrg } = await import("../services/federal-contracts-monitor");
+    // Oldest notice has burned through its retries — it must NOT hog a slot.
+    await seedOpp({ noticeId: "N-BROKEN", ageDays: 20, pending: true, attempts: MAX_ATTACHMENT_ATTEMPTS });
+    await seedOpp({ noticeId: "N-NEWER", ageDays: 2, pending: true, attempts: 1 });
+    h.state.resourcesByNotice["N-NEWER"] = ["https://sam.gov/f/newer.pdf"];
+
+    const result = await patrolOrg(ORG);
+
+    // The exhausted notice was never touched; the newer one got the slot.
+    expect(h.state.resourceLookups).toEqual(["N-NEWER"]);
+    expect(await pendingFlag("N-NEWER")).toBe(false);
+    expect(await attempts("N-NEWER")).toBe(0); // failure-free fetch resets the counter
+    expect(await pendingFlag("N-BROKEN")).toBe(true);
+    // The give-up is surfaced as a skipped check, not silently dropped.
+    const giveUp = result.skippedChecks.find((s) => s.reason.includes("Gave up") && s.reason.includes("N-BROKEN"));
+    expect(giveUp).toBeTruthy();
+  });
+
+  it("increments attempts on repeated failures until the notice is exhausted", async () => {
+    const { MAX_ATTACHMENT_ATTEMPTS, patrolOrg } = await import("../services/federal-contracts-monitor");
+    await seedOpp({ noticeId: "N-FLAKY", ageDays: 5, pending: true, attempts: MAX_ATTACHMENT_ATTEMPTS - 1 });
+    h.state.resourcesByNotice["N-FLAKY"] = ["https://sam.gov/f/flaky.pdf"];
+    h.state.responder = async () => { throw new TypeError("socket hang up"); };
+
+    // One more failing run pushes it over the cap.
+    await patrolOrg(ORG);
+    expect(h.state.resourceLookups).toEqual(["N-FLAKY"]);
+    expect(await attempts("N-FLAKY")).toBe(MAX_ATTACHMENT_ATTEMPTS);
+    expect(await pendingFlag("N-FLAKY")).toBe(true);
+
+    // Next run: exhausted — no lookup, surfaced as a skipped check.
+    h.state.resourceLookups = [];
+    const result = await patrolOrg(ORG);
+    expect(h.state.resourceLookups).toEqual([]);
+    expect(result.skippedChecks.some((s) => s.reason.includes("Gave up") && s.reason.includes("N-FLAKY"))).toBe(true);
+  });
+
+  it("counts a failed SAM notice lookup toward the retry cap", async () => {
+    const { patrolOrg } = await import("../services/federal-contracts-monitor");
+    await seedOpp({ noticeId: "N-GONE", ageDays: 5, pending: true, attempts: 0 });
+    h.state.lookupFailsFor.add("N-GONE");
+
+    await patrolOrg(ORG);
+    expect(await attempts("N-GONE")).toBe(1);
+    expect(await pendingFlag("N-GONE")).toBe(true);
   });
 });
 

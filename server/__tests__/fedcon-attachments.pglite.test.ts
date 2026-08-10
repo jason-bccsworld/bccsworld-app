@@ -107,6 +107,7 @@ beforeAll(async () => {
       dossier JSONB DEFAULT '{}',
       status VARCHAR(30) NOT NULL DEFAULT 'tracking',
       attachments_pending BOOLEAN,
+      attachment_attempts INTEGER NOT NULL DEFAULT 0,
       created_at TIMESTAMP DEFAULT NOW(),
       updated_at TIMESTAMP DEFAULT NOW(),
       UNIQUE (org_id, notice_id)

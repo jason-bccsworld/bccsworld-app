@@ -557,6 +557,10 @@ export async function ensureTables(): Promise<void> {
     // Additive: TRUE while a notice still has attachments deferred (per-run
     // cap/time budget) or retryable failures — later patrol runs resume these.
     await db.execute(sql`ALTER TABLE bccs_fedcon_opportunities ADD COLUMN IF NOT EXISTS attachments_pending BOOLEAN`);
+    // Additive: consecutive failed attachment-fetch attempts. Resets to 0 on a
+    // failure-free fetch; once it reaches the retry cap the patrol stops
+    // spending resume slots on the notice (surfaced as a skipped check).
+    await db.execute(sql`ALTER TABLE bccs_fedcon_opportunities ADD COLUMN IF NOT EXISTS attachment_attempts INTEGER NOT NULL DEFAULT 0`);
 
     await db.execute(sql`
       CREATE TABLE IF NOT EXISTS bccs_fedcon_awards (

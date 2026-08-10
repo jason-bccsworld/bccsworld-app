@@ -37,6 +37,9 @@ import { fetchNoticeAttachments } from "./solicitation-attachments";
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || "not-configured" });
 
 const AGENT_ID = "federal-contracts-monitor";
+/** Consecutive failed attachment-fetch attempts before the patrol stops
+ * spending resume slots on a notice (surfaced as a skipped check). */
+export const MAX_ATTACHMENT_ATTEMPTS = 5;
 const AGENT_NAME = "Federal Contracts Monitor";
 
 /* ── Risk rubric (point weights from the due-diligence checklist) ─────────── */
@@ -321,9 +324,13 @@ export async function patrolOrg(orgId: string): Promise<PatrolResult> {
       if (isSkipped(summary)) {
         skipped.push(summary);
         // The fetch never got far enough to update the resume flag itself —
-        // keep the notice flagged so a later run retries it.
+        // keep the notice flagged so a later run retries it, and count the
+        // failed attempt so a permanently broken notice (deleted on SAM.gov,
+        // lookup always failing) eventually stops consuming resume slots.
         await db.execute(sql`
-          UPDATE bccs_fedcon_opportunities SET attachments_pending = TRUE
+          UPDATE bccs_fedcon_opportunities
+          SET attachments_pending = TRUE,
+              attachment_attempts = COALESCE(attachment_attempts, 0) + 1
           WHERE org_id = ${orgId} AND notice_id = ${noticeId}
         `).catch(() => {});
         return;
@@ -360,10 +367,32 @@ export async function patrolOrg(orgId: string): Promise<PatrolResult> {
     // attachments from earlier runs, oldest first, under the same caps.
     const resumeSlots = Math.max(0, noticeCap - processedNotices.size);
     if (resumeSlots > 0 && attachmentDeadline - Date.now() >= 5_000) {
+      // Notices that failed MAX_ATTACHMENT_ATTEMPTS runs in a row are treated
+      // as permanently broken: they no longer consume resume slots, but the
+      // give-up is surfaced as a skipped check — never silently dropped.
+      const exhaustedRows = await db
+        .execute(sql`
+          SELECT o.notice_id FROM bccs_fedcon_opportunities o
+          WHERE o.org_id = ${orgId}
+            AND COALESCE(o.attachment_attempts, 0) >= ${MAX_ATTACHMENT_ATTEMPTS}
+            AND (o.attachments_pending = TRUE OR EXISTS (
+              SELECT 1 FROM bccs_fedcon_attachments a
+              WHERE a.org_id = o.org_id AND a.notice_id = o.notice_id AND a.status = 'failed'))
+          ORDER BY o.created_at ASC
+        `)
+        .then((r) => (r as any).rows as { notice_id: string }[])
+        .catch(() => [] as { notice_id: string }[]);
+      if (exhaustedRows.length > 0) {
+        skipped.push({
+          check: "sam_attachments",
+          reason: `Gave up on attachment fetch for ${exhaustedRows.length} notice(s) after ${MAX_ATTACHMENT_ATTEMPTS} failed attempts: ${exhaustedRows.map((r) => r.notice_id).join(", ")} — review manually on SAM.gov`,
+        });
+      }
       const pendingRows = await db
         .execute(sql`
           SELECT o.notice_id FROM bccs_fedcon_opportunities o
           WHERE o.org_id = ${orgId}
+            AND COALESCE(o.attachment_attempts, 0) < ${MAX_ATTACHMENT_ATTEMPTS}
             AND (o.attachments_pending = TRUE OR EXISTS (
               SELECT 1 FROM bccs_fedcon_attachments a
               WHERE a.org_id = o.org_id AND a.notice_id = o.notice_id AND a.status = 'failed'))

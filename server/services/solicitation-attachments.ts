@@ -175,9 +175,15 @@ export async function fetchNoticeAttachments(
   // Keep the opportunity's resume flag current: TRUE while retryable work is
   // left (failed rows or targets deferred by the cap/deadline), FALSE once the
   // notice is fully fetched. Later patrol runs resume flagged notices.
+  // attachment_attempts counts consecutive attempts that hit a failure; any
+  // failure-free call (even one deferred by the cap — that's progress, not a
+  // broken notice) resets it, so only permanently failing notices exhaust the
+  // patrol's retry cap.
   await db.execute(sql`
     UPDATE bccs_fedcon_opportunities
-    SET attachments_pending = ${failed > 0 || remaining > 0}, updated_at = NOW()
+    SET attachments_pending = ${failed > 0 || remaining > 0},
+        attachment_attempts = ${failed > 0 ? sql`COALESCE(attachment_attempts, 0) + 1` : sql`0`},
+        updated_at = NOW()
     WHERE org_id = ${orgId} AND notice_id = ${noticeId}
   `);
 

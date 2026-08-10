@@ -393,6 +393,7 @@ describe("patrolOrg automatic attachment fetch", () => {
   it("resumes notices with pending/failed attachments using leftover budget, oldest first", async () => {
     queryRouter = (q) => {
       if (q.text.includes("FROM bccs_fedcon_watchlist")) return { rows: [{ id: "w1", kind: "keyword", value: "widgets", label: null }] };
+      if (q.text.includes("attachment_attempts, 0) >=")) return { rows: [] }; // no exhausted notices
       if (q.text.includes("attachments_pending")) {
         return { rows: [{ notice_id: "N-OLD-1" }, { notice_id: "N-OLD-2" }] }; // resume candidates, oldest first
       }
@@ -430,6 +431,7 @@ describe("patrolOrg automatic attachment fetch", () => {
     const newOpps = Array.from({ length: 5 }, (_, i) => ({ ...opp, noticeId: `N-${i}`, title: `Opp ${i}` }));
     queryRouter = (q) => {
       if (q.text.includes("FROM bccs_fedcon_watchlist")) return { rows: [{ id: "w1", kind: "keyword", value: "widgets", label: null }] };
+      if (q.text.includes("attachment_attempts, 0) >=")) return { rows: [] }; // no exhausted notices
       if (q.text.includes("attachments_pending")) return { rows: [{ notice_id: "N-OLD" }] };
       if (q.text.includes("FROM bccs_fedcon_opportunities")) return { rows: [] }; // all new
       return { rows: [] };
