@@ -122,6 +122,8 @@ beforeAll(async () => {
       updated_by VARCHAR(200),
       updated_at TIMESTAMP DEFAULT NOW(),
       ai_audit JSONB,
+      answer TEXT,
+      ai_guidance JSONB,
       UNIQUE (org_id, subject_type, subject_id, item_key)
     );
     CREATE UNIQUE INDEX "UQ_fedcon_checklist_label"
@@ -338,5 +340,90 @@ describe("POST /opportunities/:id/workpackage (real SQL)", () => {
     );
     expect(flagRows.rows.some((r) => /deadline passed/i.test(r.content))).toBe(true);
     h.state.aiMode = "ok";
+  });
+});
+
+describe("PATCH /checklist/:id — application responses (real SQL)", () => {
+  let itemId: string;
+
+  beforeAll(async () => {
+    const oppId = await insertOpp(ORG1, "N-ANSWER");
+    h.state.aiMode = "ok";
+    h.state.aiItems = [];
+    await generate(oppId);
+    const { rows } = await pg.query<any>(
+      `SELECT id FROM bccs_fedcon_checklist WHERE org_id = $1 AND subject_id = 'N-ANSWER' ORDER BY item_key LIMIT 1`,
+      [ORG1],
+    );
+    itemId = rows[0].id;
+  });
+
+  it("answer-only update persists the answer without requiring a status", async () => {
+    const res = await fetch(`${base}/api/federal-contracts/checklist/${itemId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ answer: "Our AC-500 program covers this." }),
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.answer).toBe("Our AC-500 program covers this.");
+    expect(body.status).toBe("not_started"); // untouched
+  });
+
+  it("status update without an answer preserves the saved answer", async () => {
+    const res = await fetch(`${base}/api/federal-contracts/checklist/${itemId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "in_progress", note: "working" }),
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.status).toBe("in_progress");
+    expect(body.answer).toBe("Our AC-500 program covers this.");
+  });
+
+  it("status and answer can be updated together", async () => {
+    const res = await fetch(`${base}/api/federal-contracts/checklist/${itemId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "cleared", answer: "Final response." }),
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.status).toBe("cleared");
+    expect(body.answer).toBe("Final response.");
+  });
+
+  it("a body with neither a valid status nor an answer is rejected", async () => {
+    const res = await fetch(`${base}/api/federal-contracts/checklist/${itemId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ note: "just a note" }),
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it("viewers cannot save answers", async () => {
+    h.state.role = "viewer";
+    const res = await fetch(`${base}/api/federal-contracts/checklist/${itemId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ answer: "viewer write" }),
+    });
+    expect(res.status).toBe(403);
+    h.state.role = "admin";
+  });
+
+  it("another org's checklist item is not reachable", async () => {
+    h.state.orgId = ORG2;
+    const res = await fetch(`${base}/api/federal-contracts/checklist/${itemId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ answer: "cross-org write" }),
+    });
+    expect(res.status).toBe(404);
+    h.state.orgId = ORG1;
+    const { rows } = await pg.query<any>(`SELECT answer FROM bccs_fedcon_checklist WHERE id = $1`, [itemId]);
+    expect(rows[0].answer).toBe("Final response.");
   });
 });

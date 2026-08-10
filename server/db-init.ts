@@ -630,6 +630,8 @@ export async function ensureTables(): Promise<void> {
       `);
       // Additive: per-item AI audit verdicts (checklist vs ops-manual coverage).
       await db.execute(sql`ALTER TABLE bccs_fedcon_checklist ADD COLUMN IF NOT EXISTS ai_audit JSONB`);
+      await db.execute(sql`ALTER TABLE bccs_fedcon_checklist ADD COLUMN IF NOT EXISTS answer TEXT`);
+      await db.execute(sql`ALTER TABLE bccs_fedcon_checklist ADD COLUMN IF NOT EXISTS ai_guidance JSONB`);
     } catch (e) {
       console.error('[db-init] fedcon checklist label-dedupe index failed:', e);
     }

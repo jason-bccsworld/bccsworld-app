@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import {
   Landmark,
@@ -12,6 +12,7 @@ import {
   ScrollText,
   Loader2,
   Archive,
+  Sparkles,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -92,6 +93,16 @@ interface ChecklistRow {
   label: string;
   status: string;
   note: string | null;
+  answer?: string | null;
+  ai_audit?: { verdict: string; note?: string; evidence?: string } | null;
+  ai_guidance?: {
+    expectation?: string;
+    tips?: string[];
+    example?: string;
+    draftFeedback?: string | null;
+    usedManuals?: boolean;
+    generatedAt?: string;
+  } | null;
 }
 
 const KIND_LABEL: Record<string, string> = {
@@ -637,6 +648,44 @@ function ChecklistTab({ filter, onFilterChange }: { filter: string; onFilterChan
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/federal-contracts/checklist"] }),
     onError: (err: Error) => toast({ title: "Could not update item", description: err.message, variant: "destructive" }),
   });
+  const saveAnswer = useMutation({
+    mutationFn: async ({ id, answer }: { id: string; answer: string }) => {
+      const res = await apiRequest("PATCH", `/api/federal-contracts/checklist/${id}`, { answer });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/federal-contracts/checklist"] });
+      toast({ title: "Response saved" });
+    },
+    onError: (err: Error) => toast({ title: "Could not save response", description: err.message, variant: "destructive" }),
+  });
+  const [coachingId, setCoachingId] = useState<string | null>(null);
+  const coach = useMutation({
+    mutationFn: async ({ id, draft }: { id: string; draft?: string }) => {
+      setCoachingId(id);
+      // Persist any unsaved draft first so the AI coach evaluates exactly
+      // what the user is looking at, never a stale saved answer.
+      if (typeof draft === "string") {
+        await apiRequest("PATCH", `/api/federal-contracts/checklist/${id}`, { answer: draft });
+      }
+      const res = await apiRequest("POST", `/api/federal-contracts/checklist/${id}/guidance`);
+      return res.json();
+    },
+    onSuccess: (row: ChecklistRow) => {
+      setCoachingId(null);
+      queryClient.invalidateQueries({ queryKey: ["/api/federal-contracts/checklist"] });
+      toast({
+        title: "AI coach ready",
+        description: row.ai_guidance?.usedManuals
+          ? "Guidance grounded in your uploaded operations manuals — see the item below."
+          : "Guidance ready. Tip: upload your operations manuals on the Compliance Checklist page to get examples grounded in your own documents.",
+      });
+    },
+    onError: (err: Error) => {
+      setCoachingId(null);
+      toast({ title: "AI coach unavailable", description: err.message, variant: "destructive" });
+    },
+  });
 
   const bySubject = items.reduce<Record<string, ChecklistRow[]>>((acc, i) => {
     (acc[i.subject_id] ??= []).push(i);
@@ -658,39 +707,175 @@ function ChecklistTab({ filter, onFilterChange }: { filter: string; onFilterChan
       {Object.entries(bySubject).map(([subject, rows]) => (
         <Card key={subject}>
           <CardContent className="p-4">
-            <p className="text-sm font-semibold text-slate-700 mb-2">{subject}</p>
+            <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
+              <p className="text-sm font-semibold text-slate-700">{subject}</p>
+              <span className="text-[11px] text-slate-500">
+                {rows.filter((r) => r.answer?.trim()).length}/{rows.length} responses written
+              </span>
+            </div>
             <div className="space-y-2">
               {rows.map((r) => (
-                <div key={r.id} className="flex items-center gap-2 flex-wrap" data-testid={`check-${r.id}`}>
-                  <Select value={r.status} onValueChange={(status) => update.mutate({ id: r.id, status })}>
-                    <SelectTrigger className={`w-32 h-7 text-xs border ${CHECK_STATUS_STYLE[r.status]}`}>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="not_started">Not started</SelectItem>
-                      <SelectItem value="in_progress">In progress</SelectItem>
-                      <SelectItem value="cleared">Cleared</SelectItem>
-                      <SelectItem value="flagged">Flag raised</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <span className="text-xs text-slate-600 flex-1 min-w-[200px]">{r.label}</span>
-                  {(r as any).ai_audit && (
-                    <div className="w-full pl-2 border-l-2 border-slate-200 ml-1" data-testid={`audit-${r.id}`}>
-                      <Badge variant="outline" className={`text-[10px] ${
-                        { covered: "border-emerald-300 bg-emerald-50 text-emerald-700", partial: "border-amber-300 bg-amber-50 text-amber-700", not_addressed: "border-red-300 bg-red-50 text-red-700" }[(r as any).ai_audit.verdict as string] || ""
-                      }`}>
-                        AI audit: {String((r as any).ai_audit.verdict).replace("_", " ")}
-                      </Badge>
-                      {(r as any).ai_audit.note && <p className="text-[11px] text-slate-500 mt-0.5">{(r as any).ai_audit.note}</p>}
-                      {(r as any).ai_audit.evidence && <p className="text-[11px] text-slate-400 italic mt-0.5">“{(r as any).ai_audit.evidence}”</p>}
-                    </div>
-                  )}
-                </div>
+                <ApplicationItemRow
+                  key={r.id}
+                  row={r}
+                  onStatus={(status) => update.mutate({ id: r.id, status })}
+                  onSaveAnswer={(answer) => saveAnswer.mutate({ id: r.id, answer })}
+                  savingAnswer={saveAnswer.isPending && saveAnswer.variables?.id === r.id}
+                  onCoach={(unsavedDraft) => coach.mutate({ id: r.id, draft: unsavedDraft })}
+                  coaching={coachingId === r.id}
+                />
               ))}
             </div>
           </CardContent>
         </Card>
       ))}
+    </div>
+  );
+}
+
+function ApplicationItemRow({
+  row: r,
+  onStatus,
+  onSaveAnswer,
+  savingAnswer,
+  onCoach,
+  coaching,
+}: {
+  row: ChecklistRow;
+  onStatus: (status: string) => void;
+  onSaveAnswer: (answer: string) => void;
+  savingAnswer: boolean;
+  onCoach: (unsavedDraft?: string) => void;
+  coaching: boolean;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const [draft, setDraft] = useState<string | null>(null);
+  const answer = draft ?? r.answer ?? "";
+  const dirty = draft !== null && draft !== (r.answer ?? "");
+  // Once the server catches up with the local draft (save succeeded and the
+  // list refetched), drop the local copy so future server updates show through.
+  useEffect(() => {
+    if (draft !== null && draft === (r.answer ?? "")) setDraft(null);
+  }, [draft, r.answer]);
+  const g = r.ai_guidance;
+
+  return (
+    <div className="border border-slate-200 rounded-md p-2.5 space-y-2" data-testid={`check-${r.id}`}>
+      <div className="flex items-center gap-2 flex-wrap">
+        <Select value={r.status} onValueChange={onStatus}>
+          <SelectTrigger className={`w-32 h-7 text-xs border ${CHECK_STATUS_STYLE[r.status]}`}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="not_started">Not started</SelectItem>
+            <SelectItem value="in_progress">In progress</SelectItem>
+            <SelectItem value="cleared">Cleared</SelectItem>
+            <SelectItem value="flagged">Flag raised</SelectItem>
+          </SelectContent>
+        </Select>
+        <span className="text-xs text-slate-600 flex-1 min-w-[200px]">{r.label}</span>
+        {r.answer?.trim() && (
+          <Badge variant="outline" className="text-[10px] border-emerald-300 bg-emerald-50 text-emerald-700">Answered</Badge>
+        )}
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-7 text-xs"
+          onClick={() => setExpanded((v) => !v)}
+          data-testid={`button-expand-${r.id}`}
+        >
+          {expanded ? "Hide" : r.answer?.trim() ? "Edit response" : "Write response"}
+        </Button>
+      </div>
+      {expanded && (
+        <div className="space-y-2 pl-1">
+          <Textarea
+            value={answer}
+            onChange={(e) => setDraft(e.target.value)}
+            placeholder="Write the response your organization will submit for this item…"
+            className="text-xs min-h-[90px]"
+            data-testid={`textarea-answer-${r.id}`}
+          />
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button
+              size="sm"
+              className="h-7 text-xs"
+              disabled={!dirty || savingAnswer}
+              onClick={() => draft !== null && onSaveAnswer(draft)}
+              data-testid={`button-save-answer-${r.id}`}
+            >
+              {savingAnswer ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : null}Save response
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 text-xs"
+              disabled={coaching}
+              onClick={() => onCoach(dirty && draft !== null ? draft : undefined)}
+              data-testid={`button-coach-${r.id}`}
+            >
+              {coaching ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Sparkles className="w-3 h-3 mr-1" />}
+              {g ? "Refresh AI coach" : "AI coach: what's expected?"}
+            </Button>
+            {dirty && <span className="text-[11px] text-amber-600">Unsaved changes</span>}
+          </div>
+          {g && (
+            <div className="rounded-md bg-indigo-50/60 border border-indigo-100 p-3 space-y-2" data-testid={`guidance-${r.id}`}>
+              {g.expectation && (
+                <div>
+                  <p className="text-[11px] font-semibold text-indigo-800 uppercase">What's expected</p>
+                  <p className="text-xs text-slate-700">{g.expectation}</p>
+                </div>
+              )}
+              {g.tips && g.tips.length > 0 && (
+                <div>
+                  <p className="text-[11px] font-semibold text-indigo-800 uppercase">Tips</p>
+                  <ul className="list-disc pl-4 space-y-0.5">
+                    {g.tips.map((t, i) => (
+                      <li key={i} className="text-xs text-slate-700">{t}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {g.example && (
+                <div>
+                  <p className="text-[11px] font-semibold text-indigo-800 uppercase">Example answer{g.usedManuals ? " (drawn from your operations manuals)" : ""}</p>
+                  <p className="text-xs text-slate-600 italic whitespace-pre-wrap">{g.example}</p>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-6 text-[11px] px-2 mt-1"
+                    onClick={() => setDraft(answer.trim() ? `${answer}\n\n${g.example}` : g.example || "")}
+                    data-testid={`button-use-example-${r.id}`}
+                  >
+                    Insert example into my response
+                  </Button>
+                </div>
+              )}
+              {g.draftFeedback && (
+                <div>
+                  <p className="text-[11px] font-semibold text-indigo-800 uppercase">Feedback on your draft</p>
+                  <p className="text-xs text-slate-700">{g.draftFeedback}</p>
+                </div>
+              )}
+              <p className="text-[10px] text-slate-400">
+                AI guidance is advisory{g.usedManuals ? " and grounded in excerpts of your uploaded manuals" : ""} — verify against the actual solicitation before submitting.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+      {r.ai_audit && (
+        <div className="w-full pl-2 border-l-2 border-slate-200 ml-1" data-testid={`audit-${r.id}`}>
+          <Badge variant="outline" className={`text-[10px] ${
+            { covered: "border-emerald-300 bg-emerald-50 text-emerald-700", partial: "border-amber-300 bg-amber-50 text-amber-700", not_addressed: "border-red-300 bg-red-50 text-red-700" }[r.ai_audit.verdict] || ""
+          }`}>
+            AI audit: {String(r.ai_audit.verdict).replace("_", " ")}
+          </Badge>
+          {r.ai_audit.note && <p className="text-[11px] text-slate-500 mt-0.5">{r.ai_audit.note}</p>}
+          {r.ai_audit.evidence && <p className="text-[11px] text-slate-400 italic mt-0.5">“{r.ai_audit.evidence}”</p>}
+        </div>
+      )}
     </div>
   );
 }

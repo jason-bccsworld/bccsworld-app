@@ -533,10 +533,13 @@ router.get("/opportunities/:id/export", isAuthenticated, async (req, res) => {
     ? `<table><thead><tr><th style="width:110px">Status</th><th>Item</th><th style="width:28%">Note</th></tr></thead><tbody>${checklist
         .map(
           (r: any) =>
-            `<tr><td><span class="status status-${esc(r.status)}">${esc(EXPORT_STATUS_LABEL[r.status] ?? r.status)}</span></td><td>${esc(r.label)}</td><td>${esc(r.note ?? "")}</td></tr>`,
+            `<tr><td><span class="status status-${esc(r.status)}">${esc(EXPORT_STATUS_LABEL[r.status] ?? r.status)}</span></td><td>${esc(r.label)}${
+              r.answer ? `<div class="answer"><strong>Response:</strong> ${esc(r.answer)}</div>` : ""
+            }</td><td>${esc(r.note ?? "")}</td></tr>`,
         )
         .join("")}</tbody></table>`
     : `<p class="muted">No checklist items recorded.</p>`;
+  const answeredCount = checklist.filter((r: any) => typeof r.answer === "string" && r.answer.trim()).length;
 
   const evidenceHtml = evidence.length
     ? evidence
@@ -567,6 +570,7 @@ router.get("/opportunities/:id/export", isAuthenticated, async (req, res) => {
   .etype { text-transform: uppercase; font-weight: 600; font-size: 11px; padding: 1px 8px; border-radius: 999px; border: 1px solid #cbd5e1; }
   .etype-flag { background: #fef2f2; color: #b91c1c; border-color: #fecaca; } .etype-question { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
   .source { font-size: 12px; color: #64748b; word-break: break-all; }
+  .answer { margin-top: 6px; padding: 8px 10px; background: #f8fafc; border-left: 3px solid #94a3b8; font-size: 13px; white-space: pre-wrap; }
   .footer { margin-top: 32px; font-size: 12px; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 8px; }
   .print-hint { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 12px; font-size: 12px; color: #64748b; margin: 16px 0; }
   @media print { .print-hint { display: none; } body { margin: 0; } }
@@ -579,7 +583,7 @@ ${opp.url ? `<p class="meta">SAM.gov: ${esc(opp.url)}</p>` : ""}
 <h2>Pursuit Risk Scoreboard</h2>
 <p><span class="tier">${esc(risk.tier)}</span> &nbsp; ${esc(risk.score)} points${workPackage.generatedAt ? ` · generated ${esc(String(workPackage.generatedAt).slice(0, 16).replace("T", " "))} UTC` : ""}${workPackage.generatedBy ? ` by ${esc(workPackage.generatedBy)}` : ""}</p>
 ${flagsHtml}
-<h2>Due-Diligence Checklist (${checklist.length})</h2>
+<h2>Application Checklist &amp; Responses (${answeredCount}/${checklist.length} answered)</h2>
 ${checklistHtml}
 <h2>Evidence Log (${evidence.length})</h2>
 ${evidenceHtml}
@@ -670,22 +674,123 @@ router.patch("/checklist/:id", isAuthenticated, async (req, res) => {
   const orgId = requireOrg(req, res);
   if (!orgId) return;
   if (isViewer(req)) return res.status(403).json({ message: "Viewers cannot update checklist items." });
-  const { status, note } = req.body ?? {};
-  if (!["not_started", "in_progress", "cleared", "flagged"].includes(status)) {
+  const { status, note, answer } = req.body ?? {};
+  const answerOnly = status === undefined && typeof answer === "string";
+  if (!answerOnly && !["not_started", "in_progress", "cleared", "flagged"].includes(status)) {
     return res.status(400).json({ message: "status must be not_started, in_progress, cleared, or flagged" });
   }
   const user = req.user as any;
   const rows = await db
+    .execute(
+      answerOnly
+        ? sql`
+            UPDATE bccs_fedcon_checklist
+            SET answer = ${answer.slice(0, 8000)}, updated_by = ${user?.email ?? null}, updated_at = NOW()
+            WHERE id = ${req.params.id} AND org_id = ${orgId}
+            RETURNING *
+          `
+        : sql`
+            UPDATE bccs_fedcon_checklist
+            SET status = ${status}, note = ${typeof note === "string" ? note.slice(0, 2000) : null},
+                answer = ${typeof answer === "string" ? answer.slice(0, 8000) : sql`answer`},
+                updated_by = ${user?.email ?? null}, updated_at = NOW()
+            WHERE id = ${req.params.id} AND org_id = ${orgId}
+            RETURNING *
+          `,
+    )
+    .then((r) => (r as any).rows);
+  if (!rows[0]) return res.status(404).json({ message: "Checklist item not found" });
+  res.json(rows[0]);
+});
+
+// POST /checklist/:id/guidance — AI application coach for one checklist item.
+// Explains what a submission-ready response to this item looks like for THIS
+// specific opportunity, with tips and an example draft grounded in the org's
+// uploaded operations manuals (best-effort: guidance still works without them).
+router.post("/checklist/:id/guidance", isAuthenticated, async (req, res) => {
+  const orgId = requireOrg(req, res);
+  if (!orgId) return;
+  if (isViewer(req)) return res.status(403).json({ message: "Viewers cannot request AI guidance." });
+  if (!process.env.OPENAI_API_KEY) {
+    return res.status(503).json({ message: "AI guidance unavailable: no OpenAI API key configured." });
+  }
+  const item = await db
+    .execute(sql`SELECT * FROM bccs_fedcon_checklist WHERE id = ${req.params.id} AND org_id = ${orgId}`)
+    .then((r) => (r as any).rows[0]);
+  if (!item) return res.status(404).json({ message: "Checklist item not found" });
+
+  const opp =
+    item.subject_type === "opportunity"
+      ? await db
+          .execute(sql`SELECT * FROM bccs_fedcon_opportunities WHERE notice_id = ${item.subject_id} AND org_id = ${orgId}`)
+          .then((r) => (r as any).rows[0])
+      : null;
+
+  // Pull the manual excerpts most relevant to this one item (bounded well
+  // under the audit's budget — this is a single-item call).
+  const manuals = await db
+    .execute(sql`SELECT filename, extracted_text FROM bccs_ops_manuals WHERE organization_id = ${orgId}`)
+    .then((r) => (r as any).rows);
+  const entries = manuals.flatMap((m: any) =>
+    chunkText(String(m.extracted_text || "")).map((text: string) => ({ text, source: String(m.filename || "manual") })),
+  );
+  const { excerpts } = entries.length
+    ? selectExcerpts(entries, [`${String(opp?.title || "")} ${item.label}`], Number.POSITIVE_INFINITY, 12_000)
+    : { excerpts: [] as { text: string; source: string }[] };
+
+  const draft = typeof item.answer === "string" && item.answer.trim() ? item.answer.slice(0, 4000) : null;
+  const prompt = `You are a federal proposal coach helping an FAA Part 142 training organization prepare a submittable response for a government contract opportunity.
+
+OPPORTUNITY: ${opp ? `${opp.title || opp.notice_id} | Agency: ${opp.agency || "unknown"} | NAICS: ${opp.naics || "n/a"} | Set-aside: ${opp.set_aside || "none"} | Deadline: ${opp.response_deadline || "n/a"}\nDossier: ${JSON.stringify(opp.dossier?.summary ?? {}).slice(0, 2500)}` : `Subject: ${item.subject_id}`}
+
+APPLICATION CHECKLIST ITEM the applicant must address:
+"${item.label}"
+${draft ? `\nAPPLICANT'S CURRENT DRAFT ANSWER:\n"${draft}"\n` : ""}
+${excerpts.length ? `ORGANIZATION'S OWN OPERATIONS-MANUAL EXCERPTS (use these to ground the example in THEIR real capabilities — cite the source filename when you draw on one):\n${excerpts.map((e) => `--- (from ${e.source}) ---\n${e.text}`).join("\n\n")}` : "No operations-manual content is available; keep the example generic and tell the applicant what internal documents to pull from."}
+
+Return JSON:
+{
+  "expectation": "<2-3 sentences: what the government expects a strong response to this item to demonstrate, specific to this opportunity>",
+  "tips": ["<3-5 short, concrete tips>"],
+  "example": "<a realistic example answer of 3-6 sentences the applicant could adapt${excerpts.length ? ", grounded in their manual excerpts where possible" : ""}>",
+  "draftFeedback": ${draft ? `"<1-3 sentences of specific feedback on the applicant's current draft: what is strong, what is missing>"` : "null"}
+}`;
+
+  let parsed: any;
+  try {
+    const completion = await openai.chat.completions.create(
+      {
+        model: "gpt-4o",
+        messages: [{ role: "user", content: prompt }],
+        response_format: { type: "json_object" },
+        temperature: 0.3,
+        max_tokens: 900,
+      },
+      { timeout: 18_000, maxRetries: 0 },
+    );
+    parsed = JSON.parse(completion.choices[0].message.content || "{}");
+  } catch (err: any) {
+    const msg = err?.status === 429 ? "AI quota exhausted — try again later." : "The AI guidance call failed or timed out — try again.";
+    return res.status(502).json({ message: msg, retryable: true });
+  }
+
+  const guidance = {
+    expectation: String(parsed?.expectation || "").slice(0, 1500),
+    tips: (Array.isArray(parsed?.tips) ? parsed.tips : []).slice(0, 5).map((t: any) => String(t).slice(0, 400)),
+    example: String(parsed?.example || "").slice(0, 3000),
+    draftFeedback: parsed?.draftFeedback ? String(parsed.draftFeedback).slice(0, 1000) : null,
+    usedManuals: excerpts.length > 0,
+    generatedAt: new Date().toISOString(),
+  };
+  const rows = await db
     .execute(sql`
       UPDATE bccs_fedcon_checklist
-      SET status = ${status}, note = ${typeof note === "string" ? note.slice(0, 2000) : null},
-          updated_by = ${user?.email ?? null}, updated_at = NOW()
+      SET ai_guidance = ${JSON.stringify(guidance)}::jsonb, updated_at = NOW()
       WHERE id = ${req.params.id} AND org_id = ${orgId}
       RETURNING *
     `)
     .then((r) => (r as any).rows);
-  if (!rows[0]) return res.status(404).json({ message: "Checklist item not found" });
-  res.json(rows[0]);
+  res.json(rows[0] ?? { ...item, ai_guidance: guidance });
 });
 
 export default router;
