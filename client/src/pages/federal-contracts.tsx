@@ -255,6 +255,81 @@ function SubjectFilter({
   );
 }
 
+/* ── Solicitation attachments on file ────────────────────────────────────── */
+
+interface AttachmentRow {
+  id: string;
+  filename: string;
+  url: string;
+  text_chars: number | null;
+  status: string;
+  error: string | null;
+  fetched_at: string | null;
+}
+
+const ATTACHMENT_STATUS: Record<string, { label: string; className: string }> = {
+  extracted: { label: "Read", className: "border-emerald-300 bg-emerald-50 text-emerald-700" },
+  unsupported: { label: "Unreadable format", className: "border-amber-300 bg-amber-50 text-amber-700" },
+  failed: { label: "Failed", className: "border-red-300 bg-red-50 text-red-700" },
+};
+
+function AttachmentsList({
+  oppId,
+  onRetry,
+  retrying,
+}: {
+  oppId: string;
+  onRetry: () => void;
+  retrying: boolean;
+}) {
+  const { data: attachments = [], isLoading } = useQuery<AttachmentRow[]>({
+    queryKey: [`/api/federal-contracts/opportunities/${oppId}/attachments`],
+  });
+  if (isLoading || attachments.length === 0) return null;
+  const hasFailures = attachments.some((a) => a.status === "failed");
+  return (
+    <div className="mt-3 border-t border-slate-100 pt-2" data-testid={`opp-attachments-${oppId}`}>
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs font-medium text-slate-600 flex items-center gap-1">
+          <Paperclip className="h-3 w-3" /> Solicitation documents on file
+        </p>
+        {hasFailures && (
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-6 text-xs text-slate-600"
+            disabled={retrying}
+            onClick={onRetry}
+            data-testid={`button-retry-attachments-${oppId}`}
+          >
+            {retrying ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : null}
+            Retry failed
+          </Button>
+        )}
+      </div>
+      <ul className="mt-1.5 space-y-1">
+        {attachments.map((a) => {
+          const st = ATTACHMENT_STATUS[a.status] ?? { label: a.status, className: "border-slate-200 bg-slate-50 text-slate-600" };
+          return (
+            <li key={a.id} className="flex items-start gap-2 text-xs" data-testid={`attachment-${a.id}`}>
+              <Badge variant="outline" className={`flex-shrink-0 text-[10px] px-1.5 py-0 ${st.className}`}>
+                {st.label}
+              </Badge>
+              <span className="min-w-0">
+                <span className="font-medium text-slate-700 break-all">{a.filename}</span>
+                {a.status === "extracted" && a.text_chars != null && (
+                  <span className="text-slate-400"> · {Number(a.text_chars).toLocaleString()} chars read</span>
+                )}
+                {a.error && <span className="text-slate-500"> — {a.error}</span>}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
 /* ── Opportunities tab ───────────────────────────────────────────────────── */
 
 function OpportunitiesTab({ onViewWorkPackage }: { onViewWorkPackage: (noticeId: string) => void }) {
@@ -309,7 +384,7 @@ function OpportunitiesTab({ onViewWorkPackage }: { onViewWorkPackage: (noticeId:
       const res = await apiRequest("POST", `/api/federal-contracts/opportunities/${id}/attachments/fetch`);
       return res.json();
     },
-    onSuccess: (data: any) => {
+    onSuccess: (data: any, id: string) => {
       const parts = [
         data.fetched > 0 && `${data.fetched} document(s) downloaded and read`,
         data.unsupported > 0 && `${data.unsupported} in a format the agent can't read`,
@@ -321,6 +396,7 @@ function OpportunitiesTab({ onViewWorkPackage }: { onViewWorkPackage: (noticeId:
         description: data.message ?? (parts.length ? `${parts.join(" · ")}. The work package and AI coach now use them.` : data.total === 0 ? "SAM.gov lists no public attachments for this notice." : undefined),
       });
       queryClient.invalidateQueries({ queryKey: ["/api/federal-contracts/opportunities"] });
+      queryClient.invalidateQueries({ queryKey: [`/api/federal-contracts/opportunities/${id}/attachments`] });
     },
     onError: (err: Error) => toast({ title: "Could not fetch attachments", description: err.message, variant: "destructive" }),
     onSettled: () => setFetchingId(null),
@@ -455,6 +531,11 @@ function OpportunitiesTab({ onViewWorkPackage }: { onViewWorkPackage: (noticeId:
                 <span className="sm:col-span-2"><span className="text-slate-400">Compliance:</span> {o.dossier.complianceObligations}</span>
               )}
             </div>
+            <AttachmentsList
+              oppId={o.id}
+              retrying={fetchingId === o.id}
+              onRetry={() => fetchAttachments.mutate(o.id)}
+            />
           </CardContent>
         </Card>
       ))}
