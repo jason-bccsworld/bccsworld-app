@@ -214,6 +214,25 @@ function OpportunitiesTab() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/federal-contracts/opportunities"] }),
     onError: (err: Error) => toast({ title: "Could not archive", description: err.message, variant: "destructive" }),
   });
+  const [generatingId, setGeneratingId] = useState<string | null>(null);
+  const generate = useMutation({
+    mutationFn: async (id: string) => {
+      setGeneratingId(id);
+      const res = await apiRequest("POST", `/api/federal-contracts/opportunities/${id}/workpackage`);
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/federal-contracts/opportunities"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/federal-contracts/checklist"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/federal-contracts/evidence"] });
+      toast({
+        title: "Work package generated",
+        description: `Risk tier: ${data.risk?.tier ?? "?"} · ${data.checklistAdded} new checklist item(s)${data.evidenceSeeded ? " · evidence log started" : ""}. See the Checklist and Evidence tabs.${data.aiSkipReason ? ` ${data.aiSkipReason}` : ""}`,
+      });
+    },
+    onError: (err: Error) => toast({ title: "Could not generate work package", description: err.message, variant: "destructive" }),
+    onSettled: () => setGeneratingId(null),
+  });
 
   if (isLoading) return <p className="text-sm text-slate-400 p-4">Loading opportunities…</p>;
   if (opps.length === 0) {
@@ -235,8 +254,35 @@ function OpportunitiesTab() {
                 <p className="text-xs text-slate-500 mt-0.5">
                   {[o.agency, o.naics && `NAICS ${o.naics}`, o.set_aside, o.notice_type].filter(Boolean).join(" · ")}
                 </p>
+                {(o.dossier as any)?.workPackage?.risk && (
+                  <div className="mt-2" data-testid={`opp-risk-${o.id}`}>
+                    <Badge variant="outline" className={`text-xs ${
+                      { critical: "border-red-300 bg-red-50 text-red-700", high: "border-orange-300 bg-orange-50 text-orange-700", moderate: "border-amber-300 bg-amber-50 text-amber-700", low: "border-emerald-300 bg-emerald-50 text-emerald-700" }[(o.dossier as any).workPackage.risk.tier as string] || ""
+                    }`}>
+                      Pursuit risk: {(o.dossier as any).workPackage.risk.tier} ({(o.dossier as any).workPackage.risk.score} pts)
+                    </Badge>
+                    <ul className="mt-1 space-y-0.5">
+                      {((o.dossier as any).workPackage.risk.flags as any[]).map((f) => (
+                        <li key={f.key} className="text-xs text-slate-500">• {f.label}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
+                <Button
+                  size="sm"
+                  className="h-7 text-xs"
+                  disabled={generatingId === o.id}
+                  onClick={() => generate.mutate(o.id)}
+                  data-testid={`button-workpackage-${o.id}`}
+                >
+                  {generatingId === o.id ? (
+                    <><Loader2 className="h-3 w-3 mr-1 animate-spin" /> Generating…</>
+                  ) : (
+                    <><ClipboardCheck className="h-3 w-3 mr-1" /> {(o.dossier as any)?.workPackage ? "Regenerate" : "Generate work package"}</>
+                  )}
+                </Button>
                 {o.url && (
                   <a href={o.url} target="_blank" rel="noreferrer">
                     <Button size="sm" variant="outline" className="h-7 text-xs">
