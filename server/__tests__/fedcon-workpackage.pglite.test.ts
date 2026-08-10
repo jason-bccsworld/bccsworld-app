@@ -123,6 +123,8 @@ beforeAll(async () => {
       updated_at TIMESTAMP DEFAULT NOW(),
       UNIQUE (org_id, subject_type, subject_id, item_key)
     );
+    CREATE UNIQUE INDEX "UQ_fedcon_checklist_label"
+    ON bccs_fedcon_checklist (org_id, subject_type, subject_id, LOWER(label));
     CREATE TABLE bccs_fedcon_evidence (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       org_id VARCHAR(200) NOT NULL,
@@ -275,6 +277,46 @@ describe("POST /opportunities/:id/workpackage (real SQL)", () => {
     const { rows } = await pg.query<any>(`SELECT dossier FROM bccs_fedcon_opportunities WHERE id = $1`, [oppId]);
     expect(rows[0].dossier.workPackage.risk.tier).toBeDefined();
     expect(rows[0].dossier.summary).toBe("A summary"); // existing dossier preserved
+  });
+
+  it("two concurrent generations never duplicate AI labels (keys vary run-to-run)", async () => {
+    const oppId = await insertOpp(ORG1, "N-RACE");
+    h.state.aiMode = "ok";
+    // Each AI run hands back the same label under a different key — the
+    // read-then-filter dedupe can't see the other in-flight request, so only
+    // the unique label index prevents a duplicate row.
+    let call = 0;
+    h.state.aiItems = [] as any;
+    Object.defineProperty(h.state, "aiItems", {
+      get: () => [{ key: `itar_review_v${++call}`, label: "Review ITAR export-control requirements" }],
+      configurable: true,
+    });
+    const [a, b] = await Promise.all([generate(oppId), generate(oppId)]);
+    expect(a.status).toBe(200);
+    expect(b.status).toBe(200);
+    // Restore plain property for later tests.
+    Object.defineProperty(h.state, "aiItems", { value: [], writable: true, configurable: true });
+
+    const rows = await pg.query<any>(
+      `SELECT LOWER(label) l, COUNT(*) c FROM bccs_fedcon_checklist WHERE subject_id = $1 GROUP BY LOWER(label) HAVING COUNT(*) > 1`,
+      ["N-RACE"],
+    );
+    expect(rows.rows).toEqual([]);
+    expect((await counts("N-RACE")).checklist).toBe(9); // 8 base + exactly 1 AI row
+    expect(a.body.checklistAdded + b.body.checklistAdded).toBe(9);
+  });
+
+  it("duplicate labels within a single AI batch are collapsed before insert", async () => {
+    const oppId = await insertOpp(ORG1, "N-BATCHDUP");
+    h.state.aiMode = "ok";
+    h.state.aiItems = [
+      { key: "dup_a", label: "Verify facility clearance level" },
+      { key: "dup_b", label: "verify facility clearance level" },
+    ];
+    const res = await generate(oppId);
+    expect(res.status).toBe(200);
+    expect(res.body.checklistAdded).toBe(9); // 8 base + 1 (batch dupe collapsed)
+    expect((await counts("N-BATCHDUP")).checklist).toBe(9);
   });
 
   it("AI failure still returns a package with the full base checklist", async () => {

@@ -258,6 +258,15 @@ router.post("/opportunities/:id/workpackage", isAuthenticated, async (req, res) 
     );
     aiItems = aiItems.filter((it) => !existingLabels.has(it.label.toLowerCase()));
   }
+  // Dedupe within this batch by label (against base items and each other):
+  // ON CONFLICT can't resolve two conflicting rows in the same INSERT.
+  const batchLabels = new Set(OPP_BASE_CHECKLIST(opp).map((it) => it.label.toLowerCase()));
+  aiItems = aiItems.filter((it) => {
+    const l = it.label.toLowerCase();
+    if (batchLabels.has(l)) return false;
+    batchLabels.add(l);
+    return true;
+  });
   const checklistItems = [...OPP_BASE_CHECKLIST(opp), ...aiItems];
   // One batched, conflict-safe insert; RETURNING tells us what was actually new.
   const valueRows = checklistItems.map(
@@ -267,7 +276,7 @@ router.post("/opportunities/:id/workpackage", isAuthenticated, async (req, res) 
     .execute(sql`
       INSERT INTO bccs_fedcon_checklist (org_id, subject_type, subject_id, item_key, label, updated_by)
       VALUES ${sql.join(valueRows, sql`, `)}
-      ON CONFLICT (org_id, subject_type, subject_id, item_key) DO NOTHING
+      ON CONFLICT DO NOTHING
       RETURNING item_key
     `)
     .then((r) => (r as any).rows.length);

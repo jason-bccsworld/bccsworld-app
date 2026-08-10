@@ -611,6 +611,26 @@ export async function ensureTables(): Promise<void> {
         UNIQUE (org_id, subject_type, subject_id, item_key)
       )
     `);
+    // Race-safe AI-label dedupe: two near-concurrent work-package generations
+    // can insert the same AI label under different keys (AI keys vary
+    // run-to-run), so uniqueness must be on the label itself. Clean up any
+    // pre-existing duplicates (keep the earliest row) before creating the
+    // unique functional index.
+    try {
+      await db.execute(sql`
+        DELETE FROM bccs_fedcon_checklist a
+        USING bccs_fedcon_checklist b
+        WHERE a.org_id = b.org_id AND a.subject_type = b.subject_type
+          AND a.subject_id = b.subject_id AND LOWER(a.label) = LOWER(b.label)
+          AND a.ctid > b.ctid
+      `);
+      await db.execute(sql`
+        CREATE UNIQUE INDEX IF NOT EXISTS "UQ_fedcon_checklist_label"
+        ON bccs_fedcon_checklist (org_id, subject_type, subject_id, LOWER(label))
+      `);
+    } catch (e) {
+      console.error('[db-init] fedcon checklist label-dedupe index failed:', e);
+    }
 
     // Per-org email alert settings (critical-finding notifications).
     // Guarded per-org: one row per org; absence of a row means defaults apply
