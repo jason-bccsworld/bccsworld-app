@@ -13,6 +13,7 @@ import {
   Loader2,
   Archive,
   Sparkles,
+  Paperclip,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -101,6 +102,7 @@ interface ChecklistRow {
     example?: string;
     draftFeedback?: string | null;
     usedManuals?: boolean;
+    usedAttachments?: boolean;
     generatedAt?: string;
   } | null;
 }
@@ -300,6 +302,29 @@ function OpportunitiesTab({ onViewWorkPackage }: { onViewWorkPackage: (noticeId:
     onError: (err: Error) => toast({ title: "AI audit failed", description: err.message, variant: "destructive" }),
     onSettled: () => setAuditingId(null),
   });
+  const [fetchingId, setFetchingId] = useState<string | null>(null);
+  const fetchAttachments = useMutation({
+    mutationFn: async (id: string) => {
+      setFetchingId(id);
+      const res = await apiRequest("POST", `/api/federal-contracts/opportunities/${id}/attachments/fetch`);
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      const parts = [
+        data.fetched > 0 && `${data.fetched} document(s) downloaded and read`,
+        data.unsupported > 0 && `${data.unsupported} in a format the agent can't read`,
+        data.failed > 0 && `${data.failed} failed`,
+        (data.alreadyFetched ?? 0) > 0 && `${data.alreadyFetched} already on file`,
+      ].filter(Boolean);
+      toast({
+        title: data.total === 0 ? "No public attachments" : "Solicitation attachments",
+        description: data.message ?? (parts.length ? `${parts.join(" · ")}. The work package and AI coach now use them.` : data.total === 0 ? "SAM.gov lists no public attachments for this notice." : undefined),
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/federal-contracts/opportunities"] });
+    },
+    onError: (err: Error) => toast({ title: "Could not fetch attachments", description: err.message, variant: "destructive" }),
+    onSettled: () => setFetchingId(null),
+  });
 
   if (isLoading) return <p className="text-sm text-slate-400 p-4">Loading opportunities…</p>;
   if (opps.length === 0) {
@@ -336,7 +361,21 @@ function OpportunitiesTab({ onViewWorkPackage }: { onViewWorkPackage: (noticeId:
                   </div>
                 )}
               </div>
-              <div className="flex items-center gap-2 flex-shrink-0">
+              <div className="flex items-center gap-2 flex-shrink-0 flex-wrap justify-end">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs"
+                  disabled={fetchingId === o.id}
+                  onClick={() => fetchAttachments.mutate(o.id)}
+                  data-testid={`button-fetch-attachments-${o.id}`}
+                >
+                  {fetchingId === o.id ? (
+                    <><Loader2 className="h-3 w-3 mr-1 animate-spin" /> Fetching…</>
+                  ) : (
+                    <><Paperclip className="h-3 w-3 mr-1" /> Fetch attachments</>
+                  )}
+                </Button>
                 <Button
                   size="sm"
                   className="h-7 text-xs"
@@ -823,7 +862,7 @@ function ApplicationItemRow({
             <div className="rounded-md bg-indigo-50/60 border border-indigo-100 p-3 space-y-2" data-testid={`guidance-${r.id}`}>
               {g.expectation && (
                 <div>
-                  <p className="text-[11px] font-semibold text-indigo-800 uppercase">What's expected</p>
+                  <p className="text-[11px] font-semibold text-indigo-800 uppercase">What's expected{g.usedAttachments ? " (from the solicitation documents)" : ""}</p>
                   <p className="text-xs text-slate-700">{g.expectation}</p>
                 </div>
               )}
@@ -859,7 +898,7 @@ function ApplicationItemRow({
                 </div>
               )}
               <p className="text-[10px] text-slate-400">
-                AI guidance is advisory{g.usedManuals ? " and grounded in excerpts of your uploaded manuals" : ""} — verify against the actual solicitation before submitting.
+                AI guidance is advisory{g.usedAttachments ? ", grounded in excerpts of the notice's public attachments" : ""}{g.usedManuals ? `${g.usedAttachments ? " and" : ", grounded in"} excerpts of your uploaded manuals` : ""} — verify against the full solicitation before submitting.
               </p>
             </div>
           )}

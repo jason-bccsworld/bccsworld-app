@@ -124,6 +124,32 @@ export async function searchSamOpportunities(params: {
   })).filter((o: SamOpportunity) => o.noticeId);
 }
 
+/** Public attachment links (resourceLinks) + description URL for one notice. */
+export async function getSamNoticeResources(noticeId: string): Promise<{ resourceLinks: string[]; descriptionUrl: string | null } | SkippedCheck> {
+  const key = process.env.SAM_GOV_API_KEY;
+  if (!key) {
+    return { check: "sam_attachments", reason: "SAM_GOV_API_KEY not configured — attachment fetch skipped" };
+  }
+  // The v2 search API is the documented way to look a notice up by id; it
+  // returns resourceLinks (direct public file-download URLs) per notice.
+  // Search back a year in two windows (the API caps a window at 1 year).
+  for (let win = 0; win < 2; win++) {
+    const to = new Date(Date.now() - win * 364 * 86400000);
+    const from = new Date(to.getTime() - 364 * 86400000);
+    const qs = new URLSearchParams({ api_key: key, limit: "10", noticeid: noticeId, postedFrom: fmtSamDate(from), postedTo: fmtSamDate(to) });
+    const data = await fetchJson(`https://api.sam.gov/opportunities/v2/search?${qs.toString()}`);
+    const list = Array.isArray((data as any)?.opportunitiesData) ? (data as any).opportunitiesData : [];
+    const hit = list.find((o: any) => String(o.noticeId) === noticeId) ?? list[0];
+    if (hit) {
+      return {
+        resourceLinks: Array.isArray(hit.resourceLinks) ? hit.resourceLinks.map((u: any) => String(u)).filter(Boolean) : [],
+        descriptionUrl: typeof hit.description === "string" && hit.description.startsWith("http") ? hit.description : null,
+      };
+    }
+  }
+  return { resourceLinks: [], descriptionUrl: null };
+}
+
 export interface ExclusionResult {
   excluded: boolean;
   records: { name: string; classification: string | null; activationDate: string | null }[];

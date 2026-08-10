@@ -632,6 +632,23 @@ export async function ensureTables(): Promise<void> {
       await db.execute(sql`ALTER TABLE bccs_fedcon_checklist ADD COLUMN IF NOT EXISTS ai_audit JSONB`);
       await db.execute(sql`ALTER TABLE bccs_fedcon_checklist ADD COLUMN IF NOT EXISTS answer TEXT`);
       await db.execute(sql`ALTER TABLE bccs_fedcon_checklist ADD COLUMN IF NOT EXISTS ai_guidance JSONB`);
+      // Additive: extracted text of public SAM.gov solicitation attachments,
+      // fetched on demand per opportunity to ground AI coaching/tailoring.
+      await db.execute(sql`
+        CREATE TABLE IF NOT EXISTS bccs_fedcon_attachments (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          org_id VARCHAR(200) NOT NULL,
+          notice_id VARCHAR(300) NOT NULL,
+          filename VARCHAR(400) NOT NULL,
+          url TEXT NOT NULL,
+          extracted_text TEXT,
+          text_chars INTEGER NOT NULL DEFAULT 0,
+          status VARCHAR(20) NOT NULL DEFAULT 'extracted',
+          error TEXT,
+          fetched_at TIMESTAMP DEFAULT NOW(),
+          UNIQUE (org_id, notice_id, url)
+        )
+      `);
     } catch (e) {
       console.error('[db-init] fedcon checklist label-dedupe index failed:', e);
     }

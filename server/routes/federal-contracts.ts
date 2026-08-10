@@ -17,6 +17,8 @@ import { requireOrg, isPlatformStaff } from "../middleware/tenant";
 import { getEmailAlertSettings } from "../services/email-alerts";
 import { tierFor } from "../services/federal-contracts-monitor";
 import { chunkText, selectExcerpts } from "../services/checklist-review-utils";
+import { getSamNoticeResources } from "../services/fedcon-data";
+import { extractText } from "./checklist-report";
 
 const router = Router();
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || "not-configured" });
@@ -184,6 +186,186 @@ export function opportunityRiskFlags(o: any, now = new Date()): { key: string; l
   return flags;
 }
 
+/* ── Solicitation attachments (public SAM.gov files) ─────────────────────── */
+
+const ATTACHMENT_EXTS = [".pdf", ".docx", ".txt", ".xlsx", ".xls", ".csv"];
+const MAX_ATTACHMENT_BYTES = 15 * 1024 * 1024;
+const MAX_ATTACHMENT_TEXT = 400_000;
+
+function sanitizeFilename(raw: string): string {
+  // Basename only, control characters stripped — the value came off the wire.
+  const base = raw.replace(/\\/g, "/").split("/").filter(Boolean).pop() || "attachment";
+  // eslint-disable-next-line no-control-regex
+  return base.replace(/[\u0000-\u001f\u007f]/g, "").trim().slice(0, 400) || "attachment";
+}
+
+function filenameFromResponse(url: string, res: Response): string {
+  const cd = res.headers.get("content-disposition") || "";
+  const m = /filename\*?=(?:UTF-8''|")?([^";]+)/i.exec(cd);
+  if (m) {
+    try { return sanitizeFilename(decodeURIComponent(m[1].replace(/"/g, "").trim())); } catch { /* fall through */ }
+  }
+  return sanitizeFilename(url.split("?")[0].split("/").filter(Boolean).pop() || "attachment");
+}
+
+/** Exact-host trust check: the SAM key may only ever be sent to sam.gov hosts,
+ * and attachment URLs (which arrive as external data) are only fetched at all
+ * when they are HTTPS links to sam.gov or a subdomain. */
+function trustedSamUrl(raw: string): URL | null {
+  let u: URL;
+  try { u = new URL(raw); } catch { return null; }
+  if (u.protocol !== "https:") return null;
+  const host = u.hostname.toLowerCase();
+  return host === "sam.gov" || host.endsWith(".sam.gov") ? u : null;
+}
+
+/** Download with a hard byte cap enforced while streaming (Content-Length can
+ * be absent or forged) and an abort deadline. */
+async function downloadCapped(url: string, timeoutMs: number, maxBytes: number): Promise<{ res: Response; buffer: Buffer }> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, { signal: controller.signal, redirect: "follow" });
+    if (!res.ok) throw new Error(`download failed (HTTP ${res.status})`);
+    const lenHeader = Number(res.headers.get("content-length") || 0);
+    if (lenHeader > maxBytes) throw new Error(`file too large (${Math.round(lenHeader / 1048576)} MB, limit ${Math.round(maxBytes / 1048576)} MB)`);
+    const chunks: Uint8Array[] = [];
+    let total = 0;
+    const reader = res.body?.getReader();
+    if (!reader) throw new Error("empty response body");
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > maxBytes) {
+        controller.abort();
+        throw new Error(`file too large (limit ${Math.round(maxBytes / 1048576)} MB)`);
+      }
+      chunks.push(value);
+    }
+    return { res, buffer: Buffer.concat(chunks) };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function loadAttachmentTexts(orgId: string, noticeId: string): Promise<{ text: string; source: string }[]> {
+  const rows = await db
+    .execute(sql`SELECT filename, extracted_text FROM bccs_fedcon_attachments WHERE org_id = ${orgId} AND notice_id = ${noticeId} AND status = 'extracted' AND extracted_text IS NOT NULL`)
+    .then((r) => (r as any).rows);
+  return rows.flatMap((a: any) =>
+    chunkText(String(a.extracted_text || "")).map((text: string) => ({ text, source: `solicitation attachment: ${a.filename}` })),
+  );
+}
+
+router.get("/opportunities/:id/attachments", isAuthenticated, async (req, res) => {
+  const orgId = requireOrg(req, res);
+  if (!orgId) return;
+  const opp = await db
+    .execute(sql`SELECT notice_id FROM bccs_fedcon_opportunities WHERE id = ${req.params.id} AND org_id = ${orgId}`)
+    .then((r) => (r as any).rows[0]);
+  if (!opp) return res.status(404).json({ message: "Opportunity not found" });
+  const rows = await db
+    .execute(sql`SELECT id, filename, url, text_chars, status, error, fetched_at FROM bccs_fedcon_attachments WHERE org_id = ${orgId} AND notice_id = ${opp.notice_id} ORDER BY fetched_at ASC`)
+    .then((r) => (r as any).rows);
+  res.json(rows);
+});
+
+// POST /opportunities/:id/attachments/fetch — download the notice's public
+// attachments from SAM.gov, extract their text, and store it so the work
+// package, AI coach, and audit are grounded in the actual solicitation.
+// Bounded for the serverless 30s cap: already-fetched files are skipped, the
+// download loop stops when the time budget runs out, and the response says
+// what remains — clicking again resumes where it left off.
+router.post("/opportunities/:id/attachments/fetch", isAuthenticated, async (req, res) => {
+  const orgId = requireOrg(req, res);
+  if (!orgId) return;
+  if (isViewer(req)) return res.status(403).json({ message: "Viewers cannot fetch attachments." });
+  const opp = await db
+    .execute(sql`SELECT * FROM bccs_fedcon_opportunities WHERE id = ${req.params.id} AND org_id = ${orgId}`)
+    .then((r) => (r as any).rows[0]);
+  if (!opp) return res.status(404).json({ message: "Opportunity not found" });
+  const noticeId = String(opp.notice_id);
+
+  const resources = await getSamNoticeResources(noticeId).catch((err: any) => ({ check: "sam_attachments", reason: `SAM.gov lookup failed: ${err.message}` }));
+  if ("reason" in resources) {
+    return res.status(503).json({ message: resources.reason });
+  }
+
+  // Failed rows stay retryable — only successful or terminally-unsupported
+  // fetches are skipped on subsequent clicks.
+  const existing = new Set(
+    await db
+      .execute(sql`SELECT url FROM bccs_fedcon_attachments WHERE org_id = ${orgId} AND notice_id = ${noticeId} AND status <> 'failed'`)
+      .then((r) => (r as any).rows.map((row: any) => String(row.url))),
+  );
+  const targets = resources.resourceLinks.filter((u) => !existing.has(u));
+  if (resources.resourceLinks.length === 0) {
+    return res.json({ total: 0, fetched: 0, skipped: 0, failed: 0, remaining: 0, message: "SAM.gov lists no public attachments for this notice." });
+  }
+
+  // One request-wide deadline: the SAM lookup above plus every download AND
+  // its text extraction must finish well inside Vercel's 30s function cap.
+  const deadline = Date.now() + 19_000;
+  let fetched = 0, failed = 0;
+  const results: { filename: string; status: string; error?: string }[] = [];
+
+  for (const url of targets.slice(0, 10)) {
+    // Reserve headroom for extraction + DB writes of the file we'd start.
+    if (deadline - Date.now() < 4_000) break;
+    let filename = "attachment";
+    try {
+      const trusted = trustedSamUrl(url);
+      if (!trusted) throw new Error("untrusted attachment host — only HTTPS sam.gov links are downloaded");
+      const key = process.env.SAM_GOV_API_KEY;
+      if (key) trusted.searchParams.set("api_key", key);
+      const dlTimeout = Math.min(10_000, deadline - Date.now() - 3_000);
+      const { res: dl, buffer } = await downloadCapped(trusted.toString(), dlTimeout, MAX_ATTACHMENT_BYTES);
+      filename = filenameFromResponse(url, dl);
+      const ext = (filename.match(/\.[a-z0-9]+$/i)?.[0] || "").toLowerCase();
+      if (!ATTACHMENT_EXTS.includes(ext)) {
+        await db.execute(sql`
+          INSERT INTO bccs_fedcon_attachments (org_id, notice_id, filename, url, status, error)
+          VALUES (${orgId}, ${noticeId}, ${filename}, ${url}, 'unsupported', ${`Unsupported file type ${ext || "(none)"} — reviewed manually on SAM.gov.`})
+          ON CONFLICT (org_id, notice_id, url) DO NOTHING
+        `);
+        results.push({ filename, status: "unsupported" });
+        continue;
+      }
+      const text = (await extractText(filename, buffer)).slice(0, MAX_ATTACHMENT_TEXT);
+      await db.execute(sql`
+        INSERT INTO bccs_fedcon_attachments (org_id, notice_id, filename, url, extracted_text, text_chars, status)
+        VALUES (${orgId}, ${noticeId}, ${filename}, ${url}, ${text}, ${text.length}, 'extracted')
+        ON CONFLICT (org_id, notice_id, url) DO UPDATE SET extracted_text = EXCLUDED.extracted_text, text_chars = EXCLUDED.text_chars, status = 'extracted', error = NULL, fetched_at = NOW()
+      `);
+      fetched++;
+      results.push({ filename, status: "extracted" });
+    } catch (err: any) {
+      failed++;
+      const msg = String(err?.name === "AbortError" ? "download timed out" : err?.message || "unknown error").slice(0, 500);
+      await db.execute(sql`
+        INSERT INTO bccs_fedcon_attachments (org_id, notice_id, filename, url, status, error)
+        VALUES (${orgId}, ${noticeId}, ${filename}, ${url}, 'failed', ${msg})
+        ON CONFLICT (org_id, notice_id, url) DO UPDATE SET status = 'failed', error = EXCLUDED.error, fetched_at = NOW()
+      `);
+      results.push({ filename, status: "failed", error: msg });
+    }
+  }
+
+  const processed = results.length;
+  const remaining = targets.length - processed;
+  res.json({
+    total: resources.resourceLinks.length,
+    alreadyFetched: existing.size,
+    fetched,
+    failed,
+    unsupported: results.filter((r) => r.status === "unsupported").length,
+    remaining,
+    results,
+    message: remaining > 0 ? `Time budget reached — ${remaining} attachment(s) left. Fetch again to continue.` : undefined,
+  });
+});
+
 const OPP_BASE_CHECKLIST = (o: any): { key: string; label: string }[] => [
   { key: "solicitation_reviewed", label: "Full solicitation and all attachments downloaded from SAM.gov and reviewed" },
   { key: "eligibility_confirmed", label: o.set_aside ? `Eligibility for ${o.set_aside} set-aside confirmed (size standard for NAICS ${o.naics || "?"})` : `Size standard for NAICS ${o.naics || "?"} confirmed` },
@@ -221,12 +403,21 @@ router.post("/opportunities/:id/workpackage", isAuthenticated, async (req, res) 
   } else {
     try {
       const dossierText = JSON.stringify(opp.dossier ?? {}).slice(0, 6000);
+      // Ground the AI tailoring in the actual solicitation documents when the
+      // org has fetched them (best-effort — absent attachments change nothing).
+      const attachmentEntries = await loadAttachmentTexts(orgId, String(opp.notice_id)).catch(() => []);
+      const attachmentExcerpts = attachmentEntries.length
+        ? selectExcerpts(attachmentEntries, [`${opp.title || ""} requirements deliverables evaluation criteria submission instructions`], Number.POSITIVE_INFINITY, 9_000).excerpts
+        : [];
+      const attachmentBlock = attachmentExcerpts.length
+        ? `\n\nEXCERPTS FROM THE NOTICE'S PUBLIC ATTACHMENTS (statements of work, instructions — prefer these over the dossier when they conflict):\n${attachmentExcerpts.map((e) => `--- (${e.source}) ---\n${e.text}`).join("\n\n")}`
+        : "";
       const completion = await openai.chat.completions.create(
         {
           model: "gpt-4o-mini",
           messages: [{
             role: "user",
-            content: `You are a federal proposal manager. Draft up to 6 ADDITIONAL due-diligence/capture checklist items specific to this SAM.gov opportunity (beyond generic items like "review solicitation", "confirm SAM registration", "build compliance matrix", "submit Q&A", "past performance refs", "teaming").\n\nTitle: ${opp.title || opp.notice_id}\nAgency: ${opp.agency || "unknown"} | NAICS: ${opp.naics || "n/a"} | Set-aside: ${opp.set_aside || "none"} | Type: ${opp.notice_type || "n/a"}\nDossier: ${dossierText}\n\nReturn JSON: { "items": [ { "key": "<snake_case_slug>", "label": "<one actionable sentence>" } ] }. Only include items genuinely specific to this notice; return { "items": [] } if nothing specific stands out.`,
+            content: `You are a federal proposal manager. Draft up to 6 ADDITIONAL due-diligence/capture checklist items specific to this SAM.gov opportunity (beyond generic items like "review solicitation", "confirm SAM registration", "build compliance matrix", "submit Q&A", "past performance refs", "teaming").\n\nTitle: ${opp.title || opp.notice_id}\nAgency: ${opp.agency || "unknown"} | NAICS: ${opp.naics || "n/a"} | Set-aside: ${opp.set_aside || "none"} | Type: ${opp.notice_type || "n/a"}\nDossier: ${dossierText}${attachmentBlock}\n\nReturn JSON: { "items": [ { "key": "<snake_case_slug>", "label": "<one actionable sentence>" } ] }. Only include items genuinely specific to this notice; return { "items": [] } if nothing specific stands out.`,
           }],
           response_format: { type: "json_object" },
           temperature: 0,
@@ -738,6 +929,13 @@ router.post("/checklist/:id/guidance", isAuthenticated, async (req, res) => {
     ? selectExcerpts(entries, [`${String(opp?.title || "")} ${item.label}`], Number.POSITIVE_INFINITY, 12_000)
     : { excerpts: [] as { text: string; source: string }[] };
 
+  // Solicitation attachments (if fetched) tell the coach what the government
+  // actually asked for — selected separately so manuals can't crowd them out.
+  const attachmentEntries = opp ? await loadAttachmentTexts(orgId, String(opp.notice_id)).catch(() => []) : [];
+  const attachmentExcerpts = attachmentEntries.length
+    ? selectExcerpts(attachmentEntries, [`${String(opp?.title || "")} ${item.label}`], Number.POSITIVE_INFINITY, 8_000).excerpts
+    : [];
+
   const draft = typeof item.answer === "string" && item.answer.trim() ? item.answer.slice(0, 4000) : null;
   const prompt = `You are a federal proposal coach helping an FAA Part 142 training organization prepare a submittable response for a government contract opportunity.
 
@@ -746,7 +944,7 @@ OPPORTUNITY: ${opp ? `${opp.title || opp.notice_id} | Agency: ${opp.agency || "u
 APPLICATION CHECKLIST ITEM the applicant must address:
 "${item.label}"
 ${draft ? `\nAPPLICANT'S CURRENT DRAFT ANSWER:\n"${draft}"\n` : ""}
-${excerpts.length ? `ORGANIZATION'S OWN OPERATIONS-MANUAL EXCERPTS (use these to ground the example in THEIR real capabilities — cite the source filename when you draw on one):\n${excerpts.map((e) => `--- (from ${e.source}) ---\n${e.text}`).join("\n\n")}` : "No operations-manual content is available; keep the example generic and tell the applicant what internal documents to pull from."}
+${attachmentExcerpts.length ? `WHAT THE SOLICITATION ITSELF SAYS (excerpts from the notice's public attachments — treat these as the authoritative statement of what is expected):\n${attachmentExcerpts.map((e) => `--- (${e.source}) ---\n${e.text}`).join("\n\n")}\n\n` : ""}${excerpts.length ? `ORGANIZATION'S OWN OPERATIONS-MANUAL EXCERPTS (use these to ground the example in THEIR real capabilities — cite the source filename when you draw on one):\n${excerpts.map((e) => `--- (from ${e.source}) ---\n${e.text}`).join("\n\n")}` : "No operations-manual content is available; keep the example generic and tell the applicant what internal documents to pull from."}
 
 Return JSON:
 {
@@ -780,6 +978,7 @@ Return JSON:
     example: String(parsed?.example || "").slice(0, 3000),
     draftFeedback: parsed?.draftFeedback ? String(parsed.draftFeedback).slice(0, 1000) : null,
     usedManuals: excerpts.length > 0,
+    usedAttachments: attachmentExcerpts.length > 0,
     generatedAt: new Date().toISOString(),
   };
   const rows = await db

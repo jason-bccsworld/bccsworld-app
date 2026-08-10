@@ -763,7 +763,7 @@ router.post("/reset", isAuthenticated, requireAdmin, async (req: any, res) => {
 
 // ── Operations manual upload & extraction ────────────────────────────────────
 
-async function extractText(filename: string, buffer: Buffer): Promise<string> {
+export async function extractText(filename: string, buffer: Buffer): Promise<string> {
   const ext = path.extname(filename).toLowerCase();
   if (ext === ".txt") return buffer.toString("utf8");
   const tmp = path.join(os.tmpdir(), `manual-${crypto.randomBytes(6).toString("hex")}${ext}`);
