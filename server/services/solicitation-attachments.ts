@@ -51,7 +51,25 @@ export async function downloadCapped(url: string, timeoutMs: number, maxBytes: n
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const res = await fetch(url, { signal: controller.signal, redirect: "follow" });
+    // Redirects are followed manually so every hop is re-validated against the
+    // sam.gov trust check — a redirect off-host must fail, never be downloaded.
+    let currentUrl = url;
+    let res: Response;
+    const MAX_REDIRECTS = 5;
+    for (let hop = 0; ; hop++) {
+      res = await fetch(currentUrl, { signal: controller.signal, redirect: "manual" });
+      if (res.status >= 300 && res.status < 400) {
+        const location = res.headers.get("location");
+        if (!location) throw new Error(`download failed (HTTP ${res.status} redirect without Location)`);
+        if (hop >= MAX_REDIRECTS) throw new Error("too many redirects");
+        const nextRaw = new URL(location, currentUrl).toString();
+        const next = trustedSamUrl(nextRaw);
+        if (!next) throw new Error("redirected to an untrusted host — only HTTPS sam.gov links are downloaded");
+        currentUrl = next.toString();
+        continue;
+      }
+      break;
+    }
     if (!res.ok) throw new Error(`download failed (HTTP ${res.status})`);
     const lenHeader = Number(res.headers.get("content-length") || 0);
     if (lenHeader > maxBytes) throw new Error(`file too large (${Math.round(lenHeader / 1048576)} MB, limit ${Math.round(maxBytes / 1048576)} MB)`);

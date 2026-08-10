@@ -237,6 +237,52 @@ describe("POST /opportunities/:id/attachments/fetch (real SQL, mocked network)",
     expect(rows.find((r) => r.status === "extracted")?.extracted_text).toMatch(/^extracted:fileA\.pdf:/);
   });
 
+  it("rejects a redirect to an untrusted host and stores none of its content", async () => {
+    const oppId = await insertOpp(ORG1, "N-REDIRECT");
+    h.state.resourceLinks = ["https://sam.gov/downloads/redirect-me.pdf"];
+    h.state.samResponder = async (url) => {
+      if (url.includes("redirect-me")) {
+        return new Response(null, { status: 302, headers: { location: "https://evil.example.com/payload.pdf" } });
+      }
+      return okPdf("EVIL CONTENT");
+    };
+
+    const res = await fetchAttachments(oppId);
+    expect(res.status).toBe(200);
+    expect(res.body.fetched).toBe(0);
+    expect(res.body.failed).toBe(1);
+
+    // Only the sam.gov URL was ever requested — the evil host was never contacted.
+    expect(h.state.samCalls).toHaveLength(1);
+    expect(new URL(h.state.samCalls[0]).hostname.endsWith("sam.gov")).toBe(true);
+
+    const [row] = await attachmentRows("N-REDIRECT");
+    expect(row.status).toBe("failed");
+    expect(row.error).toMatch(/redirected to an untrusted host/i);
+    expect(row.extracted_text).toBeNull();
+  });
+
+  it("follows a redirect that stays on sam.gov and extracts the file", async () => {
+    const oppId = await insertOpp(ORG1, "N-REDIRECT-OK");
+    h.state.resourceLinks = ["https://sam.gov/downloads/moved.pdf"];
+    h.state.samResponder = async (url) => {
+      if (url.includes("moved")) {
+        return new Response(null, { status: 301, headers: { location: "https://api.sam.gov/prod/files/final.pdf" } });
+      }
+      return okPdf("real bytes");
+    };
+
+    const res = await fetchAttachments(oppId);
+    expect(res.status).toBe(200);
+    expect(res.body.fetched).toBe(1);
+    expect(res.body.failed).toBe(0);
+    expect(h.state.samCalls).toHaveLength(2);
+    for (const u of h.state.samCalls) expect(new URL(u).hostname.endsWith("sam.gov")).toBe(true);
+    const [row] = await attachmentRows("N-REDIRECT-OK");
+    expect(row.status).toBe("extracted");
+    expect(row.extracted_text).toMatch(/^extracted:moved\.pdf:/);
+  });
+
   it("aborts a download mid-stream once it exceeds 15 MB (no Content-Length)", async () => {
     const oppId = await insertOpp(ORG1, "N-SIZECAP");
     h.state.resourceLinks = ["https://sam.gov/downloads/huge.pdf"];
