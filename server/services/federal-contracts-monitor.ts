@@ -32,6 +32,7 @@ import {
   type SkippedCheck,
   type UsaAward,
 } from "./fedcon-data";
+import { fetchNoticeAttachments } from "./solicitation-attachments";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || "not-configured" });
 
@@ -249,6 +250,7 @@ export async function patrolOrg(orgId: string): Promise<PatrolResult> {
   const candidates: Candidate[] = [];
   const coverage = new Set<string>();
   let itemsScanned = 0;
+  const newNoticeIds: string[] = [];
 
   const watchlist = await db
     .execute(sql`SELECT id, kind, value, label FROM bccs_fedcon_watchlist WHERE org_id = ${orgId}`)
@@ -289,6 +291,7 @@ export async function patrolOrg(orgId: string): Promise<PatrolResult> {
            ${opp.noticeType}, ${opp.postedDate}, ${opp.responseDeadline?.slice(0, 10) ?? null}, ${opp.url}, ${JSON.stringify(dossier)}::jsonb)
         ON CONFLICT (org_id, notice_id) DO NOTHING
       `);
+      newNoticeIds.push(opp.noticeId);
       candidates.push({
         findingType: "new_opportunity",
         severity: "low",
@@ -297,6 +300,41 @@ export async function patrolOrg(orgId: string): Promise<PatrolResult> {
         relatedRecordId: `opportunity:${opp.noticeId}`,
       });
     }
+  }
+
+  /* 1b ── Auto-fetch solicitation attachments for the run's new opportunities
+   * so the work package and AI coach are grounded from the moment an
+   * opportunity appears. Bounded: a few notices per run, a few files each,
+   * one shared time budget — anything left is reported, never silent. */
+  if (newNoticeIds.length > 0 && samKeyAvailable()) {
+    const noticeCap = 5;
+    const attachmentDeadline = Date.now() + 60_000; // shared across all notices this org/run
+    for (const noticeId of newNoticeIds.slice(0, noticeCap)) {
+      if (attachmentDeadline - Date.now() < 5_000) {
+        skipped.push({ check: "sam_attachments", reason: `Attachment time budget reached — remaining new notices will be fetched on demand or next run` });
+        break;
+      }
+      const summary = await fetchNoticeAttachments(orgId, noticeId, { deadline: attachmentDeadline, maxFiles: 3 }).catch(
+        (err: any): SkippedCheck => ({ check: "sam_attachments", reason: `Attachment fetch failed for notice ${noticeId}: ${err.message}` }),
+      );
+      if (isSkipped(summary)) {
+        skipped.push(summary);
+        continue;
+      }
+      itemsScanned += summary.fetched;
+      if (summary.failed > 0 || summary.remaining > 0) {
+        const failures = summary.results.filter((r) => r.status === "failed").map((r) => `${r.filename}: ${r.error}`).join("; ");
+        skipped.push({
+          check: "sam_attachments",
+          reason: `Notice ${noticeId}: ${summary.fetched} attachment(s) fetched, ${summary.failed} failed${failures ? ` (${failures})` : ""}${summary.remaining > 0 ? `, ${summary.remaining} deferred (per-run cap)` : ""}`,
+        });
+      }
+    }
+    if (newNoticeIds.length > noticeCap) {
+      skipped.push({ check: "sam_attachments", reason: `${newNoticeIds.length - noticeCap} new notice(s) beyond the per-run attachment cap — fetch on demand or next run` });
+    }
+  } else if (newNoticeIds.length > 0 && !samKeyAvailable()) {
+    skipped.push({ check: "sam_attachments", reason: "SAM_GOV_API_KEY not configured — automatic attachment fetch skipped" });
   }
 
   /* 2 ── Vendor & contract dossiers + risk rubric */

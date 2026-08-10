@@ -17,8 +17,7 @@ import { requireOrg, isPlatformStaff } from "../middleware/tenant";
 import { getEmailAlertSettings } from "../services/email-alerts";
 import { tierFor } from "../services/federal-contracts-monitor";
 import { chunkText, selectExcerpts } from "../services/checklist-review-utils";
-import { getSamNoticeResources } from "../services/fedcon-data";
-import { extractText } from "./checklist-report";
+import { fetchNoticeAttachments } from "../services/solicitation-attachments";
 
 const router = Router();
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || "not-configured" });
@@ -187,67 +186,8 @@ export function opportunityRiskFlags(o: any, now = new Date()): { key: string; l
 }
 
 /* ── Solicitation attachments (public SAM.gov files) ─────────────────────── */
-
-const ATTACHMENT_EXTS = [".pdf", ".docx", ".txt", ".xlsx", ".xls", ".csv"];
-const MAX_ATTACHMENT_BYTES = 15 * 1024 * 1024;
-const MAX_ATTACHMENT_TEXT = 400_000;
-
-function sanitizeFilename(raw: string): string {
-  // Basename only, control characters stripped — the value came off the wire.
-  const base = raw.replace(/\\/g, "/").split("/").filter(Boolean).pop() || "attachment";
-  // eslint-disable-next-line no-control-regex
-  return base.replace(/[\u0000-\u001f\u007f]/g, "").trim().slice(0, 400) || "attachment";
-}
-
-function filenameFromResponse(url: string, res: Response): string {
-  const cd = res.headers.get("content-disposition") || "";
-  const m = /filename\*?=(?:UTF-8''|")?([^";]+)/i.exec(cd);
-  if (m) {
-    try { return sanitizeFilename(decodeURIComponent(m[1].replace(/"/g, "").trim())); } catch { /* fall through */ }
-  }
-  return sanitizeFilename(url.split("?")[0].split("/").filter(Boolean).pop() || "attachment");
-}
-
-/** Exact-host trust check: the SAM key may only ever be sent to sam.gov hosts,
- * and attachment URLs (which arrive as external data) are only fetched at all
- * when they are HTTPS links to sam.gov or a subdomain. */
-function trustedSamUrl(raw: string): URL | null {
-  let u: URL;
-  try { u = new URL(raw); } catch { return null; }
-  if (u.protocol !== "https:") return null;
-  const host = u.hostname.toLowerCase();
-  return host === "sam.gov" || host.endsWith(".sam.gov") ? u : null;
-}
-
-/** Download with a hard byte cap enforced while streaming (Content-Length can
- * be absent or forged) and an abort deadline. */
-async function downloadCapped(url: string, timeoutMs: number, maxBytes: number): Promise<{ res: Response; buffer: Buffer }> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    const res = await fetch(url, { signal: controller.signal, redirect: "follow" });
-    if (!res.ok) throw new Error(`download failed (HTTP ${res.status})`);
-    const lenHeader = Number(res.headers.get("content-length") || 0);
-    if (lenHeader > maxBytes) throw new Error(`file too large (${Math.round(lenHeader / 1048576)} MB, limit ${Math.round(maxBytes / 1048576)} MB)`);
-    const chunks: Uint8Array[] = [];
-    let total = 0;
-    const reader = res.body?.getReader();
-    if (!reader) throw new Error("empty response body");
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      total += value.byteLength;
-      if (total > maxBytes) {
-        controller.abort();
-        throw new Error(`file too large (limit ${Math.round(maxBytes / 1048576)} MB)`);
-      }
-      chunks.push(value);
-    }
-    return { res, buffer: Buffer.concat(chunks) };
-  } finally {
-    clearTimeout(timer);
-  }
-}
+// Download/extraction mechanics live in services/solicitation-attachments.ts,
+// shared with the monitor agent's automatic fetch.
 
 async function loadAttachmentTexts(orgId: string, noticeId: string): Promise<{ text: string; source: string }[]> {
   const rows = await db
@@ -287,82 +227,18 @@ router.post("/opportunities/:id/attachments/fetch", isAuthenticated, async (req,
   if (!opp) return res.status(404).json({ message: "Opportunity not found" });
   const noticeId = String(opp.notice_id);
 
-  const resources = await getSamNoticeResources(noticeId).catch((err: any) => ({ check: "sam_attachments", reason: `SAM.gov lookup failed: ${err.message}` }));
-  if ("reason" in resources) {
-    return res.status(503).json({ message: resources.reason });
+  // One request-wide deadline: the SAM lookup plus every download AND its
+  // text extraction must finish well inside Vercel's 30s function cap.
+  const summary = await fetchNoticeAttachments(orgId, noticeId, { deadline: Date.now() + 19_000, maxFiles: 10 });
+  if ("reason" in summary) {
+    return res.status(503).json({ message: summary.reason });
   }
-
-  // Failed rows stay retryable — only successful or terminally-unsupported
-  // fetches are skipped on subsequent clicks.
-  const existing = new Set(
-    await db
-      .execute(sql`SELECT url FROM bccs_fedcon_attachments WHERE org_id = ${orgId} AND notice_id = ${noticeId} AND status <> 'failed'`)
-      .then((r) => (r as any).rows.map((row: any) => String(row.url))),
-  );
-  const targets = resources.resourceLinks.filter((u) => !existing.has(u));
-  if (resources.resourceLinks.length === 0) {
+  if (summary.total === 0) {
     return res.json({ total: 0, fetched: 0, skipped: 0, failed: 0, remaining: 0, message: "SAM.gov lists no public attachments for this notice." });
   }
-
-  // One request-wide deadline: the SAM lookup above plus every download AND
-  // its text extraction must finish well inside Vercel's 30s function cap.
-  const deadline = Date.now() + 19_000;
-  let fetched = 0, failed = 0;
-  const results: { filename: string; status: string; error?: string }[] = [];
-
-  for (const url of targets.slice(0, 10)) {
-    // Reserve headroom for extraction + DB writes of the file we'd start.
-    if (deadline - Date.now() < 4_000) break;
-    let filename = "attachment";
-    try {
-      const trusted = trustedSamUrl(url);
-      if (!trusted) throw new Error("untrusted attachment host — only HTTPS sam.gov links are downloaded");
-      const key = process.env.SAM_GOV_API_KEY;
-      if (key) trusted.searchParams.set("api_key", key);
-      const dlTimeout = Math.min(10_000, deadline - Date.now() - 3_000);
-      const { res: dl, buffer } = await downloadCapped(trusted.toString(), dlTimeout, MAX_ATTACHMENT_BYTES);
-      filename = filenameFromResponse(url, dl);
-      const ext = (filename.match(/\.[a-z0-9]+$/i)?.[0] || "").toLowerCase();
-      if (!ATTACHMENT_EXTS.includes(ext)) {
-        await db.execute(sql`
-          INSERT INTO bccs_fedcon_attachments (org_id, notice_id, filename, url, status, error)
-          VALUES (${orgId}, ${noticeId}, ${filename}, ${url}, 'unsupported', ${`Unsupported file type ${ext || "(none)"} — reviewed manually on SAM.gov.`})
-          ON CONFLICT (org_id, notice_id, url) DO NOTHING
-        `);
-        results.push({ filename, status: "unsupported" });
-        continue;
-      }
-      const text = (await extractText(filename, buffer)).slice(0, MAX_ATTACHMENT_TEXT);
-      await db.execute(sql`
-        INSERT INTO bccs_fedcon_attachments (org_id, notice_id, filename, url, extracted_text, text_chars, status)
-        VALUES (${orgId}, ${noticeId}, ${filename}, ${url}, ${text}, ${text.length}, 'extracted')
-        ON CONFLICT (org_id, notice_id, url) DO UPDATE SET extracted_text = EXCLUDED.extracted_text, text_chars = EXCLUDED.text_chars, status = 'extracted', error = NULL, fetched_at = NOW()
-      `);
-      fetched++;
-      results.push({ filename, status: "extracted" });
-    } catch (err: any) {
-      failed++;
-      const msg = String(err?.name === "AbortError" ? "download timed out" : err?.message || "unknown error").slice(0, 500);
-      await db.execute(sql`
-        INSERT INTO bccs_fedcon_attachments (org_id, notice_id, filename, url, status, error)
-        VALUES (${orgId}, ${noticeId}, ${filename}, ${url}, 'failed', ${msg})
-        ON CONFLICT (org_id, notice_id, url) DO UPDATE SET status = 'failed', error = EXCLUDED.error, fetched_at = NOW()
-      `);
-      results.push({ filename, status: "failed", error: msg });
-    }
-  }
-
-  const processed = results.length;
-  const remaining = targets.length - processed;
   res.json({
-    total: resources.resourceLinks.length,
-    alreadyFetched: existing.size,
-    fetched,
-    failed,
-    unsupported: results.filter((r) => r.status === "unsupported").length,
-    remaining,
-    results,
-    message: remaining > 0 ? `Time budget reached — ${remaining} attachment(s) left. Fetch again to continue.` : undefined,
+    ...summary,
+    message: summary.remaining > 0 ? `Time budget reached — ${summary.remaining} attachment(s) left. Fetch again to continue.` : undefined,
   });
 });
 

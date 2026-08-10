@@ -53,6 +53,15 @@ const fedconMocks = vi.hoisted(() => ({
 }));
 vi.mock("../fedcon-data", () => fedconMocks);
 
+// Attachment fetching is exercised by its own tests; here it is external
+// machinery (network + file extraction) and is mocked like the data layer.
+const attachmentMocks = vi.hoisted(() => ({
+  fetchNoticeAttachments: vi.fn(async () => ({
+    total: 0, alreadyFetched: 0, fetched: 0, failed: 0, unsupported: 0, remaining: 0, results: [],
+  })),
+}));
+vi.mock("../solicitation-attachments", () => attachmentMocks);
+
 import {
   tierFor,
   RUBRIC,
@@ -323,5 +332,88 @@ describe("patrolOrg scoring", () => {
     const recompeteInserts = findingInserts().filter((q) => q.values.includes("recompete_window"));
     expect(recompeteInserts).toHaveLength(1);
     expect(recompeteInserts[0].values).toContain("award:A1");
+  });
+});
+
+/* ── patrolOrg: automatic attachment fetch for new opportunities ──────────── */
+
+describe("patrolOrg automatic attachment fetch", () => {
+  const opp = {
+    noticeId: "N-100",
+    title: "Widget Maintenance",
+    agency: "GSA",
+    naics: "541511",
+    psc: null,
+    setAside: null,
+    noticeType: "Solicitation",
+    postedDate: "2026-08-01",
+    responseDeadline: null,
+    url: "https://sam.gov/opp/N-100",
+    description: null,
+  };
+
+  it("fetches attachments for newly inserted opportunities and counts extracted files", async () => {
+    routeQueries({
+      watchlist: [{ id: "w1", kind: "keyword", value: "widgets", label: null }],
+      openFindings: [],
+    });
+    fedconMocks.samKeyAvailable.mockReturnValue(true);
+    fedconMocks.searchSamOpportunities.mockResolvedValue([opp]);
+    attachmentMocks.fetchNoticeAttachments.mockResolvedValue({
+      total: 2, alreadyFetched: 0, fetched: 2, failed: 0, unsupported: 0, remaining: 0,
+      results: [{ filename: "sow.pdf", status: "extracted" }, { filename: "qa.docx", status: "extracted" }],
+    });
+
+    const result = await patrolOrg("org-1");
+
+    expect(attachmentMocks.fetchNoticeAttachments).toHaveBeenCalledTimes(1);
+    const [orgId, noticeId, opts] = attachmentMocks.fetchNoticeAttachments.mock.calls[0] as any[];
+    expect(orgId).toBe("org-1");
+    expect(noticeId).toBe("N-100");
+    expect(opts.maxFiles).toBe(3); // bounded per notice
+    expect(result.skippedChecks).toEqual([]); // full success → nothing to report
+    expect(result.itemsScanned).toBe(1 + 2); // the notice + its two extracted files
+  });
+
+  it("does not fetch attachments for opportunities that already exist", async () => {
+    queryRouter = (q) => {
+      if (q.text.includes("FROM bccs_fedcon_watchlist")) return { rows: [{ id: "w1", kind: "keyword", value: "widgets", label: null }] };
+      if (q.text.includes("FROM bccs_fedcon_opportunities")) return { rows: [{ id: "existing-opp" }] };
+      return { rows: [] };
+    };
+    fedconMocks.samKeyAvailable.mockReturnValue(true);
+    fedconMocks.searchSamOpportunities.mockResolvedValue([opp]);
+
+    await patrolOrg("org-1");
+
+    expect(attachmentMocks.fetchNoticeAttachments).not.toHaveBeenCalled();
+  });
+
+  it("surfaces attachment skips and per-file failures as skipped checks, never silently", async () => {
+    routeQueries({
+      watchlist: [{ id: "w1", kind: "keyword", value: "widgets", label: null }],
+      openFindings: [],
+    });
+    fedconMocks.samKeyAvailable.mockReturnValue(true);
+    fedconMocks.searchSamOpportunities.mockResolvedValue([
+      opp,
+      { ...opp, noticeId: "N-200", title: "Other" },
+    ]);
+    attachmentMocks.fetchNoticeAttachments
+      .mockResolvedValueOnce({ check: "sam_attachments", reason: "SAM.gov lookup failed: boom" } as any)
+      .mockResolvedValueOnce({
+        total: 1, alreadyFetched: 0, fetched: 0, failed: 1, unsupported: 0, remaining: 0,
+        results: [{ filename: "sow.pdf", status: "failed", error: "download timed out" }],
+      });
+
+    const result = await patrolOrg("org-1");
+
+    expect(attachmentMocks.fetchNoticeAttachments).toHaveBeenCalledTimes(2);
+    const reasons = result.skippedChecks.filter((s) => s.check === "sam_attachments").map((s) => s.reason);
+    expect(reasons).toHaveLength(2);
+    expect(reasons[0]).toContain("SAM.gov lookup failed");
+    expect(reasons[1]).toContain("N-200");
+    expect(reasons[1]).toContain("1 failed");
+    expect(reasons[1]).toContain("download timed out");
   });
 });
