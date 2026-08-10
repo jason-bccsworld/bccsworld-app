@@ -204,9 +204,47 @@ function WatchlistPanel() {
   );
 }
 
+/* ── Subject filter (shared by Checklist + Evidence tabs) ────────────────── */
+
+function SubjectFilter({
+  value,
+  onChange,
+  subjects,
+  testId,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  subjects: { type: string; id: string }[];
+  testId: string;
+}) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-xs text-slate-500 flex-shrink-0">Filter by subject:</span>
+      <Select value={value || "__all__"} onValueChange={(v) => onChange(v === "__all__" ? "" : v)}>
+        <SelectTrigger className="w-72 h-8 text-xs" data-testid={testId}>
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="__all__">All subjects</SelectItem>
+          {subjects.map((s) => (
+            <SelectItem key={s.id} value={s.id}>
+              {s.type}: {s.id}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      {value && (
+        <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => onChange("")} data-testid={`${testId}-clear`}>
+          Clear
+        </Button>
+      )}
+    </div>
+  );
+}
+
 /* ── Opportunities tab ───────────────────────────────────────────────────── */
 
-function OpportunitiesTab() {
+function OpportunitiesTab({ onViewWorkPackage }: { onViewWorkPackage: (noticeId: string) => void }) {
   const { toast } = useToast();
   const { data: opps = [], isLoading } = useQuery<Opportunity[]>({ queryKey: ["/api/federal-contracts/opportunities"] });
   const archive = useMutation({
@@ -283,6 +321,17 @@ function OpportunitiesTab() {
                     <><ClipboardCheck className="h-3 w-3 mr-1" /> {(o.dossier as any)?.workPackage ? "Regenerate" : "Generate work package"}</>
                   )}
                 </Button>
+                {(o.dossier as any)?.workPackage && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-xs"
+                    onClick={() => onViewWorkPackage(o.notice_id)}
+                    data-testid={`button-view-workpackage-${o.id}`}
+                  >
+                    <ScrollText className="h-3 w-3 mr-1" /> View work package
+                  </Button>
+                )}
                 {o.url && (
                   <a href={o.url} target="_blank" rel="noreferrer">
                     <Button size="sm" variant="outline" className="h-7 text-xs">
@@ -377,13 +426,25 @@ function AwardsTab() {
 
 /* ── Evidence log tab ────────────────────────────────────────────────────── */
 
-function EvidenceTab() {
+function EvidenceTab({ filter, onFilterChange }: { filter: string; onFilterChange: (v: string) => void }) {
   const { toast } = useToast();
   const [subjectType, setSubjectType] = useState("vendor");
   const [subjectId, setSubjectId] = useState("");
   const [entryType, setEntryType] = useState("fact");
   const [content, setContent] = useState("");
-  const { data: entries = [] } = useQuery<EvidenceRow[]>({ queryKey: ["/api/federal-contracts/evidence"] });
+  const { data: allEntries = [] } = useQuery<EvidenceRow[]>({ queryKey: ["/api/federal-contracts/evidence"] });
+  const { data: filtered = [] } = useQuery<EvidenceRow[]>({
+    queryKey: ["/api/federal-contracts/evidence", { subjectId: filter }],
+    queryFn: async () => {
+      const res = await apiRequest("GET", `/api/federal-contracts/evidence?subjectId=${encodeURIComponent(filter)}`);
+      return res.json();
+    },
+    enabled: !!filter,
+  });
+  const entries = filter ? filtered : allEntries;
+  const subjects = Array.from(
+    new Map(allEntries.map((e) => [e.subject_id, { type: e.subject_type, id: e.subject_id }])).values(),
+  ).sort((a, b) => a.id.localeCompare(b.id));
 
   const add = useMutation({
     mutationFn: async () => {
@@ -405,6 +466,9 @@ function EvidenceTab() {
 
   return (
     <div className="space-y-4">
+      {subjects.length > 0 && (
+        <SubjectFilter value={filter} onChange={onFilterChange} subjects={subjects} testId="select-evidence-subject-filter" />
+      )}
       <Card>
         <CardContent className="p-4 space-y-2">
           <p className="text-sm font-medium text-slate-700">Add evidence entry</p>
@@ -438,7 +502,9 @@ function EvidenceTab() {
         </CardContent>
       </Card>
       {entries.length === 0 ? (
-        <p className="text-sm text-slate-500 bg-slate-50 rounded-md p-4">No evidence entries yet.</p>
+        <p className="text-sm text-slate-500 bg-slate-50 rounded-md p-4">
+          {filter ? "No evidence entries for this subject." : "No evidence entries yet."}
+        </p>
       ) : (
         <div className="space-y-2">
           {entries.map((e) => (
@@ -459,9 +525,21 @@ function EvidenceTab() {
 
 /* ── Manual checklist tab ────────────────────────────────────────────────── */
 
-function ChecklistTab() {
+function ChecklistTab({ filter, onFilterChange }: { filter: string; onFilterChange: (v: string) => void }) {
   const { toast } = useToast();
-  const { data: items = [] } = useQuery<ChecklistRow[]>({ queryKey: ["/api/federal-contracts/checklist"] });
+  const { data: allItems = [] } = useQuery<ChecklistRow[]>({ queryKey: ["/api/federal-contracts/checklist"] });
+  const { data: filteredItems = [] } = useQuery<ChecklistRow[]>({
+    queryKey: ["/api/federal-contracts/checklist", { subjectId: filter }],
+    queryFn: async () => {
+      const res = await apiRequest("GET", `/api/federal-contracts/checklist?subjectId=${encodeURIComponent(filter)}`);
+      return res.json();
+    },
+    enabled: !!filter,
+  });
+  const items = filter ? filteredItems : allItems;
+  const subjects = Array.from(
+    new Map(allItems.map((i) => [i.subject_id, { type: i.subject_type, id: i.subject_id }])).values(),
+  ).sort((a, b) => a.id.localeCompare(b.id));
   const update = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
       const res = await apiRequest("PATCH", `/api/federal-contracts/checklist/${id}`, { status });
@@ -476,16 +554,18 @@ function ChecklistTab() {
     return acc;
   }, {});
 
-  if (items.length === 0) {
-    return (
-      <p className="text-sm text-slate-500 bg-slate-50 rounded-md p-4">
-        The agent seeds a manual due-diligence checklist for each tracked vendor and contract —
-        the rubric items that need non-public sources (CPARS, DCAA audits, OCI mapping) live here for human sign-off.
-      </p>
-    );
-  }
   return (
     <div className="space-y-4">
+      {subjects.length > 0 && (
+        <SubjectFilter value={filter} onChange={onFilterChange} subjects={subjects} testId="select-checklist-subject-filter" />
+      )}
+      {items.length === 0 && (
+        <p className="text-sm text-slate-500 bg-slate-50 rounded-md p-4">
+          {filter
+            ? "No checklist items for this subject."
+            : "The agent seeds a manual due-diligence checklist for each tracked vendor and contract — the rubric items that need non-public sources (CPARS, DCAA audits, OCI mapping) live here for human sign-off."}
+        </p>
+      )}
       {Object.entries(bySubject).map(([subject, rows]) => (
         <Card key={subject}>
           <CardContent className="p-4">
@@ -518,6 +598,8 @@ function ChecklistTab() {
 /* ── Page ────────────────────────────────────────────────────────────────── */
 
 export default function FederalContracts() {
+  const [activeTab, setActiveTab] = useState("awards");
+  const [subjectFilter, setSubjectFilter] = useState("");
   return (
     <div className="space-y-6" data-testid="page-federal-contracts">
       <AgentWorkspaceHeader agentId="federal-contracts-monitor" />
@@ -534,7 +616,7 @@ export default function FederalContracts() {
 
       <WatchlistPanel />
 
-      <Tabs defaultValue="awards">
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
           <TabsTrigger value="awards" data-testid="tab-awards"><Scale className="h-4 w-4 mr-1.5" /> Risk scoreboard</TabsTrigger>
           <TabsTrigger value="opportunities" data-testid="tab-opportunities"><FileText className="h-4 w-4 mr-1.5" /> Opportunities</TabsTrigger>
@@ -542,9 +624,16 @@ export default function FederalContracts() {
           <TabsTrigger value="checklist" data-testid="tab-checklist"><ClipboardCheck className="h-4 w-4 mr-1.5" /> Manual checklist</TabsTrigger>
         </TabsList>
         <TabsContent value="awards" className="mt-4"><AwardsTab /></TabsContent>
-        <TabsContent value="opportunities" className="mt-4"><OpportunitiesTab /></TabsContent>
-        <TabsContent value="evidence" className="mt-4"><EvidenceTab /></TabsContent>
-        <TabsContent value="checklist" className="mt-4"><ChecklistTab /></TabsContent>
+        <TabsContent value="opportunities" className="mt-4">
+          <OpportunitiesTab
+            onViewWorkPackage={(noticeId) => {
+              setSubjectFilter(noticeId);
+              setActiveTab("checklist");
+            }}
+          />
+        </TabsContent>
+        <TabsContent value="evidence" className="mt-4"><EvidenceTab filter={subjectFilter} onFilterChange={setSubjectFilter} /></TabsContent>
+        <TabsContent value="checklist" className="mt-4"><ChecklistTab filter={subjectFilter} onFilterChange={setSubjectFilter} /></TabsContent>
       </Tabs>
     </div>
   );
