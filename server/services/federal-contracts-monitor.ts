@@ -305,33 +305,87 @@ export async function patrolOrg(orgId: string): Promise<PatrolResult> {
   /* 1b ── Auto-fetch solicitation attachments for the run's new opportunities
    * so the work package and AI coach are grounded from the moment an
    * opportunity appears. Bounded: a few notices per run, a few files each,
-   * one shared time budget — anything left is reported, never silent. */
-  if (newNoticeIds.length > 0 && samKeyAvailable()) {
+   * one shared time budget — anything left is reported, never silent, and is
+   * flagged `attachments_pending` so a later run resumes it (oldest first)
+   * with whatever notice slots and time budget the new notices left over. */
+  if (samKeyAvailable()) {
     const noticeCap = 5;
     const attachmentDeadline = Date.now() + 60_000; // shared across all notices this org/run
-    for (const noticeId of newNoticeIds.slice(0, noticeCap)) {
-      if (attachmentDeadline - Date.now() < 5_000) {
-        skipped.push({ check: "sam_attachments", reason: `Attachment time budget reached — remaining new notices will be fetched on demand or next run` });
-        break;
-      }
+    const processedNotices = new Set<string>();
+
+    const processNoticeAttachments = async (noticeId: string, phase: "new" | "resume"): Promise<void> => {
+      processedNotices.add(noticeId);
       const summary = await fetchNoticeAttachments(orgId, noticeId, { deadline: attachmentDeadline, maxFiles: 3 }).catch(
         (err: any): SkippedCheck => ({ check: "sam_attachments", reason: `Attachment fetch failed for notice ${noticeId}: ${err.message}` }),
       );
       if (isSkipped(summary)) {
         skipped.push(summary);
-        continue;
+        // The fetch never got far enough to update the resume flag itself —
+        // keep the notice flagged so a later run retries it.
+        await db.execute(sql`
+          UPDATE bccs_fedcon_opportunities SET attachments_pending = TRUE
+          WHERE org_id = ${orgId} AND notice_id = ${noticeId}
+        `).catch(() => {});
+        return;
       }
       itemsScanned += summary.fetched;
       if (summary.failed > 0 || summary.remaining > 0) {
         const failures = summary.results.filter((r) => r.status === "failed").map((r) => `${r.filename}: ${r.error}`).join("; ");
         skipped.push({
           check: "sam_attachments",
-          reason: `Notice ${noticeId}: ${summary.fetched} attachment(s) fetched, ${summary.failed} failed${failures ? ` (${failures})` : ""}${summary.remaining > 0 ? `, ${summary.remaining} deferred (per-run cap)` : ""}`,
+          reason: `Notice ${noticeId}${phase === "resume" ? " (resumed)" : ""}: ${summary.fetched} attachment(s) fetched, ${summary.failed} failed${failures ? ` (${failures})` : ""}${summary.remaining > 0 ? `, ${summary.remaining} deferred (per-run cap)` : ""}`,
         });
       }
+    };
+
+    for (const noticeId of newNoticeIds.slice(0, noticeCap)) {
+      if (attachmentDeadline - Date.now() < 5_000) {
+        skipped.push({ check: "sam_attachments", reason: `Attachment time budget reached — remaining new notices will be fetched on demand or next run` });
+        break;
+      }
+      await processNoticeAttachments(noticeId, "new");
     }
     if (newNoticeIds.length > noticeCap) {
       skipped.push({ check: "sam_attachments", reason: `${newNoticeIds.length - noticeCap} new notice(s) beyond the per-run attachment cap — fetch on demand or next run` });
+    }
+    // New notices deferred by the cap or the time budget stay resumable.
+    for (const noticeId of newNoticeIds.filter((id) => !processedNotices.has(id))) {
+      await db.execute(sql`
+        UPDATE bccs_fedcon_opportunities SET attachments_pending = TRUE
+        WHERE org_id = ${orgId} AND notice_id = ${noticeId}
+      `).catch(() => {});
+    }
+
+    // Spend leftover budget resuming notices with deferred or failed
+    // attachments from earlier runs, oldest first, under the same caps.
+    const resumeSlots = Math.max(0, noticeCap - processedNotices.size);
+    if (resumeSlots > 0 && attachmentDeadline - Date.now() >= 5_000) {
+      const pendingRows = await db
+        .execute(sql`
+          SELECT o.notice_id FROM bccs_fedcon_opportunities o
+          WHERE o.org_id = ${orgId}
+            AND (o.attachments_pending = TRUE OR EXISTS (
+              SELECT 1 FROM bccs_fedcon_attachments a
+              WHERE a.org_id = o.org_id AND a.notice_id = o.notice_id AND a.status = 'failed'))
+          ORDER BY o.created_at ASC
+          LIMIT ${resumeSlots + processedNotices.size}
+        `)
+        .then((r) => (r as any).rows as { notice_id: string }[])
+        .catch((err: any) => {
+          skipped.push({ check: "sam_attachments", reason: `Could not list notices with pending attachments: ${err.message}` });
+          return [] as { notice_id: string }[];
+        });
+      const resumeIds = pendingRows
+        .map((r) => r.notice_id)
+        .filter((id) => id && !processedNotices.has(id))
+        .slice(0, resumeSlots);
+      for (const noticeId of resumeIds) {
+        if (attachmentDeadline - Date.now() < 5_000) {
+          skipped.push({ check: "sam_attachments", reason: `Attachment time budget reached — remaining deferred notices will resume next run` });
+          break;
+        }
+        await processNoticeAttachments(noticeId, "resume");
+      }
     }
   } else if (newNoticeIds.length > 0 && !samKeyAvailable()) {
     skipped.push({ check: "sam_attachments", reason: "SAM_GOV_API_KEY not configured — automatic attachment fetch skipped" });

@@ -170,13 +170,24 @@ export async function fetchNoticeAttachments(
     }
   }
 
+  const remaining = targets.length - results.length;
+
+  // Keep the opportunity's resume flag current: TRUE while retryable work is
+  // left (failed rows or targets deferred by the cap/deadline), FALSE once the
+  // notice is fully fetched. Later patrol runs resume flagged notices.
+  await db.execute(sql`
+    UPDATE bccs_fedcon_opportunities
+    SET attachments_pending = ${failed > 0 || remaining > 0}, updated_at = NOW()
+    WHERE org_id = ${orgId} AND notice_id = ${noticeId}
+  `);
+
   return {
     total: resources.resourceLinks.length,
     alreadyFetched: existing.size,
     fetched,
     failed,
     unsupported: results.filter((r) => r.status === "unsupported").length,
-    remaining: targets.length - results.length,
+    remaining,
     results,
   };
 }

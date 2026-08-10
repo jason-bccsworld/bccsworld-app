@@ -375,9 +375,10 @@ describe("patrolOrg automatic attachment fetch", () => {
     expect(result.itemsScanned).toBe(1 + 2); // the notice + its two extracted files
   });
 
-  it("does not fetch attachments for opportunities that already exist", async () => {
+  it("does not fetch attachments for opportunities that already exist (and have no pending work)", async () => {
     queryRouter = (q) => {
       if (q.text.includes("FROM bccs_fedcon_watchlist")) return { rows: [{ id: "w1", kind: "keyword", value: "widgets", label: null }] };
+      if (q.text.includes("attachments_pending")) return { rows: [] }; // resume query — nothing pending
       if (q.text.includes("FROM bccs_fedcon_opportunities")) return { rows: [{ id: "existing-opp" }] };
       return { rows: [] };
     };
@@ -387,6 +388,80 @@ describe("patrolOrg automatic attachment fetch", () => {
     await patrolOrg("org-1");
 
     expect(attachmentMocks.fetchNoticeAttachments).not.toHaveBeenCalled();
+  });
+
+  it("resumes notices with pending/failed attachments using leftover budget, oldest first", async () => {
+    queryRouter = (q) => {
+      if (q.text.includes("FROM bccs_fedcon_watchlist")) return { rows: [{ id: "w1", kind: "keyword", value: "widgets", label: null }] };
+      if (q.text.includes("attachments_pending")) {
+        return { rows: [{ notice_id: "N-OLD-1" }, { notice_id: "N-OLD-2" }] }; // resume candidates, oldest first
+      }
+      return { rows: [] };
+    };
+    fedconMocks.samKeyAvailable.mockReturnValue(true);
+    fedconMocks.searchSamOpportunities.mockResolvedValue([]); // no new notices this run
+    attachmentMocks.fetchNoticeAttachments
+      .mockResolvedValueOnce({
+        total: 3, alreadyFetched: 1, fetched: 2, failed: 0, unsupported: 0, remaining: 0,
+        results: [{ filename: "a.pdf", status: "extracted" }, { filename: "b.pdf", status: "extracted" }],
+      })
+      .mockResolvedValueOnce({
+        total: 4, alreadyFetched: 2, fetched: 1, failed: 0, unsupported: 0, remaining: 1,
+        results: [{ filename: "c.pdf", status: "extracted" }],
+      });
+
+    const result = await patrolOrg("org-1");
+
+    expect(attachmentMocks.fetchNoticeAttachments).toHaveBeenCalledTimes(2);
+    expect(attachmentMocks.fetchNoticeAttachments.mock.calls.map((c: any[]) => c[1])).toEqual(["N-OLD-1", "N-OLD-2"]);
+    for (const call of attachmentMocks.fetchNoticeAttachments.mock.calls as any[]) {
+      expect(call[2].maxFiles).toBe(3); // same per-notice cap on resume
+    }
+    // Remaining work on the second notice keeps surfacing in the run summary.
+    const reasons = result.skippedChecks.filter((s) => s.check === "sam_attachments").map((s) => s.reason);
+    expect(reasons).toHaveLength(1);
+    expect(reasons[0]).toContain("N-OLD-2");
+    expect(reasons[0]).toContain("(resumed)");
+    expect(reasons[0]).toContain("1 deferred");
+    expect(result.itemsScanned).toBe(3); // three newly extracted files
+  });
+
+  it("does not resume when new notices already used all notice slots, and skips resumed notices already fetched this run", async () => {
+    const newOpps = Array.from({ length: 5 }, (_, i) => ({ ...opp, noticeId: `N-${i}`, title: `Opp ${i}` }));
+    queryRouter = (q) => {
+      if (q.text.includes("FROM bccs_fedcon_watchlist")) return { rows: [{ id: "w1", kind: "keyword", value: "widgets", label: null }] };
+      if (q.text.includes("attachments_pending")) return { rows: [{ notice_id: "N-OLD" }] };
+      if (q.text.includes("FROM bccs_fedcon_opportunities")) return { rows: [] }; // all new
+      return { rows: [] };
+    };
+    fedconMocks.samKeyAvailable.mockReturnValue(true);
+    fedconMocks.searchSamOpportunities.mockResolvedValue(newOpps);
+
+    await patrolOrg("org-1");
+
+    // 5 new notices consume the full per-run notice cap — no resume calls.
+    expect(attachmentMocks.fetchNoticeAttachments).toHaveBeenCalledTimes(5);
+    const fetchedIds = attachmentMocks.fetchNoticeAttachments.mock.calls.map((c: any[]) => c[1]);
+    expect(fetchedIds).not.toContain("N-OLD");
+  });
+
+  it("marks new notices beyond the per-run cap as pending so later runs resume them", async () => {
+    const newOpps = Array.from({ length: 6 }, (_, i) => ({ ...opp, noticeId: `N-${i}`, title: `Opp ${i}` }));
+    routeQueries({
+      watchlist: [{ id: "w1", kind: "keyword", value: "widgets", label: null }],
+      openFindings: [],
+    });
+    fedconMocks.samKeyAvailable.mockReturnValue(true);
+    fedconMocks.searchSamOpportunities.mockResolvedValue([newOpps[5]].concat(newOpps.slice(0, 5)) as any);
+    fedconMocks.searchSamOpportunities.mockResolvedValue(newOpps);
+
+    await patrolOrg("org-1");
+
+    expect(attachmentMocks.fetchNoticeAttachments).toHaveBeenCalledTimes(5);
+    const pendingUpdates = executedQueries.filter(
+      (q) => q.text.includes("SET attachments_pending = TRUE") && q.values.includes("N-5"),
+    );
+    expect(pendingUpdates).toHaveLength(1);
   });
 
   it("surfaces attachment skips and per-file failures as skipped checks, never silently", async () => {

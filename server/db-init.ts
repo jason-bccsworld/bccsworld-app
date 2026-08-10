@@ -554,6 +554,9 @@ export async function ensureTables(): Promise<void> {
       )
     `);
     await db.execute(sql`CREATE INDEX IF NOT EXISTS "IDX_fedcon_opps_org" ON bccs_fedcon_opportunities (org_id, status)`);
+    // Additive: TRUE while a notice still has attachments deferred (per-run
+    // cap/time budget) or retryable failures — later patrol runs resume these.
+    await db.execute(sql`ALTER TABLE bccs_fedcon_opportunities ADD COLUMN IF NOT EXISTS attachments_pending BOOLEAN`);
 
     await db.execute(sql`
       CREATE TABLE IF NOT EXISTS bccs_fedcon_awards (
