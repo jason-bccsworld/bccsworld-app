@@ -15,7 +15,7 @@ import { sql } from "drizzle-orm";
 import { isAuthenticated } from "../localAuth";
 import { requireOrg, isPlatformStaff } from "../middleware/tenant";
 import { getEmailAlertSettings } from "../services/email-alerts";
-import { tierFor } from "../services/federal-contracts-monitor";
+import { tierFor, MAX_ATTACHMENT_ATTEMPTS } from "../services/federal-contracts-monitor";
 import { chunkText, selectExcerpts } from "../services/checklist-review-utils";
 import { fetchNoticeAttachments } from "../services/solicitation-attachments";
 
@@ -138,7 +138,21 @@ router.get("/opportunities", isAuthenticated, async (req, res) => {
         (o.attachments_pending IS TRUE OR EXISTS (
           SELECT 1 FROM bccs_fedcon_attachments a
           WHERE a.org_id = o.org_id AND a.notice_id = o.notice_id AND a.status = 'failed'
-        )) AS attachments_pending
+        )) AS attachments_pending,
+        -- Give-up indicator: the patrol stops auto-retrying after
+        -- MAX_ATTACHMENT_ATTEMPTS consecutive failed runs; the manual fetch
+        -- button resets the counter on a failure-free run.
+        (o.attachment_attempts >= ${MAX_ATTACHMENT_ATTEMPTS} AND (o.attachments_pending IS TRUE OR EXISTS (
+          SELECT 1 FROM bccs_fedcon_attachments a
+          WHERE a.org_id = o.org_id AND a.notice_id = o.notice_id AND a.status = 'failed'
+        ))) AS attachments_given_up,
+        (
+          SELECT a.error FROM bccs_fedcon_attachments a
+          WHERE a.org_id = o.org_id AND a.notice_id = o.notice_id
+            AND a.status = 'failed' AND a.error IS NOT NULL
+          ORDER BY a.fetched_at DESC NULLS LAST
+          LIMIT 1
+        ) AS last_attachment_error
       FROM bccs_fedcon_opportunities o
       WHERE o.org_id = ${orgId} AND o.status = ${status}
       ORDER BY o.posted_date DESC NULLS LAST, o.created_at DESC

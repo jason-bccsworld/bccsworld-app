@@ -56,6 +56,8 @@ interface Opportunity {
   dossier: Record<string, string> | null;
   status: string;
   attachments_pending: boolean | null;
+  attachments_given_up: boolean | null;
+  last_attachment_error: string | null;
 }
 
 interface AwardRow {
@@ -423,7 +425,22 @@ function OpportunitiesTab({ onViewWorkPackage }: { onViewWorkPackage: (noticeId:
                 <p className="text-xs text-slate-500 mt-0.5">
                   {[o.agency, o.naics && `NAICS ${o.naics}`, o.set_aside, o.notice_type].filter(Boolean).join(" · ")}
                 </p>
-                {o.attachments_pending && (
+                {o.attachments_given_up ? (
+                  <div className="mt-1.5" data-testid={`attachments-given-up-${o.id}`}>
+                    <Badge
+                      variant="outline"
+                      className="text-[10px] px-1.5 py-0 border-red-300 bg-red-50 text-red-700"
+                      data-testid={`badge-attachments-given-up-${o.id}`}
+                    >
+                      <Paperclip className="h-3 w-3 mr-1" /> Automatic attachment fetch gave up after repeated failures — use “Fetch attachments” to retry manually
+                    </Badge>
+                    {o.last_attachment_error && (
+                      <p className="text-[11px] text-red-600 mt-0.5" data-testid={`text-attachment-error-${o.id}`}>
+                        Last error: {o.last_attachment_error}
+                      </p>
+                    )}
+                  </div>
+                ) : o.attachments_pending ? (
                   <Badge
                     variant="outline"
                     className="mt-1.5 text-[10px] px-1.5 py-0 border-amber-300 bg-amber-50 text-amber-700"
@@ -431,7 +448,7 @@ function OpportunitiesTab({ onViewWorkPackage }: { onViewWorkPackage: (noticeId:
                   >
                     <Paperclip className="h-3 w-3 mr-1" /> Attachments pending — the agent will finish downloading on its next run
                   </Badge>
-                )}
+                ) : null}
                 {(o.dossier as any)?.workPackage?.risk && (
                   <div className="mt-2" data-testid={`opp-risk-${o.id}`}>
                     <Badge variant="outline" className={`text-xs ${
