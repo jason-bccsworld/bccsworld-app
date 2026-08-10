@@ -132,9 +132,16 @@ router.get("/opportunities", isAuthenticated, async (req, res) => {
   const status = typeof req.query.status === "string" ? req.query.status : "tracking";
   const rows = await db
     .execute(sql`
-      SELECT * FROM bccs_fedcon_opportunities
-      WHERE org_id = ${orgId} AND status = ${status}
-      ORDER BY posted_date DESC NULLS LAST, created_at DESC
+      SELECT o.*,
+        -- Effective resume indicator: the flag set by fetch runs, OR failed
+        -- attachment rows (retryable on the next patrol run / manual fetch).
+        (o.attachments_pending IS TRUE OR EXISTS (
+          SELECT 1 FROM bccs_fedcon_attachments a
+          WHERE a.org_id = o.org_id AND a.notice_id = o.notice_id AND a.status = 'failed'
+        )) AS attachments_pending
+      FROM bccs_fedcon_opportunities o
+      WHERE o.org_id = ${orgId} AND o.status = ${status}
+      ORDER BY o.posted_date DESC NULLS LAST, o.created_at DESC
       LIMIT 200
     `)
     .then((r) => (r as any).rows);

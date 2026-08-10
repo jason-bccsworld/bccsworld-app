@@ -55,6 +55,7 @@ interface Opportunity {
   url: string | null;
   dossier: Record<string, string> | null;
   status: string;
+  attachments_pending: boolean | null;
 }
 
 interface AwardRow {
@@ -422,6 +423,15 @@ function OpportunitiesTab({ onViewWorkPackage }: { onViewWorkPackage: (noticeId:
                 <p className="text-xs text-slate-500 mt-0.5">
                   {[o.agency, o.naics && `NAICS ${o.naics}`, o.set_aside, o.notice_type].filter(Boolean).join(" · ")}
                 </p>
+                {o.attachments_pending && (
+                  <Badge
+                    variant="outline"
+                    className="mt-1.5 text-[10px] px-1.5 py-0 border-amber-300 bg-amber-50 text-amber-700"
+                    data-testid={`badge-attachments-pending-${o.id}`}
+                  >
+                    <Paperclip className="h-3 w-3 mr-1" /> Attachments pending — the agent will finish downloading on its next run
+                  </Badge>
+                )}
                 {(o.dossier as any)?.workPackage?.risk && (
                   <div className="mt-2" data-testid={`opp-risk-${o.id}`}>
                     <Badge variant="outline" className={`text-xs ${
