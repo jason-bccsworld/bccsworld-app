@@ -285,6 +285,47 @@ describe("POST /opportunities/:id/attachments/fetch (real SQL, mocked network)",
     expect(row.extracted_text).toMatch(/^extracted:moved\.pdf:/);
   });
 
+  it("follows a redirect to the official SAM attachment S3 bucket without sending the key there", async () => {
+    // Real sam.gov download endpoints 303-redirect to a presigned URL on
+    // iae-fbo-attachments.s3.amazonaws.com — trusted as a redirect target only.
+    const oppId = await insertOpp(ORG1, "N-REDIRECT-S3");
+    h.state.resourceLinks = ["https://sam.gov/api/prod/opps/v3/opportunities/resources/files/abc123/download"];
+    h.state.samResponder = async (url) => {
+      if (url.includes("/download")) {
+        return new Response(null, { status: 303, headers: { location: "https://iae-fbo-attachments.s3.amazonaws.com/fbo/files/abc123.pdf?X-Amz-Signature=sig" } });
+      }
+      // Real S3 presigned responses carry the filename via Content-Disposition.
+      return new Response("s3 bytes", { status: 200, headers: { "content-type": "application/pdf", "content-disposition": 'attachment; filename="QASP.pdf"' } });
+    };
+
+    const res = await fetchAttachments(oppId);
+    expect(res.status).toBe(200);
+    expect(res.body.fetched).toBe(1);
+    expect(res.body.failed).toBe(0);
+    expect(h.state.samCalls).toHaveLength(2);
+    // The SAM key went only to sam.gov; the S3 hop carried no api_key param.
+    const s3Call = h.state.samCalls.find((u) => new URL(u).hostname.endsWith("amazonaws.com"))!;
+    expect(s3Call).toBeTruthy();
+    expect(new URL(s3Call).searchParams.get("api_key")).toBeNull();
+    expect(s3Call).not.toContain(SAM_KEY);
+    const [row] = await attachmentRows("N-REDIRECT-S3");
+    expect(row.status).toBe("extracted");
+  });
+
+  it("still rejects the S3 bucket as an initial attachment URL", async () => {
+    const oppId = await insertOpp(ORG1, "N-S3-DIRECT");
+    h.state.resourceLinks = ["https://iae-fbo-attachments.s3.amazonaws.com/fbo/files/direct.pdf"];
+    h.state.samResponder = async () => okPdf();
+
+    const res = await fetchAttachments(oppId);
+    expect(res.status).toBe(200);
+    expect(res.body.failed).toBe(1);
+    expect(h.state.samCalls).toHaveLength(0);
+    const [row] = await attachmentRows("N-S3-DIRECT");
+    expect(row.status).toBe("failed");
+    expect(row.error).toMatch(/untrusted attachment host/i);
+  });
+
   it("aborts a download mid-stream once it exceeds 15 MB (no Content-Length)", async () => {
     const oppId = await insertOpp(ORG1, "N-SIZECAP");
     h.state.resourceLinks = ["https://sam.gov/downloads/huge.pdf"];

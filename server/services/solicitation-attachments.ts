@@ -45,6 +45,24 @@ export function trustedSamUrl(raw: string): URL | null {
   return host === "sam.gov" || host.endsWith(".sam.gov") ? u : null;
 }
 
+/** Official government S3 buckets that sam.gov redirects attachment downloads
+ * to via short-lived presigned links. These are trusted as *redirect targets
+ * only* — the SAM API key is never appended to them (trustedSamUrl guards
+ * that), and they are never accepted as initial attachment URLs. */
+const TRUSTED_REDIRECT_HOSTS = new Set([
+  "iae-fbo-attachments.s3.amazonaws.com",
+  "falextracts.s3.amazonaws.com",
+]);
+
+export function trustedRedirectUrl(raw: string): URL | null {
+  const sam = trustedSamUrl(raw);
+  if (sam) return sam;
+  let u: URL;
+  try { u = new URL(raw); } catch { return null; }
+  if (u.protocol !== "https:") return null;
+  return TRUSTED_REDIRECT_HOSTS.has(u.hostname.toLowerCase()) ? u : null;
+}
+
 /** Download with a hard byte cap enforced while streaming (Content-Length can
  * be absent or forged) and an abort deadline. */
 export async function downloadCapped(url: string, timeoutMs: number, maxBytes: number): Promise<{ res: Response; buffer: Buffer }> {
@@ -63,7 +81,7 @@ export async function downloadCapped(url: string, timeoutMs: number, maxBytes: n
         if (!location) throw new Error(`download failed (HTTP ${res.status} redirect without Location)`);
         if (hop >= MAX_REDIRECTS) throw new Error("too many redirects");
         const nextRaw = new URL(location, currentUrl).toString();
-        const next = trustedSamUrl(nextRaw);
+        const next = trustedRedirectUrl(nextRaw);
         if (!next) throw new Error("redirected to an untrusted host — only HTTPS sam.gov links are downloaded");
         currentUrl = next.toString();
         continue;

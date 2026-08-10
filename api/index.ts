@@ -2,7 +2,7 @@
 import { createApp } from "./_server.mjs";
 import type { Express, Request, Response } from "express";
 
-const VERSION = "v27";
+const VERSION = "v28";
 
 type AppState =
   | { ready: true; app: Express }
