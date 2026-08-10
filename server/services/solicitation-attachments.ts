@@ -168,7 +168,9 @@ export async function fetchNoticeAttachments(
         results.push({ filename, status: "unsupported" });
         continue;
       }
-      const text = (await extractText(filename, buffer)).slice(0, MAX_ATTACHMENT_TEXT);
+      // Postgres TEXT rejects NUL bytes (\u0000) — some PDFs/XLS extractions
+      // emit them. Strip before storing.
+      const text = (await extractText(filename, buffer)).replace(/\u0000/g, "").slice(0, MAX_ATTACHMENT_TEXT);
       await db.execute(sql`
         INSERT INTO bccs_fedcon_attachments (org_id, notice_id, filename, url, extracted_text, text_chars, status)
         VALUES (${orgId}, ${noticeId}, ${filename}, ${url}, ${text}, ${text.length}, 'extracted')

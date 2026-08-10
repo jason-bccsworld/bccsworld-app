@@ -58,7 +58,10 @@ vi.mock("../services/fedcon-data", () => ({
 
 // Text extraction is not under test (and pdf-parse needs DOM polyfills).
 vi.mock("../routes/checklist-report", () => ({
-  extractText: async (filename: string, buffer: Buffer) => `extracted:${filename}:${buffer.length}`,
+  extractText: async (filename: string, buffer: Buffer) =>
+    filename.includes("nulbytes")
+      ? `extracted:${filename}:\u0000with\u0000nuls`
+      : `extracted:${filename}:${buffer.length}`,
 }));
 
 vi.mock("openai", () => ({
@@ -310,6 +313,20 @@ describe("POST /opportunities/:id/attachments/fetch (real SQL, mocked network)",
     expect(s3Call).not.toContain(SAM_KEY);
     const [row] = await attachmentRows("N-REDIRECT-S3");
     expect(row.status).toBe("extracted");
+  });
+
+  it("strips NUL bytes from extracted text so Postgres accepts it", async () => {
+    const oppId = await insertOpp(ORG1, "N-NULBYTES");
+    h.state.resourceLinks = ["https://sam.gov/downloads/nulbytes.pdf"];
+    h.state.samResponder = async () => okPdf();
+
+    const res = await fetchAttachments(oppId);
+    expect(res.status).toBe(200);
+    expect(res.body.fetched).toBe(1);
+    expect(res.body.failed).toBe(0);
+    const [row] = await attachmentRows("N-NULBYTES");
+    expect(row.status).toBe("extracted");
+    expect(row.extracted_text).toBe("extracted:nulbytes.pdf:withnuls");
   });
 
   it("still rejects the S3 bucket as an initial attachment URL", async () => {
