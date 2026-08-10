@@ -332,6 +332,17 @@ function OpportunitiesTab({ onViewWorkPackage }: { onViewWorkPackage: (noticeId:
                     <ScrollText className="h-3 w-3 mr-1" /> View work package
                   </Button>
                 )}
+                {(o.dossier as any)?.workPackage && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-xs"
+                    onClick={() => window.open(`/api/federal-contracts/opportunities/${o.id}/export`, "_blank")}
+                    data-testid={`button-export-${o.id}`}
+                  >
+                    <FileText className="h-3 w-3 mr-1" /> Export
+                  </Button>
+                )}
                 {o.url && (
                   <a href={o.url} target="_blank" rel="noreferrer">
                     <Button size="sm" variant="outline" className="h-7 text-xs">

@@ -321,6 +321,141 @@ router.post("/opportunities/:id/workpackage", isAuthenticated, async (req, res) 
   });
 });
 
+/* ── Opportunity work package export (printable HTML document) ──────────── */
+
+// HTML export rather than server-side PDF: no external binaries (Vercel-safe),
+// instant render well inside the 30s cap, and the browser's Print → Save as PDF
+// gives users a portable file.
+function esc(v: unknown): string {
+  return String(v ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+const EXPORT_TIER_COLOR: Record<string, string> = {
+  critical: "#b91c1c",
+  high: "#c2410c",
+  moderate: "#b45309",
+  low: "#047857",
+};
+
+const EXPORT_STATUS_LABEL: Record<string, string> = {
+  not_started: "Not started",
+  in_progress: "In progress",
+  cleared: "Cleared",
+  flagged: "Flagged",
+};
+
+router.get("/opportunities/:id/export", isAuthenticated, async (req, res) => {
+  const orgId = requireOrg(req, res);
+  if (!orgId) return;
+  const opp = await db
+    .execute(sql`SELECT * FROM bccs_fedcon_opportunities WHERE id = ${req.params.id} AND org_id = ${orgId}`)
+    .then((r) => (r as any).rows[0]);
+  if (!opp) return res.status(404).json({ message: "Opportunity not found" });
+  const workPackage = (opp.dossier && typeof opp.dossier === "object" ? opp.dossier : {}).workPackage;
+  if (!workPackage?.risk) {
+    return res.status(409).json({ message: "No work package generated for this opportunity yet. Generate one first." });
+  }
+  const subjectId = String(opp.notice_id).slice(0, 300);
+  const [checklist, evidence] = await Promise.all([
+    db.execute(sql`
+      SELECT * FROM bccs_fedcon_checklist
+      WHERE org_id = ${orgId} AND subject_type = 'opportunity' AND subject_id = ${subjectId}
+      ORDER BY item_key
+    `).then((r) => (r as any).rows),
+    db.execute(sql`
+      SELECT * FROM bccs_fedcon_evidence
+      WHERE org_id = ${orgId} AND subject_type = 'opportunity' AND subject_id = ${subjectId}
+      ORDER BY created_at ASC
+      LIMIT 500
+    `).then((r) => (r as any).rows),
+  ]);
+
+  const risk = workPackage.risk as { tier: string; score: number; flags: { key: string; label: string; points: number; veto: boolean }[] };
+  const tierColor = EXPORT_TIER_COLOR[risk.tier] ?? "#334155";
+  const meta = [
+    opp.agency && `Agency: ${opp.agency}`,
+    opp.naics && `NAICS: ${opp.naics}`,
+    opp.set_aside && `Set-aside: ${opp.set_aside}`,
+    opp.notice_type && `Notice type: ${opp.notice_type}`,
+    opp.posted_date && `Posted: ${opp.posted_date}`,
+    opp.response_deadline && `Response due: ${opp.response_deadline}`,
+  ].filter(Boolean) as string[];
+
+  const flagsHtml = risk.flags.length
+    ? `<ul>${risk.flags
+        .map(
+          (f) =>
+            `<li class="${f.veto ? "veto" : ""}">${f.veto ? "<strong>VETO FLAG:</strong> " : ""}${esc(f.label)} <span class="pts">(+${esc(f.points)} pts)</span></li>`,
+        )
+        .join("")}</ul>`
+    : `<p class="muted">No risk flags.</p>`;
+
+  const checklistHtml = checklist.length
+    ? `<table><thead><tr><th style="width:110px">Status</th><th>Item</th><th style="width:28%">Note</th></tr></thead><tbody>${checklist
+        .map(
+          (r: any) =>
+            `<tr><td><span class="status status-${esc(r.status)}">${esc(EXPORT_STATUS_LABEL[r.status] ?? r.status)}</span></td><td>${esc(r.label)}</td><td>${esc(r.note ?? "")}</td></tr>`,
+        )
+        .join("")}</tbody></table>`
+    : `<p class="muted">No checklist items recorded.</p>`;
+
+  const evidenceHtml = evidence.length
+    ? evidence
+        .map(
+          (e: any) =>
+            `<div class="evidence"><div class="evidence-head"><span class="etype etype-${esc(e.entry_type)}">${esc(e.entry_type)}</span><span class="muted">${esc(e.created_by ?? "—")} · ${esc(e.created_at ? new Date(e.created_at).toISOString().slice(0, 16).replace("T", " ") : "")} UTC</span></div><p>${esc(e.content)}</p>${e.source_ref ? `<p class="source">Source: ${esc(e.source_ref)}</p>` : ""}</div>`,
+        )
+        .join("")
+    : `<p class="muted">No evidence entries recorded.</p>`;
+
+  const html = `<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Work Package — ${esc(opp.title || opp.notice_id)}</title>
+<style>
+  body { font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: #1e293b; max-width: 860px; margin: 32px auto; padding: 0 20px; font-size: 14px; line-height: 1.5; }
+  h1 { font-size: 22px; margin: 0 0 4px; } h2 { font-size: 16px; margin: 28px 0 10px; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; }
+  .muted { color: #64748b; } .meta { color: #475569; font-size: 13px; margin: 2px 0 0; }
+  .tier { display: inline-block; padding: 3px 10px; border-radius: 6px; color: #fff; font-weight: 600; text-transform: uppercase; font-size: 12px; background: ${tierColor}; }
+  ul { padding-left: 20px; margin: 8px 0; } li { margin: 3px 0; } li.veto { color: #b91c1c; } .pts { color: #94a3b8; }
+  table { width: 100%; border-collapse: collapse; margin-top: 6px; } th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
+  th { font-size: 12px; text-transform: uppercase; color: #64748b; }
+  .status { font-size: 12px; padding: 2px 8px; border-radius: 999px; border: 1px solid #cbd5e1; white-space: nowrap; }
+  .status-cleared { background: #ecfdf5; color: #047857; border-color: #a7f3d0; }
+  .status-flagged { background: #fef2f2; color: #b91c1c; border-color: #fecaca; }
+  .status-in_progress { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
+  .evidence { border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 12px; margin: 8px 0; }
+  .evidence p { margin: 6px 0 0; } .evidence-head { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; }
+  .etype { text-transform: uppercase; font-weight: 600; font-size: 11px; padding: 1px 8px; border-radius: 999px; border: 1px solid #cbd5e1; }
+  .etype-flag { background: #fef2f2; color: #b91c1c; border-color: #fecaca; } .etype-question { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
+  .source { font-size: 12px; color: #64748b; word-break: break-all; }
+  .footer { margin-top: 32px; font-size: 12px; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 8px; }
+  .print-hint { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 12px; font-size: 12px; color: #64748b; margin: 16px 0; }
+  @media print { .print-hint { display: none; } body { margin: 0; } }
+</style></head><body>
+<h1>Opportunity Work Package</h1>
+<p class="meta"><strong>${esc(opp.title || "Untitled")}</strong> · Notice ${esc(opp.notice_id)}</p>
+${meta.map((m) => `<p class="meta">${esc(m)}</p>`).join("")}
+${opp.url ? `<p class="meta">SAM.gov: ${esc(opp.url)}</p>` : ""}
+<div class="print-hint">Use your browser's Print → “Save as PDF” to keep a portable copy of this document.</div>
+<h2>Pursuit Risk Scoreboard</h2>
+<p><span class="tier">${esc(risk.tier)}</span> &nbsp; ${esc(risk.score)} points${workPackage.generatedAt ? ` · generated ${esc(String(workPackage.generatedAt).slice(0, 16).replace("T", " "))} UTC` : ""}${workPackage.generatedBy ? ` by ${esc(workPackage.generatedBy)}` : ""}</p>
+${flagsHtml}
+<h2>Due-Diligence Checklist (${checklist.length})</h2>
+${checklistHtml}
+<h2>Evidence Log (${evidence.length})</h2>
+${evidenceHtml}
+<div class="footer">Exported ${esc(new Date().toISOString().slice(0, 16).replace("T", " "))} UTC · Federal Contracts Monitor</div>
+</body></html>`;
+
+  res.setHeader("Content-Type", "text/html; charset=utf-8");
+  res.setHeader("Cache-Control", "no-store");
+  res.send(html);
+});
+
 /* ── Awards / risk scoreboard ────────────────────────────────────────────── */
 
 router.get("/awards", isAuthenticated, async (req, res) => {
