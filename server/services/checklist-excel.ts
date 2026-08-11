@@ -377,6 +377,9 @@ export function sheetName(raw: string, used: Set<string>): string {
 export interface ScoreSnapshot {
   score: number;
   reviewedItems: number;
+  covered?: number;
+  partial?: number;
+  notAddressed?: number;
   createdAt: string | Date | null;
 }
 
@@ -475,8 +478,33 @@ export async function buildChecklistWorkbook(opts: {
     }
   }
 
+  // Score history sheet: one dated row per stored snapshot (oldest first).
+  if (scoreHistory.length > 0) {
+    const hist = workbook.addWorksheet("Score History");
+    hist.columns = [
+      { header: "Date", key: "date", width: 24 },
+      { header: "Score", key: "score", width: 10 },
+      { header: "Reviewed items", key: "reviewedItems", width: 16 },
+      { header: "Covered", key: "covered", width: 12 },
+      { header: "Partial", key: "partial", width: 12 },
+      { header: "Not addressed", key: "notAddressed", width: 14 },
+    ];
+    hist.getRow(1).font = { bold: true };
+    hist.views = [{ state: "frozen", ySplit: 1 }];
+    for (const s of scoreHistory) {
+      hist.addRow({
+        date: snapshotDateText(s.createdAt) || (s.createdAt ? String(s.createdAt) : ""),
+        score: `${s.score}%`,
+        reviewedItems: s.reviewedItems,
+        covered: s.covered ?? "",
+        partial: s.partial ?? "",
+        notAddressed: s.notAddressed ?? "",
+      });
+    }
+  }
+
   // One sheet per area
-  const usedNames = new Set<string>(["summary"]);
+  const usedNames = new Set<string>(["summary", "score history"]);
   for (const area of areas) {
     const ws = workbook.addWorksheet(sheetName(area.name, usedNames));
     ws.columns = [

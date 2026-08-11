@@ -1248,7 +1248,7 @@ router.get("/export.xlsx", isAuthenticated, async (req: any, res) => {
     `).then((r: any) => r.rows);
 
     const snapshotRows = await db.execute(sql`
-      SELECT score, reviewed_items, created_at
+      SELECT score, reviewed_items, covered_count, partial_count, not_addressed_count, created_at
       FROM (
         SELECT * FROM bccs_checklist_score_snapshots WHERE organization_id = ${orgId}
         ORDER BY created_at DESC, id DESC LIMIT 20
@@ -1260,6 +1260,9 @@ router.get("/export.xlsx", isAuthenticated, async (req: any, res) => {
       scoreHistory: snapshotRows.map((s: any) => ({
         score: Number(s.score),
         reviewedItems: Number(s.reviewed_items),
+        covered: Number(s.covered_count),
+        partial: Number(s.partial_count),
+        notAddressed: Number(s.not_addressed_count),
         createdAt: s.created_at,
       })),
       organization: org

@@ -370,6 +370,24 @@ function buildReportHtml(areas: InspectionArea[], manualInfo: any, organization:
     ${aiCoverageScore(areas) !== null ? `<div class="stat"><b>${aiCoverageScore(areas)}%</b>AI coverage score</div>` : ''}
     ${scoreTrendTextDated(scoreHistory) ? `<div class="stat"><b>${escapeHtml(scoreTrendTextDated(scoreHistory)!)}</b>AI coverage trend</div>` : ''}
   </div>
+  ${scoreHistory.length ? `
+  <section class="area">
+    <h2>Coverage Score History</h2>
+    <p class="muted">AI coverage score snapshots recorded each time an AI review completes (oldest first, up to 20 kept).</p>
+    <table>
+      <thead><tr><th style="width:24%">Date</th><th style="width:12%">Score</th><th style="width:16%">Reviewed items</th><th style="width:16%">Covered</th><th style="width:16%">Partial</th><th style="width:16%">Not addressed</th></tr></thead>
+      <tbody>
+      ${scoreHistory.map(s => `<tr>
+        <td>${escapeHtml(snapshotDate(s.createdAt) || String(s.createdAt))}</td>
+        <td>${s.score}%</td>
+        <td>${s.reviewedItems}</td>
+        <td>${s.covered}</td>
+        <td>${s.partial}</td>
+        <td>${s.notAddressed}</td>
+      </tr>`).join('')}
+      </tbody>
+    </table>
+  </section>` : ''}
   ${areaSections}
   ${policies.length ? `
   <section class="area">

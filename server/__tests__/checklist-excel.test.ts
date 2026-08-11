@@ -269,6 +269,40 @@ describe("buildChecklistWorkbook", () => {
     expect(areaWs.getRow(2).getCell(11).value).toBe(2);
   });
 
+  it("adds a Score History sheet with one dated row per snapshot", async () => {
+    const buffer = await buildChecklistWorkbook({
+      areas: [{ name: "Area", description: "", items: [] }],
+      organization: null,
+      manuals: [],
+      scoreHistory: [
+        { score: 62, reviewedItems: 10, covered: 5, partial: 2, notAddressed: 3, createdAt: "2026-01-05T12:00:00Z" },
+        { score: 91, reviewedItems: 12, covered: 10, partial: 2, notAddressed: 0, createdAt: "2026-02-02T12:00:00Z" },
+      ],
+    });
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(buffer as any);
+    const hist = wb.getWorksheet("Score History")!;
+    expect(hist).toBeTruthy();
+    expect(hist.getRow(1).getCell(1).value).toBe("Date");
+    expect(hist.getRow(2).getCell(1).value).toBe("Jan 5, 2026");
+    expect(hist.getRow(2).getCell(2).value).toBe("62%");
+    expect(hist.getRow(2).getCell(3).value).toBe(10);
+    expect(hist.getRow(3).getCell(4).value).toBe(10);
+    expect(hist.getRow(3).getCell(5).value).toBe(2);
+    expect(hist.getRow(3).getCell(6).value).toBe(0);
+  });
+
+  it("omits the Score History sheet when there are no snapshots", async () => {
+    const buffer = await buildChecklistWorkbook({
+      areas: [{ name: "Area", description: "", items: [] }],
+      organization: null,
+      manuals: [],
+    });
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(buffer as any);
+    expect(wb.getWorksheet("Score History")).toBeUndefined();
+  });
+
   it("keeps duplicate area names unique as sheet names", () => {
     const used = new Set<string>();
     const a = sheetName("Same Area", used);
