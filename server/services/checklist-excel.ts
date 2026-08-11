@@ -332,6 +332,29 @@ export interface ExportOrganization {
   regulatoryAuthority: string | null;
 }
 
+export interface ExportPolicy {
+  title: string;
+  body: string;
+  status: string;
+  itemNumber: string | null;
+  manualFilename: string | null;
+  revision: number | null;
+  createdBy: string | null;
+  createdAt: string | Date | null;
+}
+
+/**
+ * AI coverage score across items with a current (non-stale) AI verdict:
+ * covered = full credit, partial = half, not addressed = none.
+ * Returns null when no current verdicts exist (score would be meaningless).
+ */
+export function aiCoverageScore(items: { aiVerdict: string | null; aiStale: boolean }[]): number | null {
+  const reviewed = items.filter((i) => i.aiVerdict && !i.aiStale);
+  if (reviewed.length === 0) return null;
+  const credit = reviewed.reduce((s, i) => s + (i.aiVerdict === "covered" ? 1 : i.aiVerdict === "partial" ? 0.5 : 0), 0);
+  return Math.round((credit / reviewed.length) * 100);
+}
+
 const VERDICT_LABELS: Record<string, string> = {
   covered: "Covered by manual",
   partial: "Partially covered",
@@ -355,9 +378,10 @@ export async function buildChecklistWorkbook(opts: {
   areas: ExportArea[];
   organization: ExportOrganization | null;
   manuals: { filename: string; uploadedAt: string | Date | null }[];
+  policies?: ExportPolicy[];
   generatedAt?: Date;
 }): Promise<Buffer> {
-  const { areas, organization, manuals } = opts;
+  const { areas, organization, manuals, policies = [] } = opts;
   const generatedAt = opts.generatedAt ?? new Date();
   const workbook = new ExcelJS.Workbook();
   workbook.creator = "BCCS Part Checklist Report";
@@ -407,6 +431,10 @@ export async function buildChecklistWorkbook(opts: {
     summary.addRow(["Covered by manual", aiCount("covered")]);
     summary.addRow(["Partially covered", aiCount("partial")]);
     summary.addRow(["Not addressed", aiCount("not_addressed")]);
+    const score = aiCoverageScore(allItems);
+    if (score !== null) {
+      summary.addRow(["AI coverage score", `${score}% (covered = full credit, partial = half; current verdicts only)`]);
+    }
   }
 
   // One sheet per area
@@ -448,6 +476,34 @@ export async function buildChecklistWorkbook(opts: {
     }
     ws.getColumn(2).alignment = { wrapText: true, vertical: "top" };
     for (const col of [5, 6, 8, 9, 10]) ws.getColumn(col).alignment = { wrapText: true, vertical: "top" };
+  }
+
+  // Enforcement policies sheet (present only when policies exist)
+  if (policies.length > 0) {
+    const ws = workbook.addWorksheet(sheetName("Enforcement Policies", usedNames));
+    ws.columns = [
+      { header: "Checklist Item", key: "itemNumber", width: 14 },
+      { header: "Policy Title", key: "title", width: 40 },
+      { header: "Status", key: "status", width: 12 },
+      { header: "Policy", key: "body", width: 90 },
+      { header: "Manual / Revision", key: "manual", width: 30 },
+      { header: "Created By", key: "createdBy", width: 26 },
+      { header: "Created", key: "createdAt", width: 22 },
+    ];
+    ws.getRow(1).font = { bold: true };
+    ws.views = [{ state: "frozen", ySplit: 1 }];
+    for (const p of policies) {
+      ws.addRow({
+        itemNumber: p.itemNumber || "",
+        title: p.title,
+        status: p.status,
+        body: p.body,
+        manual: p.manualFilename ? `${p.manualFilename}${p.revision ? ` (Rev ${p.revision})` : ""}` : "",
+        createdBy: p.createdBy || "",
+        createdAt: p.createdAt ? new Date(p.createdAt).toISOString() : "",
+      });
+    }
+    ws.getColumn(4).alignment = { wrapText: true, vertical: "top" };
   }
 
   return Buffer.from(await workbook.xlsx.writeBuffer());

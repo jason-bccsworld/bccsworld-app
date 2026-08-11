@@ -6,6 +6,7 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -195,7 +196,36 @@ function escapeHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-function buildReportHtml(areas: InspectionArea[], manualInfo: any, organization: any): string {
+interface EnforcementPolicy {
+  id: string;
+  item_id: string;
+  manual_id: string | null;
+  revision: number | null;
+  title: string;
+  body: string;
+  status: 'draft' | 'adopted';
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+  item_number?: string | null;
+  item_description?: string | null;
+  manual_filename?: string | null;
+  manual_deleted?: boolean;
+}
+
+/**
+ * AI coverage score across items with a current (non-stale) verdict:
+ * covered = full credit, partial = half, not addressed = none.
+ * Null when nothing has a current AI verdict.
+ */
+function aiCoverageScore(areas: InspectionArea[]): number | null {
+  const reviewed = areas.flatMap(a => a.items).filter(i => i.aiFinding && !i.aiFinding.stale);
+  if (reviewed.length === 0) return null;
+  const credit = reviewed.reduce((s, i) => s + (i.aiFinding!.verdict === 'covered' ? 1 : i.aiFinding!.verdict === 'partial' ? 0.5 : 0), 0);
+  return Math.round((credit / reviewed.length) * 100);
+}
+
+function buildReportHtml(areas: InspectionArea[], manualInfo: any, organization: any, policies: EnforcementPolicy[] = []): string {
   const now = new Date();
   const totalItems = areas.reduce((s, a) => s + a.items.length, 0);
   const count = (st: string) => areas.reduce((s, a) => s + a.items.filter(i => i.status === st).length, 0);
@@ -277,8 +307,26 @@ function buildReportHtml(areas: InspectionArea[], manualInfo: any, organization:
     <div class="stat"><b>${aiCount('covered')}</b>AI: covered</div>
     <div class="stat"><b>${aiCount('partial')}</b>AI: partial</div>
     <div class="stat"><b>${aiCount('not_addressed')}</b>AI: not addressed</div>` : ''}
+    ${aiCoverageScore(areas) !== null ? `<div class="stat"><b>${aiCoverageScore(areas)}%</b>AI coverage score</div>` : ''}
   </div>
   ${areaSections}
+  ${policies.length ? `
+  <section class="area">
+    <h2>Enforcement Policies</h2>
+    <p class="muted">Organizational rules describing how operations approved into the manual are enforced.</p>
+    <table>
+      <thead><tr><th style="width:8%">Item</th><th style="width:22%">Policy Title</th><th style="width:10%">Status</th><th style="width:40%">Policy</th><th style="width:20%">Manual / Revision</th></tr></thead>
+      <tbody>
+      ${policies.map(p => `<tr>
+        <td>${escapeHtml(p.item_number || '')}</td>
+        <td>${escapeHtml(p.title)}</td>
+        <td>${escapeHtml(p.status)}</td>
+        <td>${escapeHtml(p.body).replace(/\n/g, '<br/>')}</td>
+        <td>${p.manual_filename ? escapeHtml(p.manual_filename) + (p.revision ? ` (Rev ${p.revision})` : '') : '—'}</td>
+      </tr>`).join('')}
+      </tbody>
+    </table>
+  </section>` : ''}
 </body></html>`;
 }
 
@@ -306,6 +354,18 @@ export default function ComplianceChecklist() {
   const [opEdits, setOpEdits] = useState<Record<string, string>>({});
   const [opManualChoice, setOpManualChoice] = useState<Record<string, string>>({});
   const [approvingItem, setApprovingItem] = useState<string | null>(null);
+  // Enforcement-policy dialog: drafted right after an approval, or opened
+  // from the Policies list to edit an existing one.
+  const [policyDialog, setPolicyDialog] = useState<{
+    itemId: string;
+    itemNumber: string;
+    policyId?: string;
+    drafting: boolean;
+    title: string;
+    body: string;
+    draftError?: string;
+  } | null>(null);
+  const [policySaving, setPolicySaving] = useState(false);
   const evidenceInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   const { user } = useAuth();
@@ -328,6 +388,16 @@ export default function ComplianceChecklist() {
       return res.json();
     }
   });
+
+  const { data: policiesData } = useQuery({
+    queryKey: ['/api/checklist-report/policies'],
+    queryFn: async () => {
+      const res = await fetch('/api/checklist-report/policies', { credentials: 'include' });
+      if (!res.ok) throw new Error('Failed to load policies');
+      return res.json();
+    }
+  });
+  const policies: EnforcementPolicy[] = policiesData?.policies || [];
 
   const { data: revisionHistory, isLoading: revisionHistoryLoading } = useQuery({
     queryKey: ['/api/checklist-report/manual', historyDoc?.id, 'revisions'],
@@ -637,10 +707,95 @@ export default function ComplianceChecklist() {
         title: `Added to ${body.filename} — now Revision ${body.revision}`,
         description: 'The operation was appended to your manual as a labeled section. Re-run the AI review to confirm the item is now covered.',
       });
+      // Offer an AI-drafted enforcement policy for the freshly approved operation.
+      void openPolicyDraft(item.id, item.number);
     } catch (err: any) {
       toast({ title: 'Approval failed', description: err.message, variant: 'destructive' });
     } finally {
       setApprovingItem(null);
+    }
+  };
+
+  const openPolicyDraft = async (itemId: string, itemNumber: string) => {
+    setPolicyDialog({ itemId, itemNumber, drafting: true, title: '', body: '' });
+    try {
+      const res = await fetch(`/api/checklist-report/items/${itemId}/draft-policy`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.message || 'Failed to draft the policy');
+      setPolicyDialog(prev => prev && prev.itemId === itemId
+        ? { ...prev, drafting: false, title: body.title, body: body.body }
+        : prev);
+    } catch (err: any) {
+      setPolicyDialog(prev => prev && prev.itemId === itemId
+        ? { ...prev, drafting: false, draftError: err.message }
+        : prev);
+    }
+  };
+
+  const handleSavePolicy = async (status: 'draft' | 'adopted') => {
+    if (!policyDialog) return;
+    const { itemId, policyId, title, body } = policyDialog;
+    if (!title.trim() || !body.trim()) {
+      toast({ title: 'Policy incomplete', description: 'The policy needs both a title and a body.', variant: 'destructive' });
+      return;
+    }
+    setPolicySaving(true);
+    try {
+      const res = await fetch(
+        policyId ? `/api/checklist-report/policies/${policyId}` : `/api/checklist-report/items/${itemId}/policies`,
+        {
+          method: policyId ? 'PUT' : 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title: title.trim(), body: body.trim(), status }),
+        },
+      );
+      const resBody = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(resBody.message || 'Failed to save the policy');
+      queryClient.invalidateQueries({ queryKey: ['/api/checklist-report/policies'] });
+      setPolicyDialog(null);
+      toast({
+        title: status === 'adopted' ? 'Policy adopted' : 'Policy saved as draft',
+        description: status === 'adopted'
+          ? 'The enforcement policy is now part of your compliance record.'
+          : 'You can edit and adopt it from the Enforcement Policies list.',
+      });
+    } catch (err: any) {
+      toast({ title: 'Could not save policy', description: err.message, variant: 'destructive' });
+    } finally {
+      setPolicySaving(false);
+    }
+  };
+
+  const handleAdoptPolicy = async (policy: EnforcementPolicy) => {
+    try {
+      const res = await fetch(`/api/checklist-report/policies/${policy.id}`, {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'adopted' }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.message || 'Failed to adopt the policy');
+      queryClient.invalidateQueries({ queryKey: ['/api/checklist-report/policies'] });
+      toast({ title: 'Policy adopted' });
+    } catch (err: any) {
+      toast({ title: 'Could not adopt policy', description: err.message, variant: 'destructive' });
+    }
+  };
+
+  const handleDeletePolicy = async (policy: EnforcementPolicy) => {
+    if (!confirm(`Delete the policy "${policy.title}"?`)) return;
+    try {
+      const res = await fetch(`/api/checklist-report/policies/${policy.id}`, { method: 'DELETE', credentials: 'include' });
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).message || 'Failed to delete the policy');
+      queryClient.invalidateQueries({ queryKey: ['/api/checklist-report/policies'] });
+      toast({ title: 'Policy deleted' });
+    } catch (err: any) {
+      toast({ title: 'Could not delete policy', description: err.message, variant: 'destructive' });
     }
   };
 
@@ -760,7 +915,7 @@ export default function ComplianceChecklist() {
   };
 
   const exportReport = () => {
-    const html = buildReportHtml(inspectionAreas, manualInfo, checklistData?.organization || null);
+    const html = buildReportHtml(inspectionAreas, manualInfo, checklistData?.organization || null, policies);
     const win = window.open('', '_blank');
     if (!win) {
       toast({ title: 'Popup blocked', description: 'Allow popups for this site to export the report.', variant: 'destructive' });
@@ -1046,6 +1201,19 @@ export default function ComplianceChecklist() {
                 )}
               </div>
             )}
+            {aiCoverageScore(inspectionAreas) !== null && (
+              <div className="border-t pt-3" data-testid="ai-coverage-score">
+                <div className="flex justify-between text-sm mb-2">
+                  <span className="font-medium text-gray-700">AI Coverage Score</span>
+                  <span className="font-semibold text-blue-700">{aiCoverageScore(inspectionAreas)}%</span>
+                </div>
+                <Progress value={aiCoverageScore(inspectionAreas) || 0} className="h-2" />
+                <p className="text-xs text-gray-500 mt-1">
+                  Covered items earn full credit, partially covered earn half. Approve suggested operations into your manual,
+                  then re-run the AI review — this score rises as items become covered.
+                </p>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -1068,6 +1236,16 @@ export default function ComplianceChecklist() {
           { key: 'none', label: 'No AI review yet', active: 'bg-gray-500 text-white border-gray-500' },
         ];
         return (
+          <div className="space-y-2">
+            {canApprove && counts.not_addressed + counts.partial > 0 && (
+              <div className="flex items-start gap-2 rounded-md border border-blue-200 bg-blue-50 p-2 text-xs text-blue-800" data-testid="hint-compliance-loop">
+                <Sparkles className="h-4 w-4 shrink-0 mt-0.5" />
+                <span>
+                  <strong>Close the loop:</strong> filter to &ldquo;Not addressed&rdquo; → approve the suggested operation into your manual →
+                  adopt the drafted enforcement policy → re-run the AI review. Items become covered and your AI Coverage Score rises.
+                </span>
+              </div>
+            )}
           <div className="flex flex-wrap items-center gap-2" data-testid="filter-verdict">
             <span className="text-sm text-gray-500 mr-1">AI review:</span>
             {OPTIONS.map(o => (
@@ -1080,6 +1258,7 @@ export default function ComplianceChecklist() {
                 {o.label} ({counts[o.key]})
               </button>
             ))}
+          </div>
           </div>
         );
       })()}
@@ -1382,6 +1561,135 @@ export default function ComplianceChecklist() {
           );
         })}
       </Tabs>
+
+      {/* Enforcement policies */}
+      {(policies.length > 0 || canApprove) && (
+        <Card data-testid="card-policies">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Shield className="h-5 w-5" />
+              Enforcement Policies
+            </CardTitle>
+            <CardDescription>
+              How your organization enforces the operations approved into the manual — drafted automatically after each approval, then edited and adopted here.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {policies.length === 0 ? (
+              <p className="text-sm text-gray-500" data-testid="text-no-policies">
+                No policies yet. When you approve a suggested operation into your manual, an enforcement policy is drafted for you to review here.
+              </p>
+            ) : (
+              <ul className="space-y-3" data-testid="list-policies">
+                {policies.map((p) => (
+                  <li key={p.id} className="rounded-md border p-3 space-y-1.5" data-testid={`policy-${p.id}`}>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-medium text-sm">{p.title}</span>
+                      <Badge className={p.status === 'adopted' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-700'}>
+                        {p.status === 'adopted' ? 'Adopted' : 'Draft'}
+                      </Badge>
+                      {p.item_number && <Badge variant="outline" className="text-xs">Item {p.item_number}</Badge>}
+                      {p.manual_filename && (
+                        <span className="text-xs text-gray-500">{p.manual_filename}{p.revision ? ` · Rev ${p.revision}` : ''}{p.manual_deleted ? ' · document since removed' : ''}</span>
+                      )}
+                    </div>
+                    <p className="text-sm text-gray-700 whitespace-pre-wrap">{p.body}</p>
+                    <div className="flex items-center gap-2 pt-1">
+                      <span className="text-xs text-gray-400">
+                        {p.created_by ? `${p.created_by} · ` : ''}{new Date(p.created_at).toLocaleDateString()}
+                      </span>
+                      {canApprove && (
+                        <>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 px-2 text-xs"
+                            onClick={() => setPolicyDialog({ itemId: p.item_id, itemNumber: p.item_number || '', policyId: p.id, drafting: false, title: p.title, body: p.body })}
+                            data-testid={`button-edit-policy-${p.id}`}
+                          >
+                            Edit
+                          </Button>
+                          {p.status !== 'adopted' && (
+                            <Button size="sm" className="h-7 px-2 text-xs" onClick={() => handleAdoptPolicy(p)} data-testid={`button-adopt-policy-${p.id}`}>
+                              Adopt
+                            </Button>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2 text-xs text-gray-400 hover:text-red-600"
+                            onClick={() => handleDeletePolicy(p)}
+                            data-testid={`button-delete-policy-${p.id}`}
+                          >
+                            Delete
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Enforcement-policy draft/edit dialog */}
+      <Dialog open={!!policyDialog} onOpenChange={(open) => { if (!open) setPolicyDialog(null); }}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Shield className="h-5 w-5" />
+              Enforcement Policy{policyDialog?.itemNumber ? ` — Item ${policyDialog.itemNumber}` : ''}
+            </DialogTitle>
+            <DialogDescription>
+              The organizational rule for how the approved operation will be enforced. Edit it, then save as a draft or adopt it.
+            </DialogDescription>
+          </DialogHeader>
+          {policyDialog?.drafting ? (
+            <div className="flex items-center gap-2 py-8 justify-center text-sm text-gray-600" data-testid="text-policy-drafting">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Drafting an enforcement policy from the approved operation…
+            </div>
+          ) : policyDialog?.draftError ? (
+            <div className="space-y-3 py-4">
+              <p className="text-sm text-red-700" data-testid="text-policy-draft-error">{policyDialog.draftError}</p>
+              <Button variant="outline" size="sm" onClick={() => openPolicyDraft(policyDialog.itemId, policyDialog.itemNumber)}>
+                Try drafting again
+              </Button>
+            </div>
+          ) : policyDialog ? (
+            <div className="space-y-3">
+              <div>
+                <label className="text-sm font-medium">Title</label>
+                <Input
+                  value={policyDialog.title}
+                  onChange={(e) => setPolicyDialog(prev => prev ? { ...prev, title: e.target.value } : prev)}
+                  data-testid="input-policy-title"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Policy</label>
+                <Textarea
+                  value={policyDialog.body}
+                  onChange={(e) => setPolicyDialog(prev => prev ? { ...prev, body: e.target.value } : prev)}
+                  className="min-h-[220px] text-sm"
+                  data-testid="textarea-policy-body"
+                />
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button variant="ghost" onClick={() => setPolicyDialog(null)} disabled={policySaving}>Cancel</Button>
+                <Button variant="outline" onClick={() => handleSavePolicy('draft')} disabled={policySaving} data-testid="button-save-policy-draft">
+                  {policySaving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}Save as Draft
+                </Button>
+                <Button onClick={() => handleSavePolicy('adopted')} disabled={policySaving} data-testid="button-adopt-policy">
+                  {policySaving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}Adopt Policy
+                </Button>
+              </div>
+            </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
 
       {/* Import dialog */}
       <Dialog open={!!historyDoc} onOpenChange={(open) => { if (!open) setHistoryDoc(null); }}>

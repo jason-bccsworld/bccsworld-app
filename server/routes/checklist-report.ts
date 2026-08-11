@@ -160,6 +160,47 @@ async function ensureTables() {
     CREATE INDEX IF NOT EXISTS bccs_checklist_operation_approvals_org_item
     ON bccs_checklist_operation_approvals (organization_id, item_id)
   `);
+  // Enforcement policies: the organizational rule describing how an approved
+  // operation is enforced. Tied to the checklist item and the manual revision
+  // the operation was approved into.
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS bccs_checklist_policies (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      organization_id UUID NOT NULL,
+      item_id UUID NOT NULL,
+      manual_id UUID,
+      revision INTEGER,
+      title VARCHAR(300) NOT NULL,
+      body TEXT NOT NULL,
+      status VARCHAR(20) NOT NULL DEFAULT 'draft',
+      created_by VARCHAR(200),
+      created_at TIMESTAMP DEFAULT NOW(),
+      updated_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS bccs_checklist_policies_org_item
+    ON bccs_checklist_policies (organization_id, item_id)
+  `);
+  // Durable provenance: keep the manual's filename on policies and approvals
+  // so the audit trail stays readable after the manual document is deleted.
+  await db.execute(sql`
+    ALTER TABLE bccs_checklist_policies ADD COLUMN IF NOT EXISTS manual_filename VARCHAR(300)
+  `);
+  await db.execute(sql`
+    ALTER TABLE bccs_checklist_operation_approvals ADD COLUMN IF NOT EXISTS manual_filename VARCHAR(300)
+  `);
+  // Backfill from manuals that still exist.
+  await db.execute(sql`
+    UPDATE bccs_checklist_policies p SET manual_filename = m.filename
+    FROM bccs_ops_manuals m
+    WHERE p.manual_filename IS NULL AND m.id = p.manual_id AND m.organization_id = p.organization_id
+  `);
+  await db.execute(sql`
+    UPDATE bccs_checklist_operation_approvals a SET manual_filename = m.filename
+    FROM bccs_ops_manuals m
+    WHERE a.manual_filename IS NULL AND m.id = a.manual_id AND m.organization_id = a.organization_id
+  `);
   // Per-area manual coverage measured at AI-review time — persisted so the
   // checklist page can still explain partial coverage after a reload.
   await db.execute(sql`
@@ -397,14 +438,18 @@ router.get("/checklist", isAuthenticated, async (req: any, res) => {
     // Latest approved-into-manual operation per item — powers the
     // "Addressed in rev N — re-run the AI review" state.
     const approvals = await db.execute(sql`
-      SELECT DISTINCT ON (item_id) item_id, manual_id, revision, approved_by, approved_at
-      FROM bccs_checklist_operation_approvals WHERE organization_id = ${orgId}
-      ORDER BY item_id, approved_at DESC
+      SELECT DISTINCT ON (a.item_id) a.item_id, a.manual_id, a.revision, a.approved_by, a.approved_at,
+             COALESCE(m.filename, a.manual_filename) AS manual_filename
+      FROM bccs_checklist_operation_approvals a
+      LEFT JOIN bccs_ops_manuals m ON m.id = a.manual_id AND m.organization_id = a.organization_id
+      WHERE a.organization_id = ${orgId}
+      ORDER BY a.item_id, a.approved_at DESC
     `).then((r: any) => r.rows);
     const approvalByItem: Record<string, any> = {};
     for (const a of approvals) {
       approvalByItem[a.item_id] = {
         manualId: a.manual_id,
+        manualFilename: a.manual_filename || null,
         revision: Number(a.revision),
         approvedBy: a.approved_by,
         approvedAt: a.approved_at,
@@ -547,8 +592,8 @@ router.post("/items/:id/approve-operation", isAuthenticated, requireAdmin, async
       actor,
       afterUpdate: async (tx, u) => {
         await tx.execute(sql`
-          INSERT INTO bccs_checklist_operation_approvals (organization_id, item_id, manual_id, revision, operation_text, approved_by)
-          VALUES (${orgId}, ${item.id}, ${manual.id}, ${Number(u.revision)}, ${operationText}, ${actor})
+          INSERT INTO bccs_checklist_operation_approvals (organization_id, item_id, manual_id, revision, operation_text, approved_by, manual_filename)
+          VALUES (${orgId}, ${item.id}, ${manual.id}, ${Number(u.revision)}, ${operationText}, ${actor}, ${u.filename || manual.filename || null})
         `);
       },
     });
@@ -565,6 +610,184 @@ router.post("/items/:id/approve-operation", isAuthenticated, requireAdmin, async
   } catch (err) {
     console.error("Approve operation error:", err);
     res.status(500).json({ message: "Failed to approve the operation into the manual" });
+  }
+});
+
+// ── Enforcement policies ────────────────────────────────────────────────────
+const MAX_POLICY_TITLE = 300;
+const MAX_POLICY_BODY = 8000;
+const POLICY_STATUSES = new Set(["draft", "adopted"]);
+
+/** Latest approved operation for an org item, or null. */
+async function latestApproval(orgId: string, itemId: string): Promise<any | null> {
+  const [row] = await db.execute(sql`
+    SELECT manual_id, revision, operation_text, approved_at, manual_filename
+    FROM bccs_checklist_operation_approvals
+    WHERE organization_id = ${orgId} AND item_id = ${itemId}
+    ORDER BY approved_at DESC LIMIT 1
+  `).then((r: any) => r.rows);
+  return row || null;
+}
+
+// POST /items/:id/draft-policy — AI-draft an enforcement policy from the
+// item's latest approved operation. Returns the draft only (nothing saved);
+// the user edits and saves it via POST /items/:id/policies. Admin-only.
+router.post("/items/:id/draft-policy", isAuthenticated, requireAdmin, async (req: any, res) => {
+  try {
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
+    const [item] = await db.execute(sql`
+      SELECT id, item_number, reference, description FROM bccs_checklist_report_items
+      WHERE id = ${req.params.id} AND organization_id = ${orgId}
+    `).then((r: any) => r.rows);
+    if (!item) return res.status(404).json({ message: "Checklist item not found" });
+    const approval = await latestApproval(orgId, item.id);
+    if (!approval) return res.status(409).json({ message: "Approve an operation into the manual first — the policy is drafted from the approved operation text." });
+
+    const prompt = `You are an FAA Part 142 training-center compliance officer. An operation was just approved into the operations manual to satisfy this checklist requirement:
+
+CHECKLIST ITEM: (${item.item_number}, ref ${item.reference || "n/a"}) ${item.description}
+
+APPROVED OPERATION TEXT:
+${String(approval.operation_text).slice(0, 4000)}
+
+Draft the organizational ENFORCEMENT POLICY for this operation — the rule describing how the organization will make sure the operation is actually followed. Respond with JSON:
+{ "title": "short policy title (max 120 chars)", "body": "the policy text with these labeled sections, each 1-3 sentences:\nPurpose: …\nResponsible role: …\nMonitoring: … (how and how often compliance is checked)\nTraining & communication: …\nConsequences: … (what happens on non-compliance)\nEffective date: upon adoption" }`;
+
+    let draft: any;
+    try {
+      const completion = await openai.chat.completions.create(
+        {
+          model: "gpt-4o",
+          messages: [{ role: "user", content: prompt }],
+          response_format: { type: "json_object" },
+          temperature: 0.2,
+          max_tokens: 1024,
+        },
+        // Kept under the serverless request deadline (30s on Vercel).
+        { timeout: 25_000, maxRetries: 0 },
+      );
+      draft = JSON.parse(completion.choices[0].message.content || "{}");
+      if (!draft.title || !draft.body) throw new Error("AI returned an incomplete policy draft");
+    } catch (aiErr: any) {
+      return res.status(502).json({ message: friendlyOpenAIError(aiErr), retryable: true });
+    }
+    res.json({
+      title: String(draft.title).slice(0, MAX_POLICY_TITLE),
+      body: String(draft.body).slice(0, MAX_POLICY_BODY),
+      manualId: approval.manual_id,
+      revision: Number(approval.revision),
+    });
+  } catch (err) {
+    console.error("Draft policy error:", err);
+    res.status(500).json({ message: "Failed to draft the enforcement policy" });
+  }
+});
+
+// POST /items/:id/policies — save an (edited) enforcement policy for an item.
+router.post("/items/:id/policies", isAuthenticated, requireAdmin, async (req: any, res) => {
+  try {
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
+    const [item] = await db.execute(sql`
+      SELECT id FROM bccs_checklist_report_items
+      WHERE id = ${req.params.id} AND organization_id = ${orgId}
+    `).then((r: any) => r.rows);
+    if (!item) return res.status(404).json({ message: "Checklist item not found" });
+    const title = String(req.body?.title || "").trim();
+    const body = String(req.body?.body || "").trim();
+    const status = String(req.body?.status || "draft");
+    if (!title || !body) return res.status(400).json({ message: "The policy needs both a title and a body." });
+    if (title.length > MAX_POLICY_TITLE || body.length > MAX_POLICY_BODY) {
+      return res.status(400).json({ message: `The policy is too long (title max ${MAX_POLICY_TITLE} chars, body max ${MAX_POLICY_BODY}).` });
+    }
+    if (!POLICY_STATUSES.has(status)) return res.status(400).json({ message: "Policy status must be draft or adopted." });
+    // Policies enforce approved operations — without an approval there is
+    // nothing to enforce, and the policy would lack manual/revision provenance.
+    const approval = await latestApproval(orgId, item.id);
+    if (!approval) return res.status(409).json({ message: "Approve an operation into the manual first — policies enforce approved operations." });
+    const actor = req.user?.email || req.user?.id || "system";
+    const [policy] = await db.execute(sql`
+      INSERT INTO bccs_checklist_policies (organization_id, item_id, manual_id, revision, title, body, status, created_by, manual_filename)
+      VALUES (${orgId}, ${item.id}, ${approval.manual_id}, ${Number(approval.revision)}, ${title}, ${body}, ${status}, ${actor}, ${approval.manual_filename || null})
+      RETURNING id, item_id, manual_id, revision, title, body, status, created_by, created_at, updated_at
+    `).then((r: any) => r.rows);
+    res.status(201).json({ policy });
+  } catch (err) {
+    console.error("Save policy error:", err);
+    res.status(500).json({ message: "Failed to save the policy" });
+  }
+});
+
+// GET /policies — all enforcement policies for the org, with item context.
+router.get("/policies", isAuthenticated, async (req: any, res) => {
+  try {
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
+    const policies = await db.execute(sql`
+      SELECT p.id, p.item_id, p.manual_id, p.revision, p.title, p.body, p.status,
+             p.created_by, p.created_at, p.updated_at,
+             i.item_number, i.description AS item_description,
+             COALESCE(m.filename, p.manual_filename) AS manual_filename,
+             (m.id IS NULL AND p.manual_id IS NOT NULL) AS manual_deleted
+      FROM bccs_checklist_policies p
+      LEFT JOIN bccs_checklist_report_items i ON i.id = p.item_id AND i.organization_id = p.organization_id
+      LEFT JOIN bccs_ops_manuals m ON m.id = p.manual_id AND m.organization_id = p.organization_id
+      WHERE p.organization_id = ${orgId}
+      ORDER BY p.created_at DESC
+    `).then((r: any) => r.rows);
+    res.json({ policies });
+  } catch (err) {
+    console.error("List policies error:", err);
+    res.status(500).json({ message: "Failed to load policies" });
+  }
+});
+
+// PUT /policies/:id — edit title/body or change status (draft ↔ adopted).
+router.put("/policies/:id", isAuthenticated, requireAdmin, async (req: any, res) => {
+  try {
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
+    const [existing] = await db.execute(sql`
+      SELECT id, title, body, status FROM bccs_checklist_policies
+      WHERE id = ${req.params.id} AND organization_id = ${orgId}
+    `).then((r: any) => r.rows);
+    if (!existing) return res.status(404).json({ message: "Policy not found" });
+    const title = req.body?.title !== undefined ? String(req.body.title).trim() : existing.title;
+    const body = req.body?.body !== undefined ? String(req.body.body).trim() : existing.body;
+    const status = req.body?.status !== undefined ? String(req.body.status) : existing.status;
+    if (!title || !body) return res.status(400).json({ message: "The policy needs both a title and a body." });
+    if (title.length > MAX_POLICY_TITLE || body.length > MAX_POLICY_BODY) {
+      return res.status(400).json({ message: `The policy is too long (title max ${MAX_POLICY_TITLE} chars, body max ${MAX_POLICY_BODY}).` });
+    }
+    if (!POLICY_STATUSES.has(status)) return res.status(400).json({ message: "Policy status must be draft or adopted." });
+    const [policy] = await db.execute(sql`
+      UPDATE bccs_checklist_policies
+      SET title = ${title}, body = ${body}, status = ${status}, updated_at = NOW()
+      WHERE id = ${req.params.id} AND organization_id = ${orgId}
+      RETURNING id, item_id, manual_id, revision, title, body, status, created_by, created_at, updated_at
+    `).then((r: any) => r.rows);
+    res.json({ policy });
+  } catch (err) {
+    console.error("Update policy error:", err);
+    res.status(500).json({ message: "Failed to update the policy" });
+  }
+});
+
+// DELETE /policies/:id — remove a policy.
+router.delete("/policies/:id", isAuthenticated, requireAdmin, async (req: any, res) => {
+  try {
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
+    const deleted = await db.execute(sql`
+      DELETE FROM bccs_checklist_policies WHERE id = ${req.params.id} AND organization_id = ${orgId}
+      RETURNING id
+    `).then((r: any) => r.rows);
+    if (!deleted.length) return res.status(404).json({ message: "Policy not found" });
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Delete policy error:", err);
+    res.status(500).json({ message: "Failed to delete the policy" });
   }
 });
 
@@ -938,12 +1161,32 @@ router.get("/export.xlsx", isAuthenticated, async (req: any, res) => {
       });
     }
 
+    const policyRows = await db.execute(sql`
+      SELECT p.title, p.body, p.status, p.revision, p.created_by, p.created_at,
+             i.item_number, COALESCE(m.filename, p.manual_filename) AS manual_filename
+      FROM bccs_checklist_policies p
+      LEFT JOIN bccs_checklist_report_items i ON i.id = p.item_id AND i.organization_id = p.organization_id
+      LEFT JOIN bccs_ops_manuals m ON m.id = p.manual_id AND m.organization_id = p.organization_id
+      WHERE p.organization_id = ${orgId}
+      ORDER BY p.created_at DESC
+    `).then((r: any) => r.rows);
+
     const buffer = await buildChecklistWorkbook({
       areas,
       organization: org
         ? { name: org.organization_name, certificateNumber: org.certificate_number, regulatoryAuthority: org.regulatory_authority }
         : null,
       manuals: manuals.map((m: any) => ({ filename: m.filename, uploadedAt: m.uploaded_at })),
+      policies: policyRows.map((p: any) => ({
+        title: p.title,
+        body: p.body,
+        status: p.status,
+        itemNumber: p.item_number || null,
+        manualFilename: p.manual_filename || null,
+        revision: p.revision != null ? Number(p.revision) : null,
+        createdBy: p.created_by || null,
+        createdAt: p.created_at || null,
+      })),
     });
     const date = new Date().toISOString().slice(0, 10);
     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
