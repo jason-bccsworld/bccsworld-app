@@ -91,6 +91,9 @@ vi.mock("../db", () => {
       }
       return { rows: h.reviewRun ? [{ ...h.reviewRun }] : [] };
     }
+    if (text.includes("INSERT INTO bccs_ops_manuals")) {
+      return { rows: [{ id: "manual-new", filename: "f", text_chars: 100, revision: 1, uploaded_by: "u", uploaded_at: new Date().toISOString() }] };
+    }
     if (text.includes("FROM bccs_ops_manuals") && !text.includes("DELETE")) {
       return { rows: h.manualRows };
     }

@@ -32,7 +32,9 @@ import {
   RotateCcw,
   Paperclip,
   Trash2,
-  AlertTriangle
+  AlertTriangle,
+  History,
+  Printer
 } from 'lucide-react';
 
 interface AiFinding {
@@ -48,8 +50,17 @@ interface ManualDoc {
   id: string;
   filename: string;
   text_chars: number;
+  revision?: number;
   uploaded_by: string | null;
   uploaded_at: string;
+}
+
+interface ManualRevision {
+  revision: number;
+  text_chars: number;
+  change_summary: string | null;
+  changed_by: string | null;
+  created_at: string;
 }
 
 interface EvidenceFile {
@@ -277,6 +288,7 @@ export default function ComplianceChecklist() {
   // the combined manual text each area's review prompt actually consulted.
   const [areaCoverage, setAreaCoverage] = useState<Record<string, { ratio: number; stale: boolean }>>({});
   const [evidenceUploading, setEvidenceUploading] = useState<string | null>(null);
+  const [historyDoc, setHistoryDoc] = useState<ManualDoc | null>(null);
   const evidenceInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   const { data: checklistData, isLoading } = useQuery({
@@ -293,6 +305,16 @@ export default function ComplianceChecklist() {
     queryFn: async () => {
       const res = await fetch('/api/checklist-report/manual', { credentials: 'include' });
       if (!res.ok) throw new Error('Failed to load manual status');
+      return res.json();
+    }
+  });
+
+  const { data: revisionHistory, isLoading: revisionHistoryLoading } = useQuery({
+    queryKey: ['/api/checklist-report/manual', historyDoc?.id, 'revisions'],
+    enabled: !!historyDoc,
+    queryFn: async () => {
+      const res = await fetch(`/api/checklist-report/manual/${historyDoc!.id}/revisions`, { credentials: 'include' });
+      if (!res.ok) throw new Error('Failed to load revision history');
       return res.json();
     }
   });
@@ -813,9 +835,32 @@ export default function ComplianceChecklist() {
                       <li key={doc.id} className="flex items-center gap-2">
                         <FileText className="h-4 w-4 text-gray-500 shrink-0" />
                         <span className="font-medium truncate" data-testid={`text-manual-filename-${doc.id}`}>{doc.filename}</span>
+                        <Badge variant="outline" className="shrink-0 text-xs font-medium text-blue-700 border-blue-200 bg-blue-50" data-testid={`badge-manual-revision-${doc.id}`}>
+                          Rev {Number(doc.revision) || 1}
+                        </Badge>
                         <span className="text-gray-500 shrink-0 text-xs">
                           {new Date(doc.uploaded_at).toLocaleDateString()} · {Number(doc.text_chars).toLocaleString()} chars
                         </span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 px-1 text-gray-400 hover:text-blue-600 shrink-0"
+                          title="Revision history"
+                          onClick={() => setHistoryDoc(doc)}
+                          data-testid={`button-manual-history-${doc.id}`}
+                        >
+                          <History className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 px-1 text-gray-400 hover:text-blue-600 shrink-0"
+                          title="Export (printable document of the extracted text)"
+                          onClick={() => window.open(`/api/checklist-report/manual/${doc.id}/export`, '_blank')}
+                          data-testid={`button-manual-export-${doc.id}`}
+                        >
+                          <Printer className="h-4 w-4" />
+                        </Button>
                         <Button
                           variant="ghost"
                           size="sm"
@@ -1174,6 +1219,48 @@ export default function ComplianceChecklist() {
       </Tabs>
 
       {/* Import dialog */}
+      <Dialog open={!!historyDoc} onOpenChange={(open) => { if (!open) setHistoryDoc(null); }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <History className="h-5 w-5 text-blue-600" />
+              Revision History
+            </DialogTitle>
+            <DialogDescription className="truncate">{historyDoc?.filename}</DialogDescription>
+          </DialogHeader>
+          {revisionHistoryLoading ? (
+            <div className="flex items-center gap-2 text-sm text-gray-500 py-4"><Loader2 className="h-4 w-4 animate-spin" /> Loading history…</div>
+          ) : (
+            <ul className="space-y-2 max-h-[50vh] overflow-y-auto" data-testid="list-manual-revisions">
+              {(revisionHistory?.revisions || []).map((rev: ManualRevision) => (
+                <li key={rev.revision} className="rounded-md border p-3 text-sm" data-testid={`row-manual-revision-${rev.revision}`}>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="text-blue-700 border-blue-200 bg-blue-50">Rev {rev.revision}</Badge>
+                    {rev.revision === (Number(historyDoc?.revision) || 1) && <Badge className="bg-green-100 text-green-800">Current</Badge>}
+                    <span className="text-xs text-gray-500 ml-auto">{new Date(rev.created_at).toLocaleString()}</span>
+                  </div>
+                  <div className="mt-1 text-gray-700">{rev.change_summary || '—'}</div>
+                  <div className="mt-0.5 text-xs text-gray-500">
+                    {rev.changed_by ? `By ${rev.changed_by} · ` : ''}{Number(rev.text_chars).toLocaleString()} chars
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => historyDoc && window.open(`/api/checklist-report/manual/${historyDoc.id}/export`, '_blank')}
+              data-testid="button-export-current-revision"
+            >
+              <Printer className="h-4 w-4 mr-2" />
+              Export Current Revision
+            </Button>
+            <Button onClick={() => setHistoryDoc(null)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={importOpen} onOpenChange={setImportOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>

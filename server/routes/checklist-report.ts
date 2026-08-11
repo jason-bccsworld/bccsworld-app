@@ -63,6 +63,38 @@ async function ensureTables() {
       uploaded_at TIMESTAMP DEFAULT NOW()
     )
   `);
+  // Additive: manuals carry a revision number (initial upload = revision 1).
+  await db.execute(sql`
+    ALTER TABLE bccs_ops_manuals ADD COLUMN IF NOT EXISTS revision INTEGER NOT NULL DEFAULT 1
+  `);
+  // Full text of every revision of every manual (including the current one),
+  // with who/what produced it — powers the revision history and export.
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS bccs_ops_manual_revisions (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      organization_id UUID NOT NULL,
+      manual_id UUID NOT NULL,
+      revision INTEGER NOT NULL,
+      extracted_text TEXT NOT NULL,
+      text_chars INTEGER NOT NULL,
+      change_summary TEXT,
+      changed_by VARCHAR(200),
+      created_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
+  await db.execute(sql`
+    CREATE UNIQUE INDEX IF NOT EXISTS bccs_ops_manual_revisions_manual_rev
+    ON bccs_ops_manual_revisions (manual_id, revision)
+  `);
+  // Backfill: manuals uploaded before revisioning get a revision-1 history
+  // row from their current text (idempotent via the unique index).
+  await db.execute(sql`
+    INSERT INTO bccs_ops_manual_revisions (organization_id, manual_id, revision, extracted_text, text_chars, change_summary, changed_by, created_at)
+    SELECT m.organization_id, m.id, 1, m.extracted_text, m.text_chars, 'Initial upload', m.uploaded_by, COALESCE(m.uploaded_at, NOW())
+    FROM bccs_ops_manuals m
+    WHERE m.revision = 1
+      AND NOT EXISTS (SELECT 1 FROM bccs_ops_manual_revisions r WHERE r.manual_id = m.id AND r.revision = 1)
+  `);
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS bccs_checklist_ai_findings (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -183,6 +215,14 @@ function manualSetHash(manualIds: string[]): string {
   return crypto.createHash("md5").update([...manualIds].sort().join(",")).digest("hex");
 }
 
+/** Hash token for one manual. Revision 1 stays the bare id so hashes recorded
+ * before revisioning existed remain valid; any later revision changes the
+ * token (and thus the set hash), flipping findings stale on content change. */
+function manualToken(m: { id: string; revision?: number | string | null }): string {
+  const rev = Number(m.revision) || 1;
+  return rev > 1 ? `${m.id}@${rev}` : String(m.id);
+}
+
 /** A finding is stale when the manual set changed since it was produced.
  * Legacy findings (no set hash) fall back to the old single-manual check. */
 function isFindingStale(finding: { manual_set_hash?: string | null; manual_id: string }, manualIds: string[], currentHash: string): boolean {
@@ -214,11 +254,47 @@ async function invalidateFedconAudits(orgId: string) {
 
 async function getOrgManuals(orgId: string, withText = false): Promise<any[]> {
   return db.execute(withText
-    ? sql`SELECT id, filename, extracted_text, text_chars, uploaded_by, uploaded_at FROM bccs_ops_manuals
+    ? sql`SELECT id, filename, extracted_text, text_chars, revision, uploaded_by, uploaded_at FROM bccs_ops_manuals
           WHERE organization_id = ${orgId} ORDER BY uploaded_at DESC, id`
-    : sql`SELECT id, filename, text_chars, uploaded_by, uploaded_at FROM bccs_ops_manuals
+    : sql`SELECT id, filename, text_chars, revision, uploaded_by, uploaded_at FROM bccs_ops_manuals
           WHERE organization_id = ${orgId} ORDER BY uploaded_at DESC, id`
   ).then((r: any) => r.rows);
+}
+
+/** Apply a content change to one manual: bumps the revision, updates the live
+ * text, and records the new revision (full text + change summary + actor) in
+ * the history table. Findings staleness follows automatically — the manual's
+ * hash token changes with the revision, exactly like an upload/delete would.
+ * Returns the updated manual row, or null when the manual isn't in this org.
+ * Callers should also invalidate fedcon audits (same as upload/delete). */
+export async function applyManualRevision(opts: {
+  orgId: string;
+  manualId: string;
+  newText: string;
+  changeSummary: string;
+  actor: string;
+}): Promise<any | null> {
+  const { orgId, manualId, newText, changeSummary, actor } = opts;
+  return db.transaction(async (tx) => {
+    const [manual] = await tx.execute(sql`
+      SELECT id, revision FROM bccs_ops_manuals
+      WHERE id = ${manualId} AND organization_id = ${orgId}
+      FOR UPDATE
+    `).then((r: any) => r.rows);
+    if (!manual) return null;
+    const newRevision = (Number(manual.revision) || 1) + 1;
+    const [updated] = await tx.execute(sql`
+      UPDATE bccs_ops_manuals
+      SET extracted_text = ${newText}, text_chars = ${newText.length}, revision = ${newRevision}
+      WHERE id = ${manualId} AND organization_id = ${orgId}
+      RETURNING id, filename, text_chars, revision, uploaded_by, uploaded_at
+    `).then((r: any) => r.rows);
+    await tx.execute(sql`
+      INSERT INTO bccs_ops_manual_revisions (organization_id, manual_id, revision, extracted_text, text_chars, change_summary, changed_by)
+      VALUES (${orgId}, ${manualId}, ${newRevision}, ${newText}, ${newText.length}, ${changeSummary}, ${actor})
+    `);
+    return updated;
+  });
 }
 
 async function seedChecklist(orgId: string) {
@@ -269,7 +345,7 @@ router.get("/checklist", isAuthenticated, async (req: any, res) => {
         ORDER BY area_id, item_order
       `).then((r: any) => r.rows);
     }
-    const manualIds = (await getOrgManuals(orgId)).map((m: any) => m.id);
+    const manualIds = (await getOrgManuals(orgId)).map(manualToken);
     const currentHash = manualSetHash(manualIds);
     const findings = await db.execute(sql`
       SELECT DISTINCT ON (item_id) item_id, manual_id, manual_set_hash, verdict, excerpt, remediation, reviewed_at
@@ -683,7 +759,7 @@ router.get("/export.xlsx", isAuthenticated, async (req: any, res) => {
     `).then((r: any) => r.rows);
     if (rows.length === 0) return res.status(404).json({ message: "No checklist items to export" });
     const manuals = await getOrgManuals(orgId);
-    const manualIds = manuals.map((m: any) => m.id);
+    const manualIds = manuals.map(manualToken);
     const currentHash = manualSetHash(manualIds);
     const findings = await db.execute(sql`
       SELECT DISTINCT ON (item_id) item_id, manual_id, manual_set_hash, verdict, excerpt, remediation
@@ -855,11 +931,16 @@ router.post(
     const inserted = await db.transaction(async (tx) => {
       const rows: any[] = [];
       for (const { file, text } of extracted) {
+        const actor = req.user?.email || req.user?.id || "system";
         const [row] = await tx.execute(sql`
           INSERT INTO bccs_ops_manuals (organization_id, filename, extracted_text, text_chars, uploaded_by)
-          VALUES (${orgId}, ${file.originalname}, ${text}, ${text.length}, ${req.user?.email || req.user?.id || "system"})
-          RETURNING id, filename, text_chars, uploaded_by, uploaded_at
+          VALUES (${orgId}, ${file.originalname}, ${text}, ${text.length}, ${actor})
+          RETURNING id, filename, text_chars, revision, uploaded_by, uploaded_at
         `).then((r: any) => r.rows);
+        await tx.execute(sql`
+          INSERT INTO bccs_ops_manual_revisions (organization_id, manual_id, revision, extracted_text, text_chars, change_summary, changed_by)
+          VALUES (${orgId}, ${row.id}, 1, ${text}, ${text.length}, 'Initial upload', ${actor})
+        `);
         rows.push(row);
       }
       return rows;
@@ -877,17 +958,105 @@ router.delete("/manual/:id", isAuthenticated, requireAdmin, async (req: any, res
   try {
     const orgId = requireOrg(req, res);
     if (!orgId) return;
-    const result = await db.execute(sql`
-      DELETE FROM bccs_ops_manuals
-      WHERE id = ${req.params.id} AND organization_id = ${orgId}
-      RETURNING id
-    `);
-    if (((result as any).rows || []).length === 0) return res.status(404).json({ message: "Manual document not found" });
+    const deleted = await db.transaction(async (tx) => {
+      const result = await tx.execute(sql`
+        DELETE FROM bccs_ops_manuals
+        WHERE id = ${req.params.id} AND organization_id = ${orgId}
+        RETURNING id
+      `);
+      if (((result as any).rows || []).length === 0) return false;
+      await tx.execute(sql`
+        DELETE FROM bccs_ops_manual_revisions
+        WHERE manual_id = ${req.params.id} AND organization_id = ${orgId}
+      `);
+      return true;
+    });
+    if (!deleted) return res.status(404).json({ message: "Manual document not found" });
     await invalidateFedconAudits(orgId);
     res.json({ success: true });
   } catch (err) {
     console.error("Manual delete error:", err);
     res.status(500).json({ message: "Failed to remove the manual document" });
+  }
+});
+
+// GET /manual/:id/revisions — revision history of one manual (org-scoped)
+router.get("/manual/:id/revisions", isAuthenticated, async (req: any, res) => {
+  try {
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
+    const [manual] = await db.execute(sql`
+      SELECT id, filename, revision FROM bccs_ops_manuals
+      WHERE id = ${req.params.id} AND organization_id = ${orgId}
+    `).then((r: any) => r.rows);
+    if (!manual) return res.status(404).json({ message: "Manual document not found" });
+    const revisions = await db.execute(sql`
+      SELECT revision, text_chars, change_summary, changed_by, created_at
+      FROM bccs_ops_manual_revisions
+      WHERE manual_id = ${req.params.id} AND organization_id = ${orgId}
+      ORDER BY revision DESC
+    `).then((r: any) => r.rows);
+    res.json({ manual, revisions });
+  } catch (err) {
+    console.error("Manual revisions error:", err);
+    res.status(500).json({ message: "Failed to load the revision history" });
+  }
+});
+
+function escHtml(v: unknown): string {
+  return String(v ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+// GET /manual/:id/export — printable HTML of the manual's current revision.
+// HTML rather than server-side PDF (no external binaries, Vercel-safe); the
+// browser's Print → Save as PDF gives users a portable file. Originals are
+// stored as extracted text, so this is a formatted rendering of that text.
+router.get("/manual/:id/export", isAuthenticated, async (req: any, res) => {
+  try {
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
+    const [manual] = await db.execute(sql`
+      SELECT id, filename, extracted_text, text_chars, revision, uploaded_by, uploaded_at
+      FROM bccs_ops_manuals
+      WHERE id = ${req.params.id} AND organization_id = ${orgId}
+    `).then((r: any) => r.rows);
+    if (!manual) return res.status(404).json({ message: "Manual document not found" });
+    const [latest] = await db.execute(sql`
+      SELECT change_summary, changed_by, created_at FROM bccs_ops_manual_revisions
+      WHERE manual_id = ${manual.id} AND organization_id = ${orgId}
+      ORDER BY revision DESC LIMIT 1
+    `).then((r: any) => r.rows);
+    const revDate = latest?.created_at || manual.uploaded_at;
+    const html = `<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${escHtml(manual.filename)} — Revision ${escHtml(manual.revision)}</title>
+<style>
+  body { font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: #1e293b; max-width: 860px; margin: 32px auto; padding: 0 20px; font-size: 14px; line-height: 1.6; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .meta { color: #475569; font-size: 13px; margin: 2px 0 0; }
+  .rev { display: inline-block; padding: 2px 10px; border-radius: 999px; background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; font-weight: 600; font-size: 12px; }
+  .note, .print-hint { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 12px; font-size: 12px; color: #64748b; margin: 16px 0; }
+  pre { white-space: pre-wrap; word-wrap: break-word; font-family: inherit; font-size: 14px; margin-top: 16px; }
+  .footer { margin-top: 32px; font-size: 12px; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 8px; }
+  @media print { .print-hint { display: none; } body { margin: 0; } }
+</style></head><body>
+<h1>${escHtml(manual.filename)}</h1>
+<p class="meta"><span class="rev">Revision ${escHtml(manual.revision)}</span> &nbsp; ${escHtml(revDate ? new Date(revDate).toISOString().slice(0, 10) : "")}${latest?.changed_by ? ` · ${escHtml(latest.changed_by)}` : ""}${latest?.change_summary ? ` · ${escHtml(latest.change_summary)}` : ""}</p>
+<div class="note">This document is a formatted rendering of the text extracted from the uploaded manual (not the original file).</div>
+<div class="print-hint">Use your browser's Print → “Save as PDF” to keep a portable copy of this document.</div>
+<pre>${escHtml(manual.extracted_text)}</pre>
+<div class="footer">Exported ${escHtml(new Date().toISOString().slice(0, 16).replace("T", " "))} UTC · Operations Manual · Revision ${escHtml(manual.revision)}</div>
+</body></html>`;
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    res.setHeader("Cache-Control", "no-store");
+    res.send(html);
+  } catch (err) {
+    console.error("Manual export error:", err);
+    res.status(500).json({ message: "Failed to export the manual" });
   }
 });
 
@@ -899,7 +1068,7 @@ router.get("/manual", isAuthenticated, async (req: any, res) => {
     const manuals = await getOrgManuals(orgId);
     // `manual` kept as the newest document for backward compatibility.
     if (manuals.length === 0) return res.json({ manuals: [], manual: null, lastReviewAt: null, reviewStale: false });
-    const manualIds = manuals.map((m: any) => m.id);
+    const manualIds = manuals.map(manualToken);
     const currentHash = manualSetHash(manualIds);
     const findings = await db.execute(sql`
       SELECT manual_id, manual_set_hash, reviewed_at
@@ -928,7 +1097,7 @@ router.post("/review/:areaId", isAuthenticated, requireAdmin, async (req: any, r
     if (!orgId) return;
     const manuals = await getOrgManuals(orgId, true);
     if (manuals.length === 0) return res.status(400).json({ message: "Upload an operations manual first" });
-    const currentHash = manualSetHash(manuals.map((m: any) => m.id));
+    const currentHash = manualSetHash(manuals.map(manualToken));
 
     const items = await db.execute(sql`
       SELECT id, item_number, description, reference FROM bccs_checklist_report_items
@@ -1123,7 +1292,7 @@ router.post("/review/:areaId/map", isAuthenticated, requireAdmin, async (req: an
     const { manuals, items, segments } = loaded;
     // Runs are bound to the manual set AND the checklist item set: an import
     // or reset mid-run replaces item ids, changes this hash, and voids the run.
-    const runHash = manualSetHash([...manuals.map((m: any) => String(m.id)), ...items.map((i: any) => String(i.id))]);
+    const runHash = manualSetHash([...manuals.map(manualToken), ...items.map((i: any) => String(i.id))]);
     const start = Math.max(0, Math.floor(Number(req.body?.segment) || 0));
     if (start >= segments.length) return res.status(400).json({ message: "Segment out of range" });
 
@@ -1262,8 +1431,8 @@ router.post("/review/:areaId/reduce", isAuthenticated, requireAdmin, async (req:
     const { manuals, items, totalManualChars } = loaded;
     // Findings/coverage record the manual-set hash; run validity uses the
     // combined manual + checklist-item hash (see the map route).
-    const currentHash = manualSetHash(manuals.map((m: any) => String(m.id)));
-    const runHash = manualSetHash([...manuals.map((m: any) => String(m.id)), ...items.map((i: any) => String(i.id))]);
+    const currentHash = manualSetHash(manuals.map(manualToken));
+    const runHash = manualSetHash([...manuals.map(manualToken), ...items.map((i: any) => String(i.id))]);
     const validIds = new Set<string>(items.map((i: any) => String(i.id)));
 
     // Evidence and progress come from the server-owned run — never the client.
