@@ -14,7 +14,11 @@ import {
   Archive,
   Sparkles,
   Paperclip,
+  Download,
+  Eye,
+  BookOpenCheck,
 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -98,6 +102,7 @@ interface ChecklistRow {
   status: string;
   note: string | null;
   answer?: string | null;
+  requirement_context?: string | null;
   ai_audit?: { verdict: string; note?: string; evidence?: string } | null;
   ai_guidance?: {
     expectation?: string;
@@ -276,6 +281,34 @@ const ATTACHMENT_STATUS: Record<string, { label: string; className: string }> = 
   failed: { label: "Failed", className: "border-red-300 bg-red-50 text-red-700" },
 };
 
+function AttachmentViewer({ attachment, onClose }: { attachment: AttachmentRow | null; onClose: () => void }) {
+  const { data, isLoading, error } = useQuery<{ filename: string; text: string; text_chars: number }>({
+    queryKey: [`/api/federal-contracts/attachments/${attachment?.id}/text`],
+    enabled: !!attachment,
+  });
+  return (
+    <Dialog open={!!attachment} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle className="text-sm break-all">{attachment?.filename}</DialogTitle>
+        </DialogHeader>
+        {isLoading ? (
+          <p className="text-sm text-slate-400"><Loader2 className="h-4 w-4 animate-spin inline mr-1" /> Loading document text…</p>
+        ) : error ? (
+          <p className="text-sm text-red-600">{(error as Error).message}</p>
+        ) : (
+          <>
+            <p className="text-xs text-slate-400">Text extracted from the solicitation document ({Number(data?.text_chars ?? 0).toLocaleString()} characters). Use the download button for the original file.</p>
+            <pre className="max-h-[60vh] overflow-y-auto whitespace-pre-wrap text-xs text-slate-700 bg-slate-50 rounded-md p-3" data-testid="attachment-text">
+              {data?.text}
+            </pre>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function AttachmentsList({
   oppId,
   onRetry,
@@ -288,6 +321,8 @@ function AttachmentsList({
   const { data: attachments = [], isLoading } = useQuery<AttachmentRow[]>({
     queryKey: [`/api/federal-contracts/opportunities/${oppId}/attachments`],
   });
+  const [viewing, setViewing] = useState<AttachmentRow | null>(null);
+  const onView = (a: AttachmentRow) => setViewing(a);
   if (isLoading || attachments.length === 0) return null;
   const hasFailures = attachments.some((a) => a.status === "failed");
   return (
@@ -318,17 +353,45 @@ function AttachmentsList({
               <Badge variant="outline" className={`flex-shrink-0 text-[10px] px-1.5 py-0 ${st.className}`}>
                 {st.label}
               </Badge>
-              <span className="min-w-0">
+              <span className="min-w-0 flex-1">
                 <span className="font-medium text-slate-700 break-all">{a.filename}</span>
                 {a.status === "extracted" && a.text_chars != null && (
                   <span className="text-slate-400"> · {Number(a.text_chars).toLocaleString()} chars read</span>
                 )}
                 {a.error && <span className="text-slate-500"> — {a.error}</span>}
               </span>
+              <span className="flex items-center gap-1 flex-shrink-0">
+                {a.status === "extracted" && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-6 px-1.5 text-xs text-slate-600"
+                    title="View extracted text"
+                    onClick={() => onView(a)}
+                    data-testid={`button-view-attachment-${a.id}`}
+                  >
+                    <Eye className="h-3 w-3" />
+                  </Button>
+                )}
+                {a.status !== "failed" && (
+                  <a href={`/api/federal-contracts/attachments/${a.id}/download`} target="_blank" rel="noreferrer">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-6 px-1.5 text-xs text-slate-600"
+                      title="Download original file"
+                      data-testid={`button-download-attachment-${a.id}`}
+                    >
+                      <Download className="h-3 w-3" />
+                    </Button>
+                  </a>
+                )}
+              </span>
             </li>
           );
         })}
       </ul>
+      <AttachmentViewer attachment={viewing} onClose={() => setViewing(null)} />
     </div>
   );
 }
@@ -379,6 +442,23 @@ function OpportunitiesTab({ onViewWorkPackage }: { onViewWorkPackage: (noticeId:
     },
     onError: (err: Error) => toast({ title: "AI audit failed", description: err.message, variant: "destructive" }),
     onSettled: () => setAuditingId(null),
+  });
+  const [enrichingId, setEnrichingId] = useState<string | null>(null);
+  const enrich = useMutation({
+    mutationFn: async (id: string) => {
+      setEnrichingId(id);
+      const res = await apiRequest("POST", `/api/federal-contracts/opportunities/${id}/checklist/enrich`);
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/federal-contracts/checklist"] });
+      toast({
+        title: "Checklist updated from documents",
+        description: `${data.updated} of ${data.total} item(s) now show what the solicitation documents require${data.noContext > 0 ? ` · ${data.noContext} item(s) had no specific requirements in the documents` : ""}. See the Checklist tab.`,
+      });
+    },
+    onError: (err: Error) => toast({ title: "Could not update checklist", description: err.message, variant: "destructive" }),
+    onSettled: () => setEnrichingId(null),
   });
   const [fetchingId, setFetchingId] = useState<string | null>(null);
   const fetchAttachments = useMutation({
@@ -492,6 +572,22 @@ function OpportunitiesTab({ onViewWorkPackage }: { onViewWorkPackage: (noticeId:
                     <><ClipboardCheck className="h-3 w-3 mr-1" /> {(o.dossier as any)?.workPackage ? "Regenerate" : "Generate work package"}</>
                   )}
                 </Button>
+                {(o.dossier as any)?.workPackage && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-xs"
+                    disabled={enrichingId === o.id}
+                    onClick={() => enrich.mutate(o.id)}
+                    data-testid={`button-enrich-${o.id}`}
+                  >
+                    {enrichingId === o.id ? (
+                      <><Loader2 className="h-3 w-3 mr-1 animate-spin" /> Updating…</>
+                    ) : (
+                      <><BookOpenCheck className="h-3 w-3 mr-1" /> Update checklist from documents</>
+                    )}
+                  </Button>
+                )}
                 {(o.dossier as any)?.workPackage && (
                   <Button
                     size="sm"
@@ -921,6 +1017,9 @@ function ApplicationItemRow({
           </SelectContent>
         </Select>
         <span className="text-xs text-slate-600 flex-1 min-w-[200px]">{r.label}</span>
+        {r.requirement_context && (
+          <Badge variant="outline" className="text-[10px] border-sky-300 bg-sky-50 text-sky-700">From solicitation</Badge>
+        )}
         {r.answer?.trim() && (
           <Badge variant="outline" className="text-[10px] border-emerald-300 bg-emerald-50 text-emerald-700">Answered</Badge>
         )}
@@ -934,6 +1033,11 @@ function ApplicationItemRow({
           {expanded ? "Hide" : r.answer?.trim() ? "Edit response" : "Write response"}
         </Button>
       </div>
+      {r.requirement_context && (
+        <p className="text-xs text-sky-800 bg-sky-50 border border-sky-100 rounded-md px-2 py-1.5" data-testid={`requirement-context-${r.id}`}>
+          <span className="font-medium">What the solicitation requires:</span> {r.requirement_context}
+        </p>
+      )}
       {expanded && (
         <div className="space-y-2 pl-1">
           <Textarea

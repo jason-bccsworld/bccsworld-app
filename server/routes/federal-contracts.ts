@@ -17,7 +17,7 @@ import { requireOrg, isPlatformStaff } from "../middleware/tenant";
 import { getEmailAlertSettings } from "../services/email-alerts";
 import { tierFor, MAX_ATTACHMENT_ATTEMPTS } from "../services/federal-contracts-monitor";
 import { chunkText, selectExcerpts } from "../services/checklist-review-utils";
-import { fetchNoticeAttachments } from "../services/solicitation-attachments";
+import { fetchNoticeAttachments, trustedSamUrl, downloadCapped, MAX_ATTACHMENT_BYTES, sanitizeFilename } from "../services/solicitation-attachments";
 
 const router = Router();
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || "not-configured" });
@@ -261,6 +261,141 @@ router.post("/opportunities/:id/attachments/fetch", isAuthenticated, async (req,
     ...summary,
     message: summary.remaining > 0 ? `Time budget reached — ${summary.remaining} attachment(s) left. Fetch again to continue.` : undefined,
   });
+});
+
+// GET /attachments/:id/text — the extracted text of one attachment for the
+// in-app viewer. Org-scoped; only rows that actually extracted have text.
+router.get("/attachments/:id/text", isAuthenticated, async (req, res) => {
+  const orgId = requireOrg(req, res);
+  if (!orgId) return;
+  const row = await db
+    .execute(sql`SELECT filename, status, extracted_text, text_chars FROM bccs_fedcon_attachments WHERE id = ${req.params.id} AND org_id = ${orgId}`)
+    .then((r) => (r as any).rows[0]);
+  if (!row) return res.status(404).json({ message: "Attachment not found" });
+  if (row.status !== "extracted" || !row.extracted_text) {
+    return res.status(409).json({ message: "No extracted text for this attachment — its format could not be read." });
+  }
+  res.json({ filename: row.filename, text_chars: row.text_chars, text: row.extracted_text });
+});
+
+// GET /attachments/:id/download — stream the original file to the user's
+// browser. We never store the binary, so this proxies the stored sam.gov URL
+// through the same trust boundary as extraction (exact-host check, key only to
+// sam.gov, redirect re-validation, streamed 15MB cap).
+router.get("/attachments/:id/download", isAuthenticated, async (req, res) => {
+  const orgId = requireOrg(req, res);
+  if (!orgId) return;
+  const row = await db
+    .execute(sql`SELECT filename, url FROM bccs_fedcon_attachments WHERE id = ${req.params.id} AND org_id = ${orgId}`)
+    .then((r) => (r as any).rows[0]);
+  if (!row) return res.status(404).json({ message: "Attachment not found" });
+  const trusted = trustedSamUrl(String(row.url));
+  if (!trusted) return res.status(409).json({ message: "This attachment's source is not a trusted sam.gov link." });
+  const key = process.env.SAM_GOV_API_KEY;
+  if (key) trusted.searchParams.set("api_key", key);
+  try {
+    const { res: upstream, buffer } = await downloadCapped(trusted.toString(), 15_000, MAX_ATTACHMENT_BYTES);
+    const filename = sanitizeFilename(String(row.filename || "attachment")).replace(/"/g, "");
+    res.setHeader("Content-Type", upstream.headers.get("content-type") || "application/octet-stream");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.send(buffer);
+  } catch (err: any) {
+    res.status(502).json({ message: `Download from SAM.gov failed: ${String(err?.message || "unknown error").slice(0, 300)}` });
+  }
+});
+
+// POST /opportunities/:id/checklist/enrich — annotate this opportunity's
+// existing checklist items with the specific requirements/context the fetched
+// solicitation documents state for each item. Updates requirement_context
+// only — never labels, statuses, or the user's answers.
+router.post("/opportunities/:id/checklist/enrich", isAuthenticated, async (req, res) => {
+  const orgId = requireOrg(req, res);
+  if (!orgId) return;
+  if (isViewer(req)) return res.status(403).json({ message: "Viewers cannot update the checklist." });
+  if (!process.env.OPENAI_API_KEY) {
+    return res.status(503).json({ message: "AI unavailable: no OpenAI API key configured." });
+  }
+  const opp = await db
+    .execute(sql`SELECT * FROM bccs_fedcon_opportunities WHERE id = ${req.params.id} AND org_id = ${orgId}`)
+    .then((r) => (r as any).rows[0]);
+  if (!opp) return res.status(404).json({ message: "Opportunity not found" });
+  const noticeId = String(opp.notice_id);
+
+  const items = await db
+    .execute(sql`SELECT id, label FROM bccs_fedcon_checklist WHERE org_id = ${orgId} AND subject_type = 'opportunity' AND subject_id = ${noticeId} ORDER BY item_key ASC`)
+    .then((r) => (r as any).rows);
+  if (items.length === 0) {
+    return res.status(409).json({ message: "No checklist items for this opportunity yet — generate the work package first." });
+  }
+
+  const attachmentEntries = await loadAttachmentTexts(orgId, noticeId).catch(() => []);
+  if (attachmentEntries.length === 0) {
+    return res.status(409).json({ message: "No solicitation documents on file — fetch attachments first." });
+  }
+  const { excerpts } = selectExcerpts(
+    attachmentEntries,
+    items.map((it: any) => String(it.label)),
+    Number.POSITIVE_INFINITY,
+    11_000,
+  );
+
+  const prompt = `You are a federal proposal analyst. Below are excerpts from the public solicitation documents of a SAM.gov opportunity, followed by the applicant's checklist items.
+
+For EACH checklist item, extract what the solicitation documents specifically say that is relevant to that item: concrete requirements, page/section references if visible, deadlines, formats, evaluation criteria, or submission instructions. Be specific and quote or closely paraphrase the documents. If the documents say nothing relevant to an item, return null for it — do not invent requirements.
+
+OPPORTUNITY: ${opp.title || noticeId} | Agency: ${opp.agency || "unknown"} | NAICS: ${opp.naics || "n/a"} | Set-aside: ${opp.set_aside || "none"}
+
+SOLICITATION DOCUMENT EXCERPTS:
+${excerpts.map((e) => `--- (${e.source}) ---\n${e.text}`).join("\n\n")}
+
+CHECKLIST ITEMS (id → label):
+${items.map((it: any) => `${it.id}: ${String(it.label).slice(0, 300)}`).join("\n")}
+
+Return JSON: { "items": [ { "id": "<item id>", "context": "<2-4 sentences of what the documents require for this item, or null>" } ] } — include every item id exactly once.`;
+
+  let parsed: any;
+  try {
+    const completion = await openai.chat.completions.create(
+      {
+        model: "gpt-4o",
+        messages: [{ role: "user", content: prompt }],
+        response_format: { type: "json_object" },
+        temperature: 0,
+        max_tokens: 2500,
+      },
+      // Leave firm headroom inside Vercel's 30s cap for the excerpt selection
+      // above and the single batched write below.
+      { timeout: 16_000, maxRetries: 0 },
+    );
+    parsed = JSON.parse(completion.choices[0].message.content || "{}");
+  } catch (err: any) {
+    const msg = err?.status === 429 ? "AI quota exhausted — try again later." : "The AI call failed or timed out — try again.";
+    return res.status(502).json({ message: msg, retryable: true });
+  }
+
+  // One entry per known item id (first occurrence wins). An explicit null/empty
+  // context is a real verdict — "the documents say nothing about this" — and
+  // clears any stale context from a previous run.
+  const validIds = new Set(items.map((it: any) => String(it.id)));
+  const byId = new Map<string, string | null>();
+  for (const u of Array.isArray(parsed?.items) ? parsed.items : []) {
+    const id = String(u?.id ?? "");
+    if (!validIds.has(id) || byId.has(id)) continue;
+    const ctx = typeof u?.context === "string" ? u.context.replace(/\u0000/g, "").trim().slice(0, 2000) : "";
+    byId.set(id, ctx || null);
+  }
+  const updates = [...byId.entries()].map(([id, context]) => ({ id, context }));
+  if (updates.length > 0) {
+    // Single batched update — no per-row round-trips inside the time budget.
+    await db.execute(sql`
+      UPDATE bccs_fedcon_checklist c
+      SET requirement_context = u.context, updated_at = NOW()
+      FROM jsonb_to_recordset(${JSON.stringify(updates)}::jsonb) AS u(id uuid, context text)
+      WHERE c.id = u.id AND c.org_id = ${orgId}
+    `);
+  }
+  const updated = updates.filter((u) => u.context !== null).length;
+  res.json({ total: items.length, updated, noContext: items.length - updated });
 });
 
 const OPP_BASE_CHECKLIST = (o: any): { key: string; label: string }[] => [

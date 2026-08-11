@@ -29,6 +29,9 @@ const h = vi.hoisted(() => ({
     samResponder: (async (_url: string) => new Response("nope", { status: 500 })) as (url: string, init?: any) => Promise<Response>,
     samCalls: [] as string[],
     aiMode: "ok" as "ok" | "fail",
+    // When set, the mocked model returns this JSON string instead of the
+    // default guidance shape (used by the checklist-enrich tests).
+    aiContent: null as string | null,
   },
 }));
 
@@ -74,7 +77,7 @@ vi.mock("openai", () => ({
             err.status = 500;
             throw err;
           }
-          return { choices: [{ message: { content: JSON.stringify({ expectation: "e", tips: [], example: "x" }) } }] };
+          return { choices: [{ message: { content: h.state.aiContent ?? JSON.stringify({ expectation: "e", tips: [], example: "x" }) } }] };
         }),
       },
     };
@@ -142,6 +145,7 @@ beforeAll(async () => {
       ai_audit JSONB,
       answer TEXT,
       ai_guidance JSONB,
+      requirement_context TEXT,
       UNIQUE (org_id, subject_type, subject_id, item_key)
     );
     CREATE TABLE bccs_ops_manuals (
@@ -184,6 +188,7 @@ beforeEach(() => {
   h.state.orgId = ORG1;
   h.state.role = "admin";
   h.state.aiMode = "ok";
+  h.state.aiContent = null;
 });
 
 async function insertOpp(orgId: string, noticeId: string): Promise<string> {
@@ -327,6 +332,95 @@ describe("POST /opportunities/:id/attachments/fetch (real SQL, mocked network)",
     const [row] = await attachmentRows("N-NULBYTES");
     expect(row.status).toBe("extracted");
     expect(row.extracted_text).toBe("extracted:nulbytes.pdf:withnuls");
+  });
+
+  it("enrich writes requirement_context from documents, clears stale context on null, never touches answers", async () => {
+    const oppId = await insertOpp(ORG1, "N-ENRICH");
+    await pg.query(
+      `INSERT INTO bccs_fedcon_attachments (org_id, notice_id, filename, url, extracted_text, text_chars, status)
+       VALUES ($1,'N-ENRICH','sow.pdf','https://sam.gov/f/sow.pdf','The contractor shall provide 24/7 staffing.',43,'extracted')`,
+      [ORG1],
+    );
+    const { rows: itemRows } = await pg.query<any>(
+      `INSERT INTO bccs_fedcon_checklist (org_id, subject_type, subject_id, item_key, label, status, answer, requirement_context)
+       VALUES ($1,'opportunity','N-ENRICH','a','Staffing plan','in_progress','my saved answer','STALE OLD CONTEXT'),
+              ($1,'opportunity','N-ENRICH','b','Past performance','not_started',NULL,NULL)
+       RETURNING id, item_key`,
+      [ORG1],
+    );
+    const idA = itemRows.find((r: any) => r.item_key === "a").id;
+    const idB = itemRows.find((r: any) => r.item_key === "b").id;
+    // Model returns: real context for B, explicit null for A (clears stale),
+    // a duplicate of B (ignored) and an unknown id (ignored).
+    h.state.aiContent = JSON.stringify({
+      items: [
+        { id: idA, context: null },
+        { id: idB, context: "Section C requires\u0000 three past-performance references." },
+        { id: idB, context: "duplicate — must be ignored" },
+        { id: "00000000-0000-0000-0000-000000000000", context: "unknown id" },
+      ],
+    });
+
+    const res = await fetch(`${base}/api/federal-contracts/opportunities/${oppId}/checklist/enrich`, { method: "POST" });
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body.total).toBe(2);
+    expect(body.updated).toBe(1);
+
+    const { rows: after } = await pg.query<any>(`SELECT id, answer, status, requirement_context FROM bccs_fedcon_checklist WHERE subject_id = 'N-ENRICH'`);
+    const a = after.find((r: any) => r.id === idA);
+    const b = after.find((r: any) => r.id === idB);
+    expect(a.requirement_context).toBeNull();          // stale context cleared
+    expect(a.answer).toBe("my saved answer");          // user data untouched
+    expect(a.status).toBe("in_progress");
+    expect(b.requirement_context).toBe("Section C requires three past-performance references."); // NULs stripped, first occurrence wins
+  });
+
+  it("enrich refuses viewers, other orgs, and opportunities without documents", async () => {
+    const oppId = await insertOpp(ORG1, "N-ENRICH-GUARD");
+    await pg.query(
+      `INSERT INTO bccs_fedcon_checklist (org_id, subject_type, subject_id, item_key, label) VALUES ($1,'opportunity','N-ENRICH-GUARD','x','Item')`,
+      [ORG1],
+    );
+    // No attachments on file → 409.
+    let res = await fetch(`${base}/api/federal-contracts/opportunities/${oppId}/checklist/enrich`, { method: "POST" });
+    expect(res.status).toBe(409);
+    // Viewer → 403.
+    h.state.role = "viewer";
+    res = await fetch(`${base}/api/federal-contracts/opportunities/${oppId}/checklist/enrich`, { method: "POST" });
+    expect(res.status).toBe(403);
+    // Another org → 404.
+    h.state.role = "admin";
+    h.state.orgId = ORG2;
+    res = await fetch(`${base}/api/federal-contracts/opportunities/${oppId}/checklist/enrich`, { method: "POST" });
+    expect(res.status).toBe(404);
+  });
+
+  it("attachment text and download endpoints are org-scoped", async () => {
+    await insertOpp(ORG1, "N-VIEWDL");
+    const { rows } = await pg.query<any>(
+      `INSERT INTO bccs_fedcon_attachments (org_id, notice_id, filename, url, extracted_text, text_chars, status)
+       VALUES ($1,'N-VIEWDL','doc.pdf','https://sam.gov/f/doc.pdf','extracted words',15,'extracted') RETURNING id`,
+      [ORG1],
+    );
+    const attId = rows[0].id;
+
+    let res = await fetch(`${base}/api/federal-contracts/attachments/${attId}/text`);
+    expect(res.status).toBe(200);
+    expect((await res.json()).text).toBe("extracted words");
+
+    h.state.samResponder = async () => okPdf("file bytes");
+    res = await fetch(`${base}/api/federal-contracts/attachments/${attId}/download`);
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-disposition")).toContain('filename="doc.pdf"');
+    expect(await res.text()).toBe("file bytes");
+    // Key went only to sam.gov.
+    expect(h.state.samCalls.every((u) => new URL(u).hostname.endsWith("sam.gov"))).toBe(true);
+
+    // Another org sees neither.
+    h.state.orgId = ORG2;
+    expect((await fetch(`${base}/api/federal-contracts/attachments/${attId}/text`)).status).toBe(404);
+    expect((await fetch(`${base}/api/federal-contracts/attachments/${attId}/download`)).status).toBe(404);
   });
 
   it("still rejects the S3 bucket as an initial attachment URL", async () => {

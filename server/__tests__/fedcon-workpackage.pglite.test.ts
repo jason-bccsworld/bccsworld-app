@@ -124,6 +124,7 @@ beforeAll(async () => {
       ai_audit JSONB,
       answer TEXT,
       ai_guidance JSONB,
+      requirement_context TEXT,
       UNIQUE (org_id, subject_type, subject_id, item_key)
     );
     CREATE UNIQUE INDEX "UQ_fedcon_checklist_label"

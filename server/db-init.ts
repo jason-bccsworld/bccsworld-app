@@ -639,6 +639,7 @@ export async function ensureTables(): Promise<void> {
       await db.execute(sql`ALTER TABLE bccs_fedcon_checklist ADD COLUMN IF NOT EXISTS ai_audit JSONB`);
       await db.execute(sql`ALTER TABLE bccs_fedcon_checklist ADD COLUMN IF NOT EXISTS answer TEXT`);
       await db.execute(sql`ALTER TABLE bccs_fedcon_checklist ADD COLUMN IF NOT EXISTS ai_guidance JSONB`);
+      await db.execute(sql`ALTER TABLE bccs_fedcon_checklist ADD COLUMN IF NOT EXISTS requirement_context TEXT`);
       // Additive: extracted text of public SAM.gov solicitation attachments,
       // fetched on demand per opportunity to ground AI coaching/tailoring.
       await db.execute(sql`
