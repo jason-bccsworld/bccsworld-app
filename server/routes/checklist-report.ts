@@ -224,6 +224,24 @@ async function ensureTables() {
   await db.execute(sql`
     ALTER TABLE bccs_checklist_area_coverage ADD COLUMN IF NOT EXISTS manual_set_hash VARCHAR(64)
   `);
+  // Org-scoped AI coverage score snapshots — one per completed AI review run
+  // (when the org-wide score changed), powering the score trend over time.
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS bccs_checklist_score_snapshots (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      organization_id UUID NOT NULL,
+      score INTEGER NOT NULL,
+      reviewed_items INTEGER NOT NULL,
+      covered_count INTEGER NOT NULL,
+      partial_count INTEGER NOT NULL,
+      not_addressed_count INTEGER NOT NULL,
+      created_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS bccs_checklist_score_snapshots_org_time
+    ON bccs_checklist_score_snapshots (organization_id, created_at)
+  `);
   // Server-owned state for full-coverage (map-reduce) AI review runs. The
   // client only drives the phases; evidence and progress live here so a
   // caller can neither fabricate evidence nor skip manual sections.
@@ -376,6 +394,46 @@ export async function applyManualRevision(opts: {
   });
 }
 
+/**
+ * Record an org-scoped AI coverage score snapshot for one completed review
+ * run. Score matches the live checklist / export computation: current
+ * (non-stale) verdicts only — covered = full credit, partial = half.
+ * Every completed run gets its own timestamped snapshot, including runs
+ * whose score matches the previous one — a flat trend ("78% → 78%") is
+ * itself evidence of score stability over time.
+ * Returns the recorded snapshot, or null when nothing has a current verdict
+ * (a score would be meaningless).
+ */
+async function recordScoreSnapshot(orgId: string): Promise<{
+  score: number;
+  reviewedItems: number;
+  covered: number;
+  partial: number;
+  notAddressed: number;
+  createdAt: any;
+} | null> {
+  const manualIds = (await getOrgManuals(orgId)).map(manualToken);
+  const currentHash = manualSetHash(manualIds);
+  const findings = await db.execute(sql`
+    SELECT DISTINCT ON (item_id) item_id, manual_id, manual_set_hash, verdict
+    FROM bccs_checklist_ai_findings WHERE organization_id = ${orgId}
+    ORDER BY item_id, reviewed_at DESC
+  `).then((r: any) => r.rows);
+  const current = findings.filter((f: any) => !isFindingStale(f, manualIds, currentHash));
+  if (current.length === 0) return null;
+  const covered = current.filter((f: any) => f.verdict === "covered").length;
+  const partial = current.filter((f: any) => f.verdict === "partial").length;
+  const notAddressed = current.filter((f: any) => f.verdict === "not_addressed").length;
+  const score = Math.round(((covered + partial * 0.5) / current.length) * 100);
+  const [row] = await db.execute(sql`
+    INSERT INTO bccs_checklist_score_snapshots
+      (organization_id, score, reviewed_items, covered_count, partial_count, not_addressed_count)
+    VALUES (${orgId}, ${score}, ${current.length}, ${covered}, ${partial}, ${notAddressed})
+    RETURNING created_at
+  `).then((r: any) => r.rows);
+  return { score, reviewedItems: current.length, covered, partial, notAddressed, createdAt: row?.created_at };
+}
+
 async function seedChecklist(orgId: string) {
   // ON CONFLICT DO NOTHING + the unique (org, area, number) index makes
   // seeding idempotent under concurrent first loads.
@@ -517,8 +575,25 @@ router.get("/checklist", isAuthenticated, async (req: any, res) => {
       FROM training_organizations WHERE id = ${orgId}
     `).then((r: any) => r.rows);
 
+    // Score-over-time snapshots (oldest → newest) for the trend display.
+    const scoreHistory = await db.execute(sql`
+      SELECT score, reviewed_items, covered_count, partial_count, not_addressed_count, created_at
+      FROM (
+        SELECT * FROM bccs_checklist_score_snapshots WHERE organization_id = ${orgId}
+        ORDER BY created_at DESC, id DESC LIMIT 20
+      ) s ORDER BY created_at ASC, id ASC
+    `).then((r: any) => r.rows.map((s: any) => ({
+      score: Number(s.score),
+      reviewedItems: Number(s.reviewed_items),
+      covered: Number(s.covered_count),
+      partial: Number(s.partial_count),
+      notAddressed: Number(s.not_addressed_count),
+      createdAt: s.created_at,
+    })));
+
     res.json({
       areas,
+      scoreHistory,
       organization: org
         ? {
             name: org.organization_name,
@@ -952,6 +1027,7 @@ async function replaceChecklist(orgId: string, items: ImportedItem[], res: any):
   await db.transaction(async (tx) => {
     await tx.execute(sql`DELETE FROM bccs_checklist_ai_findings WHERE organization_id = ${orgId}`);
     await tx.execute(sql`DELETE FROM bccs_checklist_area_coverage WHERE organization_id = ${orgId}`);
+    await tx.execute(sql`DELETE FROM bccs_checklist_score_snapshots WHERE organization_id = ${orgId}`);
     await tx.execute(sql`DELETE FROM bccs_checklist_evidence WHERE organization_id = ${orgId}`);
     await tx.execute(sql`DELETE FROM bccs_checklist_review_runs WHERE organization_id = ${orgId}`);
     await tx.execute(sql`DELETE FROM bccs_checklist_report_items WHERE organization_id = ${orgId}`);
@@ -1171,8 +1247,21 @@ router.get("/export.xlsx", isAuthenticated, async (req: any, res) => {
       ORDER BY p.created_at DESC
     `).then((r: any) => r.rows);
 
+    const snapshotRows = await db.execute(sql`
+      SELECT score, reviewed_items, created_at
+      FROM (
+        SELECT * FROM bccs_checklist_score_snapshots WHERE organization_id = ${orgId}
+        ORDER BY created_at DESC, id DESC LIMIT 20
+      ) s ORDER BY created_at ASC, id ASC
+    `).then((r: any) => r.rows);
+
     const buffer = await buildChecklistWorkbook({
       areas,
+      scoreHistory: snapshotRows.map((s: any) => ({
+        score: Number(s.score),
+        reviewedItems: Number(s.reviewed_items),
+        createdAt: s.created_at,
+      })),
       organization: org
         ? { name: org.organization_name, certificateNumber: org.certificate_number, regulatoryAuthority: org.regulatory_authority }
         : null,
@@ -1205,6 +1294,7 @@ router.post("/reset", isAuthenticated, requireAdmin, async (req: any, res) => {
     if (!orgId) return;
     await db.execute(sql`DELETE FROM bccs_checklist_ai_findings WHERE organization_id = ${orgId}`);
     await db.execute(sql`DELETE FROM bccs_checklist_area_coverage WHERE organization_id = ${orgId}`);
+    await db.execute(sql`DELETE FROM bccs_checklist_score_snapshots WHERE organization_id = ${orgId}`);
     await db.execute(sql`DELETE FROM bccs_checklist_evidence WHERE organization_id = ${orgId}`);
     await db.execute(sql`DELETE FROM bccs_checklist_review_runs WHERE organization_id = ${orgId}`);
     await db.execute(sql`DELETE FROM bccs_checklist_report_items WHERE organization_id = ${orgId}`);
@@ -1608,6 +1698,26 @@ Respond with JSON: { "findings": [ ... one object per checklist item ... ] }`;
   } catch (err) {
     console.error("AI review error:", err);
     res.status(500).json({ message: "Failed to run AI review" });
+  }
+});
+
+// POST /score-snapshot — record one org-wide AI coverage score snapshot,
+// called by the client exactly once when a user-initiated review run (the
+// all-area sweep) completes. The score is computed server-side from the
+// org's current findings, so a caller can only choose *when* a snapshot is
+// taken, never what it says.
+router.post("/score-snapshot", isAuthenticated, requireAdmin, async (req: any, res) => {
+  try {
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
+    const snapshot = await recordScoreSnapshot(orgId);
+    if (!snapshot) {
+      return res.status(409).json({ message: "No current AI verdicts to snapshot — run the AI review first." });
+    }
+    res.json({ recorded: true, snapshot });
+  } catch (err) {
+    console.error("Score snapshot error:", err);
+    res.status(500).json({ message: "Failed to record the score snapshot" });
   }
 });
 

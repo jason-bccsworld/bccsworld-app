@@ -218,6 +218,38 @@ interface EnforcementPolicy {
  * covered = full credit, partial = half, not addressed = none.
  * Null when nothing has a current AI verdict.
  */
+interface ScoreSnapshot {
+  score: number;
+  reviewedItems: number;
+  covered: number;
+  partial: number;
+  notAddressed: number;
+  createdAt: string;
+}
+
+/** "62% → 78% → 91%" over the last few snapshots (oldest → newest). */
+function scoreTrendText(history: ScoreSnapshot[], maxPoints = 5): string | null {
+  if (history.length < 2) return null;
+  return history.slice(-maxPoints).map(s => `${s.score}%`).join(' → ');
+}
+
+/** Tiny inline sparkline of the score history (0–100 scale). */
+function ScoreSparkline({ history }: { history: ScoreSnapshot[] }) {
+  if (history.length < 2) return null;
+  const points = history.slice(-10);
+  const w = 96, hgt = 24, pad = 2;
+  const step = (w - pad * 2) / (points.length - 1);
+  const y = (score: number) => hgt - pad - (score / 100) * (hgt - pad * 2);
+  const path = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${(pad + i * step).toFixed(1)},${y(p.score).toFixed(1)}`).join(' ');
+  const last = points[points.length - 1];
+  return (
+    <svg width={w} height={hgt} viewBox={`0 0 ${w} ${hgt}`} className="shrink-0" role="img" aria-label="AI coverage score trend" data-testid="score-sparkline">
+      <path d={path} fill="none" stroke="#1d4ed8" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx={pad + (points.length - 1) * step} cy={y(last.score)} r="2" fill="#1d4ed8" />
+    </svg>
+  );
+}
+
 function aiCoverageScore(areas: InspectionArea[]): number | null {
   const reviewed = areas.flatMap(a => a.items).filter(i => i.aiFinding && !i.aiFinding.stale);
   if (reviewed.length === 0) return null;
@@ -225,7 +257,7 @@ function aiCoverageScore(areas: InspectionArea[]): number | null {
   return Math.round((credit / reviewed.length) * 100);
 }
 
-function buildReportHtml(areas: InspectionArea[], manualInfo: any, organization: any, policies: EnforcementPolicy[] = []): string {
+function buildReportHtml(areas: InspectionArea[], manualInfo: any, organization: any, policies: EnforcementPolicy[] = [], scoreHistory: ScoreSnapshot[] = []): string {
   const now = new Date();
   const totalItems = areas.reduce((s, a) => s + a.items.length, 0);
   const count = (st: string) => areas.reduce((s, a) => s + a.items.filter(i => i.status === st).length, 0);
@@ -308,6 +340,7 @@ function buildReportHtml(areas: InspectionArea[], manualInfo: any, organization:
     <div class="stat"><b>${aiCount('partial')}</b>AI: partial</div>
     <div class="stat"><b>${aiCount('not_addressed')}</b>AI: not addressed</div>` : ''}
     ${aiCoverageScore(areas) !== null ? `<div class="stat"><b>${aiCoverageScore(areas)}%</b>AI coverage score</div>` : ''}
+    ${scoreTrendText(scoreHistory) ? `<div class="stat"><b>${escapeHtml(scoreTrendText(scoreHistory)!)}</b>AI coverage trend</div>` : ''}
   </div>
   ${areaSections}
   ${policies.length ? `
@@ -905,6 +938,13 @@ export default function ComplianceChecklist() {
       setReviewProgress({ done: i + 1, total: areas.length });
     }
     setReviewProgress(null);
+    if (!failed) {
+      // One score snapshot per completed review run — powers the trend.
+      // Computed server-side from current findings; failure is non-fatal.
+      try {
+        await fetch('/api/checklist-report/score-snapshot', { method: 'POST', credentials: 'include' });
+      } catch { /* trend snapshot is best-effort */ }
+    }
     queryClient.invalidateQueries({ queryKey: ['/api/checklist-report/checklist'] });
     queryClient.invalidateQueries({ queryKey: ['/api/checklist-report/manual'] });
     if (failed) {
@@ -915,7 +955,7 @@ export default function ComplianceChecklist() {
   };
 
   const exportReport = () => {
-    const html = buildReportHtml(inspectionAreas, manualInfo, checklistData?.organization || null, policies);
+    const html = buildReportHtml(inspectionAreas, manualInfo, checklistData?.organization || null, policies, checklistData?.scoreHistory || []);
     const win = window.open('', '_blank');
     if (!win) {
       toast({ title: 'Popup blocked', description: 'Allow popups for this site to export the report.', variant: 'destructive' });
@@ -1203,9 +1243,17 @@ export default function ComplianceChecklist() {
             )}
             {aiCoverageScore(inspectionAreas) !== null && (
               <div className="border-t pt-3" data-testid="ai-coverage-score">
-                <div className="flex justify-between text-sm mb-2">
+                <div className="flex justify-between items-center text-sm mb-2">
                   <span className="font-medium text-gray-700">AI Coverage Score</span>
-                  <span className="font-semibold text-blue-700">{aiCoverageScore(inspectionAreas)}%</span>
+                  <div className="flex items-center gap-3">
+                    {scoreTrendText(checklistData?.scoreHistory || []) && (
+                      <span className="text-xs text-gray-500" data-testid="score-trend" title="Score at each completed AI review">
+                        {scoreTrendText(checklistData?.scoreHistory || [])}
+                      </span>
+                    )}
+                    <ScoreSparkline history={checklistData?.scoreHistory || []} />
+                    <span className="font-semibold text-blue-700">{aiCoverageScore(inspectionAreas)}%</span>
+                  </div>
                 </div>
                 <Progress value={aiCoverageScore(inspectionAreas) || 0} className="h-2" />
                 <p className="text-xs text-gray-500 mt-1">

@@ -374,14 +374,27 @@ export function sheetName(raw: string, used: Set<string>): string {
   return name;
 }
 
+export interface ScoreSnapshot {
+  score: number;
+  reviewedItems: number;
+  createdAt: string | Date | null;
+}
+
+/** "62% → 78% → 91%" over the last few snapshots (oldest → newest). */
+export function scoreTrendText(history: ScoreSnapshot[], maxPoints = 5): string | null {
+  if (history.length < 2) return null;
+  return history.slice(-maxPoints).map((s) => `${s.score}%`).join(" → ");
+}
+
 export async function buildChecklistWorkbook(opts: {
   areas: ExportArea[];
   organization: ExportOrganization | null;
   manuals: { filename: string; uploadedAt: string | Date | null }[];
   policies?: ExportPolicy[];
+  scoreHistory?: ScoreSnapshot[];
   generatedAt?: Date;
 }): Promise<Buffer> {
-  const { areas, organization, manuals, policies = [] } = opts;
+  const { areas, organization, manuals, policies = [], scoreHistory = [] } = opts;
   const generatedAt = opts.generatedAt ?? new Date();
   const workbook = new ExcelJS.Workbook();
   workbook.creator = "BCCS Part Checklist Report";
@@ -434,6 +447,10 @@ export async function buildChecklistWorkbook(opts: {
     const score = aiCoverageScore(allItems);
     if (score !== null) {
       summary.addRow(["AI coverage score", `${score}% (covered = full credit, partial = half; current verdicts only)`]);
+    }
+    const trend = scoreTrendText(scoreHistory);
+    if (trend) {
+      summary.addRow(["AI coverage score trend", `${trend} (snapshots recorded when an AI review completes)`]);
     }
   }
 
