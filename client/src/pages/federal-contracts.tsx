@@ -35,6 +35,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import AgentWorkspaceHeader, { timeAgo } from "@/components/agent-workspace-header";
+import { WATCH_KIND_META, watchValueWarning } from "@shared/watchlist-validation";
 
 /* ── Types ────────────────────────────────────────────────────────────────── */
 
@@ -115,14 +116,9 @@ interface ChecklistRow {
   } | null;
 }
 
-const KIND_LABEL: Record<string, string> = {
-  agency: "Agency",
-  naics: "NAICS code",
-  keyword: "Keyword",
-  vendor: "Vendor name",
-  vendor_uei: "Vendor UEI",
-  contract: "Contract # (PIID)",
-};
+const KIND_LABEL: Record<string, string> = Object.fromEntries(
+  Object.entries(WATCH_KIND_META).map(([k, m]) => [k, m.label]),
+);
 
 const TIER_STYLE: Record<string, string> = {
   critical: "bg-red-100 text-red-800 border-red-200",
@@ -152,9 +148,14 @@ function WatchlistPanel() {
   const [value, setValue] = useState("");
   const { data: items = [], isLoading } = useQuery<WatchItem[]>({ queryKey: ["/api/federal-contracts/watchlist"] });
 
+  const warning = watchValueWarning(kind, value);
+
   const add = useMutation({
-    mutationFn: async () => {
-      const res = await apiRequest("POST", "/api/federal-contracts/watchlist", { kind, value });
+    // Only the explicit "Add anyway" button click passes confirmed: true —
+    // pressing Enter never confirms a warned value; the server rejects it
+    // (422) and the warning stays visible instead.
+    mutationFn: async (confirmed: boolean) => {
+      const res = await apiRequest("POST", "/api/federal-contracts/watchlist", { kind, value, confirmed });
       return res.json();
     },
     onSuccess: () => {
@@ -193,13 +194,32 @@ function WatchlistPanel() {
             placeholder={kind === "naics" ? "e.g. 611512" : kind === "contract" ? "e.g. FA8620-21-C-1234" : "e.g. flight training"}
             value={value}
             onChange={(e) => setValue(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && value.trim() && add.mutate()}
+            onKeyDown={(e) => e.key === "Enter" && value.trim() && add.mutate(false)}
             data-testid="input-watch-value"
           />
-          <Button onClick={() => add.mutate()} disabled={!value.trim() || add.isPending} data-testid="button-add-watch">
+          <Button
+            variant={warning ? "outline" : "default"}
+            className={warning ? "border-amber-300 text-amber-800 hover:bg-amber-50" : undefined}
+            onClick={() => add.mutate(!!warning)}
+            disabled={!value.trim() || add.isPending}
+            data-testid="button-add-watch"
+          >
             {add.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+            {warning ? <span className="ml-1 text-xs">Add anyway</span> : null}
           </Button>
         </div>
+        <p className="text-xs text-slate-500 -mt-2 mb-3" data-testid="text-watch-kind-description">
+          {WATCH_KIND_META[kind as keyof typeof WATCH_KIND_META]?.description}
+        </p>
+        {warning && (
+          <div
+            className="flex items-start gap-2 text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-md p-2.5 mb-3"
+            data-testid="text-watch-value-warning"
+          >
+            <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0 mt-0.5 text-amber-600" />
+            <span>{warning} Use "Add anyway" if this really is what you want the agent to do.</span>
+          </div>
+        )}
         {isLoading ? (
           <p className="text-sm text-slate-400">Loading…</p>
         ) : items.length === 0 ? (

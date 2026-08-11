@@ -213,6 +213,9 @@ interface PatrolResult {
   newFindings: number;
   autoResolved: number;
   skippedChecks: SkippedCheck[];
+  /** Which watch kinds drove which searches this run (so "0 findings" is
+   * never silent about a watch that was effectively a no-op). */
+  watchSummary: string;
 }
 
 function isSkipped(x: unknown): x is SkippedCheck {
@@ -260,13 +263,32 @@ export async function patrolOrg(orgId: string): Promise<PatrolResult> {
     .then((r) => (r as any).rows as { id: string; kind: string; value: string; label: string | null }[]);
 
   if (watchlist.length === 0) {
-    return { itemsScanned: 0, newFindings: 0, autoResolved: 0, skippedChecks: [] };
+    return { itemsScanned: 0, newFindings: 0, autoResolved: 0, skippedChecks: [], watchSummary: "" };
   }
+  // Per-kind search accounting, from actual attempted searches — a watch only
+  // counts as "searched" when its API call ran successfully, so per-run caps,
+  // missing keys, and API errors are visible in the run summary.
+  const kindStats = new Map<string, { watches: number; searched: number; found: number }>();
+  for (const w of watchlist) {
+    const s = kindStats.get(w.kind) ?? { watches: 0, searched: 0, found: 0 };
+    s.watches++;
+    kindStats.set(w.kind, s);
+  }
+  const bumpKind = (kind: string, found: number): void => {
+    const s = kindStats.get(kind);
+    if (s) {
+      s.searched++;
+      s.found += found;
+    }
+  };
 
   /* 1 ── Opportunity watch (SAM.gov, key-gated) */
   const oppTargets = watchlist.filter((w) => ["keyword", "naics", "agency"].includes(w.kind));
   if (oppTargets.length > 0 && !samKeyAvailable()) {
     skipped.push({ check: "sam_opportunities", reason: "SAM_GOV_API_KEY not configured — opportunity watch skipped" });
+  }
+  if (oppTargets.length > 10) {
+    skipped.push({ check: "sam_opportunities", reason: `${oppTargets.length - 10} keyword/NAICS/agency watch(es) beyond the per-run cap of 10 — not searched this run` });
   }
   for (const target of oppTargets.slice(0, 10)) {
     const result = await searchSamOpportunities({
@@ -280,6 +302,7 @@ export async function patrolOrg(orgId: string): Promise<PatrolResult> {
       continue;
     }
     itemsScanned += result.length;
+    bumpKind(target.kind, result.length);
     for (const opp of result) {
       const existing = await db
         .execute(sql`SELECT id FROM bccs_fedcon_opportunities WHERE org_id = ${orgId} AND notice_id = ${opp.noticeId}`)
@@ -423,6 +446,12 @@ export async function patrolOrg(orgId: string): Promise<PatrolResult> {
   /* 2 ── Vendor & contract dossiers + risk rubric */
   const vendorTargets = watchlist.filter((w) => ["vendor", "vendor_uei"].includes(w.kind));
   const contractTargets = watchlist.filter((w) => w.kind === "contract");
+  if (vendorTargets.length > 15) {
+    skipped.push({ check: "usaspending_awards", reason: `${vendorTargets.length - 15} vendor/UEI watch(es) beyond the per-run cap of 15 — not searched this run` });
+  }
+  if (contractTargets.length > 15) {
+    skipped.push({ check: "usaspending_piid", reason: `${contractTargets.length - 15} contract watch(es) beyond the per-run cap of 15 — not searched this run` });
+  }
 
   // Gather awards per vendor for the concentration check.
   const vendorAwards = new Map<string, { target: (typeof watchlist)[number]; awards: UsaAward[] }>();
@@ -431,6 +460,7 @@ export async function patrolOrg(orgId: string): Promise<PatrolResult> {
       const awards = await searchAwardsByRecipient({ recipient: v.value, limit: 25 });
       vendorAwards.set(v.value, { target: v, awards });
       itemsScanned += awards.length;
+      bumpKind(v.kind, awards.length);
     } catch (err: any) {
       skipped.push({ check: "usaspending_awards", reason: `USAspending lookup failed for "${v.value}": ${err.message}` });
     }
@@ -571,6 +601,7 @@ export async function patrolOrg(orgId: string): Promise<PatrolResult> {
     try {
       const awards = await searchAwardByPiid(c.value);
       itemsScanned += awards.length;
+      bumpKind(c.kind, awards.length);
       for (const award of awards.slice(0, 2)) {
         let mods: { modificationCount: number | null; recentModsWithin90Days: number | null } = { modificationCount: null, recentModsWithin90Days: null };
         const flags: RiskFlag[] = [];
@@ -640,7 +671,27 @@ export async function patrolOrg(orgId: string): Promise<PatrolResult> {
     }
   }
 
-  return { itemsScanned, newFindings: created, autoResolved: resolved, skippedChecks: skipped };
+  // Per-kind search breakdown from actual attempted searches, so a quiet run
+  // never hides that a watch was effectively a no-op (capped, key missing, or
+  // API error → searched < watches, with the reason in the skipped checks).
+  const KIND_SEARCH: Record<string, { what: string; result: string }> = {
+    keyword: { what: "SAM.gov opportunity notices", result: "notice(s) matched" },
+    naics: { what: "SAM.gov opportunity notices", result: "notice(s) matched" },
+    agency: { what: "SAM.gov opportunity notices", result: "notice(s) matched" },
+    vendor: { what: "USAspending spending records", result: "award(s) found" },
+    vendor_uei: { what: "USAspending spending records", result: "award(s) found" },
+    contract: { what: "USAspending PIID lookup", result: "award(s) found" },
+  };
+  const summaryParts: string[] = [];
+  for (const [kind, s] of Array.from(kindStats.entries())) {
+    const target = KIND_SEARCH[kind] ?? { what: "no search (unknown watch kind)", result: "result(s)" };
+    const notSearched = s.watches - s.searched;
+    summaryParts.push(
+      `${kind}: ${s.searched}/${s.watches} watch(es) searched ${target.what}, ${s.found} ${target.result}` +
+        (notSearched > 0 ? ` (${notSearched} not searched — see skipped checks)` : ""),
+    );
+  }
+  return { itemsScanned, newFindings: created, autoResolved: resolved, skippedChecks: skipped, watchSummary: summaryParts.join("; ") };
 }
 
 /* ── Runner ───────────────────────────────────────────────────────────────── */
@@ -684,7 +735,7 @@ export async function runFederalContractsMonitor(targetOrgId?: string): Promise<
         status: "success",
         itemsProcessed: r.itemsScanned,
         findingsCount: r.newFindings,
-        summary: `Patrolled ${r.itemsScanned} contract record(s); ${r.newFindings} new finding(s), ${r.autoResolved} auto-resolved.${skippedNote}`,
+        summary: `Patrolled ${r.itemsScanned} contract record(s); ${r.newFindings} new finding(s), ${r.autoResolved} auto-resolved.${r.watchSummary ? ` Searches: ${r.watchSummary}.` : ""}${skippedNote}`,
       });
       await emitAgentEvent(
         AGENT_NAME,

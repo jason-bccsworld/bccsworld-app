@@ -335,6 +335,94 @@ describe("patrolOrg scoring", () => {
   });
 });
 
+/* ── patrolOrg: per-kind run-summary breakdown ────────────────────────────── */
+
+describe("patrolOrg watchSummary", () => {
+  const opp = (id: string) => ({
+    noticeId: id, title: `Opp ${id}`, agency: "GSA", naics: "541511", psc: null,
+    setAside: null, noticeType: "Solicitation", postedDate: "2026-08-01",
+    responseDeadline: null, url: `https://sam.gov/opp/${id}`, description: null,
+  });
+
+  it("reports each watch kind separately from actual attempted searches", async () => {
+    routeQueries({
+      watchlist: [
+        { id: "w1", kind: "keyword", value: "widgets", label: null },
+        { id: "w2", kind: "naics", value: "541511", label: null },
+        { id: "w3", kind: "vendor", value: "Acme Federal LLC", label: null },
+        { id: "w4", kind: "vendor_uei", value: "ABC123DEF456", label: null },
+        { id: "w5", kind: "contract", value: "PIID-9", label: null },
+      ],
+      openFindings: [],
+    });
+    fedconMocks.samKeyAvailable.mockReturnValue(true);
+    fedconMocks.searchSamOpportunities
+      .mockResolvedValueOnce([opp("N-1"), opp("N-2")]) // keyword
+      .mockResolvedValueOnce([]); // naics
+    fedconMocks.searchAwardsByRecipient
+      .mockResolvedValueOnce([makeAward({ awardId: "A1" })]) // vendor
+      .mockResolvedValueOnce([]); // vendor_uei
+    fedconMocks.searchAwardByPiid.mockResolvedValue([]);
+
+    const result = await patrolOrg("org-1");
+
+    expect(result.watchSummary).toContain("keyword: 1/1 watch(es) searched SAM.gov opportunity notices, 2 notice(s) matched");
+    expect(result.watchSummary).toContain("naics: 1/1 watch(es) searched SAM.gov opportunity notices, 0 notice(s) matched");
+    expect(result.watchSummary).toContain("vendor: 1/1 watch(es) searched USAspending spending records, 1 award(s) found");
+    expect(result.watchSummary).toContain("vendor_uei: 1/1 watch(es) searched USAspending spending records, 0 award(s) found");
+    expect(result.watchSummary).toContain("contract: 1/1 watch(es) searched USAspending PIID lookup, 0 award(s) found");
+  });
+
+  it("shows unsearched watches when the SAM key is missing or an API call fails", async () => {
+    routeQueries({
+      watchlist: [
+        { id: "w1", kind: "keyword", value: "widgets", label: null },
+        { id: "w2", kind: "vendor", value: "Acme Federal LLC", label: null },
+      ],
+      openFindings: [],
+    });
+    fedconMocks.samKeyAvailable.mockReturnValue(false); // opportunity watch skipped
+    fedconMocks.searchSamOpportunities.mockResolvedValue({ check: "sam_opportunities", reason: "no key" });
+    fedconMocks.searchAwardsByRecipient.mockRejectedValue(new Error("USAspending down"));
+
+    const result = await patrolOrg("org-1");
+
+    expect(result.watchSummary).toContain("keyword: 0/1 watch(es) searched SAM.gov opportunity notices, 0 notice(s) matched (1 not searched — see skipped checks)");
+    expect(result.watchSummary).toContain("vendor: 0/1 watch(es) searched USAspending spending records, 0 award(s) found (1 not searched — see skipped checks)");
+    expect(result.skippedChecks.map((s) => s.check)).toContain("sam_opportunities");
+    expect(result.skippedChecks.map((s) => s.check)).toContain("usaspending_awards");
+  });
+
+  it("counts watches beyond per-run caps as not searched and surfaces the cap as a skipped check", async () => {
+    const watchlist = [
+      ...Array.from({ length: 12 }, (_, i) => ({ id: `k${i}`, kind: "keyword", value: `kw-${i}`, label: null })),
+      ...Array.from({ length: 17 }, (_, i) => ({ id: `v${i}`, kind: "vendor", value: `Vendor ${i}`, label: null })),
+      ...Array.from({ length: 16 }, (_, i) => ({ id: `c${i}`, kind: "contract", value: `PIID-${i}`, label: null })),
+    ];
+    routeQueries({ watchlist, openFindings: [] });
+    fedconMocks.samKeyAvailable.mockReturnValue(true);
+    fedconMocks.searchSamOpportunities.mockResolvedValue([]);
+    fedconMocks.searchAwardsByRecipient.mockResolvedValue([]);
+    fedconMocks.searchAwardByPiid.mockResolvedValue([]);
+
+    const result = await patrolOrg("org-1");
+
+    expect(result.watchSummary).toContain("keyword: 10/12 watch(es) searched SAM.gov opportunity notices, 0 notice(s) matched (2 not searched — see skipped checks)");
+    expect(result.watchSummary).toContain("vendor: 15/17 watch(es) searched USAspending spending records, 0 award(s) found (2 not searched — see skipped checks)");
+    expect(result.watchSummary).toContain("contract: 15/16 watch(es) searched USAspending PIID lookup, 0 award(s) found (1 not searched — see skipped checks)");
+    const reasons = result.skippedChecks.map((s) => s.reason);
+    expect(reasons.some((r) => r.includes("2 keyword/NAICS/agency watch(es) beyond the per-run cap of 10"))).toBe(true);
+    expect(reasons.some((r) => r.includes("2 vendor/UEI watch(es) beyond the per-run cap of 15"))).toBe(true);
+    expect(reasons.some((r) => r.includes("1 contract watch(es) beyond the per-run cap of 15"))).toBe(true);
+  });
+
+  it("returns an empty summary when the watchlist is empty", async () => {
+    routeQueries({ watchlist: [], openFindings: [] });
+    const result = await patrolOrg("org-1");
+    expect(result.watchSummary).toBe("");
+  });
+});
+
 /* ── patrolOrg: automatic attachment fetch for new opportunities ──────────── */
 
 describe("patrolOrg automatic attachment fetch", () => {

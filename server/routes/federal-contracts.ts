@@ -18,6 +18,7 @@ import { getEmailAlertSettings } from "../services/email-alerts";
 import { tierFor, MAX_ATTACHMENT_ATTEMPTS } from "../services/federal-contracts-monitor";
 import { chunkText, selectExcerpts } from "../services/checklist-review-utils";
 import { fetchNoticeAttachments, trustedSamUrl, downloadCapped, MAX_ATTACHMENT_BYTES, sanitizeFilename } from "../services/solicitation-attachments";
+import { WATCH_KINDS as SHARED_WATCH_KINDS, watchValueWarning } from "@shared/watchlist-validation";
 
 const router = Router();
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || "not-configured" });
@@ -26,7 +27,7 @@ function isViewer(req: any): boolean {
   return (req.user?.role || "viewer") === "viewer";
 }
 
-const WATCH_KINDS = ["agency", "naics", "keyword", "vendor", "vendor_uei", "contract"];
+const WATCH_KINDS: readonly string[] = SHARED_WATCH_KINDS;
 
 function isAdmin(req: any): boolean {
   return (req.user?.role || "viewer") === "admin" || isPlatformStaff(req.user?.email);
@@ -99,6 +100,17 @@ router.post("/watchlist", isAuthenticated, async (req, res) => {
   const trimmed = typeof value === "string" ? value.trim() : "";
   if (!trimmed || trimmed.length > 300) {
     return res.status(400).json({ message: "value is required (max 300 characters)" });
+  }
+  // Kind/value contract (shared with the add-watch form): a value that doesn't
+  // fit the selected watch type is rejected unless the caller explicitly
+  // confirms it — so a mismatched watch is never saved silently.
+  const warning = watchValueWarning(kind, trimmed);
+  if (warning && req.body?.confirmed !== true) {
+    return res.status(422).json({
+      message: warning,
+      warning,
+      requiresConfirmation: true,
+    });
   }
   const user = req.user as any;
   const rows = await db
