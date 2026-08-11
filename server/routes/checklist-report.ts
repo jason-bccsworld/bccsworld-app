@@ -576,12 +576,13 @@ router.get("/checklist", isAuthenticated, async (req: any, res) => {
     `).then((r: any) => r.rows);
 
     // Score-over-time snapshots (oldest → newest) for the trend display.
+    // The full stored history is returned — snapshots are tiny (one row per
+    // completed AI review run), and truncating here silently loses the start
+    // of the trend on long engagements.
     const scoreHistory = await db.execute(sql`
       SELECT score, reviewed_items, covered_count, partial_count, not_addressed_count, created_at
-      FROM (
-        SELECT * FROM bccs_checklist_score_snapshots WHERE organization_id = ${orgId}
-        ORDER BY created_at DESC, id DESC LIMIT 20
-      ) s ORDER BY created_at ASC, id ASC
+      FROM bccs_checklist_score_snapshots WHERE organization_id = ${orgId}
+      ORDER BY created_at ASC, id ASC
     `).then((r: any) => r.rows.map((s: any) => ({
       score: Number(s.score),
       reviewedItems: Number(s.reviewed_items),
@@ -1247,12 +1248,12 @@ router.get("/export.xlsx", isAuthenticated, async (req: any, res) => {
       ORDER BY p.created_at DESC
     `).then((r: any) => r.rows);
 
+    // Full stored history (oldest → newest) — the exported Score History
+    // sheet must show the whole trend, not just the latest 20 snapshots.
     const snapshotRows = await db.execute(sql`
       SELECT score, reviewed_items, covered_count, partial_count, not_addressed_count, created_at
-      FROM (
-        SELECT * FROM bccs_checklist_score_snapshots WHERE organization_id = ${orgId}
-        ORDER BY created_at DESC, id DESC LIMIT 20
-      ) s ORDER BY created_at ASC, id ASC
+      FROM bccs_checklist_score_snapshots WHERE organization_id = ${orgId}
+      ORDER BY created_at ASC, id ASC
     `).then((r: any) => r.rows);
 
     const buffer = await buildChecklistWorkbook({

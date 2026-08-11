@@ -373,7 +373,7 @@ function buildReportHtml(areas: InspectionArea[], manualInfo: any, organization:
   ${scoreHistory.length ? `
   <section class="area">
     <h2>Coverage Score History</h2>
-    <p class="muted">AI coverage score snapshots recorded each time an AI review completes (oldest first, up to 20 kept).</p>
+    <p class="muted">AI coverage score snapshots recorded each time an AI review completes (oldest first, full history).</p>
     <table>
       <thead><tr><th style="width:24%">Date</th><th style="width:12%">Score</th><th style="width:16%">Reviewed items</th><th style="width:16%">Covered</th><th style="width:16%">Partial</th><th style="width:16%">Not addressed</th></tr></thead>
       <tbody>

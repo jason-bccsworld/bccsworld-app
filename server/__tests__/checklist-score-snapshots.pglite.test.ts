@@ -223,4 +223,23 @@ describe("AI coverage score snapshots (one per completed review run)", () => {
     const list = await api("GET", "/checklist");
     expect(list.body.scoreHistory).toEqual([]);
   });
+
+  it("long engagements: all stored snapshots are returned, not just the latest 20", async () => {
+    // Seed 25 dated snapshots directly — a long engagement's history.
+    for (let i = 0; i < 25; i++) {
+      await pg.query(
+        `INSERT INTO bccs_checklist_score_snapshots
+           (organization_id, score, reviewed_items, covered_count, partial_count, not_addressed_count, created_at)
+         VALUES ($1, $2, 3, 0, 3, 0, NOW() - ($3 || ' days')::interval)`,
+        [ORG1, 40 + i, String(25 - i)],
+      );
+    }
+    const list = await api("GET", "/checklist");
+    expect(list.status).toBe(200);
+    expect(list.body.scoreHistory).toHaveLength(25);
+    // Oldest → newest, including the earliest points that a LIMIT 20 would drop.
+    expect(list.body.scoreHistory.map((s: any) => s.score)).toEqual(
+      Array.from({ length: 25 }, (_, i) => 40 + i),
+    );
+  });
 });
