@@ -315,6 +315,7 @@ export interface ExportItem {
   aiVerdict: string | null;
   aiExcerpt: string | null;
   aiRemediation: string | null;
+  aiSuggestedOperation: string | null;
   aiStale: boolean;
   evidenceCount: number;
 }
@@ -422,6 +423,7 @@ export async function buildChecklistWorkbook(opts: {
       { header: "AI Verdict", key: "aiVerdict", width: 22 },
       { header: "AI Manual Excerpt", key: "aiExcerpt", width: 50 },
       { header: "AI Suggested Remediation", key: "aiRemediation", width: 50 },
+      { header: "AI Suggested Operation", key: "aiSuggestedOperation", width: 60 },
       { header: "Evidence Files", key: "evidenceCount", width: 14 },
     ];
     ws.getRow(1).font = { bold: true };
@@ -440,11 +442,12 @@ export async function buildChecklistWorkbook(opts: {
         aiVerdict: verdict,
         aiExcerpt: item.aiExcerpt || "",
         aiRemediation: item.aiRemediation || "",
+        aiSuggestedOperation: item.aiSuggestedOperation || "",
         evidenceCount: item.evidenceCount,
       });
     }
     ws.getColumn(2).alignment = { wrapText: true, vertical: "top" };
-    for (const col of [5, 6, 8, 9]) ws.getColumn(col).alignment = { wrapText: true, vertical: "top" };
+    for (const col of [5, 6, 8, 9, 10]) ws.getColumn(col).alignment = { wrapText: true, vertical: "top" };
   }
 
   return Buffer.from(await workbook.xlsx.writeBuffer());

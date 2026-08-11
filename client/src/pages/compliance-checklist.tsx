@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import {
   CheckCircle,
   XCircle,
@@ -41,9 +42,17 @@ interface AiFinding {
   verdict: 'covered' | 'partial' | 'not_addressed';
   excerpt: string;
   remediation: string;
+  suggested_operation?: string | null;
   reviewed_at: string;
   manual_id: string;
   stale: boolean;
+}
+
+interface OperationApproval {
+  manualId: string;
+  revision: number;
+  approvedBy: string | null;
+  approvedAt: string;
 }
 
 interface ManualDoc {
@@ -81,6 +90,7 @@ interface ChecklistItem {
   comments: string;
   findings: string;
   aiFinding: AiFinding | null;
+  approval?: OperationApproval | null;
   evidence: EvidenceFile[];
 }
 
@@ -209,6 +219,7 @@ function buildReportHtml(areas: InspectionArea[], manualInfo: any, organization:
             item.findings ? `<div><strong>Findings:</strong> ${escapeHtml(item.findings)}</div>` : '',
             item.aiFinding?.excerpt ? `<div class="excerpt"><strong>Manual excerpt:</strong> &ldquo;${escapeHtml(item.aiFinding.excerpt)}&rdquo;</div>` : '',
             item.aiFinding?.remediation ? `<div class="remediation"><strong>Suggested remediation:</strong> ${escapeHtml(item.aiFinding.remediation)}</div>` : '',
+            item.aiFinding?.suggested_operation ? `<div class="remediation"><strong>Suggested operation:</strong> ${escapeHtml(item.aiFinding.suggested_operation)}</div>` : '',
             item.evidence?.length ? `<div class="evidence"><strong>Evidence on file (${item.evidence.length}):</strong> ${item.evidence.map(e => escapeHtml(e.filename)).join('; ')}</div>` : '',
           ].filter(Boolean).join('') || '—';
           return `<tr>
@@ -289,7 +300,16 @@ export default function ComplianceChecklist() {
   const [areaCoverage, setAreaCoverage] = useState<Record<string, { ratio: number; stale: boolean }>>({});
   const [evidenceUploading, setEvidenceUploading] = useState<string | null>(null);
   const [historyDoc, setHistoryDoc] = useState<ManualDoc | null>(null);
+  // AI-verdict filter over the checklist rows (combined with the area tabs).
+  const [verdictFilter, setVerdictFilter] = useState<'all' | 'covered' | 'partial' | 'not_addressed' | 'none'>('all');
+  // Per-item editable operation text + target manual for approve-into-manual.
+  const [opEdits, setOpEdits] = useState<Record<string, string>>({});
+  const [opManualChoice, setOpManualChoice] = useState<Record<string, string>>({});
+  const [approvingItem, setApprovingItem] = useState<string | null>(null);
   const evidenceInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+
+  const { user } = useAuth();
+  const canApprove = (user as any)?.role === 'admin' || String((user as any)?.email || '').toLowerCase().endsWith('@bccsworld.com');
 
   const { data: checklistData, isLoading } = useQuery({
     queryKey: ['/api/checklist-report/checklist'],
@@ -586,6 +606,41 @@ export default function ComplianceChecklist() {
       toast({ title: 'Document removed', description: `${doc.filename} was removed from the manual set. Re-run the AI review to refresh findings.` });
     } catch (err: any) {
       toast({ title: 'Delete failed', description: err.message, variant: 'destructive' });
+    }
+  };
+
+  const handleApproveOperation = async (item: ChecklistItem) => {
+    const text = (opEdits[item.id] ?? item.aiFinding?.suggested_operation ?? item.aiFinding?.remediation ?? '').trim();
+    if (!text) {
+      toast({ title: 'Nothing to approve', description: 'The operation text is empty.', variant: 'destructive' });
+      return;
+    }
+    const manuals: ManualDoc[] = manualInfo?.manuals || [];
+    const manualId = opManualChoice[item.id] || (manuals.length === 1 ? manuals[0].id : '');
+    if (!manualId) {
+      toast({ title: 'Choose a manual', description: 'Select which manual document this operation should be added to.', variant: 'destructive' });
+      return;
+    }
+    setApprovingItem(item.id);
+    try {
+      const res = await fetch(`/api/checklist-report/items/${item.id}/approve-operation`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ operationText: text, manualId }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.message || 'Approval failed');
+      queryClient.invalidateQueries({ queryKey: ['/api/checklist-report/checklist'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/checklist-report/manual'] });
+      toast({
+        title: `Added to ${body.filename} — now Revision ${body.revision}`,
+        description: 'The operation was appended to your manual as a labeled section. Re-run the AI review to confirm the item is now covered.',
+      });
+    } catch (err: any) {
+      toast({ title: 'Approval failed', description: err.message, variant: 'destructive' });
+    } finally {
+      setApprovingItem(null);
     }
   };
 
@@ -995,6 +1050,40 @@ export default function ComplianceChecklist() {
         </CardContent>
       </Card>
 
+      {/* AI verdict filter (combined with the area tabs below) */}
+      {(() => {
+        const allItems = inspectionAreas.flatMap(a => a.items);
+        const counts = {
+          all: allItems.length,
+          covered: allItems.filter(i => i.aiFinding?.verdict === 'covered').length,
+          partial: allItems.filter(i => i.aiFinding?.verdict === 'partial').length,
+          not_addressed: allItems.filter(i => i.aiFinding?.verdict === 'not_addressed').length,
+          none: allItems.filter(i => !i.aiFinding).length,
+        };
+        const OPTIONS: { key: typeof verdictFilter; label: string; active: string }[] = [
+          { key: 'all', label: 'All', active: 'bg-gray-800 text-white border-gray-800' },
+          { key: 'covered', label: 'Covered', active: 'bg-green-600 text-white border-green-600' },
+          { key: 'partial', label: 'Partial', active: 'bg-yellow-500 text-white border-yellow-500' },
+          { key: 'not_addressed', label: 'Not addressed', active: 'bg-red-600 text-white border-red-600' },
+          { key: 'none', label: 'No AI review yet', active: 'bg-gray-500 text-white border-gray-500' },
+        ];
+        return (
+          <div className="flex flex-wrap items-center gap-2" data-testid="filter-verdict">
+            <span className="text-sm text-gray-500 mr-1">AI review:</span>
+            {OPTIONS.map(o => (
+              <button
+                key={o.key}
+                onClick={() => setVerdictFilter(o.key)}
+                className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${verdictFilter === o.key ? o.active : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'}`}
+                data-testid={`button-filter-${o.key}`}
+              >
+                {o.label} ({counts[o.key]})
+              </button>
+            ))}
+          </div>
+        );
+      })()}
+
       {/* Inspection Areas */}
       <Tabs value={selectedArea} onValueChange={setSelectedArea}>
         <div className="overflow-x-auto pb-1">
@@ -1051,8 +1140,21 @@ export default function ComplianceChecklist() {
                 </div>
               </CardHeader>
               <CardContent>
+                {(() => {
+                  const visibleItems = area.items.filter((item) =>
+                    verdictFilter === 'all' ? true
+                    : verdictFilter === 'none' ? !item.aiFinding
+                    : item.aiFinding?.verdict === verdictFilter);
+                  if (visibleItems.length === 0) {
+                    return (
+                      <div className="text-sm text-gray-500 py-6 text-center" data-testid="text-no-filter-matches">
+                        No items in this area match the current AI review filter.
+                      </div>
+                    );
+                  }
+                  return (
                 <Accordion type="single" collapsible className="w-full">
-                  {area.items.map((item) => (
+                  {visibleItems.map((item) => (
                     <AccordionItem key={item.id} value={item.id}>
                       <AccordionTrigger className="text-left">
                         <div className="flex items-center gap-3 w-full">
@@ -1100,10 +1202,71 @@ export default function ComplianceChecklist() {
                               {item.aiFinding.excerpt && (
                                 <p className="text-sm text-gray-700 italic">&ldquo;{item.aiFinding.excerpt}&rdquo;</p>
                               )}
-                              {item.aiFinding.remediation && (
+                              {item.aiFinding.remediation && !item.aiFinding.suggested_operation && (
                                 <p className="text-sm text-orange-800"><span className="font-medium">Suggested remediation:</span> {item.aiFinding.remediation}</p>
                               )}
                               <p className="text-xs text-gray-500">Reviewed {new Date(item.aiFinding.reviewed_at).toLocaleString()}</p>
+
+                              {(() => {
+                                const finding = item.aiFinding!;
+                                const isGap = finding.verdict === 'partial' || finding.verdict === 'not_addressed';
+                                const approvedSinceReview = !!item.approval && new Date(item.approval.approvedAt) > new Date(finding.reviewed_at);
+                                if (approvedSinceReview) {
+                                  return (
+                                    <div className="rounded-md border border-green-300 bg-green-50 p-2 text-sm text-green-800" data-testid={`text-approved-operation-${item.id}`}>
+                                      <CheckCircle className="h-4 w-4 inline mr-1 -mt-0.5" />
+                                      Addressed in manual revision {item.approval!.revision}
+                                      {item.approval!.approvedBy ? ` by ${item.approval!.approvedBy}` : ''} on {new Date(item.approval!.approvedAt).toLocaleDateString()} — re-run the AI review to confirm coverage.
+                                    </div>
+                                  );
+                                }
+                                if (!isGap || !canApprove) return null;
+                                const draft = opEdits[item.id] ?? finding.suggested_operation ?? finding.remediation ?? '';
+                                const manuals: ManualDoc[] = manualInfo?.manuals || [];
+                                const chosenManual = opManualChoice[item.id] || (manuals.length === 1 ? manuals[0].id : '');
+                                return (
+                                  <div className="space-y-2 border-t border-blue-200 pt-2">
+                                    <div className="text-sm font-medium text-gray-800">Suggested operation — edit, then approve into your manual:</div>
+                                    <Textarea
+                                      value={draft}
+                                      onChange={(e) => setOpEdits(prev => ({ ...prev, [item.id]: e.target.value }))}
+                                      placeholder="Write the operations-manual language that addresses this item…"
+                                      className="min-h-[110px] text-sm bg-white"
+                                      data-testid={`textarea-operation-${item.id}`}
+                                    />
+                                    <div className="flex flex-wrap items-center gap-2">
+                                      {manuals.length > 1 && (
+                                        <select
+                                          value={chosenManual}
+                                          onChange={(e) => setOpManualChoice(prev => ({ ...prev, [item.id]: e.target.value }))}
+                                          className="rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm"
+                                          data-testid={`select-operation-manual-${item.id}`}
+                                        >
+                                          <option value="">Add to which manual?</option>
+                                          {manuals.map(m => (
+                                            <option key={m.id} value={m.id}>{m.filename} (Rev {Number(m.revision) || 1})</option>
+                                          ))}
+                                        </select>
+                                      )}
+                                      {manuals.length === 1 && (
+                                        <span className="text-xs text-gray-500">Will be added to {manuals[0].filename} as a new revision.</span>
+                                      )}
+                                      {manuals.length === 0 && (
+                                        <span className="text-xs text-amber-700">Upload an operations manual first to approve this operation.</span>
+                                      )}
+                                      <Button
+                                        size="sm"
+                                        disabled={approvingItem === item.id || manuals.length === 0 || !draft.trim() || (manuals.length > 1 && !chosenManual)}
+                                        onClick={() => handleApproveOperation(item)}
+                                        data-testid={`button-approve-operation-${item.id}`}
+                                      >
+                                        {approvingItem === item.id ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CheckCircle className="h-4 w-4 mr-2" />}
+                                        Approve into Manual
+                                      </Button>
+                                    </div>
+                                  </div>
+                                );
+                              })()}
                             </div>
                           )}
 
@@ -1211,6 +1374,8 @@ export default function ComplianceChecklist() {
                     </AccordionItem>
                   ))}
                 </Accordion>
+                  );
+                })()}
               </CardContent>
             </Card>
           </TabsContent>

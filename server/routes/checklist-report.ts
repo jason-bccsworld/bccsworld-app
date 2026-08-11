@@ -137,6 +137,29 @@ async function ensureTables() {
   await db.execute(sql`
     ALTER TABLE bccs_checklist_ai_findings ADD COLUMN IF NOT EXISTS manual_set_hash VARCHAR(64)
   `);
+  // Additive: ready-to-adopt operations-manual language for partial /
+  // not_addressed items. Legacy findings have NULL and render remediation only.
+  await db.execute(sql`
+    ALTER TABLE bccs_checklist_ai_findings ADD COLUMN IF NOT EXISTS suggested_operation TEXT
+  `);
+  // Provenance of operations approved into a manual: who adopted what text,
+  // into which manual, producing which revision.
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS bccs_checklist_operation_approvals (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      organization_id UUID NOT NULL,
+      item_id UUID NOT NULL,
+      manual_id UUID NOT NULL,
+      revision INTEGER NOT NULL,
+      operation_text TEXT NOT NULL,
+      approved_by VARCHAR(200),
+      approved_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS bccs_checklist_operation_approvals_org_item
+    ON bccs_checklist_operation_approvals (organization_id, item_id)
+  `);
   // Per-area manual coverage measured at AI-review time — persisted so the
   // checklist page can still explain partial coverage after a reload.
   await db.execute(sql`
@@ -270,18 +293,32 @@ async function getOrgManuals(orgId: string, withText = false): Promise<any[]> {
 export async function applyManualRevision(opts: {
   orgId: string;
   manualId: string;
-  newText: string;
+  /** Full replacement text. Provide either this or appendText. */
+  newText?: string;
+  /**
+   * Text appended to the *locked, freshly-read* current text — safe under
+   * concurrent revisions (a pre-read snapshot passed as newText is not).
+   */
+  appendText?: string;
   changeSummary: string;
   actor: string;
+  /**
+   * Runs inside the same transaction after the revision is written — use for
+   * provenance rows that must commit atomically with the manual change.
+   */
+  afterUpdate?: (tx: any, updated: any) => Promise<void>;
 }): Promise<any | null> {
-  const { orgId, manualId, newText, changeSummary, actor } = opts;
+  const { orgId, manualId, changeSummary, actor, afterUpdate } = opts;
   return db.transaction(async (tx) => {
     const [manual] = await tx.execute(sql`
-      SELECT id, revision FROM bccs_ops_manuals
+      SELECT id, revision, extracted_text FROM bccs_ops_manuals
       WHERE id = ${manualId} AND organization_id = ${orgId}
       FOR UPDATE
     `).then((r: any) => r.rows);
     if (!manual) return null;
+    const newText = opts.appendText !== undefined
+      ? String(manual.extracted_text || "") + opts.appendText
+      : String(opts.newText ?? "");
     const newRevision = (Number(manual.revision) || 1) + 1;
     const [updated] = await tx.execute(sql`
       UPDATE bccs_ops_manuals
@@ -293,6 +330,7 @@ export async function applyManualRevision(opts: {
       INSERT INTO bccs_ops_manual_revisions (organization_id, manual_id, revision, extracted_text, text_chars, change_summary, changed_by)
       VALUES (${orgId}, ${manualId}, ${newRevision}, ${newText}, ${newText.length}, ${changeSummary}, ${actor})
     `);
+    if (afterUpdate) await afterUpdate(tx, updated);
     return updated;
   });
 }
@@ -348,13 +386,29 @@ router.get("/checklist", isAuthenticated, async (req: any, res) => {
     const manualIds = (await getOrgManuals(orgId)).map(manualToken);
     const currentHash = manualSetHash(manualIds);
     const findings = await db.execute(sql`
-      SELECT DISTINCT ON (item_id) item_id, manual_id, manual_set_hash, verdict, excerpt, remediation, reviewed_at
+      SELECT DISTINCT ON (item_id) item_id, manual_id, manual_set_hash, verdict, excerpt, remediation, suggested_operation, reviewed_at
       FROM bccs_checklist_ai_findings WHERE organization_id = ${orgId}
       ORDER BY item_id, reviewed_at DESC
     `).then((r: any) => r.rows);
     const findingByItem: Record<string, any> = {};
     for (const f of findings) {
       findingByItem[f.item_id] = { ...f, stale: isFindingStale(f, manualIds, currentHash) };
+    }
+    // Latest approved-into-manual operation per item — powers the
+    // "Addressed in rev N — re-run the AI review" state.
+    const approvals = await db.execute(sql`
+      SELECT DISTINCT ON (item_id) item_id, manual_id, revision, approved_by, approved_at
+      FROM bccs_checklist_operation_approvals WHERE organization_id = ${orgId}
+      ORDER BY item_id, approved_at DESC
+    `).then((r: any) => r.rows);
+    const approvalByItem: Record<string, any> = {};
+    for (const a of approvals) {
+      approvalByItem[a.item_id] = {
+        manualId: a.manual_id,
+        revision: Number(a.revision),
+        approvedBy: a.approved_by,
+        approvedAt: a.approved_at,
+      };
     }
     // Persisted per-area coverage from the most recent AI review run — lets
     // the client show the coverage note after a reload.
@@ -407,6 +461,7 @@ router.get("/checklist", isAuthenticated, async (req: any, res) => {
         comments: row.comments || "",
         findings: row.findings || "",
         aiFinding: findingByItem[row.id] || null,
+        approval: approvalByItem[row.id] || null,
         evidence: evidenceByItem[row.id] || [],
       });
     }
@@ -430,6 +485,86 @@ router.get("/checklist", isAuthenticated, async (req: any, res) => {
   } catch (err) {
     console.error("Checklist load error:", err);
     res.status(500).json({ message: "Failed to load checklist" });
+  }
+});
+
+// Bound on the edited operation text a user can approve into a manual.
+const MAX_OPERATION_CHARS = 8000;
+
+// POST /items/:id/approve-operation — adopt (possibly edited) suggested
+// operation text into an operations manual: appends a labeled section,
+// creates a new manual revision (history + staleness follow automatically),
+// and records approval provenance. Admin-only, org-scoped.
+router.post("/items/:id/approve-operation", isAuthenticated, requireAdmin, async (req: any, res) => {
+  try {
+    const orgId = requireOrg(req, res);
+    if (!orgId) return;
+    const operationText = String(req.body?.operationText || "").trim();
+    if (!operationText) return res.status(400).json({ message: "The operation text is empty. Edit the suggested operation and try again." });
+    if (operationText.length > MAX_OPERATION_CHARS) {
+      return res.status(400).json({ message: `The operation text is too long (${operationText.length} characters; the maximum is ${MAX_OPERATION_CHARS}).` });
+    }
+    const [item] = await db.execute(sql`
+      SELECT id, item_number, reference, description FROM bccs_checklist_report_items
+      WHERE id = ${req.params.id} AND organization_id = ${orgId}
+    `).then((r: any) => r.rows);
+    if (!item) return res.status(404).json({ message: "Checklist item not found" });
+
+    const manuals = await getOrgManuals(orgId);
+    if (manuals.length === 0) return res.status(409).json({ message: "Upload an operations manual before approving operations into it." });
+    let manual: any;
+    if (req.body?.manualId) {
+      manual = manuals.find((m: any) => String(m.id) === String(req.body.manualId));
+      if (!manual) return res.status(404).json({ message: "Manual document not found" });
+    } else if (manuals.length === 1) {
+      manual = manuals[0];
+    } else {
+      return res.status(400).json({ message: "Choose which manual document this operation should be added to." });
+    }
+
+    const actor = req.user?.email || req.user?.id || "system";
+    const dateStr = new Date().toISOString().slice(0, 10);
+    const section = [
+      "",
+      "",
+      "────────────────────────────────────────",
+      `APPROVED OPERATION — Checklist item ${item.item_number}${item.reference ? ` (ref ${item.reference})` : ""}`,
+      `Adopted ${dateStr} by ${actor}`,
+      "",
+      operationText,
+      "",
+    ].join("\n");
+
+    // Append under the row lock (fresh re-read inside the transaction) and
+    // write approval provenance atomically with the manual revision — a
+    // concurrent approval to the same manual cannot discard this section,
+    // and a manual can never change without its approval record.
+    const updated = await applyManualRevision({
+      orgId,
+      manualId: manual.id,
+      appendText: section,
+      changeSummary: `Approved operation for checklist item ${item.item_number}`,
+      actor,
+      afterUpdate: async (tx, u) => {
+        await tx.execute(sql`
+          INSERT INTO bccs_checklist_operation_approvals (organization_id, item_id, manual_id, revision, operation_text, approved_by)
+          VALUES (${orgId}, ${item.id}, ${manual.id}, ${Number(u.revision)}, ${operationText}, ${actor})
+        `);
+      },
+    });
+    if (!updated) return res.status(404).json({ message: "Manual document not found" });
+    // Manual content changed — same downstream invalidation as upload/delete.
+    await invalidateFedconAudits(orgId);
+    res.status(201).json({
+      success: true,
+      manualId: manual.id,
+      filename: updated.filename,
+      revision: Number(updated.revision),
+      approval: { manualId: manual.id, revision: Number(updated.revision), approvedBy: actor, approvedAt: new Date().toISOString() },
+    });
+  } catch (err) {
+    console.error("Approve operation error:", err);
+    res.status(500).json({ message: "Failed to approve the operation into the manual" });
   }
 });
 
@@ -762,7 +897,7 @@ router.get("/export.xlsx", isAuthenticated, async (req: any, res) => {
     const manualIds = manuals.map(manualToken);
     const currentHash = manualSetHash(manualIds);
     const findings = await db.execute(sql`
-      SELECT DISTINCT ON (item_id) item_id, manual_id, manual_set_hash, verdict, excerpt, remediation
+      SELECT DISTINCT ON (item_id) item_id, manual_id, manual_set_hash, verdict, excerpt, remediation, suggested_operation
       FROM bccs_checklist_ai_findings WHERE organization_id = ${orgId}
       ORDER BY item_id, reviewed_at DESC
     `).then((r: any) => r.rows);
@@ -797,6 +932,7 @@ router.get("/export.xlsx", isAuthenticated, async (req: any, res) => {
         aiVerdict: f?.verdict || null,
         aiExcerpt: f?.excerpt || null,
         aiRemediation: f?.remediation || null,
+        aiSuggestedOperation: f?.suggested_operation || null,
         aiStale: f ? isFindingStale(f, manualIds, currentHash) : false,
         evidenceCount: evidenceByItem[row.id] || 0,
       });
@@ -1142,6 +1278,7 @@ For EACH checklist item, respond with:
 - "verdict": one of "covered" (manual clearly addresses it), "partial" (mentioned but incomplete/unclear), "not_addressed" (nothing relevant in the excerpts)
 - "excerpt": a short direct quote (max 300 chars) from the manual supporting the verdict, or empty string if not_addressed
 - "remediation": for partial/not_addressed, one concise sentence describing what the manual should add; empty string if covered
+- "suggestedOperation": for partial/not_addressed, 3-6 sentences of concrete, ready-to-insert operations-manual language that would satisfy this requirement — written in the manual's own voice (procedure steps, who is responsible, what records are kept), NOT advice about what to fix; empty string if covered
 
 Respond with JSON: { "findings": [ ... one object per checklist item ... ] }`;
 
@@ -1184,14 +1321,15 @@ Respond with JSON: { "findings": [ ... one object per checklist item ... ] }`;
       for (const item of items) {
         const f = byItem.get(item.id);
         await tx.execute(sql`
-          INSERT INTO bccs_checklist_ai_findings (organization_id, item_id, manual_id, manual_set_hash, verdict, excerpt, remediation)
-          VALUES (${orgId}, ${item.id}, ${manuals[0].id}, ${currentHash}, ${f.verdict}, ${String(f.excerpt || "").slice(0, 1000)}, ${String(f.remediation || "").slice(0, 1000)})
+          INSERT INTO bccs_checklist_ai_findings (organization_id, item_id, manual_id, manual_set_hash, verdict, excerpt, remediation, suggested_operation)
+          VALUES (${orgId}, ${item.id}, ${manuals[0].id}, ${currentHash}, ${f.verdict}, ${String(f.excerpt || "").slice(0, 1000)}, ${String(f.remediation || "").slice(0, 1000)}, ${String(f.suggestedOperation || "").slice(0, 4000) || null})
           ON CONFLICT (organization_id, item_id) DO UPDATE SET
             manual_id = EXCLUDED.manual_id,
             manual_set_hash = EXCLUDED.manual_set_hash,
             verdict = EXCLUDED.verdict,
             excerpt = EXCLUDED.excerpt,
             remediation = EXCLUDED.remediation,
+            suggested_operation = EXCLUDED.suggested_operation,
             reviewed_at = NOW()
         `);
       }
@@ -1472,6 +1610,7 @@ For EACH checklist item, respond with:
 - "verdict": one of "covered" (evidence clearly addresses it), "partial" (evidence is related but incomplete/unclear), "not_addressed" (no relevant evidence)
 - "excerpt": the strongest supporting quote (max 300 chars) from the evidence, or empty string if not_addressed
 - "remediation": for partial/not_addressed, one concise sentence describing what the manual should add; empty string if covered
+- "suggestedOperation": for partial/not_addressed, 3-6 sentences of concrete, ready-to-insert operations-manual language that would satisfy this requirement — written in the manual's own voice (procedure steps, who is responsible, what records are kept), NOT advice about what to fix; empty string if covered
 
 Respond with JSON: { "findings": [ ... one object per checklist item ... ] }`;
 
@@ -1497,7 +1636,7 @@ Respond with JSON: { "findings": [ ... one object per checklist item ... ] }`;
       for (const f of findings) {
         const itemId = String(f.itemId || "").replace(/[\[\]]/g, "");
         if (validVerdicts.has(f.verdict) && validIds.has(itemId)) {
-          byItem.set(itemId, { verdict: f.verdict, excerpt: String(f.excerpt || "").slice(0, 1000), remediation: String(f.remediation || "").slice(0, 1000) });
+          byItem.set(itemId, { verdict: f.verdict, excerpt: String(f.excerpt || "").slice(0, 1000), remediation: String(f.remediation || "").slice(0, 1000), suggestedOperation: String(f.suggestedOperation || "").slice(0, 4000) });
         }
       }
 
@@ -1545,14 +1684,15 @@ Respond with JSON: { "findings": [ ... one object per checklist item ... ] }`;
       for (const item of items) {
         const f = byItem.get(String(item.id));
         await tx.execute(sql`
-          INSERT INTO bccs_checklist_ai_findings (organization_id, item_id, manual_id, manual_set_hash, verdict, excerpt, remediation)
-          VALUES (${orgId}, ${item.id}, ${manuals[0].id}, ${currentHash}, ${f.verdict}, ${String(f.excerpt || "").slice(0, 1000)}, ${String(f.remediation || "").slice(0, 1000)})
+          INSERT INTO bccs_checklist_ai_findings (organization_id, item_id, manual_id, manual_set_hash, verdict, excerpt, remediation, suggested_operation)
+          VALUES (${orgId}, ${item.id}, ${manuals[0].id}, ${currentHash}, ${f.verdict}, ${String(f.excerpt || "").slice(0, 1000)}, ${String(f.remediation || "").slice(0, 1000)}, ${String(f.suggestedOperation || "").slice(0, 4000) || null})
           ON CONFLICT (organization_id, item_id) DO UPDATE SET
             manual_id = EXCLUDED.manual_id,
             manual_set_hash = EXCLUDED.manual_set_hash,
             verdict = EXCLUDED.verdict,
             excerpt = EXCLUDED.excerpt,
             remediation = EXCLUDED.remediation,
+            suggested_operation = EXCLUDED.suggested_operation,
             reviewed_at = NOW()
         `);
       }

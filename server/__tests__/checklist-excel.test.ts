@@ -239,8 +239,8 @@ describe("buildChecklistWorkbook", () => {
           name: "Management and Administration",
           description: "desc",
           items: [
-            { number: "1-01", description: "Item", reference: "142.13", status: "compliant", comments: "ok", findings: "", aiVerdict: "covered", aiExcerpt: "quote", aiRemediation: "", aiStale: false, evidenceCount: 2 },
-            { number: "1-02", description: "Item 2", reference: "", status: "pending", comments: "", findings: "", aiVerdict: null, aiExcerpt: null, aiRemediation: null, aiStale: false, evidenceCount: 0 },
+            { number: "1-01", description: "Item", reference: "142.13", status: "compliant", comments: "ok", findings: "", aiVerdict: "covered", aiExcerpt: "quote", aiRemediation: "", aiSuggestedOperation: "The Training Manager keeps records.", aiStale: false, evidenceCount: 2 },
+            { number: "1-02", description: "Item 2", reference: "", status: "pending", comments: "", findings: "", aiVerdict: null, aiExcerpt: null, aiRemediation: null, aiSuggestedOperation: null, aiStale: false, evidenceCount: 0 },
           ],
         },
         { name: "Invalid/Name: With[Bad]Chars that is way too long for excel sheets", description: "", items: [] },
@@ -266,7 +266,7 @@ describe("buildChecklistWorkbook", () => {
     const areaWs = wb.worksheets[1];
     expect(areaWs.getRow(1).getCell(1).value).toBe("Item");
     expect(areaWs.getRow(2).getCell(7).value).toBe("Covered by manual");
-    expect(areaWs.getRow(2).getCell(10).value).toBe(2);
+    expect(areaWs.getRow(2).getCell(11).value).toBe(2);
   });
 
   it("keeps duplicate area names unique as sheet names", () => {
