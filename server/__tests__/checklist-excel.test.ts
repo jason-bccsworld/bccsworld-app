@@ -276,3 +276,25 @@ describe("buildChecklistWorkbook", () => {
     expect(a).not.toBe(b);
   });
 });
+
+describe("scoreTrendTextDated", () => {
+  it("shows snapshot dates next to trend values", async () => {
+    const { scoreTrendTextDated } = await import("../services/checklist-excel");
+    const history = [
+      { score: 62, reviewedItems: 10, createdAt: "2026-01-05T12:00:00Z" },
+      { score: 91, reviewedItems: 12, createdAt: "2026-02-02T12:00:00Z" },
+    ];
+    expect(scoreTrendTextDated(history)).toBe("62% (Jan 5, 2026) → 91% (Feb 2, 2026)");
+  });
+
+  it("returns null for fewer than two snapshots and tolerates bad dates", async () => {
+    const { scoreTrendTextDated } = await import("../services/checklist-excel");
+    expect(scoreTrendTextDated([{ score: 62, reviewedItems: 10, createdAt: "2026-01-05" }])).toBeNull();
+    expect(
+      scoreTrendTextDated([
+        { score: 62, reviewedItems: 10, createdAt: null },
+        { score: 91, reviewedItems: 12, createdAt: "not-a-date" },
+      ]),
+    ).toBe("62% → 91%");
+  });
+});

@@ -233,7 +233,22 @@ function scoreTrendText(history: ScoreSnapshot[], maxPoints = 5): string | null 
   return history.slice(-maxPoints).map(s => `${s.score}%`).join(' → ');
 }
 
-/** Tiny inline sparkline of the score history (0–100 scale). */
+/** Short snapshot date for display next to trend values, e.g. "Jan 5, 2026". */
+function snapshotDate(createdAt: string): string {
+  const d = new Date(createdAt);
+  return isNaN(d.getTime()) ? '' : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+/** Dated trend, e.g. "62% (Jan 5, 2026) → 91% (Feb 2, 2026)" — for the printable report. */
+function scoreTrendTextDated(history: ScoreSnapshot[], maxPoints = 5): string | null {
+  if (history.length < 2) return null;
+  return history.slice(-maxPoints).map(s => {
+    const d = snapshotDate(s.createdAt);
+    return d ? `${s.score}% (${d})` : `${s.score}%`;
+  }).join(' → ');
+}
+
+/** Tiny inline sparkline of the score history (0–100 scale) with per-point hover tooltips. */
 function ScoreSparkline({ history }: { history: ScoreSnapshot[] }) {
   if (history.length < 2) return null;
   const points = history.slice(-10);
@@ -241,11 +256,24 @@ function ScoreSparkline({ history }: { history: ScoreSnapshot[] }) {
   const step = (w - pad * 2) / (points.length - 1);
   const y = (score: number) => hgt - pad - (score / 100) * (hgt - pad * 2);
   const path = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${(pad + i * step).toFixed(1)},${y(p.score).toFixed(1)}`).join(' ');
-  const last = points[points.length - 1];
+  const lastIdx = points.length - 1;
+  const tooltip = (p: ScoreSnapshot) => {
+    const d = snapshotDate(p.createdAt);
+    return `${d ? d + ' — ' : ''}${p.score}% (${p.reviewedItems} reviewed: ${p.covered} covered, ${p.partial} partial, ${p.notAddressed} not addressed)`;
+  };
   return (
     <svg width={w} height={hgt} viewBox={`0 0 ${w} ${hgt}`} className="shrink-0" role="img" aria-label="AI coverage score trend" data-testid="score-sparkline">
       <path d={path} fill="none" stroke="#1d4ed8" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx={pad + (points.length - 1) * step} cy={y(last.score)} r="2" fill="#1d4ed8" />
+      {points.map((p, i) => (
+        // Visible dot on the latest point; every point gets a larger invisible
+        // hover target whose native <title> shows date + score + counts.
+        <g key={i} data-testid={`sparkline-point-${i}`}>
+          <circle cx={pad + i * step} cy={y(p.score)} r={i === lastIdx ? 2 : 1.25} fill="#1d4ed8" opacity={i === lastIdx ? 1 : 0.55} />
+          <circle cx={pad + i * step} cy={y(p.score)} r="5" fill="transparent" className="cursor-help">
+            <title>{tooltip(p)}</title>
+          </circle>
+        </g>
+      ))}
     </svg>
   );
 }
@@ -340,7 +368,7 @@ function buildReportHtml(areas: InspectionArea[], manualInfo: any, organization:
     <div class="stat"><b>${aiCount('partial')}</b>AI: partial</div>
     <div class="stat"><b>${aiCount('not_addressed')}</b>AI: not addressed</div>` : ''}
     ${aiCoverageScore(areas) !== null ? `<div class="stat"><b>${aiCoverageScore(areas)}%</b>AI coverage score</div>` : ''}
-    ${scoreTrendText(scoreHistory) ? `<div class="stat"><b>${escapeHtml(scoreTrendText(scoreHistory)!)}</b>AI coverage trend</div>` : ''}
+    ${scoreTrendTextDated(scoreHistory) ? `<div class="stat"><b>${escapeHtml(scoreTrendTextDated(scoreHistory)!)}</b>AI coverage trend</div>` : ''}
   </div>
   ${areaSections}
   ${policies.length ? `

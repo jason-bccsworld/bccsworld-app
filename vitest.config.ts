@@ -15,6 +15,9 @@ export default defineConfig({
   },
   test: {
     environment: "node",
+    // PGlite-backed suites initialize an in-process Postgres in beforeAll;
+    // under parallel CI/validation load this can exceed the default 10s.
+    hookTimeout: 60_000,
     // Client tests opt into jsdom via a "@vitest-environment jsdom" docblock.
     include: ["server/**/*.test.ts", "client/src/**/*.test.{ts,tsx}"],
   },

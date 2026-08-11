@@ -386,6 +386,27 @@ export function scoreTrendText(history: ScoreSnapshot[], maxPoints = 5): string 
   return history.slice(-maxPoints).map((s) => `${s.score}%`).join(" → ");
 }
 
+/** Short snapshot date, e.g. "Jan 5, 2026"; empty when the date is missing/invalid. */
+export function snapshotDateText(createdAt: string | Date | null): string {
+  if (!createdAt) return "";
+  const d = createdAt instanceof Date ? createdAt : new Date(createdAt);
+  return isNaN(d.getTime())
+    ? ""
+    : d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
+/** Dated trend, e.g. "62% (Jan 5, 2026) → 91% (Feb 2, 2026)" — snapshot dates next to values. */
+export function scoreTrendTextDated(history: ScoreSnapshot[], maxPoints = 5): string | null {
+  if (history.length < 2) return null;
+  return history
+    .slice(-maxPoints)
+    .map((s) => {
+      const d = snapshotDateText(s.createdAt);
+      return d ? `${s.score}% (${d})` : `${s.score}%`;
+    })
+    .join(" → ");
+}
+
 export async function buildChecklistWorkbook(opts: {
   areas: ExportArea[];
   organization: ExportOrganization | null;
@@ -448,7 +469,7 @@ export async function buildChecklistWorkbook(opts: {
     if (score !== null) {
       summary.addRow(["AI coverage score", `${score}% (covered = full credit, partial = half; current verdicts only)`]);
     }
-    const trend = scoreTrendText(scoreHistory);
+    const trend = scoreTrendTextDated(scoreHistory);
     if (trend) {
       summary.addRow(["AI coverage score trend", `${trend} (snapshots recorded when an AI review completes)`]);
     }
